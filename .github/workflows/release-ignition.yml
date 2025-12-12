@@ -29,21 +29,23 @@ jobs:
             - name: Validate Butane configs
               run: |
                   echo "Validating Butane configuration files..."
-                  for file in butane/*.bu; do
-                    echo "Validating ${file}..."
-                    butane --strict < "${file}" > /dev/null
-                    echo "✓ ${file} is valid"
-                  done
+                  echo "Validating butane/control-plane.bu..."
+                  butane --strict < butane/control-plane.bu > /dev/null
+                  echo "✓ butane/control-plane.bu is valid"
+
+                  echo "Validating butane/worker.bu..."
+                  butane --strict < butane/worker.bu > /dev/null
+                  echo "✓ butane/worker.bu is valid"
 
             - name: Generate Ignition configs
               run: |
                   mkdir -p ignition-output
 
                   echo "Generating control-plane.ign..."
-                  cat butane/base.bu butane/control-plane.bu | butane --strict --pretty > ignition-output/control-plane.ign
+                  butane --strict --pretty < butane/control-plane.bu > ignition-output/control-plane.ign
 
                   echo "Generating worker.ign..."
-                  cat butane/base.bu butane/worker.bu | butane --strict --pretty > ignition-output/worker.ign
+                  butane --strict --pretty < butane/worker.bu > ignition-output/worker.ign
 
                   echo "Generated Ignition configs:"
                   ls -lh ignition-output/

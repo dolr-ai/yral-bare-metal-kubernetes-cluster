@@ -1,5 +1,8 @@
-# Base Butane configuration for all Fedora CoreOS nodes
-# This config is shared by both control plane and worker nodes
+# Base Butane configuration - REFERENCE ONLY
+# This file is NOT used directly. It serves as documentation for common configuration.
+# The actual configs used are:
+#   - control-plane.bu (includes all base config + control plane specific)
+#   - worker.bu (includes all base config + worker specific)
 # Butane transpiles to Ignition JSON format
 # Reference: https://coreos.github.io/butane/
 

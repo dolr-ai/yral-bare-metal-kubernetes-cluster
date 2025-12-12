@@ -1,12 +1,81 @@
 # Control Plane Butane configuration for Fedora CoreOS
-# This extends base.bu with control plane specific configuration
-# This will be merged with base.bu during transpilation
+# Complete configuration for control plane nodes
+# Butane transpiles to Ignition JSON format
+# Reference: https://coreos.github.io/butane/
 
 variant: fcos
 version: 1.5.0
 
+# Storage configuration
 storage:
   files:
+    # Enable automatic updates and reboots anytime
+    - path: /etc/zincati/config.d/55-updates-strategy.toml
+      mode: 0644
+      contents:
+        inline: |
+          [updates]
+          enabled = true
+
+    # Spread out reboots across the fleet to avoid all nodes rebooting at once
+    - path: /etc/zincati/config.d/51-rollout-wariness.toml
+      mode: 0644
+      contents:
+        inline: |
+          [identity]
+          # 0.0 = eager updates, 1.0 = very cautious
+          # 0.5 = moderate delay to spread reboots across fleet
+          rollout_wariness = 0.5
+
+    # Disable swap
+    - path: /etc/systemd/zram-generator.conf
+      mode: 0644
+      contents:
+        inline: |
+          # Disable zram swap for Kubernetes
+          [zram0]
+
+    # Kernel modules for Kubernetes
+    - path: /etc/modules-load.d/kubernetes.conf
+      mode: 0644
+      contents:
+        inline: |
+          overlay
+          br_netfilter
+
+    # Sysctl settings for Kubernetes
+    - path: /etc/sysctl.d/kubernetes.conf
+      mode: 0644
+      contents:
+        inline: |
+          net.bridge.bridge-nf-call-iptables  = 1
+          net.bridge.bridge-nf-call-ip6tables = 1
+          net.ipv4.ip_forward                 = 1
+          net.ipv4.conf.all.forwarding        = 1
+          net.ipv6.conf.all.forwarding        = 1
+          fs.inotify.max_user_watches         = 524288
+          fs.inotify.max_user_instances       = 512
+
+    # Configure chronyd for time synchronization
+    - path: /etc/chrony.conf
+      mode: 0644
+      overwrite: true
+      contents:
+        inline: |
+          pool pool.ntp.org iburst
+          driftfile /var/lib/chrony/drift
+          makestep 1.0 3
+          rtcsync
+          logdir /var/log/chrony
+
+    # Create directory for kubectl configs
+    - path: /etc/kubernetes
+      mode: 0755
+      user:
+        name: root
+      group:
+        name: root
+
     # etcd configuration
     - path: /etc/etcd/etcd.conf
       mode: 0644
@@ -23,12 +92,16 @@ storage:
           # This will be populated during cluster initialization
           # Placeholder for kubeadm init/join config
 
-    # HA control plane using DNS round-robin
-    # Configure multiple A records in Cloudflare DNS pointing to all control plane IPs
-    # Example: api.k8s.yourdomain.com -> 1.2.3.4, 1.2.3.5, 1.2.3.6
-    # Use api.k8s.yourdomain.com:6443 as the API server endpoint
-
   directories:
+    # Create necessary directories
+    - path: /var/lib/kubelet
+      mode: 0755
+    - path: /var/lib/etcd
+      mode: 0700
+    - path: /etc/kubernetes/manifests
+      mode: 0755
+    - path: /opt/cni/bin
+      mode: 0755
     - path: /etc/kubernetes/pki
       mode: 0755
     - path: /etc/etcd
@@ -36,8 +109,41 @@ storage:
     - path: /var/lib/etcd/member
       mode: 0700
 
+# System configuration
 systemd:
   units:
+    # Enable and start essential services
+    - name: chronyd.service
+      enabled: true
+
+    # Load kernel modules at boot
+    - name: systemd-modules-load.service
+      enabled: true
+
+    # Apply sysctl settings at boot
+    - name: systemd-sysctl.service
+      enabled: true
+
+    # Docker is not needed, we'll use containerd
+    - name: docker.service
+      mask: true
+
+    # Custom service to disable swap
+    - name: disable-swap.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Disable swap for Kubernetes
+        After=local-fs.target
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/sbin/swapoff -a
+        RemainAfterExit=true
+
+        [Install]
+        WantedBy=multi-user.target
+
     # Enable kubelet service (will be installed later)
     - name: kubelet.service
       enabled: true
@@ -64,3 +170,24 @@ systemd:
 
         [Install]
         WantedBy=multi-user.target
+
+# Passwd configuration
+passwd:
+  users:
+    # Core user (default Fedora CoreOS user)
+    - name: core
+      ssh_authorized_keys:
+        - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIM/H7Jp2RgC1xtg1nyzpmhzOTmUz3n+PQPsk83BzUskg github-actions@yral.com
+        - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEk4PvXhngz7NQRu/OYThH+gH/BLRzncjiAMNo16NCHV saikatdas0790@gmail.com
+      groups:
+        - wheel
+        - sudo
+        - docker
+      # Allow passwordless sudo
+      shell: /bin/bash
+
+# Kernel arguments
+kernel_arguments:
+  # Enable cgroups v2 for modern Kubernetes
+  should_exist:
+    - systemd.unified_cgroup_hierarchy=1
