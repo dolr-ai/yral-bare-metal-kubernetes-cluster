@@ -1,0 +1,66 @@
+# Control Plane Butane configuration for Fedora CoreOS
+# This extends base.bu with control plane specific configuration
+# This will be merged with base.bu during transpilation
+
+variant: fcos
+version: 1.5.0
+
+storage:
+  files:
+    # etcd configuration
+    - path: /etc/etcd/etcd.conf
+      mode: 0644
+      contents:
+        inline: |
+          # etcd configuration will be populated by provisioning script
+          # based on inventory/servers.yml
+
+    # kubeadm configuration for control plane
+    - path: /etc/kubernetes/kubeadm-config.yaml
+      mode: 0644
+      contents:
+        inline: |
+          # This will be populated during cluster initialization
+          # Placeholder for kubeadm init/join config
+
+    # HA control plane using DNS round-robin
+    # Configure multiple A records in Cloudflare DNS pointing to all control plane IPs
+    # Example: api.k8s.yourdomain.com -> 1.2.3.4, 1.2.3.5, 1.2.3.6
+    # Use api.k8s.yourdomain.com:6443 as the API server endpoint
+
+  directories:
+    - path: /etc/kubernetes/pki
+      mode: 0755
+    - path: /etc/etcd
+      mode: 0755
+    - path: /var/lib/etcd/member
+      mode: 0700
+
+systemd:
+  units:
+    # Enable kubelet service (will be installed later)
+    - name: kubelet.service
+      enabled: true
+
+    # Enable containerd service
+    - name: containerd.service
+      enabled: true
+
+    # Custom service to prepare control plane
+    - name: prepare-control-plane.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Prepare node for Kubernetes control plane
+        After=network-online.target
+        Wants=network-online.target
+        Before=kubelet.service
+        ConditionPathExists=!/var/lib/kubelet/config.yaml
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/bin/sh -c 'echo "Control plane node ready for Kubernetes installation"'
+
+        [Install]
+        WantedBy=multi-user.target

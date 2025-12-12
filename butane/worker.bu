@@ -1,0 +1,66 @@
+# Worker Node Butane configuration for Fedora CoreOS
+# This extends base.bu with worker node specific configuration
+# This will be merged with base.bu during transpilation
+
+variant: fcos
+version: 1.5.0
+
+storage:
+  files:
+    # kubeadm join configuration for worker nodes
+    - path: /etc/kubernetes/kubeadm-join-config.yaml
+      mode: 0644
+      contents:
+        inline: |
+          # This will be populated during cluster join
+          # Placeholder for kubeadm join config
+
+    # Node labels configuration
+    - path: /etc/kubernetes/node-labels.conf
+      mode: 0644
+      contents:
+        inline: |
+          # Node labels will be applied after joining cluster
+          # Populated from inventory/servers.yml
+
+    # Configure kubelet extra args for worker
+    - path: /etc/default/kubelet
+      mode: 0644
+      contents:
+        inline: |
+          KUBELET_EXTRA_ARGS="--node-labels=node-role.kubernetes.io/worker="
+
+  directories:
+    - path: /var/lib/containerd
+      mode: 0755
+    - path: /var/lib/kubelet/pods
+      mode: 0755
+
+systemd:
+  units:
+    # Enable kubelet service (will be installed later)
+    - name: kubelet.service
+      enabled: true
+
+    # Enable containerd service
+    - name: containerd.service
+      enabled: true
+
+    # Custom service to prepare worker node
+    - name: prepare-worker.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Prepare node for Kubernetes worker
+        After=network-online.target
+        Wants=network-online.target
+        Before=kubelet.service
+        ConditionPathExists=!/var/lib/kubelet/config.yaml
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/bin/sh -c 'echo "Worker node ready for Kubernetes installation"'
+
+        [Install]
+        WantedBy=multi-user.target

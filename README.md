@@ -1,1 +1,0 @@
-# yral-bare-metal-kubernetes-cluster
