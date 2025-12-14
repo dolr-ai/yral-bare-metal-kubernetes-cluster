@@ -199,6 +199,13 @@ systemd:
         [Install]
         WantedBy=multi-user.target
 
+    - name: 00-wired.network
+      contents: |
+        [Match]
+        Name=en*
+        [Network]
+        DHCP=yes
+
 # Passwd configuration
 passwd:
   users:
