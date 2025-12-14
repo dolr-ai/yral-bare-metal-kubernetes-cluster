@@ -17,8 +17,8 @@ mdadm --zero-superblock /dev/nvme1n1
 sleep 2 # Give it a moment
 
 # Confirm no RAID signatures remain
-wipefs /dev/nvme0n1
-wipefs /dev/nvme1n1
+wipefs -a /dev/nvme0n1
+wipefs -a /dev/nvme1n1
 
 # Zero out RAID superblocks on both SATA drives
 mdadm --zero-superblock /dev/sda
@@ -26,8 +26,8 @@ mdadm --zero-superblock /dev/sdb
 sleep 2 # Give it a moment
 
 # Confirm no RAID signatures remain
-wipefs /dev/sda
-wipefs /dev/sdb
+wipefs -a /dev/sda
+wipefs -a /dev/sdb
 
 GITHUB_REPO="dolr-ai/yral-bare-metal-kubernetes-cluster"
 LATEST_RELEASE=$(curl -s "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
