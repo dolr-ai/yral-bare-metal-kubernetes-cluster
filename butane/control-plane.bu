@@ -1,6 +1,16 @@
 variant: fcos
 version: 1.6.0
 
+storage:
+  files:
+    # Kernel modules for Kubernetes
+    - path: /etc/modules-load.d/kubernetes.conf
+      mode: 0644
+      contents:
+        inline: |
+          overlay
+          br_netfilter
+
 passwd:
   users:
     - name: core
