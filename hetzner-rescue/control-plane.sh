@@ -17,8 +17,8 @@ apt install podman -y
 # sleep 2 # Give it a moment
 
 # Confirm no RAID signatures remain
-wipefs -a /dev/nvme0n1
-wipefs -a /dev/nvme1n1
+# wipefs -a /dev/nvme0n1
+# wipefs -a /dev/nvme1n1
 
 # Zero out RAID superblocks on both SATA drives
 # mdadm --zero-superblock /dev/sda
@@ -26,10 +26,10 @@ wipefs -a /dev/nvme1n1
 # sleep 2 # Give it a moment
 
 # Confirm no RAID signatures remain
-wipefs -a /dev/sda
-wipefs -a /dev/sdb
+# wipefs -a /dev/sda
+# wipefs -a /dev/sdb
 
-sleep 5
+# sleep 5
 
 GITHUB_REPO="dolr-ai/yral-bare-metal-kubernetes-cluster"
 LATEST_RELEASE=$(curl -s "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
