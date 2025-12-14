@@ -117,6 +117,16 @@ storage:
             # Disable automatic node eviction
             nodeDownPodDeletionPolicy: do-nothing
 
+    # systemd-networkd configuration for DHCP
+    - path: /etc/systemd/network/00-wired.network
+      mode: 0644
+      contents:
+        inline: |
+          [Match]
+          Name=en*
+          [Network]
+          DHCP=yes
+
   directories:
     # Create necessary directories
     - path: /var/lib/kubelet
@@ -198,13 +208,6 @@ systemd:
 
         [Install]
         WantedBy=multi-user.target
-
-    - name: 00-wired.network
-      contents: |
-        [Match]
-        Name=en*
-        [Network]
-        DHCP=yes
 
 # Passwd configuration
 passwd:
