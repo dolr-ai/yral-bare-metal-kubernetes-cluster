@@ -1,34 +1,39 @@
 export DEBIAN_FRONTEND=noninteractive
-apt update && apt full-upgrade -y && apt autoremove -y
+# apt update && apt full-upgrade -y && apt autoremove -y
 
 curl --request GET -sL \
        --url "https://github.com/coreos/butane/releases/download/v0.25.1/butane-$(uname -m)-unknown-linux-gnu"\
        --output "/usr/local/bin/butane"
 chmod +x /usr/local/bin/butane
 
-apt install podman -y
+apt update && apt install podman -y
 
 # mdadm --stop /dev/md0
 # sleep 2 # Give it a moment
 
-# Zero out RAID superblocks on both NVMe drives
+# # Zero out RAID superblocks on both NVMe drives
 # mdadm --zero-superblock /dev/nvme0n1
 # mdadm --zero-superblock /dev/nvme1n1
 # sleep 2 # Give it a moment
 
-# Confirm no RAID signatures remain
+# # Confirm no RAID signatures remain and wipe them
 # wipefs -a /dev/nvme0n1
+# dd if=/dev/zero of=/dev/nvme0n1 bs=512 count=1  # Zero partition table
 # wipefs -a /dev/nvme1n1
+# dd if=/dev/zero of=/dev/nvme1n1 bs=512 count=1  # Zero partition table
 
-# Zero out RAID superblocks on both SATA drives
+# # Zero out RAID superblocks on both SATA drives
 # mdadm --zero-superblock /dev/sda
 # mdadm --zero-superblock /dev/sdb
 # sleep 2 # Give it a moment
 
-# Confirm no RAID signatures remain
+# # Confirm no RAID signatures remain and wipe them
 # wipefs -a /dev/sda
+# dd if=/dev/zero of=/dev/sda bs=512 count=1  # Zero partition table
 # wipefs -a /dev/sdb
+# dd if=/dev/zero of=/dev/sdb bs=512 count=1  # Zero partition table
 
+# partprobe  # Inform kernel of partition changes
 # sleep 5
 
 GITHUB_REPO="dolr-ai/yral-bare-metal-kubernetes-cluster"
