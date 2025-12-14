@@ -8,26 +8,28 @@ chmod +x /usr/local/bin/butane
 
 apt install podman -y
 
-mdadm --stop /dev/md0
-sleep 2 # Give it a moment
+# mdadm --stop /dev/md0
+# sleep 2 # Give it a moment
 
 # Zero out RAID superblocks on both NVMe drives
-mdadm --zero-superblock /dev/nvme0n1
-mdadm --zero-superblock /dev/nvme1n1
-sleep 2 # Give it a moment
+# mdadm --zero-superblock /dev/nvme0n1
+# mdadm --zero-superblock /dev/nvme1n1
+# sleep 2 # Give it a moment
 
 # Confirm no RAID signatures remain
 wipefs -a /dev/nvme0n1
 wipefs -a /dev/nvme1n1
 
 # Zero out RAID superblocks on both SATA drives
-mdadm --zero-superblock /dev/sda
-mdadm --zero-superblock /dev/sdb
-sleep 2 # Give it a moment
+# mdadm --zero-superblock /dev/sda
+# mdadm --zero-superblock /dev/sdb
+# sleep 2 # Give it a moment
 
 # Confirm no RAID signatures remain
 wipefs -a /dev/sda
 wipefs -a /dev/sdb
+
+sleep 5
 
 GITHUB_REPO="dolr-ai/yral-bare-metal-kubernetes-cluster"
 LATEST_RELEASE=$(curl -s "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
