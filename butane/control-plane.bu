@@ -8,6 +8,16 @@ version: 1.5.0
 
 # Storage configuration
 storage:
+  disks:
+    # Configure nvme1n1 for Longhorn - wipe partitions but don't format
+    - device: /dev/nvme1n1
+      wipe_table: true
+      partitions:
+        - number: 1
+          size_mib: 0  # Use entire disk
+          label: longhorn-nvme1n1
+          type_guid: 0FC63DAF-8483-4772-8E79-3D69D8477DE4  # Linux filesystem data
+
   files:
     # Enable automatic updates and reboots anytime
     - path: /etc/zincati/config.d/55-updates-strategy.toml
@@ -92,6 +102,21 @@ storage:
           # This will be populated during cluster initialization
           # Placeholder for kubeadm init/join config
 
+    # Create fstab (but don't mount the Longhorn devices here)
+    - path: /etc/fstab
+      mode: 0644
+      contents:
+        inline: |
+          # /etc/fstab: static file system information.
+          #
+          # <file system> <mount point>   <type>  <options>       <dump>  <pass>
+          # Longhorn devices will be managed by Longhorn CSI
+          # /dev/disk/by-label/longhorn-nvme1n1
+          # is reserved for Longhorn and should not be mounted manually
+
+            # Disable automatic node eviction
+            nodeDownPodDeletionPolicy: do-nothing
+
   directories:
     # Create necessary directories
     - path: /var/lib/kubelet
@@ -108,6 +133,9 @@ storage:
       mode: 0755
     - path: /var/lib/etcd/member
       mode: 0700
+    # Create Longhorn config directory
+    - path: /etc/longhorn
+      mode: 0755
 
 # System configuration
 systemd:
@@ -166,7 +194,7 @@ systemd:
         [Service]
         Type=oneshot
         RemainAfterExit=yes
-        ExecStart=/bin/sh -c 'echo "Control plane node ready for Kubernetes installation"'
+        ExecStart=/bin/sh -c 'echo "Control plane node ready for Kubernetes installation. Longhorn device available: /dev/disk/by-label/longhorn-nvme1n1"'
 
         [Install]
         WantedBy=multi-user.target
