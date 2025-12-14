@@ -90,7 +90,7 @@ jobs:
                       sha256sum -c SHA256SUMS
 
                       # Use with coreos-installer
-                      coreos-installer install /dev/md0 \
+                      coreos-installer install /dev/nvme0n1 \
                         --ignition-file control-plane.ign \
                         --stream stable \
                         --architecture x86_64
@@ -98,7 +98,7 @@ jobs:
 
                       ### Installation:
                       1. Boot Hetzner server into rescue mode
-                      2. Create RAID0: `mdadm --create /dev/md0 --level=0 --raid-devices=2 /dev/nvme0n1 /dev/nvme1n1`
+                      2. Wipe disks if needed (e.g., `wipefs /dev/nvme0n1 /dev/nvme1n1`)
                       3. Download Ignition config
                       4. Run coreos-installer
                       5. Reboot
