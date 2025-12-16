@@ -1,10 +1,12 @@
 export DEBIAN_FRONTEND=noninteractive
 # apt update && apt full-upgrade -y && apt autoremove -y
 
-curl --request GET -sL \
-       --url "https://github.com/coreos/butane/releases/download/v0.25.1/butane-$(uname -m)-unknown-linux-gnu"\
-       --output "/usr/local/bin/butane"
-chmod +x /usr/local/bin/butane
+# curl --request GET -sL \
+#        --url "https://github.com/coreos/butane/releases/download/v0.25.1/butane-$(uname -m)-unknown-linux-gnu"\
+#        --output "/usr/local/bin/butane"
+# chmod +x /usr/local/bin/butane
+#
+# podman run --rm -i quay.io/coreos/butane:release < config.bu > config.ign
 
 apt update && apt install podman -y
 
