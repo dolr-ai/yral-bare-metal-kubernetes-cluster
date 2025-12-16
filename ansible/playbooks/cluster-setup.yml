@@ -26,19 +26,6 @@
             delay: 30
             timeout: 300
 
-      - name: Install required packages via rpm-ostree
-        raw: rpm-ostree install -y containerd kubelet-{{ kubernetes_version }} kubeadm-{{ kubernetes_version }} kubectl-{{ kubernetes_version }} helm
-        become: true
-
-      - name: Reboot to apply package layering
-        raw: shutdown -r now
-        ignore_errors: true
-
-      - name: Wait for connection after package reboot
-        wait_for_connection:
-            delay: 30
-            timeout: 300
-
       - name: Start and enable containerd
         systemd:
             name: containerd
