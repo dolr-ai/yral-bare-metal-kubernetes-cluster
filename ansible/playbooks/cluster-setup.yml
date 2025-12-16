@@ -6,3 +6,19 @@
       - name: Hello World
         debug:
             msg: "Hello World"
+
+      - name: Ping control plane machines
+        ping:
+        delegate_to: "{{ item }}"
+        loop:
+            - kubernetes-control-plane-1
+            - kubernetes-control-plane-2
+            - kubernetes-control-plane-3
+
+      - name: Ping worker machines
+        ping:
+        delegate_to: "{{ item }}"
+        loop:
+            - kubernetes-worker-1
+            - kubernetes-worker-2
+            - kubernetes-worker-3
