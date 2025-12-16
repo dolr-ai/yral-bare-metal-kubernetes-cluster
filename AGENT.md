@@ -12,3 +12,4 @@ I am setting up Hetzner Robot bare metal nodes for use with the Kubernetes Clust
 - I want the management cluster to also reside on the bare metal instances. We'll start with 3. Everything on bare metal
 - 3 control plane node machines initialized
 - Step by step next instructions
+- Make 1 change at a time

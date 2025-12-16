@@ -1,24 +1,145 @@
 ---
-- name: Set up Kubernetes cluster
+- name: Bootstrap Kubernetes cluster with Cilium CNI and Longhorn CSI
   hosts: all
   become: true
+  vars:
+      kubernetes_version: "1.31.0" # Latest stable as of now; update as needed
+      cilium_version: "1.16.0" # Latest stable
+      longhorn_version: "1.7.0" # Latest stable
+      second_disk: "/dev/nvme1n1" # Adjust to /dev/sdb if SATA
+      cluster_name: "my-cluster"
+      pod_network_cidr: "10.244.0.0/16" # For Cilium
+
+  pre_tasks:
+      - name: Update package cache
+        dnf:
+            update_cache: yes
+
+      - name: Install required packages
+        dnf:
+            name:
+                - containerd
+                - kubelet-{{ kubernetes_version }}
+                - kubeadm-{{ kubernetes_version }}
+                - kubectl-{{ kubernetes_version }}
+                - helm
+            state: present
+
+      - name: Start and enable containerd
+        systemd:
+            name: containerd
+            state: started
+            enabled: yes
+
+      - name: Configure containerd for Kubernetes
+        copy:
+            dest: /etc/containerd/config.toml
+            content: |
+                [plugins."io.containerd.grpc.v1.cri"]
+                  sandbox_image = "registry.k8s.io/pause:3.10"
+        notify: restart containerd
+
+      - name: Enable kubelet
+        systemd:
+            name: kubelet
+            state: started
+            enabled: yes
+
+      - name: Disable swap
+        command: swapoff -a
+        ignore_errors: true
+
+      - name: Remove swap from fstab
+        lineinfile:
+            path: /etc/fstab
+            regexp: "^/swapfile"
+            state: absent
+
+      - name: Configure sysctl for Kubernetes
+        sysctl:
+            name: "{{ item }}"
+            value: 1
+            state: present
+        loop:
+            - net.bridge.bridge-nf-call-iptables
+            - net.bridge.bridge-nf-call-ip6tables
+            - net.ipv4.ip_forward
+
+      - name: Prepare second disk for Longhorn
+        block:
+            - name: Wipe disk
+              command: wipefs -a {{ second_disk }}
+            - name: Create GPT label
+              command: parted {{ second_disk }} mklabel gpt
+            - name: Create single partition
+              command: parted -a optimal {{ second_disk }} mkpart primary 0% 100%
+        when: inventory_hostname in groups['control_plane'] or inventory_hostname in groups['worker_nodes']
+
   tasks:
-      - name: Hello World
-        debug:
-            msg: "Hello World"
+      - name: Initialize Kubernetes cluster on first control plane
+        command: kubeadm init --pod-network-cidr={{ pod_network_cidr }} --control-plane-endpoint={{ hostvars['kubernetes-control-plane-1']['ansible_host'] }}:6443 --upload-certs
+        when: inventory_hostname == 'kubernetes-control-plane-1'
+        register: kubeadm_init
 
-      - name: Ping control plane machines
-        ping:
-        delegate_to: "{{ item }}"
-        loop:
-            - kubernetes-control-plane-1
-            - kubernetes-control-plane-2
-            - kubernetes-control-plane-3
+      - name: Save kubeconfig for root
+        copy:
+            content: "{{ kubeadm_init.stdout_lines | select('match', '^.*kubeconfig.*$') | first | regex_replace('.*(--kubeconfig=)(.*)', '\\2') }}"
+            dest: /root/.kube/config
+        when: inventory_hostname == 'kubernetes-control-plane-1' and kubeadm_init.changed
 
-      - name: Ping worker machines
-        ping:
-        delegate_to: "{{ item }}"
-        loop:
-            - kubernetes-worker-1
-            - kubernetes-worker-2
-            - kubernetes-worker-3
+      - name: Get join command for control plane
+        command: kubeadm token create --print-join-command
+        when: inventory_hostname == 'kubernetes-control-plane-1'
+        register: join_command_cp
+        changed_when: false
+
+      - name: Join additional control planes
+        command: "{{ join_command_cp.stdout }} --control-plane"
+        when: inventory_hostname in ['kubernetes-control-plane-2', 'kubernetes-control-plane-3']
+
+      - name: Get join command for workers
+        command: kubeadm token create --print-join-command
+        when: inventory_hostname == 'kubernetes-control-plane-1'
+        register: join_command_worker
+        changed_when: false
+
+      - name: Join worker nodes
+        command: "{{ join_command_worker.stdout }}"
+        when: inventory_hostname in groups['worker_nodes']
+
+      - name: Install Cilium CNI
+        command: |
+            helm repo add cilium https://helm.cilium.io/
+            helm repo update
+            helm install cilium cilium/cilium --version {{ cilium_version }} \
+              --namespace kube-system \
+              --set kubeProxyReplacement=true \
+              --set k8sServiceHost={{ hostvars['kubernetes-control-plane-1']['ansible_host'] }} \
+              --set k8sServicePort=6443
+        when: inventory_hostname == 'kubernetes-control-plane-1'
+        environment:
+            KUBECONFIG: /root/.kube/config
+
+      - name: Install Longhorn CSI
+        command: |
+            helm repo add longhorn https://charts.longhorn.io
+            helm repo update
+            helm install longhorn longhorn/longhorn --version {{ longhorn_version }} \
+              --namespace longhorn-system --create-namespace \
+              --set defaultSettings.defaultReplicaCount=2 \
+              --set persistence.defaultClassReplicaCount=2
+        when: inventory_hostname == 'kubernetes-control-plane-1'
+        environment:
+            KUBECONFIG: /root/.kube/config
+
+      - name: Wait for cluster readiness
+        command: kubectl wait --for=condition=Ready nodes --all --timeout=300s
+        when: inventory_hostname == 'kubernetes-control-plane-1'
+        environment:
+            KUBECONFIG: /root/.kube/config
+
+  handlers:
+      - name: restart containerd
+        systemd:
+            name: containerd
+            state: restarted
