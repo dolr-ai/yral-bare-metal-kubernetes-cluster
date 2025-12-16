@@ -17,9 +17,13 @@
         become: true
 
       - name: Reboot to apply layering
-        reboot:
-            reboot_timeout: 300
-            post_reboot_delay: 30
+        raw: shutdown -r now
+        ignore_errors: true
+
+      - name: Wait for connection after reboot
+        wait_for_connection:
+            delay: 30
+            timeout: 300
 
       - name: Update package cache
         dnf:
