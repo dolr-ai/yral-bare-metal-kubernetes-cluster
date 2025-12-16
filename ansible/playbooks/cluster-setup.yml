@@ -2,6 +2,7 @@
 - name: Bootstrap Kubernetes cluster with Cilium CNI and Longhorn CSI
   hosts: all
   become: true
+  gather_facts: false
   vars:
       kubernetes_version: "1.31.0" # Latest stable as of now; update as needed
       cilium_version: "1.16.0" # Latest stable
@@ -11,6 +12,10 @@
       pod_network_cidr: "10.244.0.0/16" # For Cilium
 
   pre_tasks:
+      - name: Install Python3
+        raw: dnf install -y python3
+        become: true
+
       - name: Update package cache
         dnf:
             update_cache: yes
@@ -81,31 +86,35 @@
         when: inventory_hostname == 'kubernetes-control-plane-1'
         register: kubeadm_init
 
-      - name: Save kubeconfig for root
+      - name: Copy kubeconfig to root
         copy:
-            content: "{{ kubeadm_init.stdout_lines | select('match', '^.*kubeconfig.*$') | first | regex_replace('.*(--kubeconfig=)(.*)', '\\2') }}"
+            src: /etc/kubernetes/admin.conf
             dest: /root/.kube/config
-        when: inventory_hostname == 'kubernetes-control-plane-1' and kubeadm_init.changed
+        when: inventory_hostname == 'kubernetes-control-plane-1'
 
-      - name: Get join command for control plane
+      - name: Create join command for control planes
         command: kubeadm token create --print-join-command
         when: inventory_hostname == 'kubernetes-control-plane-1'
-        register: join_command_cp
-        changed_when: false
+        register: join_cp
 
       - name: Join additional control planes
-        command: "{{ join_command_cp.stdout }} --control-plane"
-        when: inventory_hostname in ['kubernetes-control-plane-2', 'kubernetes-control-plane-3']
+        command: "{{ join_cp.stdout }} --control-plane"
+        delegate_to: "{{ item }}"
+        loop:
+            - kubernetes-control-plane-2
+            - kubernetes-control-plane-3
+        when: inventory_hostname == 'kubernetes-control-plane-1'
 
-      - name: Get join command for workers
+      - name: Create join command for workers
         command: kubeadm token create --print-join-command
         when: inventory_hostname == 'kubernetes-control-plane-1'
-        register: join_command_worker
-        changed_when: false
+        register: join_worker
 
       - name: Join worker nodes
-        command: "{{ join_command_worker.stdout }}"
-        when: inventory_hostname in groups['worker_nodes']
+        command: "{{ join_worker.stdout }}"
+        delegate_to: "{{ item }}"
+        loop: "{{ groups['worker_nodes'] }}"
+        when: inventory_hostname == 'kubernetes-control-plane-1'
 
       - name: Install Cilium CNI
         command: |
