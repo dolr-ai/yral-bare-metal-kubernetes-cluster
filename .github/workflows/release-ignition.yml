@@ -100,7 +100,6 @@ jobs:
                       ${{ github.event.head_commit.message }}
                   files: |
                       ignition-output/node.ign
-                      ignition-output/worker.ign
                       ignition-output/SHA256SUMS
                   draft: false
                   prerelease: false
