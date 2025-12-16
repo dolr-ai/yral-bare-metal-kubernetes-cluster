@@ -15,6 +15,7 @@
       - name: Install python3
         raw: rpm-ostree install -y python3
         become: true
+        ignore_errors: true
 
       - name: Reboot to apply layering
         raw: shutdown -r now
