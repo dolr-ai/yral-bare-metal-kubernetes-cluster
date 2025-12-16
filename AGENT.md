@@ -1,6 +1,7 @@
 I am setting up Hetzner Robot bare metal nodes with Kubernetes. 
 
 - We will do everything as declaratively as possible using the Kubernetes Cluster API.
+- Use Hetzner Robot bare metal nodes with Kubernetes using the Cluster API Provider Hetzner (CAPH).
 - We will use Cilium as the CNI and Longhorn as the CSI. please help setup the cluster.
 - I want to use maximum Kubernetes native features instead of any provider specific feature. So preferable to use bare metal cluster api provider instead of caph which is hetzner specific
 - Data replication of 2 with Longhorn CSI
