@@ -29,6 +29,7 @@
       - name: Update package cache
         dnf:
             update_cache: yes
+            use_backend: dnf5
 
       - name: Install required packages
         dnf:
@@ -39,6 +40,7 @@
                 - kubectl-{{ kubernetes_version }}
                 - helm
             state: present
+            use_backend: dnf5
 
       - name: Start and enable containerd
         systemd:
