@@ -2,7 +2,7 @@
 - name: Bootstrap Kubernetes cluster with Cilium CNI and Longhorn CSI
   hosts: all
   become: true
-  gather_facts: true
+  gather_facts: false
   vars:
       kubernetes_version: "1.31.0" # Latest stable as of now; update as needed
       cilium_version: "1.16.0" # Latest stable
@@ -12,6 +12,15 @@
       pod_network_cidr: "10.244.0.0/16" # For Cilium
 
   pre_tasks:
+      - name: Install python3
+        raw: rpm-ostree install -y python3
+        become: true
+
+      - name: Reboot to apply layering
+        reboot:
+            reboot_timeout: 300
+            post_reboot_delay: 30
+
       - name: Update package cache
         dnf:
             update_cache: yes
