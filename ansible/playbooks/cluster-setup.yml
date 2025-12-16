@@ -2,7 +2,7 @@
 - name: Bootstrap Kubernetes cluster with Cilium CNI and Longhorn CSI
   hosts: all
   become: true
-  gather_facts: false
+  gather_facts: true
   vars:
       kubernetes_version: "1.31.0" # Latest stable as of now; update as needed
       cilium_version: "1.16.0" # Latest stable
