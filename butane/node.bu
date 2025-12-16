@@ -1,5 +1,7 @@
 variant: fcos
 version: 1.6.0
+packages:
+  - python3
 
 passwd:
   users:
