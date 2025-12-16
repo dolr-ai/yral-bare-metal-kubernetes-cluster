@@ -12,10 +12,6 @@
       pod_network_cidr: "10.244.0.0/16" # For Cilium
 
   pre_tasks:
-      - name: Install Python3
-        raw: dnf install -y python3
-        become: true
-
       - name: Update package cache
         dnf:
             update_cache: yes
