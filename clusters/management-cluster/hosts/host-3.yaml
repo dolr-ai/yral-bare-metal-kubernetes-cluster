@@ -1,0 +1,11 @@
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: HetznerBareMetalHost
+metadata:
+    name: caph-baremetal-server-3
+    namespace: default
+spec:
+    description: CAPH BareMetal Server 3
+    serverID: 2853206
+    maintenanceMode: false
+    rootDeviceHints:
+        wwn: "eui.00000000000000018ce38e0100089b8c"

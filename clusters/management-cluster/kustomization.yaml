@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+    - hosts/host-1.yaml
+    - hosts/host-2.yaml
+    - hosts/host-3.yaml
+    - my-cluster.yaml

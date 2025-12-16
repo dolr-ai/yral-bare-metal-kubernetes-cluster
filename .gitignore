@@ -1,3 +1,5 @@
 .env
 .envrc
 .envrc.bak
+ssh/
+*-kubeconfig.yaml
