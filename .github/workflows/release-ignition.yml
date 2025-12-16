@@ -6,6 +6,7 @@ on:
             - main
         paths:
             - "butane/**"
+            - ".github/workflows/release-ignition.yml"
 
 permissions:
     contents: write
