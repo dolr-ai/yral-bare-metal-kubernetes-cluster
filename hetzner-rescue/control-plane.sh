@@ -41,7 +41,7 @@ LATEST_RELEASE=$(curl -s "https://api.github.com/repos/${GITHUB_REPO}/releases/l
 
 echo "Latest release: ${LATEST_RELEASE}"
 
-curl -sLO "https://github.com/${GITHUB_REPO}/releases/download/${LATEST_RELEASE}/control-plane.ign"
+curl -sLO "https://github.com/${GITHUB_REPO}/releases/download/${LATEST_RELEASE}/node.ign"
 curl -sLO "https://github.com/${GITHUB_REPO}/releases/download/${LATEST_RELEASE}/SHA256SUMS"
 
 # Verify the checksum (important!)
@@ -52,6 +52,6 @@ podman run --pull=always --privileged --rm \
   -v /dev:/dev -v /run/udev:/run/udev -v $(pwd):/data -w /data \
   quay.io/coreos/coreos-installer:release \
   install /dev/nvme0n1 \
-  --ignition-file control-plane.ign \
+  --ignition-file node.ign \
   --stream stable \
   --architecture x86_64

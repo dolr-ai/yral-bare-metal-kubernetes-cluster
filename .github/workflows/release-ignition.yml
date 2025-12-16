@@ -29,9 +29,9 @@ jobs:
             - name: Validate Butane configs
               run: |
                   echo "Validating Butane configuration files..."
-                  echo "Validating butane/control-plane.bu..."
-                  butane --strict < butane/control-plane.bu > /dev/null
-                  echo "✓ butane/control-plane.bu is valid"
+                  echo "Validating butane/node.bu..."
+                  butane --strict < butane/node.bu > /dev/null
+                  echo "✓ butane/node.bu is valid"
 
                   echo "Validating butane/worker.bu..."
                   butane --strict < butane/worker.bu > /dev/null
@@ -41,8 +41,8 @@ jobs:
               run: |
                   mkdir -p ignition-output
 
-                  echo "Generating control-plane.ign..."
-                  butane --strict --pretty < butane/control-plane.bu > ignition-output/control-plane.ign
+                  echo "Generating node.ign..."
+                  butane --strict --pretty < butane/node.bu > ignition-output/node.ign
 
                   echo "Generating worker.ign..."
                   butane --strict --pretty < butane/worker.bu > ignition-output/worker.ign
@@ -75,7 +75,7 @@ jobs:
                       **Commit:** ${{ github.sha }}
 
                       ### Files:
-                      - `control-plane.ign` - For control plane nodes (3 nodes)
+                      - `node.ign` - For control plane nodes (3 nodes)
                       - `worker.ign` - For worker nodes (4 nodes)
                       - `SHA256SUMS` - Checksums for verification
 
@@ -83,7 +83,7 @@ jobs:
 
                       ```bash
                       # Download Ignition config
-                      curl -sLO https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/control-plane.ign
+                      curl -sLO https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/node.ign
 
                       # Verify checksum
                       curl -sLO https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/SHA256SUMS
@@ -91,7 +91,7 @@ jobs:
 
                       # Use with coreos-installer
                       coreos-installer install /dev/nvme0n1 \
-                        --ignition-file control-plane.ign \
+                        --ignition-file node.ign \
                         --stream stable \
                         --architecture x86_64
                       ```
@@ -106,7 +106,7 @@ jobs:
                       ### Changes:
                       ${{ github.event.head_commit.message }}
                   files: |
-                      ignition-output/control-plane.ign
+                      ignition-output/node.ign
                       ignition-output/worker.ign
                       ignition-output/SHA256SUMS
                   draft: false
@@ -121,6 +121,6 @@ jobs:
                   echo "" >> $GITHUB_STEP_SUMMARY
                   echo "### Download URLs:" >> $GITHUB_STEP_SUMMARY
                   echo '```' >> $GITHUB_STEP_SUMMARY
-                  echo "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/control-plane.ign" >> $GITHUB_STEP_SUMMARY
+                  echo "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/node.ign" >> $GITHUB_STEP_SUMMARY
                   echo "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/worker.ign" >> $GITHUB_STEP_SUMMARY
                   echo '```' >> $GITHUB_STEP_SUMMARY
