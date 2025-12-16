@@ -33,19 +33,12 @@ jobs:
                   butane --strict < butane/node.bu > /dev/null
                   echo "✓ butane/node.bu is valid"
 
-                  echo "Validating butane/worker.bu..."
-                  butane --strict < butane/worker.bu > /dev/null
-                  echo "✓ butane/worker.bu is valid"
-
             - name: Generate Ignition configs
               run: |
                   mkdir -p ignition-output
 
                   echo "Generating node.ign..."
                   butane --strict --pretty < butane/node.bu > ignition-output/node.ign
-
-                  echo "Generating worker.ign..."
-                  butane --strict --pretty < butane/worker.bu > ignition-output/worker.ign
 
                   echo "Generated Ignition configs:"
                   ls -lh ignition-output/
@@ -76,7 +69,6 @@ jobs:
 
                       ### Files:
                       - `node.ign` - For control plane nodes (3 nodes)
-                      - `worker.ign` - For worker nodes (4 nodes)
                       - `SHA256SUMS` - Checksums for verification
 
                       ### Usage:
