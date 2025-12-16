@@ -26,21 +26,18 @@
             delay: 30
             timeout: 300
 
-      - name: Update package cache
-        dnf:
-            update_cache: yes
-            use_backend: dnf5
+      - name: Install required packages via rpm-ostree
+        raw: rpm-ostree install -y containerd kubelet-{{ kubernetes_version }} kubeadm-{{ kubernetes_version }} kubectl-{{ kubernetes_version }} helm
+        become: true
 
-      - name: Install required packages
-        dnf:
-            name:
-                - containerd
-                - kubelet-{{ kubernetes_version }}
-                - kubeadm-{{ kubernetes_version }}
-                - kubectl-{{ kubernetes_version }}
-                - helm
-            state: present
-            use_backend: dnf5
+      - name: Reboot to apply package layering
+        raw: shutdown -r now
+        ignore_errors: true
+
+      - name: Wait for connection after package reboot
+        wait_for_connection:
+            delay: 30
+            timeout: 300
 
       - name: Start and enable containerd
         systemd:
