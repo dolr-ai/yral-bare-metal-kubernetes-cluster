@@ -1,0 +1,8 @@
+---
+- name: Set up Kubernetes cluster
+  hosts: all
+  become: true
+  tasks:
+      - name: Hello World
+        debug:
+            msg: "Hello World"
