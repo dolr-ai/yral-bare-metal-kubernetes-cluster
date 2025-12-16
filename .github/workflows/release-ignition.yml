@@ -20,18 +20,11 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v6
 
-            - name: Install butane
-              run: |
-                  BUTANE_VERSION="v0.25.1"
-                  curl -sL "https://github.com/coreos/butane/releases/download/${BUTANE_VERSION}/butane-x86_64-unknown-linux-gnu" -o /usr/local/bin/butane
-                  sudo chmod +x /usr/local/bin/butane
-                  butane --version
-
             - name: Validate Butane configs
               run: |
                   echo "Validating Butane configuration files..."
                   echo "Validating butane/node.bu..."
-                  butane --strict < butane/node.bu > /dev/null
+                  podman run --rm -i quay.io/coreos/butane:release --strict < butane/node.bu > /dev/null
                   echo "✓ butane/node.bu is valid"
 
             - name: Generate Ignition configs
@@ -39,7 +32,7 @@ jobs:
                   mkdir -p ignition-output
 
                   echo "Generating node.ign..."
-                  butane --strict --pretty < butane/node.bu > ignition-output/node.ign
+                  podman run --rm -i quay.io/coreos/butane:release --strict --pretty < butane/node.bu > ignition-output/node.ign
 
                   echo "Generated Ignition configs:"
                   ls -lh ignition-output/
