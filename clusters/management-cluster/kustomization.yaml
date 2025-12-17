@@ -4,4 +4,4 @@ resources:
     - hosts/host-1.yaml
     - hosts/host-2.yaml
     - hosts/host-3.yaml
-    - my-cluster.yaml
+    - cluster-default.yaml
