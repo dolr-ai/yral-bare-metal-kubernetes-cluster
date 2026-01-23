@@ -94,6 +94,24 @@
             done
           args:
             executable: /bin/bash
+          register: available_drive_result
+          changed_when: false
+          failed_when: false
+          when: root_fs_type.stdout == "btrfs"
+
+        - name: Set available drive
+          set_fact:
+            second_drive: "{{ available_drive_result.stdout | trim }}"
+          when: root_fs_type.stdout == "btrfs" and available_drive_result.stdout != ""
+
+        - name: Display available drive
+          debug:
+            msg: "Available unused drive: {{ second_drive }}"
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive != ""
+
+        - name: Skip if no available drive found
+          debug:
+            msg: "No unused drive found. All drives are already in use."
           when: root_fs_type.stdout == "btrfs" and (second_drive is not defined or second_drive == "")
 
         - name: Check if available drive exists
