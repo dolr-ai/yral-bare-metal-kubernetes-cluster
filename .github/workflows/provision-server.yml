@@ -275,9 +275,17 @@ jobs:
 
           echo "Running Ubuntu installation script..."
           ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" root@$server_ip \
-            "curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install-ubuntu.sh | MACHINE_HOSTNAME='$hostname' DRIVE_TO_USE='$drive_type' bash && sleep 5 && reboot" || true
+            "curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install-ubuntu.sh | MACHINE_HOSTNAME='$hostname' DRIVE_TO_USE='$drive_type' bash"
 
-          echo "Installation script executed, server is rebooting..."
+          if [ $? -eq 0 ]; then
+            echo "✅ Installation completed successfully"
+            echo "Rebooting server..."
+            ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" root@$server_ip "reboot" || true
+            echo "Reboot command sent"
+          else
+            echo "❌ Installation failed"
+            exit 1
+          fi
 
       - name: Wait for server to reboot into Ubuntu
         run: |
