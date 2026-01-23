@@ -359,6 +359,20 @@ jobs:
             playbooks/ssh-security.yml \
             -v
 
+      - name: Run containerd setup playbook
+        run: |
+          ansible-playbook -i inventory/hosts.yml \
+            --limit ${{ github.event.inputs.target_host }} \
+            playbooks/containerd-setup.yml \
+            -v
+
+      - name: Run kubeadm installation playbook
+        run: |
+          ansible-playbook -i inventory/hosts.yml \
+            --limit ${{ github.event.inputs.target_host }} \
+            playbooks/kubeadm-install.yml \
+            -v
+
       - name: Create job summary
         if: always()
         run: |
@@ -377,6 +391,8 @@ jobs:
           5. ✅ Ran system updates and configuration
           6. ✅ Expanded btrfs to second drive (if available)
           7. ✅ Hardened SSH security (disabled password auth)
+          8. ✅ Installed and configured containerd v1.7.x
+          9. ✅ Installed kubeadm, kubelet, and kubectl v1.35.0
 
           ### Next Steps
 
@@ -385,5 +401,20 @@ jobs:
           ssh root@${{ steps.get-ip.outputs.server_ip }}
           \`\`\`
 
-          The server is now ready for Kubernetes installation.
+          The server is now ready for Kubernetes cluster initialization.
+
+          **Verify installation:**
+          \`\`\`bash
+          # Check containerd
+          systemctl status containerd
+
+          # Check kubeadm version
+          kubeadm version
+
+          # Verify no swap is enabled
+          swapon --show
+
+          # Check held packages
+          apt-mark showhold
+          \`\`\`
           SUMMARY
