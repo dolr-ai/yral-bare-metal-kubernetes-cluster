@@ -1,0 +1,79 @@
+---
+- name: SSH Security Hardening
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Ensure authorized_keys exists for root
+      stat:
+        path: /root/.ssh/authorized_keys
+      register: authorized_keys_stat
+
+    - name: Fail if no authorized_keys found
+      fail:
+        msg: "No authorized_keys file found for root user. SSH key authentication must be configured first."
+      when: not authorized_keys_stat.stat.exists
+
+    - name: Check authorized_keys has content
+      shell: cat /root/.ssh/authorized_keys | grep -v '^#' | grep -v '^$' | wc -l
+      register: key_count
+      changed_when: false
+
+    - name: Fail if authorized_keys is empty
+      fail:
+        msg: "authorized_keys file is empty. At least one SSH key must be configured."
+      when: key_count.stdout | int == 0
+
+    - name: Display number of SSH keys
+      debug:
+        msg: "Found {{ key_count.stdout }} SSH key(s) in authorized_keys"
+
+    - name: Disable password authentication in sshd_config
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PasswordAuthentication"
+        line: "PasswordAuthentication no"
+        state: present
+        backup: yes
+      notify: Restart SSH service
+
+    - name: Disable challenge-response authentication
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?ChallengeResponseAuthentication"
+        line: "ChallengeResponseAuthentication no"
+        state: present
+      notify: Restart SSH service
+
+    - name: Disable PAM authentication
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?UsePAM"
+        line: "UsePAM no"
+        state: present
+      notify: Restart SSH service
+
+    - name: Ensure PubkeyAuthentication is enabled
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PubkeyAuthentication"
+        line: "PubkeyAuthentication yes"
+        state: present
+      notify: Restart SSH service
+
+    - name: Validate sshd configuration
+      command: sshd -t
+      register: sshd_test
+      changed_when: false
+      failed_when: sshd_test.rc != 0
+
+    - name: Display SSH configuration validation result
+      debug:
+        msg: "✅ SSH configuration is valid"
+
+  handlers:
+    - name: Restart SSH service
+      service:
+        name: ssh
+        state: restarted

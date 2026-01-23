@@ -1,0 +1,55 @@
+---
+- name: System Setup and Updates
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Perform full system upgrade
+      apt:
+        upgrade: full
+        autoremove: yes
+        autoclean: yes
+      register: upgrade_result
+
+    - name: Install unattended-upgrades package
+      apt:
+        name: unattended-upgrades
+        state: present
+
+    - name: Configure unattended-upgrades
+      debconf:
+        name: unattended-upgrades
+        question: unattended-upgrades/enable_auto_updates
+        value: "true"
+        vtype: boolean
+
+    - name: Reconfigure unattended-upgrades
+      command: dpkg-reconfigure --priority=low unattended-upgrades
+      args:
+        creates: /etc/apt/apt.conf.d/20auto-upgrades
+
+    - name: Remove unnecessary packages
+      apt:
+        autoremove: yes
+        purge: yes
+
+    - name: Verify hostname
+      debug:
+        msg: "Current hostname: {{ ansible_hostname }}"
+
+    - name: Display system information
+      debug:
+        msg:
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Kernel: {{ ansible_kernel }}"
+          - "Architecture: {{ ansible_architecture }}"
+
+    - name: Display upgrade results
+      debug:
+        msg: "System upgrade completed. Changed: {{ upgrade_result.changed }}"

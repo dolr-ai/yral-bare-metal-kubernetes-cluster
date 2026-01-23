@@ -1,0 +1,355 @@
+name: Provision Server with Ubuntu
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_host:
+        description: "Target hostname (from inventory)"
+        required: true
+        type: string
+
+env:
+  ANSIBLE_HOST_KEY_CHECKING: False
+  ANSIBLE_FORCE_COLOR: True
+
+jobs:
+  provision:
+    name: Provision Server
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install pyyaml requests ansible
+
+      - name: Get server IP from inventory
+        id: get-ip
+        run: |
+          python3 << 'EOF'
+          import yaml
+          import os
+
+          hostname = "${{ github.event.inputs.target_host }}"
+
+          with open('inventory/hosts.yml', 'r') as f:
+              inventory = yaml.safe_load(f)
+
+          # Search for hostname in all groups
+          hosts = inventory.get('all', {}).get('children', {}).get('k8s_cluster', {}).get('children', {})
+
+          found = False
+          for group_name, group_data in hosts.items():
+              group_hosts = group_data.get('hosts', {})
+              if hostname in group_hosts:
+                  host_vars = group_hosts[hostname]
+                  ansible_host = host_vars.get('ansible_host')
+                  if ansible_host:
+                      print(f"Found IP: {ansible_host}")
+                      with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                          f.write(f"server_ip={ansible_host}\n")
+                      found = True
+                      break
+
+          if not found:
+              print(f"Error: Host {hostname} not found in inventory")
+              exit(1)
+          EOF
+
+      - name: Activate rescue mode via Hetzner API
+        id: activate-rescue
+        env:
+          HETZNER_API_USER: "#ws+hEJX77Pr"
+          HETZNER_API_PASSWORD: ${{ secrets.HETZNER_ROBOT_PASSWORD }}
+        run: |
+          python3 << 'EOF'
+          import requests
+          import json
+          import os
+          import sys
+          from requests.auth import HTTPBasicAuth
+
+          api_user = os.environ.get('HETZNER_API_USER')
+          api_password = os.environ.get('HETZNER_API_PASSWORD')
+          server_ip = "${{ steps.get-ip.outputs.server_ip }}"
+
+          if not api_user or not api_password:
+              print("Error: Hetzner API credentials not set")
+              sys.exit(1)
+
+          # First, fetch all SSH keys from Hetzner to get valid fingerprints
+          print("Fetching SSH keys from Hetzner API...")
+          keys_url = "https://robot-ws.your-server.de/key"
+
+          try:
+              keys_response = requests.get(
+                  keys_url,
+                  auth=HTTPBasicAuth(api_user, api_password)
+              )
+              keys_response.raise_for_status()
+              keys_data = keys_response.json()
+              
+              # Build a mapping of key names/emails to fingerprints
+              hetzner_keys = {}
+              for key_entry in keys_data:
+                  key_info = key_entry.get('key', {})
+                  name = key_info.get('name', '')
+                  fingerprint = key_info.get('fingerprint', '')
+                  if name and fingerprint:
+                      hetzner_keys[name.lower()] = fingerprint
+                      # Also try matching by email in name
+                      if '@' in name:
+                          email = name.lower()
+                          hetzner_keys[email] = fingerprint
+              
+              print(f"Found {len(hetzner_keys)} SSH keys in Hetzner account")
+              print(f"Available keys: {list(hetzner_keys.keys())}")
+              
+          except requests.exceptions.RequestException as e:
+              print(f"Warning: Failed to fetch SSH keys from Hetzner: {e}")
+              hetzner_keys = {}
+
+          # Define SSH key mapping - emails to look for
+          required_keys = [
+              "github-actions@yral.com",
+              "saikatdas0790@gmail.com"
+          ]
+
+          # Build list of key fingerprints to add
+          key_list = []
+          for email in required_keys:
+              if email in hetzner_keys:
+                  key_list.append(hetzner_keys[email])
+                  print(f"Added {email}: {hetzner_keys[email]}")
+              else:
+                  print(f"Warning: Key not found for {email}")
+
+          if not key_list:
+              print("Error: No SSH keys found. Please add github-actions@yral.com and saikatdas0790@gmail.com to your Hetzner account")
+              sys.exit(1)
+
+          # Hetzner Robot API endpoint
+          api_url = f"https://robot-ws.your-server.de/boot/{server_ip}/rescue"
+
+          print(f"\nActivating rescue mode for {server_ip}...")
+          print(f"OS: linux, Arch: 64")
+          print(f"Total keys to add: {len(key_list)}")
+
+          # Make API request - send authorized_key[] as multiple form parameters
+          try:
+              form_data = [
+                  ('os', 'linux'),
+                  ('arch', '64')
+              ]
+              for key in key_list:
+                  form_data.append(('authorized_key[]', key))
+              
+              response = requests.post(
+                  api_url,
+                  auth=HTTPBasicAuth(api_user, api_password),
+                  data=form_data
+              )
+              
+              response.raise_for_status()
+              result = response.json()
+              
+              # Extract rescue password
+              rescue_password = result.get('rescue', {}).get('password')
+              
+              if rescue_password:
+                  print(f"✅ Rescue mode activated successfully!")
+                  print(f"Server IP: {server_ip}")
+                  
+                  # Save to GitHub output
+                  with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                      f.write(f"success=true\n")
+                      f.write(f"rescue_password={rescue_password}\n")
+              else:
+                  print("❌ Failed to get rescue password from API response")
+                  print(f"Response: {json.dumps(result, indent=2)}")
+                  sys.exit(1)
+              
+          except requests.exceptions.RequestException as e:
+              print(f"❌ API request failed: {e}")
+              if hasattr(e, 'response') and hasattr(e.response, 'text'):
+                  print(f"Response: {e.response.text}")
+              sys.exit(1)
+          EOF
+
+      - name: Reboot server via Hetzner API
+        env:
+          HETZNER_API_USER: "#ws+hEJX77Pr"
+          HETZNER_API_PASSWORD: ${{ secrets.HETZNER_ROBOT_PASSWORD }}
+        run: |
+          python3 << 'EOF'
+          import requests
+          import time
+          import os
+          import sys
+          from requests.auth import HTTPBasicAuth
+
+          api_user = os.environ.get('HETZNER_API_USER')
+          api_password = os.environ.get('HETZNER_API_PASSWORD')
+          server_ip = "${{ steps.get-ip.outputs.server_ip }}"
+
+          api_url = f"https://robot-ws.your-server.de/reset/{server_ip}"
+
+          print(f"Triggering hardware reset for {server_ip}...")
+
+          try:
+              response = requests.post(
+                  api_url,
+                  auth=HTTPBasicAuth(api_user, api_password),
+                  data={'type': 'hw'}
+              )
+              response.raise_for_status()
+              print("✅ Hardware reset triggered successfully!")
+              
+          except requests.exceptions.RequestException as e:
+              print(f"❌ Failed to trigger reset: {e}")
+              if hasattr(e, 'response') and hasattr(e.response, 'text'):
+                  print(f"Response: {e.response.text}")
+              sys.exit(1)
+          EOF
+
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_BARE_METAL_GITHUB_ACTIONS_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ steps.get-ip.outputs.server_ip }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Wait for rescue system to boot
+        run: |
+          server_ip="${{ steps.get-ip.outputs.server_ip }}"
+          max_attempts=60
+          attempt=1
+
+          echo "Waiting for server to boot into rescue mode..."
+          sleep 30
+
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt/$max_attempts..."
+            
+            if ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -o "ConnectTimeout=10" root@$server_ip "echo 'Connected to rescue system'; uname -a" 2>/dev/null; then
+              echo "✅ Successfully connected to rescue system!"
+              exit 0
+            fi
+            
+            echo "Connection failed, waiting 5 seconds..."
+            sleep 5
+            attempt=$((attempt + 1))
+          done
+
+          echo "❌ Failed to connect after $max_attempts attempts"
+          exit 1
+
+      - name: Detect drive type and run installation
+        run: |
+          server_ip="${{ steps.get-ip.outputs.server_ip }}"
+          hostname="${{ github.event.inputs.target_host }}"
+
+          echo "Detecting drive type..."
+
+          # Try to detect NVMe drives first
+          if ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" root@$server_ip "lsblk -d -o NAME | grep -E '^nvme[0-9]n1$'" 2>/dev/null; then
+            drive_type="nvme0n1"
+            echo "✅ Detected NVMe drive: $drive_type"
+          # Fall back to SATA
+          elif ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" root@$server_ip "lsblk -d -o NAME | grep -E '^sd[a-z]$'" 2>/dev/null; then
+            drive_type="sda"
+            echo "✅ Detected SATA drive: $drive_type"
+          else
+            echo "❌ Could not detect drive type"
+            ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" root@$server_ip "lsblk -d"
+            exit 1
+          fi
+
+          echo "Running Ubuntu installation script..."
+          ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" root@$server_ip \
+            "curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install-ubuntu.sh | MACHINE_HOSTNAME='$hostname' DRIVE_TO_USE='$drive_type' bash && sleep 5 && reboot" || true
+
+          echo "Installation script executed, server is rebooting..."
+
+      - name: Wait for server to reboot into Ubuntu
+        run: |
+          server_ip="${{ steps.get-ip.outputs.server_ip }}"
+          max_attempts=120
+          attempt=1
+
+          echo "Waiting for server to reboot into Ubuntu..."
+          sleep 60
+
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt/$max_attempts..."
+            
+            if ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -o "ConnectTimeout=10" root@$server_ip "echo 'Connected to Ubuntu'; cat /etc/os-release" 2>/dev/null | grep -q "Ubuntu"; then
+              echo "✅ Successfully connected to Ubuntu system!"
+              exit 0
+            fi
+            
+            echo "Connection failed, waiting 5 seconds..."
+            sleep 5
+            attempt=$((attempt + 1))
+          done
+
+          echo "❌ Failed to connect after $max_attempts attempts"
+          exit 1
+
+      - name: Run system setup playbook
+        run: |
+          ansible-playbook -i inventory/hosts.yml \
+            --limit ${{ github.event.inputs.target_host }} \
+            playbooks/system-setup.yml \
+            -v
+
+      - name: Run btrfs expansion playbook
+        run: |
+          ansible-playbook -i inventory/hosts.yml \
+            --limit ${{ github.event.inputs.target_host }} \
+            playbooks/btrfs-expand.yml \
+            -v
+
+      - name: Run SSH security playbook
+        run: |
+          ansible-playbook -i inventory/hosts.yml \
+            --limit ${{ github.event.inputs.target_host }} \
+            playbooks/ssh-security.yml \
+            -v
+
+      - name: Create job summary
+        if: always()
+        run: |
+          cat << 'SUMMARY' >> $GITHUB_STEP_SUMMARY
+          ## Server Provisioning Complete
+
+          **Target Host:** ${{ github.event.inputs.target_host }}
+          **Server IP:** ${{ steps.get-ip.outputs.server_ip }}
+          **Status:** ${{ job.status }}
+
+          ### What was done:
+          1. ✅ Activated rescue mode with SSH keys
+          2. ✅ Rebooted into rescue system
+          3. ✅ Detected drive type and installed Ubuntu 24.04
+          4. ✅ Rebooted into Ubuntu
+          5. ✅ Ran system updates and configuration
+          6. ✅ Expanded btrfs to second drive (if available)
+          7. ✅ Hardened SSH security (disabled password auth)
+
+          ### Next Steps
+
+          SSH into the server:
+          \`\`\`bash
+          ssh root@${{ steps.get-ip.outputs.server_ip }}
+          \`\`\`
+
+          The server is now ready for Kubernetes installation.
+          SUMMARY
