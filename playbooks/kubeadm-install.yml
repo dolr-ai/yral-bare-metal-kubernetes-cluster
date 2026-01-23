@@ -1,0 +1,181 @@
+---
+- name: Install kubeadm, kubelet, and kubectl
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Display target host information
+      debug:
+        msg:
+          - "Installing Kubernetes v1.35 on: {{ ansible_hostname }}"
+          - "IP: {{ ansible_host }}"
+          - "Node type: {{ node_type }}"
+
+    - name: Check current swap status
+      shell: |
+        echo "=== Memory Status ==="
+        free -h
+        echo ""
+        echo "=== Swap Devices ==="
+        swapon --show || echo "No swap enabled"
+        echo ""
+        echo "=== /proc/swaps ==="
+        cat /proc/swaps
+      register: swap_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display current swap status
+      debug:
+        msg: "{{ swap_status.stdout_lines }}"
+
+    - name: Disable swap immediately
+      command: swapoff -a
+      register: swapoff_result
+      changed_when: swapoff_result.rc == 0
+      failed_when: false
+
+    - name: Check if swap entries exist in /etc/fstab
+      shell: grep -i swap /etc/fstab || echo "No swap entries found"
+      register: fstab_swap_check
+      changed_when: false
+
+    - name: Display swap entries in /etc/fstab
+      debug:
+        msg: "{{ fstab_swap_check.stdout_lines }}"
+
+    - name: Remove all swap entries from /etc/fstab
+      lineinfile:
+        path: /etc/fstab
+        state: absent
+        regexp: '.*\sswap\s.*'
+        backup: yes
+
+    - name: Verify swap is disabled
+      shell: |
+        echo "=== Swap Status After Disable ==="
+        swapon --show || echo "✅ No swap enabled"
+        echo ""
+        echo "=== /etc/fstab (swap entries) ==="
+        grep -i swap /etc/fstab || echo "✅ No swap entries in /etc/fstab"
+      register: swap_verify
+      changed_when: false
+
+    - name: Display swap disable verification
+      debug:
+        msg: "{{ swap_verify.stdout_lines }}"
+
+    - name: Install prerequisites for Kubernetes repository
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gpg
+        state: present
+        update_cache: yes
+
+    - name: Create keyrings directory for Kubernetes
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Download Kubernetes GPG key
+      shell: curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      args:
+        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+    - name: Add Kubernetes apt repository
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.35/deb/ /"
+        state: present
+        filename: kubernetes
+
+    - name: Update apt cache after adding Kubernetes repository
+      apt:
+        update_cache: yes
+
+    - name: Install kubeadm, kubelet, and kubectl
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+
+    - name: Display Kubernetes packages installation status
+      debug:
+        msg: "✅ kubelet, kubeadm, and kubectl installed successfully"
+
+    - name: Pin kubelet package version
+      dpkg_selections:
+        name: kubelet
+        selection: hold
+
+    - name: Pin kubeadm package version
+      dpkg_selections:
+        name: kubeadm
+        selection: hold
+
+    - name: Pin kubectl package version
+      dpkg_selections:
+        name: kubectl
+        selection: hold
+
+    - name: Verify packages are held
+      shell: apt-mark showhold
+      register: held_packages
+      changed_when: false
+
+    - name: Display held packages
+      debug:
+        msg: "{{ held_packages.stdout_lines }}"
+
+    - name: Enable kubelet service
+      systemd:
+        name: kubelet
+        enabled: yes
+        daemon_reload: yes
+
+    - name: Get kubelet service status
+      shell: systemctl status kubelet --no-pager || true
+      register: kubelet_status
+      changed_when: false
+
+    - name: Display kubelet service status
+      debug:
+        msg: "{{ kubelet_status.stdout_lines }}"
+
+    - name: Get installed versions
+      shell: |
+        echo "kubeadm version:"
+        kubeadm version -o short
+        echo ""
+        echo "kubelet version:"
+        kubelet --version
+        echo ""
+        echo "kubectl version:"
+        kubectl version --client -o yaml
+      register: k8s_versions
+      changed_when: false
+
+    - name: Display installed Kubernetes versions
+      debug:
+        msg: "{{ k8s_versions.stdout_lines }}"
+
+    - name: Display installation summary
+      debug:
+        msg:
+          - "✅ Kubernetes v1.35 installation completed successfully"
+          - "✅ Swap disabled and removed from /etc/fstab"
+          - "✅ kubeadm, kubelet, and kubectl packages pinned (held)"
+          - "✅ kubelet service enabled"
+          - "⚠️  Note: kubelet will remain in a crashloop until kubeadm init/join is executed"
+          - ""
+          - "Next steps:"
+          - "1. Verify containerd is running: systemctl status containerd"
+          - "2. Check containerd socket: ls -la /run/containerd/containerd.sock"
+          - "3. Verify systemd cgroup: grep SystemdCgroup /etc/containerd/config.toml"
+          - "4. Initialize control plane or join cluster using kubeadm"

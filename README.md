@@ -12,14 +12,21 @@ Ansible automation for managing a bare-metal Kubernetes cluster on Hetzner infra
 
 ```
 .
-├── ansible.cfg                 # Ansible configuration
+├── ansible.cfg                    # Ansible configuration
 ├── inventory/
-│   └── hosts.yml              # Inventory file with host definitions
+│   └── hosts.yml                 # Inventory file with host definitions
 ├── playbooks/
-│   └── ping.yml               # Connectivity test playbook
+│   ├── ping.yml                  # Connectivity test playbook
+│   ├── system-setup.yml          # System updates and configuration
+│   ├── btrfs-expand.yml          # Btrfs filesystem expansion
+│   ├── ssh-security.yml          # SSH security hardening
+│   ├── containerd-setup.yml      # Container runtime installation
+│   └── kubeadm-install.yml       # Kubernetes installation
+├── scripts/
+│   └── install-ubuntu.sh         # Ubuntu installation script
 └── .github/
     └── workflows/
-        └── ansible-ping.yml   # GitHub Actions workflow for testing
+        └── ansible-ping.yml      # GitHub Actions workflow for testing
 ```
 
 ## Inventory Configuration
@@ -60,6 +67,37 @@ worker_nodes:
 ```
 
 ## Running Ansible Locally
+
+### Provisioning Workflow
+
+The recommended provisioning sequence for new bare-metal servers:
+
+1. **System Setup**: Update packages and configure unattended-upgrades
+   ```bash
+   ansible-playbook -i inventory/hosts.yml playbooks/system-setup.yml
+   ```
+
+2. **Btrfs Expansion** (if multiple drives): Expand filesystem across drives
+   ```bash
+   ansible-playbook -i inventory/hosts.yml playbooks/btrfs-expand.yml
+   ```
+
+3. **SSH Security**: Harden SSH configuration
+   ```bash
+   ansible-playbook -i inventory/hosts.yml playbooks/ssh-security.yml
+   ```
+
+4. **Container Runtime**: Install and configure containerd (pinned to 1.7.x)
+   ```bash
+   ansible-playbook -i inventory/hosts.yml playbooks/containerd-setup.yml
+   ```
+
+5. **Kubernetes Installation**: Install kubeadm, kubelet, and kubectl (pinned to v1.35)
+   ```bash
+   ansible-playbook -i inventory/hosts.yml playbooks/kubeadm-install.yml
+   ```
+
+After these steps, the cluster is ready for Kubernetes initialization (control plane setup and worker node joins).
 
 ### Test Connectivity (Ping)
 
@@ -184,6 +222,53 @@ If the ping test fails:
 - **Python not found**: Install Python 3 on target hosts: `apt-get install python3`
 
 ## Next Steps
+
+### Validation Commands
+
+After running the provisioning playbooks, verify the setup on a control plane node (e.g., control-plane-1):
+
+```bash
+# Check containerd is running
+ssh root@95.216.228.60 "systemctl status containerd"
+
+# Verify containerd socket exists
+ssh root@95.216.228.60 "ls -la /run/containerd/containerd.sock"
+
+# Check systemd cgroup configuration
+ssh root@95.216.228.60 "grep SystemdCgroup /etc/containerd/config.toml"
+
+# Verify no swap is enabled
+ssh root@95.216.228.60 "swapon --show"
+
+# Check kernel modules are loaded
+ssh root@95.216.228.60 "lsmod | grep -E 'overlay|br_netfilter'"
+
+# Verify sysctl parameters
+ssh root@95.216.228.60 "sysctl net.ipv4.ip_forward net.bridge.bridge-nf-call-iptables"
+
+# Check kubeadm version
+ssh root@95.216.228.60 "kubeadm version"
+
+# Verify kubectl version
+ssh root@95.216.228.60 "kubectl version --client"
+
+# Check kubelet service (will be in crashloop until kubeadm init/join)
+ssh root@95.216.228.60 "systemctl status kubelet"
+
+# Test crictl (containerd CLI)
+ssh root@95.216.228.60 "crictl --runtime-endpoint unix:///run/containerd/containerd.sock version"
+```
+
+### Next Steps for Cluster Setup
+
+After successful validation, you can proceed with:
+
+1. **Initialize Control Plane**: Run `kubeadm init` on the first control plane node
+2. **Set Up HA Control Plane**: Join additional control plane nodes
+3. **Install CNI Plugin**: Deploy a network plugin (Calico, Flannel, Cilium, etc.)
+4. **Join Worker Nodes**: Add worker nodes to the cluster
+5. **Configure kubectl**: Set up kubeconfig for cluster access
+6. **Deploy Applications**: Start deploying workloads
 
 After successful ping tests, you can:
 
