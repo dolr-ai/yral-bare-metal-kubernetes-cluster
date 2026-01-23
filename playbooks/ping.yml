@@ -1,0 +1,12 @@
+---
+- name: Test connectivity to all Kubernetes cluster nodes
+  hosts: k8s_cluster
+  gather_facts: false
+
+  tasks:
+    - name: Ping all hosts
+      ansible.builtin.ping:
+
+    - name: Display success message
+      ansible.builtin.debug:
+        msg: "Successfully connected to {{ inventory_hostname }} ({{ ansible_host }})"

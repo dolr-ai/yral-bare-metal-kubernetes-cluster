@@ -1,0 +1,50 @@
+name: Ansible Ping Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: false
+        type: choice
+        options:
+          - production
+          - staging
+        default: "production"
+
+jobs:
+  ansible-ping:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ansible
+        run: |
+          pip install ansible
+          ansible --version
+
+      - name: Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.HETZNER_BARE_METAL_GITHUB_ACTIONS_SSH_PRIVATE_KEY }}
+
+      - name: Run Ansible Ping Playbook
+        run: |
+          ansible-playbook -i inventory/hosts.yml playbooks/ping.yml -vvv
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+
+      - name: Display completion message
+        if: success()
+        run: echo "✅ Ansible ping test completed successfully!"
+
+      - name: Display failure message
+        if: failure()
+        run: echo "❌ Ansible ping test failed. Check the logs above for details."
