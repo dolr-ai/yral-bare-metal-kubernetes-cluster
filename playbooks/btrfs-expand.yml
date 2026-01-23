@@ -64,70 +64,82 @@
             msg: "Second drive /dev/{{ second_drive }} not found. Skipping."
           when: root_fs_type.stdout == "btrfs" and second_drive is defined and not second_drive_stat.stat.exists
 
+        - name: Check if second drive is already part of btrfs
+          shell: btrfs filesystem show / | grep -q "/dev/{{ second_drive }}"
+          register: is_already_added
+          failed_when: false
+          changed_when: false
+          when: root_fs_type.stdout == "btrfs" and second_drive_stat.stat.exists
+
+        - name: Skip if second drive is already part of btrfs
+          debug:
+            msg: "Second drive /dev/{{ second_drive }} is already part of btrfs filesystem. Skipping."
+          when: root_fs_type.stdout == "btrfs" and second_drive_stat.stat.exists and is_already_added.rc == 0
+
         - name: Wipe filesystem signatures from second drive
           command: wipefs -a /dev/{{ second_drive }}
-          when: root_fs_type.stdout == "btrfs" and second_drive_stat.stat.exists
+          when: root_fs_type.stdout == "btrfs" and second_drive_stat.stat.exists and is_already_added.rc != 0
           register: wipe_result
 
         - name: Create GPT partition table
           command: parted /dev/{{ second_drive }} mklabel gpt
-          when: root_fs_type.stdout == "btrfs" and second_drive_stat.stat.exists and wipe_result.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive_stat.stat.exists and is_already_added.rc != 0 and wipe_result.changed
 
         - name: Add second drive to btrfs filesystem
           command: btrfs device add -f /dev/{{ second_drive }} /
-          when: root_fs_type.stdout == "btrfs" and second_drive_stat.stat.exists and wipe_result.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive_stat.stat.exists and is_already_added.rc != 0 and wipe_result.changed
           register: btrfs_add
 
         - name: Display btrfs filesystem before balance
           command: btrfs filesystem show
-          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and is_already_added.rc != 0 and btrfs_add.changed
           register: btrfs_before
 
         - name: Show filesystem before balance
           debug:
             msg: "{{ btrfs_before.stdout_lines }}"
-          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and is_already_added.rc != 0 and btrfs_add.changed
 
         - name: Start btrfs balance (full)
           command: btrfs balance start / --full-balance
-          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and is_already_added.rc != 0 and btrfs_add.changed
           async: 3600
           poll: 30
           register: balance_result
 
         - name: Display btrfs filesystem after balance
           command: btrfs filesystem show
-          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and is_already_added.rc != 0 and btrfs_add.changed
           register: btrfs_after
 
         - name: Show filesystem after balance
           debug:
             msg: "{{ btrfs_after.stdout_lines }}"
-          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and is_already_added.rc != 0 and btrfs_add.changed
 
         - name: Display disk usage
           command: df -h /
           register: df_output
-          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and is_already_added.rc != 0 and btrfs_add.changed
 
         - name: Show disk usage
           debug:
             msg: "{{ df_output.stdout_lines }}"
-          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and is_already_added.rc != 0 and btrfs_add.changed
 
         - name: Display btrfs filesystem usage
           command: btrfs filesystem usage /
           register: btrfs_usage
-          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and is_already_added.rc != 0 and btrfs_add.changed
 
         - name: Show btrfs usage
           debug:
             msg: "{{ btrfs_usage.stdout_lines }}"
-          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and is_already_added.rc != 0 and btrfs_add.changed
 
         - name: Success message
           debug:
             msg: "✅ Successfully expanded btrfs filesystem to /dev/{{ second_drive }}"
-          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and is_already_added.rc != 0 and btrfs_add.changed
 
       when: has_multiple_drives
