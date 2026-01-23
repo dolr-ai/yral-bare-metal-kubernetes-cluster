@@ -313,6 +313,38 @@ jobs:
             playbooks/system-setup.yml \
             -v
 
+      - name: Reboot after system setup
+        run: |
+          server_ip="${{ steps.get-ip.outputs.server_ip }}"
+          echo "Rebooting server after system setup..."
+          ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" root@$server_ip "reboot" || true
+          echo "Reboot command sent, waiting for server to come back online..."
+          sleep 30
+
+      - name: Wait for server to come back online
+        run: |
+          server_ip="${{ steps.get-ip.outputs.server_ip }}"
+          max_attempts=60
+          attempt=1
+
+          echo "Waiting for server to come back online..."
+
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt/$max_attempts..."
+            
+            if ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -o "ConnectTimeout=10" root@$server_ip "echo 'Server is back online'" 2>/dev/null; then
+              echo "✅ Server is back online!"
+              exit 0
+            fi
+            
+            echo "Connection failed, waiting 5 seconds..."
+            sleep 5
+            attempt=$((attempt + 1))
+          done
+
+          echo "❌ Failed to connect after $max_attempts attempts"
+          exit 1
+
       - name: Run btrfs expansion playbook
         run: |
           ansible-playbook -i inventory/hosts.yml \
