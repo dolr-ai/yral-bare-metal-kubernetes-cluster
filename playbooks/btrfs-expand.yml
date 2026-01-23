@@ -76,7 +76,7 @@
           shell: |
             all_disks=({{ disk_list.stdout_lines | join(' ') }})
             used_disks=({{ btrfs_devices.stdout_lines | map('regex_replace', 'p?[0-9]+$', '') | unique | join(' ') }})
-            
+
             for disk in "${all_disks[@]}"; do
               is_used=false
               for used in "${used_disks[@]}"; do
