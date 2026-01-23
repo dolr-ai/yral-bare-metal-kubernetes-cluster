@@ -24,93 +24,110 @@
       when: not has_multiple_drives
 
     - block:
+        - name: Check if root filesystem is btrfs
+          shell: df -T / | tail -1 | awk '{print $2}'
+          register: root_fs_type
+          changed_when: false
+
+        - name: Display root filesystem type
+          debug:
+            msg: "Root filesystem type: {{ root_fs_type.stdout }}"
+
+        - name: Skip if root is not btrfs
+          debug:
+            msg: "Root filesystem is {{ root_fs_type.stdout }}, not btrfs. Skipping btrfs expansion."
+          when: root_fs_type.stdout != "btrfs"
+
         - name: Determine drive type and second drive name
           set_fact:
             is_nvme: "{{ disk_list.stdout_lines | select('match', '^nvme.*') | list | length > 0 }}"
+          when: root_fs_type.stdout == "btrfs"
 
         - name: Set second drive name (NVMe)
           set_fact:
             second_drive: "nvme1n1"
-          when: is_nvme
+          when: is_nvme and root_fs_type.stdout == "btrfs"
 
         - name: Set second drive name (SATA)
           set_fact:
             second_drive: "sdb"
-          when: not is_nvme
+          when: not is_nvme and root_fs_type.stdout == "btrfs"
 
         - name: Check if second drive exists
           stat:
             path: "/dev/{{ second_drive }}"
           register: second_drive_stat
+          when: root_fs_type.stdout == "btrfs"
 
         - name: Skip if second drive doesn't exist
           debug:
             msg: "Second drive /dev/{{ second_drive }} not found. Skipping."
-          when: not second_drive_stat.stat.exists
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and not second_drive_stat.stat.exists
 
         - name: Wipe filesystem signatures from second drive
           command: wipefs -a /dev/{{ second_drive }}
-          when: second_drive_stat.stat.exists
+          when: root_fs_type.stdout == "btrfs" and second_drive_stat.stat.exists
+          register: wipe_result
 
         - name: Create GPT partition table
           command: parted /dev/{{ second_drive }} mklabel gpt
-          when: second_drive_stat.stat.exists
+          when: root_fs_type.stdout == "btrfs" and second_drive_stat.stat.exists and wipe_result.changed
 
         - name: Add second drive to btrfs filesystem
           command: btrfs device add -f /dev/{{ second_drive }} /
-          when: second_drive_stat.stat.exists
+          when: root_fs_type.stdout == "btrfs" and second_drive_stat.stat.exists and wipe_result.changed
           register: btrfs_add
 
         - name: Display btrfs filesystem before balance
           command: btrfs filesystem show
-          when: second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
           register: btrfs_before
 
         - name: Show filesystem before balance
           debug:
             msg: "{{ btrfs_before.stdout_lines }}"
-          when: second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
 
         - name: Start btrfs balance (full)
           command: btrfs balance start / --full-balance
-          when: second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
           async: 3600
           poll: 30
           register: balance_result
 
         - name: Display btrfs filesystem after balance
           command: btrfs filesystem show
-          when: second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
           register: btrfs_after
 
         - name: Show filesystem after balance
           debug:
             msg: "{{ btrfs_after.stdout_lines }}"
-          when: second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
 
         - name: Display disk usage
           command: df -h /
           register: df_output
-          when: second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
 
         - name: Show disk usage
           debug:
             msg: "{{ df_output.stdout_lines }}"
-          when: second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
 
         - name: Display btrfs filesystem usage
           command: btrfs filesystem usage /
           register: btrfs_usage
-          when: second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
 
         - name: Show btrfs usage
           debug:
             msg: "{{ btrfs_usage.stdout_lines }}"
-          when: second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
 
         - name: Success message
           debug:
             msg: "✅ Successfully expanded btrfs filesystem to /dev/{{ second_drive }}"
-          when: second_drive_stat.stat.exists and btrfs_add.changed
+          when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive_stat.stat.exists and btrfs_add.changed
 
       when: has_multiple_drives
