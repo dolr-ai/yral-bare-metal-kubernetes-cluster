@@ -239,17 +239,19 @@ jobs:
           while [ $attempt -le $max_attempts ]; do
             echo "Attempt $attempt/$max_attempts..."
             
-            if ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -o "ConnectTimeout=10" root@$server_ip "echo 'Connected to rescue system'; uname -a" 2>/dev/null; then
+            # Check if we can connect AND verify it's actually the rescue system
+            if ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -o "ConnectTimeout=10" root@$server_ip "test -f /root/.oldroot/nfs/install/installimage && echo 'Rescue system verified'" 2>/dev/null | grep -q "Rescue system verified"; then
               echo "✅ Successfully connected to rescue system!"
+              ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" root@$server_ip "uname -a"
               exit 0
             fi
             
-            echo "Connection failed, waiting 5 seconds..."
+            echo "Connection failed or not in rescue mode, waiting 5 seconds..."
             sleep 5
             attempt=$((attempt + 1))
           done
 
-          echo "❌ Failed to connect after $max_attempts attempts"
+          echo "❌ Failed to connect to rescue system after $max_attempts attempts"
           exit 1
 
       - name: Detect drive type and run installation
@@ -274,9 +276,12 @@ jobs:
           fi
 
           echo "Running Ubuntu installation script..."
-          ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" root@$server_ip "curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install-ubuntu.sh | MACHINE_HOSTNAME=${hostname} DRIVE_TO_USE=${drive_type} bash" || echo "Installation script executed (ignoring exit code)"
-
-          echo "✅ Installation script executed"
+          if ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" root@$server_ip "curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install-ubuntu.sh | MACHINE_HOSTNAME=${hostname} DRIVE_TO_USE=${drive_type} bash"; then
+            echo "✅ Installation script executed successfully"
+          else
+            echo "❌ Installation script failed"
+            exit 1
+          fi
           echo "Rebooting server..."
           ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" root@$server_ip "reboot" || true
           echo "Reboot command sent"
