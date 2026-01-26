@@ -1,59 +1,51 @@
 ---
-- name: Label nodes with topology information
-  hosts: k8s_cluster
-  become: true
-  gather_facts: true
-  run_once: false
+- name: Wait for node to be registered
+  shell: kubectl get node {{ ansible_hostname }} --no-headers 2>/dev/null | wc -l
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: node_check
+  until: node_check.stdout | int > 0
+  retries: 30
+  delay: 10
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  changed_when: false
 
-  tasks:
-    - name: Wait for node to be registered
-      shell: kubectl get node {{ ansible_hostname }} --no-headers 2>/dev/null | wc -l
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      register: node_check
-      until: node_check.stdout | int > 0
-      retries: 30
-      delay: 10
-      delegate_to: "{{ groups['control_plane'][0] }}"
-      changed_when: false
+- name: Apply topology labels to node
+  command: >
+    kubectl label node {{ ansible_hostname }}
+    topology.kubernetes.io/zone={{ datacenter }}
+    topology.kubernetes.io/region={{ region }}
+    topology.kubernetes.io/country={{ country }}
+    --overwrite
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: label_result
+  changed_when: "'labeled' in label_result.stdout"
 
-    - name: Apply topology labels to node
-      command: >
-        kubectl label node {{ ansible_hostname }}
-        topology.kubernetes.io/zone={{ datacenter }}
-        topology.kubernetes.io/region={{ region }}
-        topology.kubernetes.io/country={{ country }}
-        --overwrite
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      delegate_to: "{{ groups['control_plane'][0] }}"
-      register: label_result
-      changed_when: "'labeled' in label_result.stdout"
+- name: Verify control plane taint
+  command: kubectl get node {{ ansible_hostname }} -o jsonpath='{.spec.taints}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: taint_check
+  changed_when: false
+  when: node_type == "control-plane"
 
-    - name: Verify control plane taint
-      command: kubectl get node {{ ansible_hostname }} -o jsonpath='{.spec.taints}'
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      delegate_to: "{{ groups['control_plane'][0] }}"
-      register: taint_check
-      changed_when: false
-      when: node_type == "control-plane"
+- name: Display taint status for control plane
+  debug:
+    msg:
+      - "Control plane node {{ ansible_hostname }} taints:"
+      - "{{ taint_check.stdout }}"
+  when: node_type == "control-plane"
 
-    - name: Display taint status for control plane
-      debug:
-        msg:
-          - "Control plane node {{ ansible_hostname }} taints:"
-          - "{{ taint_check.stdout }}"
-      when: node_type == "control-plane"
-
-    - name: Verify node labels
-      command: kubectl get node {{ ansible_hostname }} --show-labels
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      delegate_to: "{{ groups['control_plane'][0] }}"
-      register: labels_output
-      changed_when: false
-
+- name: Verify node labels
+  command: kubectl get node {{ ansible_hostname }} --show-labels
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: labels_output
+  changed_when: false
 - name: Display node labels
   debug:
     msg: "{{ labels_output.stdout_lines }}"
