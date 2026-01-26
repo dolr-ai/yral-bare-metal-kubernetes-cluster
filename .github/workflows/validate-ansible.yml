@@ -12,6 +12,7 @@ on:
       - main
     paths:
       - "ansible/**"
+      - ".github/workflows/validate-ansible.yml"
   workflow_dispatch:
 
 jobs:
