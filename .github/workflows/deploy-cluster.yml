@@ -8,8 +8,9 @@ on:
         required: true
         type: choice
         options:
-          - "provision-all-servers"
           - "base-system-setup"
+          - "kubernetes-only"
+          - "full-deployment"
           - "helm-install"
           - "kube-vip-deploy"
           - "cluster-setup"
@@ -17,8 +18,6 @@ on:
           - "monitoring-deploy"
           - "etcd-backup"
           - "velero-install"
-          - "kubernetes-only"
-          - "full-deployment"
 
 env:
   ANSIBLE_HOST_KEY_CHECKING: False
@@ -43,120 +42,53 @@ jobs:
         run: |
           pip install ansible
 
-      - name: Configure SSH key
+      - name: Setup Ansible Vault password
+        run: |
+          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > ansible/.vault_pass
+          chmod 600 ansible/.vault_pass
+
+      - name: Configure SSH key from vault
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.HETZNER_BARE_METAL_GITHUB_ACTIONS_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          cd ansible
+
+          # Extract SSH key from vault
+          ansible localhost -m debug -a "var=github_actions_ssh_private_key" \
+            -e "@group_vars/all/vault.yml" \
+            -e "@group_vars/all/vars.yml" \
+            --vault-password-file .vault_pass \
+            | grep -A 100 "github_actions_ssh_private_key" \
+            | tail -n +3 | grep -v "^}" | sed 's/^[[:space:]]*//' | sed 's/"$//' | sed 's/^"//' > ~/.ssh/id_rsa
+
           chmod 600 ~/.ssh/id_rsa
+
+          # Add known hosts for control planes
           ssh-keyscan -H 95.216.228.60 >> ~/.ssh/known_hosts 2>/dev/null || true
           ssh-keyscan -H 95.216.6.238 >> ~/.ssh/known_hosts 2>/dev/null || true
           ssh-keyscan -H 95.216.24.51 >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Test connectivity to control planes
         run: |
-          ansible control_plane -i ansible/inventory/hosts.yml -m ping
+          cd ansible
+          ansible control_plane -i inventory/hosts.yml -m ping
 
-      - name: Set environment variables
+      - name: Run selected playbook
         run: |
-          echo "HETZNER_ROBOT_PASSWORD=${{ secrets.HETZNER_ROBOT_PASSWORD }}" >> $GITHUB_ENV
-          echo "HETZNER_S3_SECRET_KEY=${{ secrets.HETZNER_S3_SECRET_KEY }}" >> $GITHUB_ENV
-
-      # ============================================================================
-      # PHASE 1: Base System Setup (system-setup → ssh → containerd → kubeadm)
-      # Run this after provisioning servers with provision-server workflow
-      # ============================================================================
-
-      - name: "Phase 1: Base System Configuration"
-        if: github.event.inputs.playbook == 'base-system-setup' || github.event.inputs.playbook == 'full-deployment'
-        run: |
-          echo "============================================================"
-          echo "Phase 1: Configuring Base System on All Nodes"
-          echo "============================================================"
-          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/system-setup.yml -v
-          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/ssh-security.yml -v
-          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/containerd-setup.yml -v
-          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/kubeadm-install.yml -v
-
-      # ============================================================================
-      # PHASE 2: Kubernetes Cluster Deployment
-      # ============================================================================
-
-      - name: Run Helm installation
-        if: >
-          github.event.inputs.playbook == 'helm-install' || 
-          github.event.inputs.playbook == 'kubernetes-only' || 
-          github.event.inputs.playbook == 'full-deployment'
-        run: |
-          echo "=================================================="
-          echo "Phase 2: Installing Helm"
-          echo "=================================================="
-          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/helm-install.yml -v
-
-      - name: Deploy kube-vip
-        if: >
-          github.event.inputs.playbook == 'kube-vip-deploy' || 
-          github.event.inputs.playbook == 'kubernetes-only' || 
-          github.event.inputs.playbook == 'full-deployment'
-        run: |
-          echo "=================================================="
-          echo "Phase 3: Deploying kube-vip"
-          echo "=================================================="
-          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/kube-vip-deploy.yml -v
-
-      - name: Setup Kubernetes cluster
-        if: >
-          github.event.inputs.playbook == 'cluster-setup' || 
-          github.event.inputs.playbook == 'kubernetes-only' || 
-          github.event.inputs.playbook == 'full-deployment'
-        run: |
-          echo "=================================================="
-          echo "Phase 4: Initializing Kubernetes Cluster"
-          echo "=================================================="
-          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/cluster-setup.yml -v
-
-      - name: Deploy Cilium CNI
-        if: >
-          github.event.inputs.playbook == 'cilium-deploy' || 
-          github.event.inputs.playbook == 'kubernetes-only' || 
-          github.event.inputs.playbook == 'full-deployment'
-        run: |
-          echo "=================================================="
-          echo "Phase 5: Deploying Cilium CNI"
-          echo "=================================================="
-          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/cilium-deploy.yml -v
-
-      - name: Deploy monitoring stack
-        if: >
-          github.event.inputs.playbook == 'monitoring-deploy' || 
-          github.event.inputs.playbook == 'kubernetes-only' || 
-          github.event.inputs.playbook == 'full-deployment'
-        run: |
-          echo "=================================================="
-          echo "Phase 6: Deploying Monitoring Stack"
-          echo "=================================================="
-          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/monitoring-deploy.yml -v
-
-      - name: Setup etcd backups
-        if: >
-          github.event.inputs.playbook == 'etcd-backup' || 
-          github.event.inputs.playbook == 'kubernetes-only' || 
-          github.event.inputs.playbook == 'full-deployment'
-        run: |
-          echo "=================================================="
-          echo "Phase 7: Configuring etcd Backups"
-          echo "=================================================="
-          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/etcd-backup.yml -v
-
-      - name: Install Velero
-        if: >
-          github.event.inputs.playbook == 'velero-install' || 
-          github.event.inputs.playbook == 'kubernetes-only' || 
-          github.event.inputs.playbook == 'full-deployment'
-        run: |
-          echo "=================================================="
-          echo "Phase 8: Installing Velero"
-          echo "=================================================="
-          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/velero-install.yml -v
+          cd ansible
+          case "${{ github.event.inputs.playbook }}" in
+            "base-system-setup")
+              ansible-playbook -i inventory/hosts.yml playbooks/base-system-setup.yml -v
+              ;;
+            "kubernetes-only")
+              ansible-playbook -i inventory/hosts.yml playbooks/kubernetes-only.yml -v
+              ;;
+            "full-deployment")
+              ansible-playbook -i inventory/hosts.yml playbooks/full-deployment.yml -v
+              ;;
+            *)
+              ansible-playbook -i inventory/hosts.yml playbooks/${{ github.event.inputs.playbook }}.yml -v
+              ;;
+          esac
 
       - name: Create deployment summary
         if: always()
@@ -168,66 +100,42 @@ jobs:
           **Status**: ${{ job.status }}
           **Triggered by**: @${{ github.actor }}
 
+          ### Deployment Options
+
+          - **full-deployment**: Complete deployment (base setup + all Kubernetes components)
+          - **base-system-setup**: System preparation (updates, SSH, containerd, kubeadm)
+          - **kubernetes-only**: Kubernetes stack only (helm → velero)
+          - Individual playbooks: Run specific components
+
           ### Cluster Information
 
-          - **Deployment Options Explained
-
-          - **provision-all-servers**: Provisions individual servers (use provision-server workflow instead)
-          - **base-system-setup**: Runs system-setup → ssh-security → containerd → kubeadm on all nodes
-          - **kubernetes-only**: Deploys full Kubernetes stack (assumes base setup is done)
-          - **full-deployment**: Complete deployment (base-system-setup + kubernetes-only)
-          - Individual playbooks: Run specific components only
-
-          ### Access URLs
-
-          - **Kubernetes API**: https://kubernetes-api.yral.com:6443
-          - **Hubble UI**: http://95.217.49.194
-          - **Grafana**: http://95.217.49.195
-
-          ### Recommended Workflow
-
-          **For fresh servers:**
-          1. Run `provision-server` workflow for each server (OS install)
-          2. Run `full-deployment` option (base setup + Kubernetes)
-
-          **For updating existing cluster:**
-          - Use individual playbook options (cilium-deploy, monitoring-deploy, etc.) labeled with `node.yral.com/disk-type=nvme`
-
-          ### Access URLs
-
-          - **Kubernetes API**: https://kubernetes-api.yral.com:6443
+          - **Control Plane VIP**: 77.42.49.55
+          - **API Endpoint**: https://kubernetes-api.yral.com:6443
           - **Hubble UI**: http://95.217.49.194
           - **Grafana**: http://95.217.49.195
 
           ### Next Steps
 
-          If deployment was successful:
+          **Verify cluster status:**
+          \`\`\`bash
+          ssh root@95.216.228.60 'kubectl get nodes -o wide'
+          \`\`\`
 
-          1. **Verify cluster status**:
-             ```bash
-             ssh root@95.216.228.60 'kubectl get nodes -o wide'
-             ```
+          **Check Cilium:**
+          \`\`\`bash
+          ssh root@95.216.228.60 'kubectl -n kube-system exec ds/cilium -- cilium-dbg status'
+          \`\`\`
 
-          2. **Check Cilium status**:
-             ```bash
-             ssh root@95.216.228.60 'kubectl -n kube-system exec ds/cilium -- cilium-dbg status'
-             ```
-
-          3. **Access Grafana**:
-             - Get password: `ssh root@95.216.228.60 'cat /root/grafana-access.txt'`
-             - URL: http://95.217.49.195
+          **Access Grafana:**
+          \`\`\`bash
+          ssh root@95.216.228.60 'cat /root/grafana-access.txt'
+          \`\`\`
 
           ### Troubleshooting
 
-          View logs on control-plane-1:
-          ```bash
-          ssh root@95.216.228.60
-          ```
-
-          Check specific components:
-          ```bash
-          kubectl get pods -n kube-system        # Cilium, kube-vip
-          kubectl get pods -n monitoring         # Prometheus, Grafana
-          kubectl get pods -n velero             # Backup system
-          ```
+          \`\`\`bash
+          kubectl get pods -n kube-system     # Core components
+          kubectl get pods -n monitoring      # Prometheus, Grafana
+          kubectl get pods -n velero          # Backup system
+          \`\`\`
           SUMMARY

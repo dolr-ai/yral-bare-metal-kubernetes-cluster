@@ -1,0 +1,14 @@
+---
+# Ansible Variables - References to Vault Secrets
+# This file is unencrypted and references encrypted values from vault.yml
+#
+# All sensitive values are stored in vault.yml and referenced here
+
+# Hetzner Robot API credentials
+hetzner_robot_api_password: "{{ vault_hetzner_robot_api_password }}"
+
+# Hetzner S3 credentials
+hetzner_s3_secret_key: "{{ vault_hetzner_s3_secret_key }}"
+
+# GitHub Actions SSH key
+github_actions_ssh_private_key: "{{ vault_github_actions_ssh_private_key }}"

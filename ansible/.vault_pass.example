@@ -1,0 +1,17 @@
+# Ansible Vault Password File Example
+#
+# This file should contain your vault password on a single line.
+# 
+# Setup Instructions:
+# 1. Copy this file: cp .vault_pass.example .vault_pass
+# 2. Edit .vault_pass and replace this content with your actual vault password
+# 3. Secure the file: chmod 600 .vault_pass
+# 4. NEVER commit .vault_pass to version control!
+#
+# The .vault_pass file is used to decrypt ansible/group_vars/all/vault.yml
+# which contains sensitive credentials for:
+#   - Hetzner Robot API
+#   - Hetzner S3 Object Storage
+#   - GitHub Actions SSH key
+#
+# For more information, see docs/vault-setup.md

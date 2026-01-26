@@ -1,0 +1,31 @@
+---
+- name: Kubernetes Stack Deployment
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Display Kubernetes deployment information
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          YRAL Bare Metal Kubernetes - Kubernetes Stack Only
+          ============================================================
+          This playbook deploys the Kubernetes control plane and
+          platform services. It assumes base system setup is complete.
+          
+          Components:
+            - Helm 3
+            - kube-vip (HA virtual IP)
+            - Kubernetes cluster (kubeadm init + worker joins)
+            - Cilium CNI
+            - Prometheus/Grafana monitoring
+            - etcd backup automation
+            - Velero disaster recovery
+          ============================================================
+
+- import_playbook: helm-install.yml
+- import_playbook: kube-vip-deploy.yml
+- import_playbook: cluster-setup.yml
+- import_playbook: cilium-deploy.yml
+- import_playbook: monitoring-deploy.yml
+- import_playbook: etcd-backup.yml
+- import_playbook: velero-install.yml

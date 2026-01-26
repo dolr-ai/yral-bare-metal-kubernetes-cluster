@@ -1,0 +1,42 @@
+---
+- name: Full Kubernetes Cluster Deployment
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Display deployment information
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          YRAL Bare Metal Kubernetes - Full Deployment
+          ============================================================
+          This playbook orchestrates the complete deployment process:
+          
+          Phase 1: Base System Setup
+            - System updates and configuration
+            - SSH security hardening
+            - Container runtime (containerd)
+            - Kubernetes binaries (kubeadm, kubelet, kubectl)
+          
+          Phase 2: Kubernetes Infrastructure
+            - Helm package manager
+            - kube-vip for HA control plane
+            - Cluster initialization
+            - Cilium CNI
+          
+          Phase 3: Platform Services
+            - Monitoring stack (Prometheus, Grafana)
+            - etcd backups
+            - Velero disaster recovery
+          ============================================================
+
+- import_playbook: system-setup.yml
+- import_playbook: ssh-security.yml
+- import_playbook: containerd-setup.yml
+- import_playbook: kubeadm-install.yml
+- import_playbook: helm-install.yml
+- import_playbook: kube-vip-deploy.yml
+- import_playbook: cluster-setup.yml
+- import_playbook: cilium-deploy.yml
+- import_playbook: monitoring-deploy.yml
+- import_playbook: etcd-backup.yml
+- import_playbook: velero-install.yml
