@@ -1,6 +1,6 @@
 ---
 - name: System Setup and Updates
-  hosts: all
+  hosts: "{{ target_hosts | default('all') }}"
   become: true
   gather_facts: true
 

@@ -1,0 +1,245 @@
+---
+- name: Provision Bare Metal Server with Ubuntu
+  hosts: localhost
+  gather_facts: false
+  vars:
+    target_host: "{{ provision_target_host }}"
+  
+  tasks:
+    - name: Load inventory to get server details
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../inventory/hosts.yml"
+        name: inventory_data
+
+    - name: Extract server IP from inventory
+      ansible.builtin.set_fact:
+        server_ip: "{{ inventory_data.all.children.k8s_cluster.children[item].hosts[target_host].ansible_host }}"
+      loop:
+        - control_plane
+        - worker_nodes
+      when: 
+        - inventory_data.all.children.k8s_cluster.children[item].hosts is defined
+        - target_host in inventory_data.all.children.k8s_cluster.children[item].hosts
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Fail if server not found
+      ansible.builtin.fail:
+        msg: "Server {{ target_host }} not found in inventory"
+      when: server_ip is not defined
+
+    - name: Display server information
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          Provisioning Server: {{ target_host }}
+          IP Address: {{ server_ip }}
+          ============================================================
+
+- name: Activate Rescue Mode and Install Ubuntu
+  hosts: localhost
+  gather_facts: false
+  vars:
+    hetzner_api_user: "#ws+hEJX77Pr"
+    required_ssh_keys:
+      - "github-actions@yral.com"
+      - "saikatdas0790@gmail.com"
+  
+  tasks:
+    - name: Fetch SSH keys from Hetzner API
+      ansible.builtin.uri:
+        url: "https://robot-ws.your-server.de/key"
+        method: GET
+        user: "{{ hetzner_api_user }}"
+        password: "{{ hetzner_robot_api_password }}"
+        force_basic_auth: true
+        return_content: true
+      register: hetzner_keys_response
+
+    - name: Build SSH key fingerprint mapping
+      ansible.builtin.set_fact:
+        key_fingerprints: "{{ key_fingerprints | default([]) + [item.key.fingerprint] }}"
+      loop: "{{ hetzner_keys_response.json }}"
+      when: 
+        - item.key.name | lower in required_ssh_keys or
+          (item.key.name | lower).split() | intersect(required_ssh_keys) | length > 0
+      loop_control:
+        label: "{{ item.key.name }}"
+
+    - name: Fail if SSH keys not found
+      ansible.builtin.fail:
+        msg: "Required SSH keys not found in Hetzner account. Please add: {{ required_ssh_keys }}"
+      when: key_fingerprints is not defined or key_fingerprints | length == 0
+
+    - name: Display SSH keys to be used
+      ansible.builtin.debug:
+        msg: "Using {{ key_fingerprints | length }} SSH keys for rescue mode"
+
+    - name: Activate rescue mode
+      ansible.builtin.uri:
+        url: "https://robot-ws.your-server.de/boot/{{ hostvars['localhost']['server_ip'] }}/rescue"
+        method: POST
+        user: "{{ hetzner_api_user }}"
+        password: "{{ hetzner_robot_api_password }}"
+        force_basic_auth: true
+        body_format: form-urlencoded
+        body:
+          os: linux
+          arch: 64
+          authorized_key: "{{ key_fingerprints }}"
+        return_content: true
+      register: rescue_response
+
+    - name: Display rescue mode activation
+      ansible.builtin.debug:
+        msg: "✅ Rescue mode activated for {{ hostvars['localhost']['server_ip'] }}"
+
+    - name: Trigger hardware reset
+      ansible.builtin.uri:
+        url: "https://robot-ws.your-server.de/reset/{{ hostvars['localhost']['server_ip'] }}"
+        method: POST
+        user: "{{ hetzner_api_user }}"
+        password: "{{ hetzner_robot_api_password }}"
+        force_basic_auth: true
+        body_format: form-urlencoded
+        body:
+          type: hw
+        status_code: [200, 201]
+      register: reset_response
+
+    - name: Wait for server to boot into rescue mode
+      ansible.builtin.wait_for:
+        host: "{{ hostvars['localhost']['server_ip'] }}"
+        port: 22
+        delay: 30
+        timeout: 300
+        state: started
+
+    - name: Verify rescue system is booted
+      ansible.builtin.shell: |
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 \
+          root@{{ hostvars['localhost']['server_ip'] }} \
+          "test -f /root/.oldroot/nfs/install/installimage && echo 'rescue_ready'"
+      register: rescue_check
+      retries: 12
+      delay: 5
+      until: rescue_check.stdout == 'rescue_ready'
+      changed_when: false
+
+    - name: Detect drive type
+      ansible.builtin.shell: |
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+          root@{{ hostvars['localhost']['server_ip'] }} \
+          "lsblk -d -o NAME 2>/dev/null"
+      register: drive_list
+      changed_when: false
+
+    - name: Determine drive to use
+      ansible.builtin.set_fact:
+        drive_to_use: "{{ 'nvme0n1' if 'nvme0n1' in drive_list.stdout else 'sda' }}"
+
+    - name: Display drive information
+      ansible.builtin.debug:
+        msg: "Detected drive type: {{ drive_to_use }}"
+
+    - name: Run Ubuntu installation script
+      ansible.builtin.shell: |
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+          root@{{ hostvars['localhost']['server_ip'] }} \
+          "curl -fsSL https://raw.githubusercontent.com/{{ github_repository }}/main/scripts/install-ubuntu.sh | \
+          MACHINE_HOSTNAME='{{ hostvars['localhost']['target_host'] }}' \
+          DRIVE_TO_USE='{{ drive_to_use }}' bash"
+      register: install_output
+      changed_when: true
+
+    - name: Check installation success
+      ansible.builtin.fail:
+        msg: "Installation failed - INSTALLATION COMPLETE marker not found"
+      when: "'INSTALLATION COMPLETE' not in install_output.stdout"
+
+    - name: Reboot server into Ubuntu
+      ansible.builtin.shell: |
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+          root@{{ hostvars['localhost']['server_ip'] }} "reboot" || true
+      changed_when: true
+
+    - name: Wait for server to reboot
+      ansible.builtin.wait_for:
+        host: "{{ hostvars['localhost']['server_ip'] }}"
+        port: 22
+        delay: 60
+        timeout: 600
+        state: started
+
+    - name: Verify Ubuntu is running
+      ansible.builtin.shell: |
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 \
+          root@{{ hostvars['localhost']['server_ip'] }} \
+          "cat /etc/os-release | grep Ubuntu"
+      register: ubuntu_check
+      retries: 24
+      delay: 5
+      until: ubuntu_check.rc == 0
+      changed_when: false
+
+- name: Configure Provisioned Server
+  hosts: "{{ provision_target_host }}"
+  gather_facts: true
+  become: true
+
+  tasks:
+    - name: Display configuration start
+      ansible.builtin.debug:
+        msg: "Starting post-installation configuration for {{ inventory_hostname }}"
+
+- import_playbook: system-setup.yml
+  vars:
+    target_hosts: "{{ provision_target_host }}"
+
+- name: Reboot After System Setup
+  hosts: "{{ provision_target_host }}"
+  gather_facts: false
+  become: true
+
+  tasks:
+    - name: Reboot server
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+
+- import_playbook: btrfs-expand.yml
+  vars:
+    target_hosts: "{{ provision_target_host }}"
+
+- import_playbook: ssh-security.yml
+  vars:
+    target_hosts: "{{ provision_target_host }}"
+
+- import_playbook: containerd-setup.yml
+  vars:
+    target_hosts: "{{ provision_target_host }}"
+
+- import_playbook: kubeadm-install.yml
+  vars:
+    target_hosts: "{{ provision_target_host }}"
+
+- name: Provisioning Complete
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          ✅ Server Provisioning Complete!
+          ============================================================
+          
+          Server: {{ target_host }}
+          IP: {{ server_ip }}
+          
+          The server is now ready for Kubernetes cluster initialization.
+          
+          Next steps:
+          1. Verify services: ssh root@{{ server_ip }}
+          2. Run full-deployment or kubernetes-only playbook
+          ============================================================

@@ -1,6 +1,6 @@
 ---
 - name: Install kubeadm, kubelet, and kubectl
-  hosts: all
+  hosts: "{{ target_hosts | default('all') }}"
   become: true
   gather_facts: true
 
