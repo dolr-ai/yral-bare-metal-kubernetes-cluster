@@ -57,9 +57,9 @@ prometheus:
       nodeAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
           nodeSelectorTerms:
-          - matchExpressions:
-            - key: node-role.kubernetes.io/control-plane
-              operator: DoesNotExist
+            - matchExpressions:
+                - key: node-role.kubernetes.io/control-plane
+                  operator: DoesNotExist
       podAntiAffinity:
         preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 100
@@ -94,8 +94,14 @@ grafana:
     enabled: true
     size: 10Gi
 
-  # Prefer same datacenter as Prometheus
+  # Affinity rules: prefer same datacenter as Prometheus, avoid control plane nodes
   affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: DoesNotExist
     podAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
         - weight: 100
@@ -104,15 +110,6 @@ grafana:
               matchLabels:
                 app.kubernetes.io/name: prometheus
             topologyKey: topology.kubernetes.io/zone
-
-  # Avoid control plane nodes - let it schedule on workers
-  affinity:
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-        - matchExpressions:
-          - key: node-role.kubernetes.io/control-plane
-            operator: DoesNotExist
 
   # Expose via LoadBalancer
   service:
@@ -212,9 +209,9 @@ alertmanager:
       nodeAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
           nodeSelectorTerms:
-          - matchExpressions:
-            - key: node-role.kubernetes.io/control-plane
-              operator: DoesNotExist
+            - matchExpressions:
+                - key: node-role.kubernetes.io/control-plane
+                  operator: DoesNotExist
 
 # Node exporter - runs on all nodes including control planes
 nodeExporter:
