@@ -79,7 +79,7 @@ gh secret set HETZNER_BARE_METAL_GITHUB_ACTIONS_SSH_PRIVATE_KEY < ~/.ssh/id_ed25
 
 ## Required Inventory Updates
 
-Before running deployment workflows, update these placeholders in `inventory/hosts.yml`:
+Before running deployment workflows, update these placeholders in `ansible/inventory/hosts.yml`:
 
 ```yaml
 hetzner_s3_access_key: "your-actual-access-key"  # Replace PLACEHOLDER_UPDATE_ME
@@ -237,28 +237,28 @@ ansible-playbook --syntax-check -i inventory/hosts.yml playbooks/YOUR_PLAYBOOK.y
 pip install ansible ansible-lint yamllint
 
 # Validate YAML
-yamllint playbooks/ roles/ inventory/ manifests/
+yamllint ansible/
 
 # Check Ansible syntax
-ansible-playbook --syntax-check -i inventory/hosts.yml playbooks/*.yml
+ansible-playbook --syntax-check -i ansible/inventory/hosts.yml ansible/playbooks/*.yml
 
 # Run ansible-lint
-ansible-lint playbooks/ roles/
+ansible-lint ansible/
 
 # Validate inventory
-ansible-inventory -i inventory/hosts.yml --list
+ansible-inventory -i ansible/inventory/hosts.yml --list
 ```
 
 ### Test Playbook Locally
 ```bash
 # Dry run (check mode)
-ansible-playbook -i inventory/hosts.yml playbooks/YOUR_PLAYBOOK.yml --check
+ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/YOUR_PLAYBOOK.yml --check
 
 # Run with verbose output
-ansible-playbook -i inventory/hosts.yml playbooks/YOUR_PLAYBOOK.yml -v
+ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/YOUR_PLAYBOOK.yml -v
 
 # Run specific tags
-ansible-playbook -i inventory/hosts.yml playbooks/YOUR_PLAYBOOK.yml --tags "YOUR_TAG"
+ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/YOUR_PLAYBOOK.yml --tags "YOUR_TAG"
 ```
 
 ## Security Best Practices

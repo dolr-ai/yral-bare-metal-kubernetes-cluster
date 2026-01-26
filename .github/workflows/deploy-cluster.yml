@@ -51,7 +51,7 @@ jobs:
 
       - name: Test connectivity to control planes
         run: |
-          ansible control_plane -i inventory/hosts.yml -m ping
+          ansible control_plane -i ansible/inventory/hosts.yml -m ping
 
       - name: Set environment variables
         run: |
@@ -64,7 +64,7 @@ jobs:
           echo "=================================================="
           echo "Installing Helm on control plane nodes"
           echo "=================================================="
-          ansible-playbook -i inventory/hosts.yml playbooks/helm-install.yml -v
+          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/helm-install.yml -v
 
       - name: Deploy kube-vip
         if: github.event.inputs.playbook == 'kube-vip-deploy' || github.event.inputs.playbook == 'all'
@@ -72,7 +72,7 @@ jobs:
           echo "=================================================="
           echo "Deploying kube-vip on control plane nodes"
           echo "=================================================="
-          ansible-playbook -i inventory/hosts.yml playbooks/kube-vip-deploy.yml -v
+          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/kube-vip-deploy.yml -v
 
       - name: Setup Kubernetes cluster
         if: github.event.inputs.playbook == 'cluster-setup' || github.event.inputs.playbook == 'all'
@@ -80,7 +80,7 @@ jobs:
           echo "=================================================="
           echo "Initializing Kubernetes cluster"
           echo "=================================================="
-          ansible-playbook -i inventory/hosts.yml playbooks/cluster-setup.yml -v
+          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/cluster-setup.yml -v
 
       - name: Deploy Cilium CNI
         if: github.event.inputs.playbook == 'cilium-deploy' || github.event.inputs.playbook == 'all'
@@ -88,7 +88,7 @@ jobs:
           echo "=================================================="
           echo "Deploying Cilium CNI"
           echo "=================================================="
-          ansible-playbook -i inventory/hosts.yml playbooks/cilium-deploy.yml -v
+          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/cilium-deploy.yml -v
 
       - name: Deploy monitoring stack
         if: github.event.inputs.playbook == 'monitoring-deploy' || github.event.inputs.playbook == 'all'
@@ -96,7 +96,7 @@ jobs:
           echo "=================================================="
           echo "Deploying Prometheus + Grafana monitoring"
           echo "=================================================="
-          ansible-playbook -i inventory/hosts.yml playbooks/monitoring-deploy.yml -v
+          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/monitoring-deploy.yml -v
 
       - name: Setup etcd backups
         if: github.event.inputs.playbook == 'etcd-backup' || github.event.inputs.playbook == 'all'
@@ -104,7 +104,7 @@ jobs:
           echo "=================================================="
           echo "Configuring automated etcd backups"
           echo "=================================================="
-          ansible-playbook -i inventory/hosts.yml playbooks/etcd-backup.yml -v
+          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/etcd-backup.yml -v
 
       - name: Install Velero
         if: github.event.inputs.playbook == 'velero-install' || github.event.inputs.playbook == 'all'
@@ -112,7 +112,7 @@ jobs:
           echo "=================================================="
           echo "Installing Velero for cluster backups"
           echo "=================================================="
-          ansible-playbook -i inventory/hosts.yml playbooks/velero-install.yml -v
+          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/velero-install.yml -v
 
       - name: Create deployment summary
         if: always()

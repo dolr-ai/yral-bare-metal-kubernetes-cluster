@@ -11,10 +11,7 @@ on:
     branches:
       - main
     paths:
-      - "playbooks/**"
-      - "roles/**"
-      - "inventory/**"
-      - "manifests/**"
+      - 'ansible/**'
   workflow_dispatch:
 
 jobs:
@@ -38,30 +35,30 @@ jobs:
       - name: Validate YAML syntax
         run: |
           echo "Validating YAML files..."
-          yamllint -c .yamllint playbooks/ roles/ inventory/ manifests/ || true
+          yamllint -c .yamllint ansible/ || true
 
       - name: Validate Ansible playbooks
         run: |
           echo "Checking Ansible playbook syntax..."
-          for playbook in playbooks/*.yml; do
+          for playbook in ansible/playbooks/*.yml; do
             echo "Checking $playbook..."
-            ansible-playbook --syntax-check -i inventory/hosts.yml "$playbook"
+            ansible-playbook --syntax-check -i ansible/inventory/hosts.yml "$playbook"
           done
 
       - name: Run ansible-lint
         run: |
           echo "Running ansible-lint..."
-          ansible-lint playbooks/ roles/ || true
+          ansible-lint ansible/ || true
 
       - name: Validate inventory
         run: |
           echo "Validating inventory structure..."
-          ansible-inventory -i inventory/hosts.yml --list > /dev/null
+          ansible-inventory -i ansible/inventory/hosts.yml --list > /dev/null
 
       - name: Check for required secrets
         run: |
           echo "Checking inventory for required placeholders..."
-          if grep -q "PLACEHOLDER_UPDATE_ME" inventory/hosts.yml; then
+          if grep -q "PLACEHOLDER_UPDATE_ME" ansible/inventory/hosts.yml; then
             echo "⚠️  Warning: Found PLACEHOLDER_UPDATE_ME in inventory"
             echo "Please update the following in inventory/hosts.yml:"
             echo "  - hetzner_s3_access_key"
@@ -85,10 +82,10 @@ jobs:
 
           ### Files Validated
 
-          - ✅ Playbooks: `playbooks/*.yml`
-          - ✅ Roles: `roles/*/tasks/main.yml`
-          - ✅ Inventory: `inventory/hosts.yml`
-          - ✅ Manifests: `manifests/*.yaml`
+          - ✅ Playbooks: `ansible/playbooks/*.yml`
+          - ✅ Roles: `ansible/roles/*/tasks/main.yml`
+          - ✅ Inventory: `ansible/inventory/hosts.yml`
+          - ✅ Manifests: `ansible/manifests/*.yaml`
 
           ### Validation Steps
 
@@ -101,7 +98,7 @@ jobs:
 
           Ensure these are configured:
 
-          **Inventory placeholders** (in `inventory/hosts.yml`):
+          **Inventory placeholders** (in `ansible/inventory/hosts.yml`):
           - `hetzner_s3_access_key`: Your Hetzner Object Storage access key
           - `hetzner_s3_bucket`: Your S3 bucket name
 

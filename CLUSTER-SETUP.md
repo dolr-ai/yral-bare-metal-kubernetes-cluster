@@ -25,7 +25,7 @@ Complete Ansible automation for a production-grade High Availability Kubernetes 
 
 ### 1. Update Placeholders in Inventory
 
-Edit `inventory/hosts.yml` and update:
+Edit `ansible/inventory/hosts.yml` and update:
 - `hetzner_s3_access_key`: Your Hetzner Object Storage access key
 - `hetzner_s3_bucket`: Your S3 bucket name
 
@@ -47,23 +47,23 @@ Reprovision control-plane-3 and worker-2 with swapped IPs:
 
 ```bash
 # Install Helm on control planes
-ansible-playbook playbooks/helm-install.yml
+ansible-playbook ansible/playbooks/helm-install.yml
 
 # Deploy kube-vip on all control planes
-ansible-playbook playbooks/kube-vip-deploy.yml
+ansible-playbook ansible/playbooks/kube-vip-deploy.yml
 
 # Initialize cluster and join all nodes
-ansible-playbook playbooks/cluster-setup.yml
+ansible-playbook ansible/playbooks/cluster-setup.yml
 
 # Deploy Cilium CNI
-ansible-playbook playbooks/cilium-deploy.yml
+ansible-playbook ansible/playbooks/cilium-deploy.yml
 
 # Deploy monitoring stack
-ansible-playbook playbooks/monitoring-deploy.yml
+ansible-playbook ansible/playbooks/monitoring-deploy.yml
 
 # Setup automated backups
-ansible-playbook playbooks/etcd-backup.yml
-ansible-playbook playbooks/velero-install.yml
+ansible-playbook ansible/playbooks/etcd-backup.yml
+ansible-playbook ansible/playbooks/velero-install.yml
 ```
 
 ## Project Structure
@@ -72,7 +72,8 @@ ansible-playbook playbooks/velero-install.yml
 .
 ├── inventory/
 │   └── hosts.yml                     # Inventory with topology labels and credentials
-├── playbooks/
+├── ansible/
+│   ├── playbooks/
 │   ├── helm-install.yml              # Install Helm on control planes
 │   ├── kube-vip-deploy.yml           # Deploy kube-vip static pods
 │   ├── cluster-setup.yml             # Initialize cluster and join nodes
@@ -83,13 +84,13 @@ ansible-playbook playbooks/velero-install.yml
 │   ├── system-setup.yml              # System updates (existing)
 │   ├── containerd-setup.yml          # Container runtime (existing)
 │   └── kubeadm-install.yml           # Kubernetes installation (existing)
-├── roles/
+│   ├── roles/
 │   ├── kube-vip/                     # kube-vip configuration role
 │   ├── cluster-init/                 # Cluster initialization role
 │   ├── node-labels/                  # Topology labels role
 │   ├── cilium/                       # Cilium deployment role
 │   └── monitoring/                   # Monitoring stack role
-├── manifests/
+│   ├── manifests/
 │   ├── cilium-values.yaml            # Cilium Helm values
 │   └── monitoring-values.yaml        # kube-prometheus-stack Helm values
 └── scripts/
@@ -249,7 +250,7 @@ velero backup describe <backup-name>
 ## Maintenance
 
 ### Adding Worker Nodes
-1. Add to `inventory/hosts.yml` with topology labels
+1. Add to `ansible/inventory/hosts.yml` with topology labels
 2. Run system setup playbooks
 3. Run `cluster-setup.yml` with `--limit new-worker`
 

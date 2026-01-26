@@ -12,21 +12,34 @@ Ansible automation for managing a bare-metal Kubernetes cluster on Hetzner infra
 
 ```
 .
-├── ansible.cfg                    # Ansible configuration
-├── inventory/
-│   └── hosts.yml                 # Inventory file with host definitions
-├── playbooks/
-│   ├── ping.yml                  # Connectivity test playbook
-│   ├── system-setup.yml          # System updates and configuration
-│   ├── btrfs-expand.yml          # Btrfs filesystem expansion
-│   ├── ssh-security.yml          # SSH security hardening
-│   ├── containerd-setup.yml      # Container runtime installation
-│   └── kubeadm-install.yml       # Kubernetes installation
+├── ansible/
+│   ├── ansible.cfg               # Ansible configuration
+│   ├── inventory/
+│   │   └── hosts.yml            # Inventory file with host definitions
+│   ├── playbooks/               # Ansible playbooks for deployment
+│   │   ├── helm-install.yml
+│   │   ├── kube-vip-deploy.yml
+│   │   ├── cluster-setup.yml
+│   │   ├── cilium-deploy.yml
+│   │   ├── monitoring-deploy.yml
+│   │   ├── etcd-backup.yml
+│   │   └── velero-install.yml
+│   ├── roles/                   # Ansible roles
+│   │   ├── kube-vip/
+│   │   ├── cluster-init/
+│   │   ├── worker-join/
+│   │   ├── node-labels/
+│   │   ├── cilium/
+│   │   └── monitoring/
+│   └── manifests/               # Kubernetes manifests and Helm values
+│       ├── cilium-values.yaml
+│       └── monitoring-values.yaml
 ├── scripts/
-│   └── install-ubuntu.sh         # Ubuntu installation script
+│   └── install-ubuntu.sh        # Ubuntu installation script
 └── .github/
-    └── workflows/
-        └── ansible-ping.yml      # GitHub Actions workflow for testing
+    └── workflows/               # GitHub Actions CI/CD workflows
+        ├── validate-ansible.yml
+        └── deploy-cluster.yml
 ```
 
 ## Inventory Configuration
@@ -39,7 +52,7 @@ The inventory is organized into groups for different Kubernetes node types:
 
 ### Adding Hosts
 
-Edit [inventory/hosts.yml](inventory/hosts.yml) and replace the placeholder IPs with your actual Hetzner server IPs:
+Edit [ansible/inventory/hosts.yml](ansible/inventory/hosts.yml) and replace the placeholder IPs with your actual Hetzner server IPs:
 
 ```yaml
 control_plane:
