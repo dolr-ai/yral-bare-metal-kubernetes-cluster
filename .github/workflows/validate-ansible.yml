@@ -40,15 +40,17 @@ jobs:
       - name: Validate Ansible playbooks
         run: |
           echo "Checking Ansible playbook syntax..."
-          for playbook in ansible/playbooks/*.yml; do
+          cd ansible
+          for playbook in playbooks/*.yml; do
             echo "Checking $playbook..."
-            ansible-playbook --syntax-check -i ansible/inventory/hosts.yml "$playbook"
+            ansible-playbook --syntax-check -i inventory/hosts.yml "$playbook"
           done
 
       - name: Run ansible-lint
         run: |
           echo "Running ansible-lint..."
-          ansible-lint ansible/ || true
+          cd ansible
+          ansible-lint playbooks/ roles/ || true
 
       - name: Validate inventory
         run: |
