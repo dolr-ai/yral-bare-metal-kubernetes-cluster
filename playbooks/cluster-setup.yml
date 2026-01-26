@@ -6,7 +6,7 @@
   serial: 1
 
   roles:
-    - cluster-init
+    - role: ../roles/cluster-init
 
 - name: Join worker nodes to cluster
   hosts: worker_nodes
@@ -15,7 +15,7 @@
   serial: 3
 
   roles:
-    - worker-join
+    - role: ../roles/worker-join
 
 - name: Label nodes with topology
   hosts: k8s_cluster
@@ -23,7 +23,7 @@
   gather_facts: true
 
   roles:
-    - node-labels
+    - role: ../roles/node-labels
 
 - name: Verify cluster status
   hosts: control_plane[0]

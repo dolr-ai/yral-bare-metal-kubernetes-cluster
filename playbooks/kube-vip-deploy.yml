@@ -5,7 +5,7 @@
   gather_facts: true
 
   roles:
-    - kube-vip
+    - role: ../roles/kube-vip
 
   post_tasks:
     - name: Verify kube-vip manifest exists
