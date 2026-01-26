@@ -54,30 +54,27 @@
       register: labels_output
       changed_when: false
 
-    - name: Display node labels
-      debug:
-        msg: "{{ labels_output.stdout_lines }}"
+- name: Display node labels
+  debug:
+    msg: "{{ labels_output.stdout_lines }}"
 
-- name: Display cluster topology summary
-  hosts: control_plane[0]
-  become: true
-  gather_facts: false
+- name: Get nodes by topology
+  command: kubectl get nodes -L topology.kubernetes.io/zone,topology.kubernetes.io/region
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: topology_output
+  changed_when: false
+  run_once: true
 
-  tasks:
-    - name: Get nodes by topology
-      command: kubectl get nodes -L topology.kubernetes.io/zone,topology.kubernetes.io/region
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      register: topology_output
-      changed_when: false
-
-    - name: Display topology summary
-      debug:
-        msg:
-          - "✅ Topology labels applied to all nodes"
-          - ""
-          - "{{ topology_output.stdout_lines }}"
-          - ""
-          - "Cluster distribution:"
-          - "  - Control planes: 3 nodes in HEL1-DC2 (Helsinki)"
-          - "  - Workers: 9 nodes in FSN1 (Falkenstein), 1 node in HEL1-DC2 (Helsinki)"
+- name: Display topology summary
+  debug:
+    msg:
+      - "✅ Topology labels applied to all nodes"
+      - ""
+      - "{{ topology_output.stdout_lines }}"
+      - ""
+      - "Cluster distribution:"
+      - "  - Control planes: 3 nodes in HEL1-DC2 (Helsinki)"
+      - "  - Workers: 9 nodes in FSN1 (Falkenstein), 1 node in HEL1-DC2 (Helsinki)"
+  run_once: true
