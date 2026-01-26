@@ -8,10 +8,8 @@ on:
         required: true
         type: choice
         options:
-          - "system-setup"
-          - "ssh-security"
-          - "containerd-setup"
-          - "kubeadm-install"
+          - "provision-all-servers"
+          - "base-system-setup"
           - "helm-install"
           - "kube-vip-deploy"
           - "cluster-setup"
@@ -19,8 +17,8 @@ on:
           - "monitoring-deploy"
           - "etcd-backup"
           - "velero-install"
-          - "all"
-          - "full-redeploy"
+          - "kubernetes-only"
+          - "full-deployment"
 
 env:
   ANSIBLE_HOST_KEY_CHECKING: False
@@ -63,91 +61,100 @@ jobs:
           echo "HETZNER_ROBOT_PASSWORD=${{ secrets.HETZNER_ROBOT_PASSWORD }}" >> $GITHUB_ENV
           echo "HETZNER_S3_SECRET_KEY=${{ secrets.HETZNER_S3_SECRET_KEY }}" >> $GITHUB_ENV
 
-      - name: System setup
-        if: github.event.inputs.playbook == 'system-setup' || github.event.inputs.playbook == 'full-redeploy'
+      # ============================================================================
+      # PHASE 1: Base System Setup (system-setup → ssh → containerd → kubeadm)
+      # Run this after provisioning servers with provision-server workflow
+      # ============================================================================
+
+      - name: "Phase 1: Base System Configuration"
+        if: github.event.inputs.playbook == 'base-system-setup' || github.event.inputs.playbook == 'full-deployment'
         run: |
-          echo "=================================================="
-          echo "Phase 1: System Setup"
-          echo "=================================================="
+          echo "============================================================"
+          echo "Phase 1: Configuring Base System on All Nodes"
+          echo "============================================================"
           ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/system-setup.yml -v
-
-      - name: SSH security hardening
-        if: github.event.inputs.playbook == 'ssh-security' || github.event.inputs.playbook == 'full-redeploy'
-        run: |
-          echo "=================================================="
-          echo "Phase 2: SSH Security Hardening"
-          echo "=================================================="
           ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/ssh-security.yml -v
-
-      - name: Install containerd
-        if: github.event.inputs.playbook == 'containerd-setup' || github.event.inputs.playbook == 'full-redeploy'
-        run: |
-          echo "=================================================="
-          echo "Phase 3: Container Runtime Setup"
-          echo "=================================================="
           ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/containerd-setup.yml -v
-
-      - name: Install kubeadm, kubelet, kubectl
-        if: github.event.inputs.playbook == 'kubeadm-install' || github.event.inputs.playbook == 'full-redeploy'
-        run: |
-          echo "=================================================="
-          echo "Phase 4: Kubernetes Installation"
-          echo "=================================================="
           ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/kubeadm-install.yml -v
 
+      # ============================================================================
+      # PHASE 2: Kubernetes Cluster Deployment
+      # ============================================================================
+
       - name: Run Helm installation
-        if: github.event.inputs.playbook == 'helm-install' || github.event.inputs.playbook == 'all' || github.event.inputs.playbook == 'full-redeploy'
+        if: >
+          github.event.inputs.playbook == 'helm-install' || 
+          github.event.inputs.playbook == 'kubernetes-only' || 
+          github.event.inputs.playbook == 'full-deployment'
         run: |
           echo "=================================================="
-          echo "Phase 5: Installing Helm"
+          echo "Phase 2: Installing Helm"
           echo "=================================================="
           ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/helm-install.yml -v
 
       - name: Deploy kube-vip
-        if: github.event.inputs.playbook == 'kube-vip-deploy' || github.event.inputs.playbook == 'all' || github.event.inputs.playbook == 'full-redeploy'
+        if: >
+          github.event.inputs.playbook == 'kube-vip-deploy' || 
+          github.event.inputs.playbook == 'kubernetes-only' || 
+          github.event.inputs.playbook == 'full-deployment'
         run: |
           echo "=================================================="
-          echo "Phase 6: Deploying kube-vip"
+          echo "Phase 3: Deploying kube-vip"
           echo "=================================================="
           ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/kube-vip-deploy.yml -v
 
       - name: Setup Kubernetes cluster
-        if: github.event.inputs.playbook == 'cluster-setup' || github.event.inputs.playbook == 'all' || github.event.inputs.playbook == 'full-redeploy'
+        if: >
+          github.event.inputs.playbook == 'cluster-setup' || 
+          github.event.inputs.playbook == 'kubernetes-only' || 
+          github.event.inputs.playbook == 'full-deployment'
         run: |
           echo "=================================================="
-          echo "Phase 7: Initializing Kubernetes Cluster"
+          echo "Phase 4: Initializing Kubernetes Cluster"
           echo "=================================================="
           ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/cluster-setup.yml -v
 
       - name: Deploy Cilium CNI
-        if: github.event.inputs.playbook == 'cilium-deploy' || github.event.inputs.playbook == 'all' || github.event.inputs.playbook == 'full-redeploy'
+        if: >
+          github.event.inputs.playbook == 'cilium-deploy' || 
+          github.event.inputs.playbook == 'kubernetes-only' || 
+          github.event.inputs.playbook == 'full-deployment'
         run: |
           echo "=================================================="
-          echo "Phase 8: Deploying Cilium CNI"
+          echo "Phase 5: Deploying Cilium CNI"
           echo "=================================================="
           ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/cilium-deploy.yml -v
 
       - name: Deploy monitoring stack
-        if: github.event.inputs.playbook == 'monitoring-deploy' || github.event.inputs.playbook == 'all' || github.event.inputs.playbook == 'full-redeploy'
+        if: >
+          github.event.inputs.playbook == 'monitoring-deploy' || 
+          github.event.inputs.playbook == 'kubernetes-only' || 
+          github.event.inputs.playbook == 'full-deployment'
         run: |
           echo "=================================================="
-          echo "Phase 9: Deploying Monitoring Stack"
+          echo "Phase 6: Deploying Monitoring Stack"
           echo "=================================================="
           ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/monitoring-deploy.yml -v
 
       - name: Setup etcd backups
-        if: github.event.inputs.playbook == 'etcd-backup' || github.event.inputs.playbook == 'all'
+        if: >
+          github.event.inputs.playbook == 'etcd-backup' || 
+          github.event.inputs.playbook == 'kubernetes-only' || 
+          github.event.inputs.playbook == 'full-deployment'
         run: |
           echo "=================================================="
-          echo "Configuring automated etcd backups"
+          echo "Phase 7: Configuring etcd Backups"
           echo "=================================================="
           ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/etcd-backup.yml -v
 
       - name: Install Velero
-        if: github.event.inputs.playbook == 'velero-install' || github.event.inputs.playbook == 'all'
+        if: >
+          github.event.inputs.playbook == 'velero-install' || 
+          github.event.inputs.playbook == 'kubernetes-only' || 
+          github.event.inputs.playbook == 'full-deployment'
         run: |
           echo "=================================================="
-          echo "Installing Velero for cluster backups"
+          echo "Phase 8: Installing Velero"
           echo "=================================================="
           ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/velero-install.yml -v
 
@@ -163,11 +170,28 @@ jobs:
 
           ### Cluster Information
 
-          - **Control Plane VIP**: 77.42.49.55 (kubernetes-api.yral.com)
-          - **LoadBalancer Pool**: 95.217.49.193-95.217.49.222 (30 IPs)
-          - **Control Planes**: 3 nodes in HEL1-DC2 (Helsinki) - NVMe disks
-          - **Workers**: 13 nodes (10 FSN1, 3 HEL1) - All NVMe disks
-          - **Disk Configuration**: All nodes labeled with `node.yral.com/disk-type=nvme`
+          - **Deployment Options Explained
+
+          - **provision-all-servers**: Provisions individual servers (use provision-server workflow instead)
+          - **base-system-setup**: Runs system-setup → ssh-security → containerd → kubeadm on all nodes
+          - **kubernetes-only**: Deploys full Kubernetes stack (assumes base setup is done)
+          - **full-deployment**: Complete deployment (base-system-setup + kubernetes-only)
+          - Individual playbooks: Run specific components only
+
+          ### Access URLs
+
+          - **Kubernetes API**: https://kubernetes-api.yral.com:6443
+          - **Hubble UI**: http://95.217.49.194
+          - **Grafana**: http://95.217.49.195
+
+          ### Recommended Workflow
+
+          **For fresh servers:**
+          1. Run `provision-server` workflow for each server (OS install)
+          2. Run `full-deployment` option (base setup + Kubernetes)
+
+          **For updating existing cluster:**
+          - Use individual playbook options (cilium-deploy, monitoring-deploy, etc.) labeled with `node.yral.com/disk-type=nvme`
 
           ### Access URLs
 
