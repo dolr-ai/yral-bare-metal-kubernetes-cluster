@@ -1,0 +1,214 @@
+---
+- name: Setup etcd automated backups on control plane nodes
+  hosts: control_plane
+  become: true
+  gather_facts: true
+
+  vars:
+    etcd_backup_dir: /var/backups/etcd
+    etcd_retention_count: 10
+    etcd_backup_schedule: "0 2 * * *" # 2 AM daily
+
+  tasks:
+    - name: Display backup configuration
+      debug:
+        msg:
+          - "Configuring etcd backups on: {{ ansible_hostname }}"
+          - "Backup directory: {{ etcd_backup_dir }}"
+          - "Retention: {{ etcd_retention_count }} snapshots"
+          - "Schedule: Daily at 2 AM UTC"
+          - "S3 bucket: {{ hetzner_s3_bucket }}"
+          - "S3 endpoint: {{ hetzner_s3_endpoint }}"
+
+    - name: Install required packages
+      apt:
+        name:
+          - s3cmd
+          - jq
+        state: present
+        update_cache: yes
+
+    - name: Create etcd backup directory
+      file:
+        path: "{{ etcd_backup_dir }}"
+        state: directory
+        mode: "0700"
+        owner: root
+        group: root
+
+    - name: Create S3cmd configuration
+      copy:
+        content: |
+          [default]
+          access_key = {{ hetzner_s3_access_key }}
+          secret_key = {{ hetzner_s3_secret_key }}
+          host_base = {{ hetzner_s3_endpoint | regex_replace('https://', '') }}
+          host_bucket = %(bucket)s.{{ hetzner_s3_endpoint | regex_replace('https://', '') }}
+          use_https = True
+          signature_v2 = False
+        dest: /root/.s3cfg
+        mode: "0600"
+        owner: root
+        group: root
+
+    - name: Create etcd backup script
+      copy:
+        content: |
+          #!/bin/bash
+          set -euo pipefail
+
+          # Configuration
+          BACKUP_DIR="{{ etcd_backup_dir }}"
+          RETENTION_COUNT={{ etcd_retention_count }}
+          S3_BUCKET="{{ hetzner_s3_bucket }}"
+          HOSTNAME="{{ ansible_hostname }}"
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          BACKUP_FILE="${BACKUP_DIR}/etcd-snapshot-${HOSTNAME}-${TIMESTAMP}.db"
+
+          # Etcd configuration
+          ETCD_ENDPOINTS="https://127.0.0.1:2379"
+          ETCD_CACERT="/etc/kubernetes/pki/etcd/ca.crt"
+          ETCD_CERT="/etc/kubernetes/pki/etcd/server.crt"
+          ETCD_KEY="/etc/kubernetes/pki/etcd/server.key"
+
+          echo "=================================================="
+          echo "Starting etcd backup: ${TIMESTAMP}"
+          echo "=================================================="
+
+          # Create snapshot
+          echo "Creating etcd snapshot..."
+          ETCDCTL_API=3 etcdctl snapshot save "$BACKUP_FILE" \
+            --endpoints="$ETCD_ENDPOINTS" \
+            --cacert="$ETCD_CACERT" \
+            --cert="$ETCD_CERT" \
+            --key="$ETCD_KEY"
+
+          if [ $? -eq 0 ]; then
+            echo "✅ Snapshot created: $BACKUP_FILE"
+            BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
+            echo "   Size: $BACKUP_SIZE"
+          else
+            echo "❌ Failed to create snapshot"
+            exit 1
+          fi
+
+          # Verify snapshot
+          echo "Verifying snapshot integrity..."
+          ETCDCTL_API=3 etcdctl snapshot status "$BACKUP_FILE" --write-out=table
+
+          if [ $? -eq 0 ]; then
+            echo "✅ Snapshot verification passed"
+          else
+            echo "❌ Snapshot verification failed"
+            rm -f "$BACKUP_FILE"
+            exit 1
+          fi
+
+          # Upload to S3
+          echo "Uploading to S3..."
+          s3cmd put "$BACKUP_FILE" "s3://${S3_BUCKET}/etcd-backups/${HOSTNAME}/"
+
+          if [ $? -eq 0 ]; then
+            echo "✅ Uploaded to S3: s3://${S3_BUCKET}/etcd-backups/${HOSTNAME}/$(basename $BACKUP_FILE)"
+          else
+            echo "❌ Failed to upload to S3"
+            exit 1
+          fi
+
+          # Cleanup old local backups
+          echo "Cleaning up old local backups (keeping last ${RETENTION_COUNT})..."
+          cd "$BACKUP_DIR"
+          ls -t etcd-snapshot-${HOSTNAME}-*.db 2>/dev/null | tail -n +$((RETENTION_COUNT + 1)) | xargs -r rm -f
+          LOCAL_COUNT=$(ls -1 etcd-snapshot-${HOSTNAME}-*.db 2>/dev/null | wc -l)
+          echo "✅ Local backups: $LOCAL_COUNT"
+
+          # Cleanup old S3 backups
+          echo "Cleaning up old S3 backups (keeping last ${RETENTION_COUNT})..."
+          s3cmd ls "s3://${S3_BUCKET}/etcd-backups/${HOSTNAME}/" | \
+            awk '{print $4}' | \
+            sort -r | \
+            tail -n +$((RETENTION_COUNT + 1)) | \
+            xargs -r -I {} s3cmd del {}
+
+          S3_COUNT=$(s3cmd ls "s3://${S3_BUCKET}/etcd-backups/${HOSTNAME}/" | wc -l)
+          echo "✅ S3 backups: $S3_COUNT"
+
+          echo "=================================================="
+          echo "Backup completed successfully: ${TIMESTAMP}"
+          echo "=================================================="
+        dest: /usr/local/bin/etcd-backup.sh
+        mode: "0700"
+        owner: root
+        group: root
+
+    - name: Create etcd backup cron job
+      cron:
+        name: "Automated etcd backup"
+        minute: "0"
+        hour: "2"
+        job: "/usr/local/bin/etcd-backup.sh >> /var/log/etcd-backup.log 2>&1"
+        user: root
+        state: present
+
+    - name: Create log rotation for backup logs
+      copy:
+        content: |
+          /var/log/etcd-backup.log {
+              daily
+              rotate 30
+              compress
+              delaycompress
+              missingok
+              notifempty
+              create 0640 root root
+          }
+        dest: /etc/logrotate.d/etcd-backup
+        mode: "0644"
+
+    - name: Test etcd backup script (manual run)
+      command: /usr/local/bin/etcd-backup.sh
+      register: backup_test
+      changed_when: false
+      failed_when: false
+      when: ansible_hostname == groups['control_plane'][0]
+
+    - name: Display backup test results
+      debug:
+        msg: "{{ backup_test.stdout_lines }}"
+      when: ansible_hostname == groups['control_plane'][0] and backup_test.rc is defined
+
+    - name: Verify backup was created
+      find:
+        paths: "{{ etcd_backup_dir }}"
+        patterns: "etcd-snapshot-*.db"
+      register: backup_files
+      when: ansible_hostname == groups['control_plane'][0]
+
+    - name: Display backup files
+      debug:
+        msg: "Found {{ backup_files.matched }} backup file(s)"
+      when: ansible_hostname == groups['control_plane'][0]
+
+    - name: Display setup summary
+      debug:
+        msg:
+          - "✅ etcd backup configuration completed"
+          - ""
+          - "Configuration:"
+          - "  - Backup directory: {{ etcd_backup_dir }}"
+          - "  - Schedule: {{ etcd_backup_schedule }} (Daily at 2 AM UTC)"
+          - "  - Retention: {{ etcd_retention_count }} snapshots"
+          - "  - S3 bucket: {{ hetzner_s3_bucket }}"
+          - "  - S3 endpoint: {{ hetzner_s3_endpoint }}"
+          - ""
+          - "Manual backup command:"
+          - "  /usr/local/bin/etcd-backup.sh"
+          - ""
+          - "View logs:"
+          - "  tail -f /var/log/etcd-backup.log"
+          - ""
+          - "List S3 backups:"
+          - "  s3cmd ls s3://{{ hetzner_s3_bucket }}/etcd-backups/{{ ansible_hostname }}/"
+          - ""
+          - "⚠️  Note: Backups are stored per-node in S3"
+          - "⚠️  Test restore procedure before relying on backups!"

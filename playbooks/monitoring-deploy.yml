@@ -1,0 +1,8 @@
+---
+- name: Deploy monitoring stack
+  hosts: control_plane[0]
+  become: true
+  gather_facts: true
+
+  roles:
+    - monitoring

@@ -1,0 +1,110 @@
+---
+- name: Display kube-vip deployment information
+  debug:
+    msg:
+      - "Deploying kube-vip on: {{ ansible_hostname }}"
+      - "Control plane VIP: {{ control_plane_vip }}"
+      - "LoadBalancer IP range: {{ loadbalancer_ip_range }}"
+      - "Control plane endpoint: {{ control_plane_endpoint }}"
+
+- name: Create Kubernetes manifests directory
+  file:
+    path: /etc/kubernetes/manifests
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+
+- name: Pull kube-vip container image
+  command: ctr image pull ghcr.io/kube-vip/kube-vip:v0.8.5
+  register: pull_result
+  changed_when: "'Downloaded' in pull_result.stderr or 'Downloaded' in pull_result.stdout"
+
+- name: Generate kube-vip static pod manifest
+  shell: |
+    ctr run --rm --net-host ghcr.io/kube-vip/kube-vip:v0.8.5 vip \
+      /kube-vip manifest pod \
+      --interface eth0 \
+      --address {{ control_plane_vip }} \
+      --controlplane \
+      --services \
+      --arp \
+      --leaderElection \
+      --enableLoadBalancer
+  register: kube_vip_manifest
+  changed_when: false
+
+- name: Write kube-vip manifest to file
+  copy:
+    content: "{{ kube_vip_manifest.stdout }}"
+    dest: /etc/kubernetes/manifests/kube-vip.yaml
+    mode: "0600"
+    owner: root
+    group: root
+
+- name: Create kube-vip RBAC manifest
+  copy:
+    content: |
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: kube-vip
+        namespace: kube-system
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      metadata:
+        name: kube-vip-role
+      rules:
+        - apiGroups: [""]
+          resources: ["services", "services/status", "nodes", "endpoints"]
+          verbs: ["list", "get", "watch", "update"]
+        - apiGroups: ["coordination.k8s.io"]
+          resources: ["leases"]
+          verbs: ["list", "get", "watch", "update", "create"]
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: kube-vip-binding
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: kube-vip-role
+      subjects:
+      - kind: ServiceAccount
+        name: kube-vip
+        namespace: kube-system
+    dest: /tmp/kube-vip-rbac.yaml
+    mode: "0644"
+
+- name: Create kube-vip cloud provider ConfigMap template
+  copy:
+    content: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: kubevip
+        namespace: kube-system
+      data:
+        range-global: {{ loadbalancer_ip_range }}
+        cidr-global: "32"
+    dest: /tmp/kube-vip-configmap.yaml
+    mode: "0644"
+
+- name: Display kube-vip deployment summary
+  debug:
+    msg:
+      - "✅ kube-vip manifest created at /etc/kubernetes/manifests/kube-vip.yaml"
+      - "✅ RBAC manifest created at /tmp/kube-vip-rbac.yaml (apply after cluster init)"
+      - "✅ ConfigMap created at /tmp/kube-vip-configmap.yaml (apply after cluster init)"
+      - ""
+      - "Configuration:"
+      - "  - Mode: ARP"
+      - "  - Control plane VIP: {{ control_plane_vip }}"
+      - "  - LoadBalancer IP pool: {{ loadbalancer_ip_range }}"
+      - "  - Leader election: Enabled"
+      - "  - Services LoadBalancer: Enabled"
+      - ""
+      - "⚠️  kube-vip will start automatically when kubelet starts"
+      - "⚠️  Apply RBAC and ConfigMap after 'kubeadm init' completes"

@@ -1,0 +1,162 @@
+---
+- name: Check if monitoring stack is already installed
+  command: helm list -n monitoring -o json
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: helm_list
+  changed_when: false
+  failed_when: false
+
+- name: Create monitoring namespace
+  command: kubectl create namespace monitoring
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: ns_create
+  changed_when: "'created' in ns_create.stdout"
+  failed_when: ns_create.rc != 0 and 'AlreadyExists' not in ns_create.stderr
+
+- name: Parse Helm releases
+  set_fact:
+    monitoring_installed: "{{ (helm_list.stdout | default('[]') | from_json) | selectattr('name', 'equalto', 'kube-prometheus-stack') | list | length > 0 }}"
+
+- name: Display monitoring installation status
+  debug:
+    msg: "Monitoring stack is already installed"
+  when: monitoring_installed
+
+- name: Install monitoring stack using Helm
+  when: not monitoring_installed
+  block:
+    - name: Display monitoring installation parameters
+      debug:
+        msg:
+          - "Installing kube-prometheus-stack with:"
+          - "  - Prometheus: 2 replicas on workers"
+          - "  - Grafana: LoadBalancer at 95.217.49.195"
+          - "  - AlertManager: 2 replicas on workers"
+          - "  - Node exporter: All nodes"
+          - "  - Topology: Datacenter-aware soft preferences"
+          - "  - Cilium metrics: Enabled"
+
+    - name: Copy monitoring values file
+      copy:
+        src: "{{ playbook_dir }}/../manifests/monitoring-values.yaml"
+        dest: /tmp/monitoring-values.yaml
+        mode: "0644"
+
+    - name: Install kube-prometheus-stack
+      command: >
+        helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack
+        --namespace monitoring
+        --values /tmp/monitoring-values.yaml
+        --wait
+        --timeout 10m
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: monitoring_install
+
+    - name: Display monitoring installation output
+      debug:
+        msg: "{{ monitoring_install.stdout_lines }}"
+
+- name: Verify monitoring installation
+  block:
+    - name: Wait for Prometheus pods to be ready
+      command: kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=prometheus -n monitoring --timeout=300s
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: prometheus_ready
+      retries: 3
+      delay: 10
+
+    - name: Wait for Grafana pod to be ready
+      command: kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=grafana -n monitoring --timeout=180s
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+
+    - name: Get monitoring pods status
+      command: kubectl get pods -n monitoring -o wide
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: monitoring_pods
+      changed_when: false
+
+    - name: Display monitoring pods
+      debug:
+        msg: "{{ monitoring_pods.stdout_lines }}"
+
+    - name: Get Grafana LoadBalancer IP
+      shell: kubectl get svc -n monitoring kube-prometheus-stack-grafana -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: grafana_ip
+      until: grafana_ip.stdout != ""
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Get Grafana admin password
+      shell: kubectl get secret -n monitoring kube-prometheus-stack-grafana -o jsonpath='{.data.admin-password}' | base64 -d
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: grafana_password
+      changed_when: false
+
+    - name: Verify node distribution
+      command: kubectl get pods -n monitoring -o wide -l app.kubernetes.io/name=prometheus
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: prometheus_distribution
+      changed_when: false
+
+    - name: Display Prometheus pod distribution
+      debug:
+        msg: "{{ prometheus_distribution.stdout_lines }}"
+
+    - name: Display installation summary
+      debug:
+        msg:
+          - "✅ Monitoring stack installation completed successfully"
+          - ""
+          - "📊 Grafana Access:"
+          - "  - URL: http://{{ grafana_ip.stdout }}"
+          - "  - Username: admin"
+          - "  - Password: {{ grafana_password.stdout }}"
+          - ""
+          - "✅ Pre-configured Dashboards:"
+          - "  - Kubernetes Cluster (ID: 7249)"
+          - "  - Node Exporter (ID: 1860)"
+          - "  - Cilium Metrics (ID: 16611)"
+          - "  - Hubble Metrics (ID: 16612)"
+          - ""
+          - "✅ Components:"
+          - "  - Prometheus: Running on workers with datacenter-aware scheduling"
+          - "  - Grafana: Exposed via LoadBalancer"
+          - "  - AlertManager: Running on workers"
+          - "  - Node Exporter: Running on all nodes"
+          - ""
+          - "🔔 Note: Change Grafana admin password after first login"
+
+    - name: Save Grafana credentials to file
+      copy:
+        content: |
+          Grafana Access Information
+          ==========================
+
+          URL: http://{{ grafana_ip.stdout }}
+          Username: admin
+          Password: {{ grafana_password.stdout }}
+
+          IMPORTANT: Change this password after first login!
+
+          Pre-configured Dashboards:
+          - Kubernetes Cluster Overview
+          - Node Exporter Full
+          - Cilium Metrics
+          - Hubble Network Metrics
+        dest: /root/grafana-access.txt
+        mode: "0600"
+
+    - name: Display file location
+      debug:
+        msg: "Grafana credentials saved to /root/grafana-access.txt on control-plane-1"

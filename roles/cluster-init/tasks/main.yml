@@ -1,0 +1,145 @@
+---
+- name: Check if Kubernetes is already initialized
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: kubeconfig_stat
+
+- name: Skip if already initialized
+  debug:
+    msg: "Kubernetes cluster is already initialized on {{ ansible_hostname }}"
+  when: kubeconfig_stat.stat.exists
+
+- name: Determine if this is the first control plane
+  set_fact:
+    is_first_control_plane: "{{ ansible_hostname == groups['control_plane'][0] }}"
+
+- name: Initialize first control plane node
+  when: is_first_control_plane and not kubeconfig_stat.stat.exists
+  block:
+        - name: Run kubeadm init
+          command: >
+            kubeadm init
+            --control-plane-endpoint="{{ control_plane_endpoint }}:6443"
+            --upload-certs
+            --skip-phases=addon/kube-proxy
+            --pod-network-cidr={{ pod_network_cidr }}
+            --apiserver-advertise-address={{ ansible_host }}
+          register: kubeadm_init
+
+        - name: Display kubeadm init output
+          debug:
+            msg: "{{ kubeadm_init.stdout_lines }}"
+
+        - name: Save join commands
+          copy:
+            content: "{{ kubeadm_init.stdout }}"
+            dest: /root/kubeadm-init-output.txt
+            mode: "0600"
+
+        - name: Extract control plane join command
+          shell: |
+            grep -A 2 "kubeadm join" /root/kubeadm-init-output.txt | \
+            grep -A 2 "control-plane" | tr -d '\n' | sed 's/\\//g'
+          register: control_plane_join_cmd
+          changed_when: false
+
+        - name: Extract worker join command
+          shell: |
+            grep "kubeadm join" /root/kubeadm-init-output.txt | \
+            grep -v "control-plane" | tr -d '\n' | sed 's/\\//g'
+          register: worker_join_cmd
+          changed_when: false
+
+        - name: Save join commands to variables
+          set_fact:
+            control_plane_join_command: "{{ control_plane_join_cmd.stdout }}"
+            worker_join_command: "{{ worker_join_cmd.stdout }}"
+
+        - name: Save join commands to file
+          copy:
+            content: |
+              # Control Plane Join Command
+              {{ control_plane_join_command }}
+
+              # Worker Join Command
+              {{ worker_join_command }}
+            dest: /root/kubeadm-join-commands.txt
+            mode: "0600"
+
+        - name: Create .kube directory for root
+          file:
+            path: /root/.kube
+            state: directory
+            mode: "0755"
+
+        - name: Copy admin.conf to .kube/config
+          copy:
+            src: /etc/kubernetes/admin.conf
+            dest: /root/.kube/config
+            remote_src: yes
+            mode: "0600"
+
+        - name: Apply kube-vip RBAC
+          command: kubectl apply -f /tmp/kube-vip-rbac.yaml
+          environment:
+            KUBECONFIG: /etc/kubernetes/admin.conf
+
+        - name: Apply kube-vip ConfigMap
+          command: kubectl apply -f /tmp/kube-vip-configmap.yaml
+          environment:
+            KUBECONFIG: /etc/kubernetes/admin.conf
+
+        - name: Wait for kube-vip pod to be ready
+          shell: kubectl get pods -n kube-system -l component=kube-vip -o jsonpath='{.items[0].status.phase}'
+          environment:
+            KUBECONFIG: /etc/kubernetes/admin.conf
+          register: kube_vip_status
+          until: kube_vip_status.stdout == "Running"
+          retries: 30
+          delay: 10
+          changed_when: false
+
+        - name: Display initialization summary
+          debug:
+            msg:
+              - "✅ Kubernetes control plane initialized successfully"
+              - "✅ Control plane endpoint: {{ control_plane_endpoint }}:6443"
+              - "✅ Pod network CIDR: {{ pod_network_cidr }}"
+              - "✅ kube-proxy skipped (Cilium will replace it)"
+              - "✅ kube-vip RBAC and ConfigMap applied"
+              - ""
+              - "Join commands saved to /root/kubeadm-join-commands.txt"
+              - ""
+              - "Next steps:"
+              - "1. Install Cilium CNI"
+              - "2. Join remaining control plane nodes"
+              - "3. Join worker nodes"
+
+    - name: Join additional control plane nodes
+      when: not is_first_control_plane and not kubeconfig_stat.stat.exists
+      block:
+        - name: Get join command from first control plane
+          set_fact:
+            join_command: "{{ hostvars[groups['control_plane'][0]]['control_plane_join_command'] }}"
+
+        - name: Join control plane
+          command: "{{ join_command }}"
+          register: join_result
+
+        - name: Display join result
+          debug:
+            msg: "{{ join_result.stdout_lines }}"
+
+        - name: Create .kube directory
+          file:
+            path: /root/.kube
+            state: directory
+            mode: "0755"
+
+        - name: Copy admin.conf to .kube/config
+          copy:
+            src: /etc/kubernetes/admin.conf
+            dest: /root/.kube/config
+            remote_src: yes
+            mode: "0600"
+

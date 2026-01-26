@@ -1,0 +1,171 @@
+name: Deploy Kubernetes Cluster
+
+on:
+  workflow_dispatch:
+    inputs:
+      playbook:
+        description: "Playbook to run"
+        required: true
+        type: choice
+        options:
+          - "helm-install"
+          - "kube-vip-deploy"
+          - "cluster-setup"
+          - "cilium-deploy"
+          - "monitoring-deploy"
+          - "etcd-backup"
+          - "velero-install"
+          - "all"
+
+env:
+  ANSIBLE_HOST_KEY_CHECKING: False
+  ANSIBLE_FORCE_COLOR: True
+
+jobs:
+  deploy:
+    name: Run Ansible Playbook
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ansible
+        run: |
+          pip install ansible
+
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_BARE_METAL_GITHUB_ACTIONS_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 95.216.228.60 >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keyscan -H 95.216.6.238 >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keyscan -H 95.216.24.51 >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Test connectivity to control planes
+        run: |
+          ansible control_plane -i inventory/hosts.yml -m ping
+
+      - name: Set environment variables
+        run: |
+          echo "HETZNER_ROBOT_PASSWORD=${{ secrets.HETZNER_ROBOT_PASSWORD }}" >> $GITHUB_ENV
+          echo "HETZNER_S3_SECRET_KEY=${{ secrets.HETZNER_S3_SECRET_KEY }}" >> $GITHUB_ENV
+
+      - name: Run Helm installation
+        if: github.event.inputs.playbook == 'helm-install' || github.event.inputs.playbook == 'all'
+        run: |
+          echo "=================================================="
+          echo "Installing Helm on control plane nodes"
+          echo "=================================================="
+          ansible-playbook -i inventory/hosts.yml playbooks/helm-install.yml -v
+
+      - name: Deploy kube-vip
+        if: github.event.inputs.playbook == 'kube-vip-deploy' || github.event.inputs.playbook == 'all'
+        run: |
+          echo "=================================================="
+          echo "Deploying kube-vip on control plane nodes"
+          echo "=================================================="
+          ansible-playbook -i inventory/hosts.yml playbooks/kube-vip-deploy.yml -v
+
+      - name: Setup Kubernetes cluster
+        if: github.event.inputs.playbook == 'cluster-setup' || github.event.inputs.playbook == 'all'
+        run: |
+          echo "=================================================="
+          echo "Initializing Kubernetes cluster"
+          echo "=================================================="
+          ansible-playbook -i inventory/hosts.yml playbooks/cluster-setup.yml -v
+
+      - name: Deploy Cilium CNI
+        if: github.event.inputs.playbook == 'cilium-deploy' || github.event.inputs.playbook == 'all'
+        run: |
+          echo "=================================================="
+          echo "Deploying Cilium CNI"
+          echo "=================================================="
+          ansible-playbook -i inventory/hosts.yml playbooks/cilium-deploy.yml -v
+
+      - name: Deploy monitoring stack
+        if: github.event.inputs.playbook == 'monitoring-deploy' || github.event.inputs.playbook == 'all'
+        run: |
+          echo "=================================================="
+          echo "Deploying Prometheus + Grafana monitoring"
+          echo "=================================================="
+          ansible-playbook -i inventory/hosts.yml playbooks/monitoring-deploy.yml -v
+
+      - name: Setup etcd backups
+        if: github.event.inputs.playbook == 'etcd-backup' || github.event.inputs.playbook == 'all'
+        run: |
+          echo "=================================================="
+          echo "Configuring automated etcd backups"
+          echo "=================================================="
+          ansible-playbook -i inventory/hosts.yml playbooks/etcd-backup.yml -v
+
+      - name: Install Velero
+        if: github.event.inputs.playbook == 'velero-install' || github.event.inputs.playbook == 'all'
+        run: |
+          echo "=================================================="
+          echo "Installing Velero for cluster backups"
+          echo "=================================================="
+          ansible-playbook -i inventory/hosts.yml playbooks/velero-install.yml -v
+
+      - name: Create deployment summary
+        if: always()
+        run: |
+          cat << 'SUMMARY' >> $GITHUB_STEP_SUMMARY
+          ## Kubernetes Cluster Deployment
+
+          **Playbook**: ${{ github.event.inputs.playbook }}
+          **Status**: ${{ job.status }}
+          **Triggered by**: @${{ github.actor }}
+
+          ### Cluster Information
+
+          - **Control Plane VIP**: 77.42.49.55 (kubernetes-api.yral.com)
+          - **LoadBalancer Pool**: 95.217.49.193-95.217.49.222 (30 IPs)
+          - **Control Planes**: 3 nodes in HEL1-DC2 (Helsinki)
+          - **Workers**: 10 nodes (9 FSN1, 1 HEL1-DC2)
+
+          ### Access URLs
+
+          - **Kubernetes API**: https://kubernetes-api.yral.com:6443
+          - **Hubble UI**: http://95.217.49.194
+          - **Grafana**: http://95.217.49.195
+
+          ### Next Steps
+
+          If deployment was successful:
+
+          1. **Verify cluster status**:
+             ```bash
+             ssh root@95.216.228.60 'kubectl get nodes -o wide'
+             ```
+
+          2. **Check Cilium status**:
+             ```bash
+             ssh root@95.216.228.60 'kubectl -n kube-system exec ds/cilium -- cilium-dbg status'
+             ```
+
+          3. **Access Grafana**:
+             - Get password: `ssh root@95.216.228.60 'cat /root/grafana-access.txt'`
+             - URL: http://95.217.49.195
+
+          ### Troubleshooting
+
+          View logs on control-plane-1:
+          ```bash
+          ssh root@95.216.228.60
+          ```
+
+          Check specific components:
+          ```bash
+          kubectl get pods -n kube-system        # Cilium, kube-vip
+          kubectl get pods -n monitoring         # Prometheus, Grafana
+          kubectl get pods -n velero             # Backup system
+          ```
+          SUMMARY

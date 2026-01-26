@@ -1,0 +1,207 @@
+# Cilium Helm Values - Production HA Configuration
+# Version: 1.16.x
+
+# Cluster configuration
+cluster:
+  name: yral-k8s-cluster
+  id: 1
+
+# kube-proxy replacement - STRICT mode
+kubeProxyReplacement: true
+k8sServiceHost: kubernetes-api.yral.com
+k8sServicePort: 6443
+
+# IPAM configuration
+ipam:
+  mode: kubernetes
+
+# Encryption - WireGuard for pod-to-pod traffic
+encryption:
+  enabled: true
+  type: wireguard
+  nodeEncryption: true
+
+# Hubble observability
+hubble:
+  enabled: true
+  relay:
+    enabled: true
+    replicas: 2
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 200m
+        memory: 512Mi
+  ui:
+    enabled: true
+    replicas: 1
+    resources:
+      limits:
+        cpu: 200m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+    ingress:
+      enabled: false # Will create LoadBalancer Service instead
+  metrics:
+    enabled:
+      - dns:query
+      - drop
+      - tcp
+      - flow
+      - port-distribution
+      - icmp
+      - httpV2:exemplars=true;labelsContext=source_ip,source_namespace,source_workload,destination_ip,destination_namespace,destination_workload,traffic_direction
+
+# Ingress Controller
+ingressController:
+  enabled: true
+  default: true
+  loadbalancerMode: shared
+  service:
+    annotations:
+      io.cilium/lb-ipam-ips: "95.217.49.193" # First IP from LoadBalancer pool
+
+# Gateway API
+gatewayAPI:
+  enabled: true
+
+# Service Mesh (Envoy proxy)
+envoy:
+  enabled: true
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Operator configuration
+operator:
+  replicas: 2
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# IPv4 configuration
+ipv4:
+  enabled: true
+
+# IPv6 disabled for now
+ipv6:
+  enabled: false
+
+# BGP Control Plane (disabled - using ARP mode)
+bgpControlPlane:
+  enabled: false
+
+# kube-vip LoadBalancer integration
+loadBalancer:
+  algorithm: maglev
+  mode: dsr
+
+# Enable socket-level load balancing
+socketLB:
+  enabled: true
+
+# Host firewall
+hostFirewall:
+  enabled: false
+
+# Enable bandwidth manager for better traffic control
+bandwidthManager:
+  enabled: true
+  bbr: true
+
+# Enable local redirect policy for better performance
+localRedirectPolicy: true
+
+# Enable host-routing for XDP acceleration
+bpf:
+  masquerade: true
+  hostRouting: true
+  preallocateMaps: true
+
+# Enable Cilium endpoint routes for better performance
+endpointRoutes:
+  enabled: true
+
+# Auto-direct node routes
+autoDirectNodeRoutes: true
+
+# Enable MTU detection
+enableIPv4Masquerade: true
+enableIPv6Masquerade: false
+
+# Resource configuration for Cilium agent
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+# Security context
+seccompPath: ""
+
+# Prometheus metrics
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: false # Will enable after deploying Prometheus
+
+# Enable health checking
+healthChecking: true
+
+# Tunnel mode - disabled for better performance with direct routing
+tunnel: disabled
+routingMode: native
+
+# Enable host services
+hostServices:
+  enabled: true
+  protocols: tcp,udp
+
+# Node port acceleration
+nodePort:
+  enabled: true
+  mode: dsr
+
+# External IPs support
+externalIPs:
+  enabled: true
+
+# Enable L7 proxy
+l7Proxy: true
+
+# DNS proxy for visibility
+dnsProxy:
+  enableTransparentMode: true
+
+# Enable policy enforcement
+policyEnforcementMode: default
+
+# Enable CNI chaining (disabled - Cilium is sole CNI)
+cni:
+  chainingMode: none
+  exclusive: true
+
+# Tolerations for control plane nodes (allow Cilium to run everywhere)
+tolerations:
+  - operator: Exists
+
+# Debug mode - disabled for production
+debug:
+  enabled: false
+
+# Rollout configuration
+rollOutCiliumPods: true

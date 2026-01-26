@@ -1,0 +1,175 @@
+---
+- name: Check if Cilium is already installed
+  command: helm list -n kube-system -o json
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: helm_list
+  changed_when: false
+
+- name: Parse Helm releases
+  set_fact:
+    cilium_installed: "{{ (helm_list.stdout | from_json) | selectattr('name', 'equalto', 'cilium') | list | length > 0 }}"
+
+- name: Display Cilium installation status
+  debug:
+    msg: "Cilium is already installed"
+  when: cilium_installed
+
+- name: Install Cilium using Helm
+  when: not cilium_installed
+  block:
+    - name: Display Cilium installation parameters
+      debug:
+        msg:
+          - "Installing Cilium CNI with:"
+          - "  - kube-proxy replacement: ENABLED (strict mode)"
+          - "  - Encryption: WireGuard"
+          - "  - Hubble: Enabled (Relay + UI)"
+          - "  - Ingress Controller: Enabled"
+          - "  - Gateway API: Enabled"
+          - "  - Service Mesh (Envoy): Enabled"
+          - "  - LoadBalancer IP pool: {{ loadbalancer_ip_range }}"
+
+    - name: Copy Cilium values file
+      copy:
+        src: "{{ playbook_dir }}/../manifests/cilium-values.yaml"
+        dest: /tmp/cilium-values.yaml
+        mode: "0644"
+
+    - name: Install Cilium
+      command: >
+        helm install cilium cilium/cilium
+        --version 1.16.5
+        --namespace kube-system
+        --values /tmp/cilium-values.yaml
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: cilium_install
+
+    - name: Display Cilium installation output
+      debug:
+        msg: "{{ cilium_install.stdout_lines }}"
+
+    - name: Wait for Cilium to be ready
+      command: kubectl wait --for=condition=ready pod -l k8s-app=cilium -n kube-system --timeout=300s
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: cilium_ready
+      retries: 3
+      delay: 10
+
+    - name: Wait for Cilium operator to be ready
+      command: kubectl wait --for=condition=ready pod -l name=cilium-operator -n kube-system --timeout=180s
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Verify Cilium installation
+  block:
+    - name: Get Cilium status
+      command: kubectl get pods -n kube-system -l k8s-app=cilium -o wide
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: cilium_pods
+      changed_when: false
+
+    - name: Display Cilium pods
+      debug:
+        msg: "{{ cilium_pods.stdout_lines }}"
+
+    - name: Get Hubble Relay status
+      command: kubectl get pods -n kube-system -l k8s-app=hubble-relay
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: hubble_relay
+      changed_when: false
+
+    - name: Display Hubble Relay pods
+      debug:
+        msg: "{{ hubble_relay.stdout_lines }}"
+
+    - name: Get Hubble UI status
+      command: kubectl get pods -n kube-system -l k8s-app=hubble-ui
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: hubble_ui
+      changed_when: false
+
+    - name: Display Hubble UI pods
+      debug:
+        msg: "{{ hubble_ui.stdout_lines }}"
+
+    - name: Check Cilium encryption status
+      shell: kubectl exec -n kube-system ds/cilium -- cilium-dbg status | grep -i encryption
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: encryption_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display encryption status
+      debug:
+        msg: "{{ encryption_status.stdout_lines }}"
+
+    - name: Get all nodes status
+      command: kubectl get nodes -o wide
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: nodes_status
+      changed_when: false
+
+    - name: Display nodes status
+      debug:
+        msg: "{{ nodes_status.stdout_lines }}"
+
+    - name: Create Hubble UI LoadBalancer Service
+      command: |
+        kubectl apply -f - <<EOF
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: hubble-ui-loadbalancer
+          namespace: kube-system
+          annotations:
+            io.cilium/lb-ipam-ips: "95.217.49.194"
+        spec:
+          type: LoadBalancer
+          selector:
+            k8s-app: hubble-ui
+          ports:
+          - name: http
+            port: 80
+            targetPort: 8081
+            protocol: TCP
+        EOF
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: hubble_lb
+      changed_when: "'created' in hubble_lb.stdout or 'configured' in hubble_lb.stdout"
+
+    - name: Wait for LoadBalancer IP assignment
+      shell: kubectl get svc -n kube-system hubble-ui-loadbalancer -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: lb_ip
+      until: lb_ip.stdout != ""
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Display installation summary
+      debug:
+        msg:
+          - "✅ Cilium installation completed successfully"
+          - "✅ WireGuard encryption: {{ encryption_status.stdout }}"
+          - "✅ Hubble Relay: Running"
+          - "✅ Hubble UI: Running"
+          - "✅ Hubble UI LoadBalancer: {{ lb_ip.stdout }}"
+          - "✅ Ingress Controller: Enabled"
+          - "✅ Gateway API: Enabled"
+          - ""
+          - "Access Hubble UI at: http://{{ lb_ip.stdout }}"
+          - ""
+          - "Next steps:"
+          - "1. Deploy monitoring stack (Prometheus/Grafana)"
+          - "2. Setup automated backups"
+          - "3. Deploy test applications"

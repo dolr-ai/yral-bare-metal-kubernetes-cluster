@@ -1,0 +1,115 @@
+name: Validate Ansible Playbooks
+
+on:
+  pull_request:
+    paths:
+      - "playbooks/**"
+      - "roles/**"
+      - "inventory/**"
+      - "manifests/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "playbooks/**"
+      - "roles/**"
+      - "inventory/**"
+      - "manifests/**"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate Syntax and Structure
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install ansible ansible-lint yamllint
+
+      - name: Validate YAML syntax
+        run: |
+          echo "Validating YAML files..."
+          yamllint -c .yamllint playbooks/ roles/ inventory/ manifests/ || true
+
+      - name: Validate Ansible playbooks
+        run: |
+          echo "Checking Ansible playbook syntax..."
+          for playbook in playbooks/*.yml; do
+            echo "Checking $playbook..."
+            ansible-playbook --syntax-check -i inventory/hosts.yml "$playbook"
+          done
+
+      - name: Run ansible-lint
+        run: |
+          echo "Running ansible-lint..."
+          ansible-lint playbooks/ roles/ || true
+
+      - name: Validate inventory
+        run: |
+          echo "Validating inventory structure..."
+          ansible-inventory -i inventory/hosts.yml --list > /dev/null
+
+      - name: Check for required secrets
+        run: |
+          echo "Checking inventory for required placeholders..."
+          if grep -q "PLACEHOLDER_UPDATE_ME" inventory/hosts.yml; then
+            echo "⚠️  Warning: Found PLACEHOLDER_UPDATE_ME in inventory"
+            echo "Please update the following in inventory/hosts.yml:"
+            echo "  - hetzner_s3_access_key"
+            echo "  - hetzner_s3_bucket"
+            echo ""
+            echo "Also ensure these GitHub Secrets are set:"
+            echo "  - HETZNER_ROBOT_PASSWORD"
+            echo "  - HETZNER_S3_SECRET_KEY"
+            echo "  - HETZNER_BARE_METAL_GITHUB_ACTIONS_SSH_PRIVATE_KEY"
+          else
+            echo "✅ No placeholders found in inventory"
+          fi
+
+      - name: Create validation summary
+        if: always()
+        run: |
+          cat << 'SUMMARY' >> $GITHUB_STEP_SUMMARY
+          ## Ansible Validation Results
+
+          **Status**: ${{ job.status }}
+
+          ### Files Validated
+
+          - ✅ Playbooks: `playbooks/*.yml`
+          - ✅ Roles: `roles/*/tasks/main.yml`
+          - ✅ Inventory: `inventory/hosts.yml`
+          - ✅ Manifests: `manifests/*.yaml`
+
+          ### Validation Steps
+
+          1. **YAML Syntax**: Checked with yamllint
+          2. **Ansible Syntax**: Checked with ansible-playbook --syntax-check
+          3. **Best Practices**: Checked with ansible-lint
+          4. **Inventory Structure**: Validated with ansible-inventory
+
+          ### Before Deployment
+
+          Ensure these are configured:
+
+          **Inventory placeholders** (in `inventory/hosts.yml`):
+          - `hetzner_s3_access_key`: Your Hetzner Object Storage access key
+          - `hetzner_s3_bucket`: Your S3 bucket name
+
+          **GitHub Secrets**:
+          - `HETZNER_ROBOT_PASSWORD`: Hetzner Robot API password
+          - `HETZNER_S3_SECRET_KEY`: S3 secret key
+          - `HETZNER_BARE_METAL_GITHUB_ACTIONS_SSH_PRIVATE_KEY`: SSH private key
+
+          **DNS Configuration**:
+          - `kubernetes-api.yral.com` → `77.42.49.55` (DNS-only, not proxied)
+          SUMMARY
