@@ -278,7 +278,7 @@ jobs:
           echo "Running Ubuntu installation script..."
           install_output=$(ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" root@$server_ip "curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install-ubuntu.sh | MACHINE_HOSTNAME='${hostname}' DRIVE_TO_USE='${drive_type}' bash" 2>&1 || true)
           echo "$install_output"
-          
+
           if echo "$install_output" | grep -q "INSTALLATION COMPLETE"; then
             echo "✅ Installation script executed successfully"
           else
