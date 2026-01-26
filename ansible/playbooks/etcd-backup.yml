@@ -11,7 +11,7 @@
 
   tasks:
     - name: Display backup configuration
-      debug:
+      ansible.builtin.debug:
         msg:
           - "Configuring etcd backups on: {{ ansible_hostname }}"
           - "Backup directory: {{ etcd_backup_dir }}"
@@ -21,15 +21,15 @@
           - "S3 endpoint: {{ hetzner_s3_endpoint }}"
 
     - name: Install required packages
-      apt:
+      ansible.builtin.apt:
         name:
           - s3cmd
           - jq
         state: present
-        update_cache: yes
+        update_cache: true
 
     - name: Create etcd backup directory
-      file:
+      ansible.builtin.file:
         path: "{{ etcd_backup_dir }}"
         state: directory
         mode: "0700"
@@ -37,7 +37,7 @@
         group: root
 
     - name: Create S3cmd configuration
-      copy:
+      ansible.builtin.copy:
         content: |
           [default]
           access_key = {{ hetzner_s3_access_key }}
@@ -52,7 +52,7 @@
         group: root
 
     - name: Create etcd backup script
-      copy:
+      ansible.builtin.copy:
         content: |
           #!/bin/bash
           set -euo pipefail
@@ -142,7 +142,7 @@
         group: root
 
     - name: Create etcd backup cron job
-      cron:
+      ansible.builtin.cron:
         name: "Automated etcd backup"
         minute: "0"
         hour: "2"
@@ -151,7 +151,7 @@
         state: present
 
     - name: Create log rotation for backup logs
-      copy:
+      ansible.builtin.copy:
         content: |
           /var/log/etcd-backup.log {
               daily
@@ -166,31 +166,31 @@
         mode: "0644"
 
     - name: Test etcd backup script (manual run)
-      command: /usr/local/bin/etcd-backup.sh
+      ansible.builtin.command: /usr/local/bin/etcd-backup.sh
       register: backup_test
       changed_when: false
       failed_when: false
       when: ansible_hostname == groups['control_plane'][0]
 
     - name: Display backup test results
-      debug:
+      ansible.builtin.debug:
         msg: "{{ backup_test.stdout_lines }}"
       when: ansible_hostname == groups['control_plane'][0] and backup_test.rc is defined
 
     - name: Verify backup was created
-      find:
+      ansible.builtin.find:
         paths: "{{ etcd_backup_dir }}"
         patterns: "etcd-snapshot-*.db"
       register: backup_files
       when: ansible_hostname == groups['control_plane'][0]
 
     - name: Display backup files
-      debug:
+      ansible.builtin.debug:
         msg: "Found {{ backup_files.matched }} backup file(s)"
       when: ansible_hostname == groups['control_plane'][0]
 
     - name: Display setup summary
-      debug:
+      ansible.builtin.debug:
         msg:
           - "✅ etcd backup configuration completed"
           - ""

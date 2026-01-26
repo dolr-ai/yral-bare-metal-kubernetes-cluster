@@ -6,40 +6,40 @@
 
   tasks:
     - name: Ensure authorized_keys exists for root
-      stat:
+      ansible.builtin.stat:
         path: /root/.ssh/authorized_keys
       register: authorized_keys_stat
 
     - name: Fail if no authorized_keys found
-      fail:
+      ansible.builtin.fail:
         msg: "No authorized_keys file found for root user. SSH key authentication must be configured first."
       when: not authorized_keys_stat.stat.exists
 
     - name: Check authorized_keys has content
-      shell: cat /root/.ssh/authorized_keys | grep -v '^#' | grep -v '^$' | wc -l
+      ansible.builtin.shell: cat /root/.ssh/authorized_keys | grep -v '^#' | grep -v '^$' | wc -l
       register: key_count
       changed_when: false
 
     - name: Fail if authorized_keys is empty
-      fail:
+      ansible.builtin.fail:
         msg: "authorized_keys file is empty. At least one SSH key must be configured."
       when: key_count.stdout | int == 0
 
     - name: Display number of SSH keys
-      debug:
+      ansible.builtin.debug:
         msg: "Found {{ key_count.stdout }} SSH key(s) in authorized_keys"
 
     - name: Disable password authentication in sshd_config
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
         regexp: "^#?PasswordAuthentication"
         line: "PasswordAuthentication no"
         state: present
-        backup: yes
+        backup: true
       notify: Restart SSH service
 
     - name: Disable challenge-response authentication
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
         regexp: "^#?ChallengeResponseAuthentication"
         line: "ChallengeResponseAuthentication no"
@@ -47,7 +47,7 @@
       notify: Restart SSH service
 
     - name: Disable PAM authentication
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
         regexp: "^#?UsePAM"
         line: "UsePAM no"
@@ -55,7 +55,7 @@
       notify: Restart SSH service
 
     - name: Ensure PubkeyAuthentication is enabled
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
         regexp: "^#?PubkeyAuthentication"
         line: "PubkeyAuthentication yes"
@@ -63,17 +63,17 @@
       notify: Restart SSH service
 
     - name: Validate sshd configuration
-      command: sshd -t
+      ansible.builtin.command: sshd -t
       register: sshd_test
       changed_when: false
       failed_when: sshd_test.rc != 0
 
     - name: Display SSH configuration validation result
-      debug:
+      ansible.builtin.debug:
         msg: "✅ SSH configuration is valid"
 
   handlers:
     - name: Restart SSH service
-      service:
+      ansible.builtin.service:
         name: ssh
         state: restarted

@@ -1,0 +1,18 @@
+---
+# Ansible-lint configuration
+
+# Enable specific warnings
+warn_list:
+  - experimental
+
+# Skip specific rules that are too strict for our use case
+skip_list:
+  - yaml[line-length] # We'll fix these gradually
+  - name[missing] # Block/rescue/always don't need names
+  - no-changed-when # Many commands are idempotent or display-only
+  - risky-shell-pipe # We use pipes intentionally
+  - command-instead-of-shell # Sometimes shell is needed
+  - command-instead-of-module # Sometimes direct commands are clearer
+
+# Enable offline mode to avoid GitHub API rate limits
+offline: true

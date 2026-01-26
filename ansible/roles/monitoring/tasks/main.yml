@@ -1,6 +1,6 @@
 ---
 - name: Check if monitoring stack is already installed
-  command: helm list -n monitoring -o json
+  ansible.builtin.command: helm list -n monitoring -o json
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   register: helm_list
@@ -8,7 +8,7 @@
   failed_when: false
 
 - name: Create monitoring namespace
-  command: kubectl create namespace monitoring
+  ansible.builtin.command: kubectl create namespace monitoring
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   register: ns_create
@@ -16,11 +16,11 @@
   failed_when: ns_create.rc != 0 and 'AlreadyExists' not in ns_create.stderr
 
 - name: Parse Helm releases
-  set_fact:
+  ansible.builtin.set_fact:
     monitoring_installed: "{{ (helm_list.stdout | default('[]') | from_json) | selectattr('name', 'equalto', 'kube-prometheus-stack') | list | length > 0 }}"
 
 - name: Display monitoring installation status
-  debug:
+  ansible.builtin.debug:
     msg: "Monitoring stack is already installed"
   when: monitoring_installed
 
@@ -28,7 +28,7 @@
   when: not monitoring_installed
   block:
     - name: Display monitoring installation parameters
-      debug:
+      ansible.builtin.debug:
         msg:
           - "Installing kube-prometheus-stack with:"
           - "  - Prometheus: 2 replicas on workers"
@@ -39,13 +39,13 @@
           - "  - Cilium metrics: Enabled"
 
     - name: Copy monitoring values file
-      copy:
+      ansible.builtin.copy:
         src: "{{ playbook_dir }}/../manifests/monitoring-values.yaml"
         dest: /tmp/monitoring-values.yaml
         mode: "0644"
 
     - name: Install kube-prometheus-stack
-      command: >
+      ansible.builtin.command: >
         helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack
         --namespace monitoring
         --values /tmp/monitoring-values.yaml
@@ -56,13 +56,13 @@
       register: monitoring_install
 
     - name: Display monitoring installation output
-      debug:
+      ansible.builtin.debug:
         msg: "{{ monitoring_install.stdout_lines }}"
 
 - name: Verify monitoring installation
   block:
     - name: Wait for Prometheus pods to be ready
-      command: kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=prometheus -n monitoring --timeout=300s
+      ansible.builtin.command: kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=prometheus -n monitoring --timeout=300s
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: prometheus_ready
@@ -70,23 +70,23 @@
       delay: 10
 
     - name: Wait for Grafana pod to be ready
-      command: kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=grafana -n monitoring --timeout=180s
+      ansible.builtin.command: kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=grafana -n monitoring --timeout=180s
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
 
     - name: Get monitoring pods status
-      command: kubectl get pods -n monitoring -o wide
+      ansible.builtin.command: kubectl get pods -n monitoring -o wide
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: monitoring_pods
       changed_when: false
 
     - name: Display monitoring pods
-      debug:
+      ansible.builtin.debug:
         msg: "{{ monitoring_pods.stdout_lines }}"
 
     - name: Get Grafana LoadBalancer IP
-      shell: kubectl get svc -n monitoring kube-prometheus-stack-grafana -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+      ansible.builtin.shell: kubectl get svc -n monitoring kube-prometheus-stack-grafana -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: grafana_ip
@@ -96,25 +96,25 @@
       changed_when: false
 
     - name: Get Grafana admin password
-      shell: kubectl get secret -n monitoring kube-prometheus-stack-grafana -o jsonpath='{.data.admin-password}' | base64 -d
+      ansible.builtin.shell: kubectl get secret -n monitoring kube-prometheus-stack-grafana -o jsonpath='{.data.admin-password}' | base64 -d
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: grafana_password
       changed_when: false
 
     - name: Verify node distribution
-      command: kubectl get pods -n monitoring -o wide -l app.kubernetes.io/name=prometheus
+      ansible.builtin.command: kubectl get pods -n monitoring -o wide -l app.kubernetes.io/name=prometheus
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: prometheus_distribution
       changed_when: false
 
     - name: Display Prometheus pod distribution
-      debug:
+      ansible.builtin.debug:
         msg: "{{ prometheus_distribution.stdout_lines }}"
 
     - name: Display installation summary
-      debug:
+      ansible.builtin.debug:
         msg:
           - "✅ Monitoring stack installation completed successfully"
           - ""
@@ -138,7 +138,7 @@
           - "🔔 Note: Change Grafana admin password after first login"
 
     - name: Save Grafana credentials to file
-      copy:
+      ansible.builtin.copy:
         content: |
           Grafana Access Information
           ==========================
@@ -158,5 +158,5 @@
         mode: "0600"
 
     - name: Display file location
-      debug:
+      ansible.builtin.debug:
         msg: "Grafana credentials saved to /root/grafana-access.txt on control-plane-1"

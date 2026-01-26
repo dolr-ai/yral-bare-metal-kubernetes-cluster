@@ -1,17 +1,17 @@
 ---
 - name: Check if Cilium is already installed
-  command: helm list -n kube-system -o json
+  ansible.builtin.command: helm list -n kube-system -o json
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   register: helm_list
   changed_when: false
 
 - name: Parse Helm releases
-  set_fact:
+  ansible.builtin.set_fact:
     cilium_installed: "{{ (helm_list.stdout | from_json) | selectattr('name', 'equalto', 'cilium') | list | length > 0 }}"
 
 - name: Display Cilium installation status
-  debug:
+  ansible.builtin.debug:
     msg: "Cilium is already installed"
   when: cilium_installed
 
@@ -19,7 +19,7 @@
   when: not cilium_installed
   block:
     - name: Display Cilium installation parameters
-      debug:
+      ansible.builtin.debug:
         msg:
           - "Installing Cilium CNI with:"
           - "  - kube-proxy replacement: ENABLED (strict mode)"
@@ -31,13 +31,13 @@
           - "  - LoadBalancer IP pool: {{ loadbalancer_ip_range }}"
 
     - name: Copy Cilium values file
-      copy:
+      ansible.builtin.copy:
         src: "{{ playbook_dir }}/../manifests/cilium-values.yaml"
         dest: /tmp/cilium-values.yaml
         mode: "0644"
 
     - name: Install Cilium
-      command: >
+      ansible.builtin.command: >
         helm install cilium cilium/cilium
         --version 1.16.5
         --namespace kube-system
@@ -47,11 +47,11 @@
       register: cilium_install
 
     - name: Display Cilium installation output
-      debug:
+      ansible.builtin.debug:
         msg: "{{ cilium_install.stdout_lines }}"
 
     - name: Wait for Cilium to be ready
-      command: kubectl wait --for=condition=ready pod -l k8s-app=cilium -n kube-system --timeout=300s
+      ansible.builtin.command: kubectl wait --for=condition=ready pod -l k8s-app=cilium -n kube-system --timeout=300s
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: cilium_ready
@@ -59,47 +59,47 @@
       delay: 10
 
     - name: Wait for Cilium operator to be ready
-      command: kubectl wait --for=condition=ready pod -l name=cilium-operator -n kube-system --timeout=180s
+      ansible.builtin.command: kubectl wait --for=condition=ready pod -l name=cilium-operator -n kube-system --timeout=180s
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
 
 - name: Verify Cilium installation
   block:
     - name: Get Cilium status
-      command: kubectl get pods -n kube-system -l k8s-app=cilium -o wide
+      ansible.builtin.command: kubectl get pods -n kube-system -l k8s-app=cilium -o wide
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: cilium_pods
       changed_when: false
 
     - name: Display Cilium pods
-      debug:
+      ansible.builtin.debug:
         msg: "{{ cilium_pods.stdout_lines }}"
 
     - name: Get Hubble Relay status
-      command: kubectl get pods -n kube-system -l k8s-app=hubble-relay
+      ansible.builtin.command: kubectl get pods -n kube-system -l k8s-app=hubble-relay
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: hubble_relay
       changed_when: false
 
     - name: Display Hubble Relay pods
-      debug:
+      ansible.builtin.debug:
         msg: "{{ hubble_relay.stdout_lines }}"
 
     - name: Get Hubble UI status
-      command: kubectl get pods -n kube-system -l k8s-app=hubble-ui
+      ansible.builtin.command: kubectl get pods -n kube-system -l k8s-app=hubble-ui
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: hubble_ui
       changed_when: false
 
     - name: Display Hubble UI pods
-      debug:
+      ansible.builtin.debug:
         msg: "{{ hubble_ui.stdout_lines }}"
 
     - name: Check Cilium encryption status
-      shell: kubectl exec -n kube-system ds/cilium -- cilium-dbg status | grep -i encryption
+      ansible.builtin.shell: kubectl exec -n kube-system ds/cilium -- cilium-dbg status | grep -i encryption
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: encryption_status
@@ -107,22 +107,22 @@
       failed_when: false
 
     - name: Display encryption status
-      debug:
+      ansible.builtin.debug:
         msg: "{{ encryption_status.stdout_lines }}"
 
     - name: Get all nodes status
-      command: kubectl get nodes -o wide
+      ansible.builtin.command: kubectl get nodes -o wide
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: nodes_status
       changed_when: false
 
     - name: Display nodes status
-      debug:
+      ansible.builtin.debug:
         msg: "{{ nodes_status.stdout_lines }}"
 
     - name: Create Hubble UI LoadBalancer Service
-      command: |
+      ansible.builtin.command: |
         kubectl apply -f - <<EOF
         apiVersion: v1
         kind: Service
@@ -147,7 +147,7 @@
       changed_when: "'created' in hubble_lb.stdout or 'configured' in hubble_lb.stdout"
 
     - name: Wait for LoadBalancer IP assignment
-      shell: kubectl get svc -n kube-system hubble-ui-loadbalancer -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+      ansible.builtin.shell: kubectl get svc -n kube-system hubble-ui-loadbalancer -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: lb_ip
@@ -157,7 +157,7 @@
       changed_when: false
 
     - name: Display installation summary
-      debug:
+      ansible.builtin.debug:
         msg:
           - "✅ Cilium installation completed successfully"
           - "✅ WireGuard encryption: {{ encryption_status.stdout }}"

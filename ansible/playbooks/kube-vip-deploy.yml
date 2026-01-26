@@ -5,20 +5,20 @@
   gather_facts: true
 
   roles:
-    - role: ../roles/kube-vip
+    - role: kube-vip
 
   post_tasks:
     - name: Verify kube-vip manifest exists
-      stat:
+      ansible.builtin.stat:
         path: /etc/kubernetes/manifests/kube-vip.yaml
       register: kube_vip_manifest_stat
 
     - name: Display verification result
-      debug:
+      ansible.builtin.debug:
         msg: "✅ kube-vip manifest is ready at /etc/kubernetes/manifests/kube-vip.yaml"
       when: kube_vip_manifest_stat.stat.exists
 
     - name: Fail if manifest not created
-      fail:
+      ansible.builtin.fail:
         msg: "❌ kube-vip manifest was not created successfully"
       when: not kube_vip_manifest_stat.stat.exists

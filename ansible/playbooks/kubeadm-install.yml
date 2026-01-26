@@ -6,14 +6,14 @@
 
   tasks:
     - name: Display target host information
-      debug:
+      ansible.builtin.debug:
         msg:
           - "Installing Kubernetes v1.35 on: {{ ansible_hostname }}"
           - "IP: {{ ansible_host }}"
           - "Node type: {{ node_type }}"
 
     - name: Check current swap status
-      shell: |
+      ansible.builtin.shell: |
         echo "=== Memory Status ==="
         free -h
         echo ""
@@ -27,33 +27,33 @@
       failed_when: false
 
     - name: Display current swap status
-      debug:
+      ansible.builtin.debug:
         msg: "{{ swap_status.stdout_lines }}"
 
     - name: Disable swap immediately
-      command: swapoff -a
+      ansible.builtin.command: swapoff -a
       register: swapoff_result
       changed_when: swapoff_result.rc == 0
       failed_when: false
 
     - name: Check if swap entries exist in /etc/fstab
-      shell: grep -i swap /etc/fstab || echo "No swap entries found"
+      ansible.builtin.shell: grep -i swap /etc/fstab || echo "No swap entries found"
       register: fstab_swap_check
       changed_when: false
 
     - name: Display swap entries in /etc/fstab
-      debug:
+      ansible.builtin.debug:
         msg: "{{ fstab_swap_check.stdout_lines }}"
 
     - name: Remove all swap entries from /etc/fstab
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/fstab
         state: absent
         regexp: '.*\sswap\s.*'
-        backup: yes
+        backup: true
 
     - name: Verify swap is disabled
-      shell: |
+      ansible.builtin.shell: |
         echo "=== Swap Status After Disable ==="
         swapon --show || echo "✅ No swap enabled"
         echo ""
@@ -63,42 +63,42 @@
       changed_when: false
 
     - name: Display swap disable verification
-      debug:
+      ansible.builtin.debug:
         msg: "{{ swap_verify.stdout_lines }}"
 
     - name: Install prerequisites for Kubernetes repository
-      apt:
+      ansible.builtin.apt:
         name:
           - apt-transport-https
           - ca-certificates
           - curl
           - gpg
         state: present
-        update_cache: yes
+        update_cache: true
 
     - name: Create keyrings directory for Kubernetes
-      file:
+      ansible.builtin.file:
         path: /etc/apt/keyrings
         state: directory
         mode: "0755"
 
     - name: Download Kubernetes GPG key
-      shell: curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      ansible.builtin.shell: curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
       args:
         creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 
     - name: Add Kubernetes apt repository
-      apt_repository:
+      ansible.builtin.apt_repository:
         repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.35/deb/ /"
         state: present
         filename: kubernetes
 
     - name: Update apt cache after adding Kubernetes repository
-      apt:
-        update_cache: yes
+      ansible.builtin.apt:
+        update_cache: true
 
     - name: Install kubeadm, kubelet, and kubectl
-      apt:
+      ansible.builtin.apt:
         name:
           - kubelet
           - kubeadm
@@ -106,50 +106,50 @@
         state: present
 
     - name: Display Kubernetes packages installation status
-      debug:
+      ansible.builtin.debug:
         msg: "✅ kubelet, kubeadm, and kubectl installed successfully"
 
     - name: Pin kubelet package version
-      dpkg_selections:
+      ansible.builtin.dpkg_selections:
         name: kubelet
         selection: hold
 
     - name: Pin kubeadm package version
-      dpkg_selections:
+      ansible.builtin.dpkg_selections:
         name: kubeadm
         selection: hold
 
     - name: Pin kubectl package version
-      dpkg_selections:
+      ansible.builtin.dpkg_selections:
         name: kubectl
         selection: hold
 
     - name: Verify packages are held
-      shell: apt-mark showhold
+      ansible.builtin.shell: apt-mark showhold
       register: held_packages
       changed_when: false
 
     - name: Display held packages
-      debug:
+      ansible.builtin.debug:
         msg: "{{ held_packages.stdout_lines }}"
 
     - name: Enable kubelet service
-      systemd:
+      ansible.builtin.systemd:
         name: kubelet
-        enabled: yes
-        daemon_reload: yes
+        enabled: true
+        daemon_reload: true
 
     - name: Get kubelet service status
-      shell: systemctl status kubelet --no-pager || true
+      ansible.builtin.shell: systemctl status kubelet --no-pager || true
       register: kubelet_status
       changed_when: false
 
     - name: Display kubelet service status
-      debug:
+      ansible.builtin.debug:
         msg: "{{ kubelet_status.stdout_lines }}"
 
     - name: Get installed versions
-      shell: |
+      ansible.builtin.shell: |
         echo "kubeadm version:"
         kubeadm version -o short
         echo ""
@@ -162,11 +162,11 @@
       changed_when: false
 
     - name: Display installed Kubernetes versions
-      debug:
+      ansible.builtin.debug:
         msg: "{{ k8s_versions.stdout_lines }}"
 
     - name: Display installation summary
-      debug:
+      ansible.builtin.debug:
         msg:
           - "✅ Kubernetes v1.35 installation completed successfully"
           - "✅ Swap disabled and removed from /etc/fstab"

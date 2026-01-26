@@ -10,7 +10,7 @@
 
   tasks:
     - name: Display Velero installation parameters
-      debug:
+      ansible.builtin.debug:
         msg:
           - "Installing Velero {{ velero_version }}"
           - "S3 bucket: {{ hetzner_s3_bucket }}"
@@ -19,7 +19,7 @@
           - "Backup retention: 30 days"
 
     - name: Check if Velero is already installed
-      command: kubectl get namespace {{ velero_namespace }}
+      ansible.builtin.command: kubectl get namespace {{ velero_namespace }}
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: velero_ns_check
@@ -27,7 +27,7 @@
       failed_when: false
 
     - name: Skip if Velero is already installed
-      debug:
+      ansible.builtin.debug:
         msg: "Velero is already installed"
       when: velero_ns_check.rc == 0
 
@@ -35,35 +35,35 @@
       when: velero_ns_check.rc != 0
       block:
         - name: Download Velero CLI
-          get_url:
+          ansible.builtin.get_url:
             url: "https://github.com/vmware-tanzu/velero/releases/download/{{ velero_version }}/velero-{{ velero_version }}-linux-amd64.tar.gz"
             dest: "/tmp/velero-{{ velero_version }}-linux-amd64.tar.gz"
             mode: "0644"
 
         - name: Extract Velero CLI
-          unarchive:
+          ansible.builtin.unarchive:
             src: "/tmp/velero-{{ velero_version }}-linux-amd64.tar.gz"
             dest: /tmp/
-            remote_src: yes
+            remote_src: true
 
         - name: Install Velero CLI
-          copy:
+          ansible.builtin.copy:
             src: "/tmp/velero-{{ velero_version }}-linux-amd64/velero"
             dest: /usr/local/bin/velero
             mode: "0755"
-            remote_src: yes
+            remote_src: true
 
         - name: Verify Velero CLI installation
-          command: velero version --client-only
+          ansible.builtin.command: velero version --client-only
           register: velero_version_check
           changed_when: false
 
         - name: Display Velero CLI version
-          debug:
+          ansible.builtin.debug:
             msg: "{{ velero_version_check.stdout_lines }}"
 
         - name: Create Velero credentials file
-          copy:
+          ansible.builtin.copy:
             content: |
               [default]
               aws_access_key_id={{ hetzner_s3_access_key }}
@@ -72,7 +72,7 @@
             mode: "0600"
 
         - name: Install Velero in cluster
-          command: >
+          ansible.builtin.command: >
             velero install
             --provider aws
             --plugins velero/velero-plugin-for-aws:v1.10.0
@@ -86,21 +86,21 @@
           register: velero_install
 
         - name: Display Velero installation output
-          debug:
+          ansible.builtin.debug:
             msg: "{{ velero_install.stdout_lines }}"
 
         - name: Remove credentials file
-          file:
+          ansible.builtin.file:
             path: /tmp/velero-credentials
             state: absent
 
         - name: Wait for Velero deployment to be ready
-          command: kubectl wait --for=condition=available deployment/velero -n velero --timeout=180s
+          ansible.builtin.command: kubectl wait --for=condition=available deployment/velero -n velero --timeout=180s
           environment:
             KUBECONFIG: /etc/kubernetes/admin.conf
 
     - name: Create daily backup schedule
-      command: >
+      ansible.builtin.command: >
         kubectl apply -f - <<EOF
         apiVersion: velero.io/v1
         kind: Schedule
@@ -126,29 +126,29 @@
       changed_when: "'created' in schedule_create.stdout or 'configured' in schedule_create.stdout"
 
     - name: Get Velero status
-      command: velero backup-location get
+      ansible.builtin.command: velero backup-location get
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: velero_status
       changed_when: false
 
     - name: Display Velero backup location status
-      debug:
+      ansible.builtin.debug:
         msg: "{{ velero_status.stdout_lines }}"
 
     - name: Get backup schedules
-      command: velero schedule get
+      ansible.builtin.command: velero schedule get
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: schedules_output
       changed_when: false
 
     - name: Display backup schedules
-      debug:
+      ansible.builtin.debug:
         msg: "{{ schedules_output.stdout_lines }}"
 
     - name: Create manual backup (test)
-      command: velero backup create test-backup-{{ ansible_date_time.epoch }} --wait
+      ansible.builtin.command: velero backup create test-backup-{{ ansible_date_time.epoch }} --wait
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: test_backup
@@ -156,23 +156,23 @@
       failed_when: false
 
     - name: Display test backup result
-      debug:
+      ansible.builtin.debug:
         msg: "{{ test_backup.stdout_lines }}"
       when: test_backup.rc == 0
 
     - name: List recent backups
-      command: velero backup get
+      ansible.builtin.command: velero backup get
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: backups_list
       changed_when: false
 
     - name: Display recent backups
-      debug:
+      ansible.builtin.debug:
         msg: "{{ backups_list.stdout_lines }}"
 
     - name: Create Velero usage documentation
-      copy:
+      ansible.builtin.copy:
         content: |
           Velero Backup & Restore Guide
           ==============================
@@ -241,7 +241,7 @@
         mode: "0644"
 
     - name: Display installation summary
-      debug:
+      ansible.builtin.debug:
         msg:
           - "✅ Velero installation completed successfully"
           - ""

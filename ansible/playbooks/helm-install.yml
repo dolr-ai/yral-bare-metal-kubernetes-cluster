@@ -6,52 +6,52 @@
 
   tasks:
     - name: Display target host information
-      debug:
+      ansible.builtin.debug:
         msg:
           - "Installing Helm on: {{ ansible_hostname }}"
           - "IP: {{ ansible_host }}"
           - "Node type: {{ node_type }}"
 
     - name: Check if Helm is already installed
-      command: which helm
+      ansible.builtin.command: which helm
       register: helm_check
       changed_when: false
       failed_when: false
 
     - name: Display Helm installation status
-      debug:
+      ansible.builtin.debug:
         msg: "Helm is already installed at {{ helm_check.stdout }}"
       when: helm_check.rc == 0
 
     - name: Download Helm installation script
-      get_url:
+      ansible.builtin.get_url:
         url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4
         dest: /tmp/get_helm.sh
         mode: "0700"
       when: helm_check.rc != 0
 
     - name: Install Helm using official script
-      command: /tmp/get_helm.sh
+      ansible.builtin.command: /tmp/get_helm.sh
       when: helm_check.rc != 0
       register: helm_install
 
     - name: Remove Helm installation script
-      file:
+      ansible.builtin.file:
         path: /tmp/get_helm.sh
         state: absent
       when: helm_check.rc != 0
 
     - name: Verify Helm installation
-      command: helm version
+      ansible.builtin.command: helm version
       register: helm_version
       changed_when: false
 
     - name: Display Helm version
-      debug:
+      ansible.builtin.debug:
         msg: "{{ helm_version.stdout_lines }}"
 
     - name: Add common Helm repositories
-      command: "{{ item }}"
+      ansible.builtin.command: "{{ item }}"
       loop:
         - helm repo add cilium https://helm.cilium.io/
         - helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -61,11 +61,11 @@
       failed_when: false
 
     - name: Update Helm repositories
-      command: helm repo update
+      ansible.builtin.command: helm repo update
       changed_when: false
 
     - name: Display installation summary
-      debug:
+      ansible.builtin.debug:
         msg:
           - "✅ Helm installation completed successfully"
           - "✅ Helm repositories added: cilium, prometheus-community, stable"

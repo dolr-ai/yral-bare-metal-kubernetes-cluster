@@ -1,11 +1,11 @@
 ---
 - name: Check if node is already joined
-  stat:
+  ansible.builtin.stat:
     path: /etc/kubernetes/kubelet.conf
   register: kubelet_conf_stat
 
 - name: Skip if already joined
-  debug:
+  ansible.builtin.debug:
     msg: "Node {{ ansible_hostname }} is already part of the cluster"
   when: kubelet_conf_stat.stat.exists
 
@@ -13,13 +13,13 @@
   when: not kubelet_conf_stat.stat.exists
   block:
     - name: Get worker join command from first control plane
-      set_fact:
+      ansible.builtin.set_fact:
         join_command: "{{ hostvars[groups['control_plane'][0]]['worker_join_command'] }}"
 
     - name: Join cluster
-      command: "{{ join_command }}"
+      ansible.builtin.command: "{{ join_command }}"
       register: join_result
 
     - name: Display join result
-      debug:
+      ansible.builtin.debug:
         msg: "{{ join_result.stdout_lines }}"

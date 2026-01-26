@@ -6,52 +6,53 @@
 
   tasks:
     - name: Get list of all disk devices
-      shell: lsblk -d -o NAME,TYPE | grep disk | awk '{print $1}'
+      ansible.builtin.shell: lsblk -d -o NAME,TYPE | grep disk | awk '{print $1}'
       register: disk_list
       changed_when: false
 
     - name: Display available disks
-      debug:
+      ansible.builtin.debug:
         msg: "Available disks: {{ disk_list.stdout_lines }}"
 
     - name: Check if server has multiple drives
-      set_fact:
+      ansible.builtin.set_fact:
         has_multiple_drives: "{{ disk_list.stdout_lines | length > 1 }}"
 
     - name: Skip if only one drive
-      debug:
+      ansible.builtin.debug:
         msg: "Only one drive detected. Skipping btrfs expansion."
       when: not has_multiple_drives
 
-    - block:
+    - when: has_multiple_drives
+      block:
         - name: Check if root filesystem is btrfs
-          shell: df -T / | tail -1 | awk '{print $2}'
+          ansible.builtin.shell: df -T / | tail -1 | awk '{print $2}'
           register: root_fs_type
           changed_when: false
 
         - name: Display root filesystem type
-          debug:
+          ansible.builtin.debug:
             msg: "Root filesystem type: {{ root_fs_type.stdout }}"
 
         - name: Skip if root is not btrfs
-          debug:
+          ansible.builtin.debug:
             msg: "Root filesystem is {{ root_fs_type.stdout }}, not btrfs. Skipping btrfs expansion."
           when: root_fs_type.stdout != "btrfs"
 
         - name: Get current btrfs devices
-          shell: btrfs filesystem show / | grep -oP '/dev/\S+' | sed 's|/dev/||' | sort
+          ansible.builtin.shell: btrfs filesystem show / | grep -oP '/dev/\S+' | sed 's|/dev/||' | sort
           register: btrfs_devices
           changed_when: false
           when: root_fs_type.stdout == "btrfs"
 
         - name: Display current btrfs devices
-          debug:
+          ansible.builtin.debug:
             msg: "Current btrfs devices: {{ btrfs_devices.stdout_lines }}"
           when: root_fs_type.stdout == "btrfs"
 
         - name: Get root device name (without partition)
-          shell: |
-            root_dev=$(df / | tail -1 | awk '{print $1}')
+          ansible.builtin.shell: |
+            set -o pipefail && root_dev=$(df / | tail -1 | awk '{print $1}')
             # Strip partition number to get base device
             if [[ $root_dev =~ nvme ]]; then
               echo "$root_dev" | sed 's/p[0-9]*$//'
@@ -65,18 +66,18 @@
           when: root_fs_type.stdout == "btrfs"
 
         - name: Extract base device name
-          set_fact:
+          ansible.builtin.set_fact:
             root_base_device: "{{ root_device_raw.stdout | basename }}"
           when: root_fs_type.stdout == "btrfs"
 
         - name: Display root base device
-          debug:
+          ansible.builtin.debug:
             msg: "Root filesystem is on base device: {{ root_base_device }}"
           when: root_fs_type.stdout == "btrfs"
 
         - name: Find available unused drives
-          shell: |
-            all_disks=({{ disk_list.stdout_lines | join(' ') }})
+          ansible.builtin.shell: |
+            set -o pipefail && all_disks=({{ disk_list.stdout_lines | join(' ') }})
             used_disks=({{ btrfs_devices.stdout_lines | map('regex_replace', 'p?[0-9]+$', '') | unique | join(' ') }})
 
             for disk in "${all_disks[@]}"; do
@@ -100,95 +101,93 @@
           when: root_fs_type.stdout == "btrfs"
 
         - name: Set available drive
-          set_fact:
+          ansible.builtin.set_fact:
             second_drive: "{{ available_drive_result.stdout | trim }}"
           when: root_fs_type.stdout == "btrfs" and available_drive_result.stdout != ""
 
         - name: Display available drive
-          debug:
+          ansible.builtin.debug:
             msg: "Available unused drive: {{ second_drive }}"
           when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive != ""
 
         - name: Skip if no available drive found
-          debug:
+          ansible.builtin.debug:
             msg: "No unused drive found. All drives are already in use."
           when: root_fs_type.stdout == "btrfs" and (second_drive is not defined or second_drive == "")
 
         - name: Check if available drive exists
-          stat:
+          ansible.builtin.stat:
             path: "/dev/{{ second_drive }}"
           register: second_drive_stat
           when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive != ""
 
         - name: Skip if second drive doesn't exist
-          debug:
+          ansible.builtin.debug:
             msg: "Second drive /dev/{{ second_drive }} not found. Skipping."
           when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive != "" and not second_drive_stat.stat.exists
 
         - name: Wipe filesystem signatures from second drive
-          command: wipefs -a /dev/{{ second_drive }}
+          ansible.builtin.command: wipefs -a /dev/{{ second_drive }}
           when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive != "" and second_drive_stat.stat.exists
           register: wipe_result
 
         - name: Create GPT partition table
-          command: parted /dev/{{ second_drive }} mklabel gpt
+          ansible.builtin.command: parted /dev/{{ second_drive }} mklabel gpt
           when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive != "" and second_drive_stat.stat.exists and wipe_result.changed
 
         - name: Add second drive to btrfs filesystem
-          command: btrfs device add -f /dev/{{ second_drive }} /
+          ansible.builtin.command: btrfs device add -f /dev/{{ second_drive }} /
           when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive != "" and second_drive_stat.stat.exists and wipe_result.changed
           register: btrfs_add
 
         - name: Display btrfs filesystem before balance
-          command: btrfs filesystem show
+          ansible.builtin.command: btrfs filesystem show
           when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive != "" and second_drive_stat.stat.exists and btrfs_add.changed
           register: btrfs_before
 
         - name: Show filesystem before balance
-          debug:
+          ansible.builtin.debug:
             msg: "{{ btrfs_before.stdout_lines }}"
           when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive != "" and second_drive_stat.stat.exists and btrfs_add.changed
 
         - name: Start btrfs balance (full)
-          command: btrfs balance start / --full-balance
+          ansible.builtin.command: btrfs balance start / --full-balance
           when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive != "" and second_drive_stat.stat.exists and btrfs_add.changed
           async: 3600
           poll: 30
           register: balance_result
 
         - name: Display btrfs filesystem after balance
-          command: btrfs filesystem show
+          ansible.builtin.command: btrfs filesystem show
           when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive != "" and second_drive_stat.stat.exists and btrfs_add.changed
           register: btrfs_after
 
         - name: Show filesystem after balance
-          debug:
+          ansible.builtin.debug:
             msg: "{{ btrfs_after.stdout_lines }}"
           when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive != "" and second_drive_stat.stat.exists and btrfs_add.changed
 
         - name: Display disk usage
-          command: df -h /
+          ansible.builtin.command: df -h /
           register: df_output
           when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive != "" and second_drive_stat.stat.exists and btrfs_add.changed
 
         - name: Show disk usage
-          debug:
+          ansible.builtin.debug:
             msg: "{{ df_output.stdout_lines }}"
           when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive != "" and second_drive_stat.stat.exists and btrfs_add.changed
 
         - name: Display btrfs filesystem usage
-          command: btrfs filesystem usage /
+          ansible.builtin.command: btrfs filesystem usage /
           register: btrfs_usage
           when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive != "" and second_drive_stat.stat.exists and btrfs_add.changed
 
         - name: Show btrfs usage
-          debug:
+          ansible.builtin.debug:
             msg: "{{ btrfs_usage.stdout_lines }}"
           when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive != "" and second_drive_stat.stat.exists and btrfs_add.changed
 
         - name: Success message
-          debug:
+          ansible.builtin.debug:
             msg: "✅ Successfully expanded btrfs filesystem to /dev/{{ second_drive }}"
           when: root_fs_type.stdout == "btrfs" and second_drive is defined and second_drive != "" and second_drive_stat.stat.exists and btrfs_add.changed
-
-      when: has_multiple_drives
