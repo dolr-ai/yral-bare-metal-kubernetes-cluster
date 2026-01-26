@@ -23,6 +23,30 @@
   register: label_result
   changed_when: "'labeled' in label_result.stdout"
 
+- name: Apply disk type label to node
+  ansible.builtin.command: >
+    kubectl label node {{ ansible_hostname }}
+    node.yral.com/disk-type={{ disk_type }}
+    --overwrite
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: disk_label_result
+  changed_when: "'labeled' in disk_label_result.stdout"
+  when: disk_type is defined
+
+- name: Apply workload preference label for NVMe nodes
+  ansible.builtin.command: >
+    kubectl label node {{ ansible_hostname }}
+    node.yral.com/workload-preference=stateful
+    --overwrite
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: workload_label_result
+  changed_when: "'labeled' in workload_label_result.stdout"
+  when: disk_type is defined and disk_type == "nvme"
+
 - name: Verify control plane taint
   ansible.builtin.command: kubectl get node {{ ansible_hostname }} -o jsonpath='{.spec.taints}'
   environment:
@@ -51,7 +75,9 @@
     msg: "{{ labels_output.stdout_lines }}"
 
 - name: Get nodes by topology
-  ansible.builtin.command: kubectl get nodes -L topology.kubernetes.io/zone,topology.kubernetes.io/region
+  ansible.builtin.command: >
+    kubectl get nodes 
+    -L topology.kubernetes.io/zone,topology.kubernetes.io/region,node.yral.com/disk-type,node.yral.com/workload-preference
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   delegate_to: "{{ groups['control_plane'][0] }}"

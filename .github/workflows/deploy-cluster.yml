@@ -8,6 +8,10 @@ on:
         required: true
         type: choice
         options:
+          - "system-setup"
+          - "ssh-security"
+          - "containerd-setup"
+          - "kubeadm-install"
           - "helm-install"
           - "kube-vip-deploy"
           - "cluster-setup"
@@ -16,6 +20,7 @@ on:
           - "etcd-backup"
           - "velero-install"
           - "all"
+          - "full-redeploy"
 
 env:
   ANSIBLE_HOST_KEY_CHECKING: False
@@ -58,43 +63,75 @@ jobs:
           echo "HETZNER_ROBOT_PASSWORD=${{ secrets.HETZNER_ROBOT_PASSWORD }}" >> $GITHUB_ENV
           echo "HETZNER_S3_SECRET_KEY=${{ secrets.HETZNER_S3_SECRET_KEY }}" >> $GITHUB_ENV
 
-      - name: Run Helm installation
-        if: github.event.inputs.playbook == 'helm-install' || github.event.inputs.playbook == 'all'
+      - name: System setup
+        if: github.event.inputs.playbook == 'system-setup' || github.event.inputs.playbook == 'full-redeploy'
         run: |
           echo "=================================================="
-          echo "Installing Helm on control plane nodes"
+          echo "Phase 1: System Setup"
+          echo "=================================================="
+          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/system-setup.yml -v
+
+      - name: SSH security hardening
+        if: github.event.inputs.playbook == 'ssh-security' || github.event.inputs.playbook == 'full-redeploy'
+        run: |
+          echo "=================================================="
+          echo "Phase 2: SSH Security Hardening"
+          echo "=================================================="
+          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/ssh-security.yml -v
+
+      - name: Install containerd
+        if: github.event.inputs.playbook == 'containerd-setup' || github.event.inputs.playbook == 'full-redeploy'
+        run: |
+          echo "=================================================="
+          echo "Phase 3: Container Runtime Setup"
+          echo "=================================================="
+          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/containerd-setup.yml -v
+
+      - name: Install kubeadm, kubelet, kubectl
+        if: github.event.inputs.playbook == 'kubeadm-install' || github.event.inputs.playbook == 'full-redeploy'
+        run: |
+          echo "=================================================="
+          echo "Phase 4: Kubernetes Installation"
+          echo "=================================================="
+          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/kubeadm-install.yml -v
+
+      - name: Run Helm installation
+        if: github.event.inputs.playbook == 'helm-install' || github.event.inputs.playbook == 'all' || github.event.inputs.playbook == 'full-redeploy'
+        run: |
+          echo "=================================================="
+          echo "Phase 5: Installing Helm"
           echo "=================================================="
           ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/helm-install.yml -v
 
       - name: Deploy kube-vip
-        if: github.event.inputs.playbook == 'kube-vip-deploy' || github.event.inputs.playbook == 'all'
+        if: github.event.inputs.playbook == 'kube-vip-deploy' || github.event.inputs.playbook == 'all' || github.event.inputs.playbook == 'full-redeploy'
         run: |
           echo "=================================================="
-          echo "Deploying kube-vip on control plane nodes"
+          echo "Phase 6: Deploying kube-vip"
           echo "=================================================="
           ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/kube-vip-deploy.yml -v
 
       - name: Setup Kubernetes cluster
-        if: github.event.inputs.playbook == 'cluster-setup' || github.event.inputs.playbook == 'all'
+        if: github.event.inputs.playbook == 'cluster-setup' || github.event.inputs.playbook == 'all' || github.event.inputs.playbook == 'full-redeploy'
         run: |
           echo "=================================================="
-          echo "Initializing Kubernetes cluster"
+          echo "Phase 7: Initializing Kubernetes Cluster"
           echo "=================================================="
           ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/cluster-setup.yml -v
 
       - name: Deploy Cilium CNI
-        if: github.event.inputs.playbook == 'cilium-deploy' || github.event.inputs.playbook == 'all'
+        if: github.event.inputs.playbook == 'cilium-deploy' || github.event.inputs.playbook == 'all' || github.event.inputs.playbook == 'full-redeploy'
         run: |
           echo "=================================================="
-          echo "Deploying Cilium CNI"
+          echo "Phase 8: Deploying Cilium CNI"
           echo "=================================================="
           ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/cilium-deploy.yml -v
 
       - name: Deploy monitoring stack
-        if: github.event.inputs.playbook == 'monitoring-deploy' || github.event.inputs.playbook == 'all'
+        if: github.event.inputs.playbook == 'monitoring-deploy' || github.event.inputs.playbook == 'all' || github.event.inputs.playbook == 'full-redeploy'
         run: |
           echo "=================================================="
-          echo "Deploying Prometheus + Grafana monitoring"
+          echo "Phase 9: Deploying Monitoring Stack"
           echo "=================================================="
           ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/monitoring-deploy.yml -v
 
@@ -128,8 +165,9 @@ jobs:
 
           - **Control Plane VIP**: 77.42.49.55 (kubernetes-api.yral.com)
           - **LoadBalancer Pool**: 95.217.49.193-95.217.49.222 (30 IPs)
-          - **Control Planes**: 3 nodes in HEL1-DC2 (Helsinki)
-          - **Workers**: 10 nodes (9 FSN1, 1 HEL1-DC2)
+          - **Control Planes**: 3 nodes in HEL1-DC2 (Helsinki) - NVMe disks
+          - **Workers**: 13 nodes (10 FSN1, 3 HEL1) - All NVMe disks
+          - **Disk Configuration**: All nodes labeled with `node.yral.com/disk-type=nvme`
 
           ### Access URLs
 
