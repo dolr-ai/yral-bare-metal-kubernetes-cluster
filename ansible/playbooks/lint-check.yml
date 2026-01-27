@@ -1,0 +1,19 @@
+---
+- name: Run Ansible Lint on playbooks
+  hosts: localhost
+  gather_facts: false
+  become: false
+
+  tasks:
+    - name: Run ansible-lint on all playbooks
+      ansible.builtin.command:
+        cmd: ansible-lint playbooks/
+        chdir: "{{ playbook_dir }}/.."
+      register: lint_result
+      changed_when: false
+      failed_when: lint_result.rc != 0
+
+    - name: Display lint results
+      ansible.builtin.debug:
+        msg: "{{ lint_result.stdout_lines }}"
+      when: lint_result.stdout_lines | length > 0

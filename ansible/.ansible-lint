@@ -1,0 +1,26 @@
+---
+# Ansible-lint configuration for the ansible project
+
+# Set the project directory
+# This ensures ansible-lint can find roles and collections correctly
+project_dir: .
+
+# Enable offline mode to avoid GitHub API rate limits
+offline: true
+
+# Enable specific warnings
+warn_list:
+  - experimental
+
+# Skip specific rules that are too strict for our use case
+skip_list:
+  - yaml[line-length]
+  - name[missing]
+  - no-changed-when
+  - risky-shell-pipe
+  - command-instead-of-shell
+  - command-instead-of-module
+
+# Skip files that require runtime variables
+exclude_paths:
+  - playbooks/provision-server.yml
