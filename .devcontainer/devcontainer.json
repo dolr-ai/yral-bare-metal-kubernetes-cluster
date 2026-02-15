@@ -6,11 +6,19 @@
 	"image": "mcr.microsoft.com/devcontainers/base:noble",
 	"features": {
 		"ghcr.io/devcontainers-extra/features/ansible:2": {}
-	}
+	},
+	// Mount SSH agent socket from WSL host into container
+	"mounts": [
+		"type=bind,source=${env:HOME}/.ssh/agent.sock,target=/ssh-agent,consistency=cached"
+	],
+	// Set SSH_AUTH_SOCK environment variable to point to mounted socket
+	"remoteEnv": {
+		"SSH_AUTH_SOCK": "/ssh-agent"
+	},
+	// Verify SSH agent is accessible after container creation
+	"postCreateCommand": "echo 'SSH Agent Status:' && ssh-add -l || echo 'Warning: SSH agent not accessible. Ensure agent is running in WSL with fixed socket at ~/.ssh/agent.sock'"
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
-	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "uname -a",
 	// Configure tool-specific properties.
 	// "customizations": {},
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
