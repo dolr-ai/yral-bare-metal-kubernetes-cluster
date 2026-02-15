@@ -22,42 +22,54 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
         with:
-          python-version: "3.11"
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install Ansible
-        run: |
-          pip install ansible
-
-      - name: Setup Ansible Vault password
-        run: |
-          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > ansible/.vault_pass
-          chmod 600 ansible/.vault_pass
-
-      - name: Configure SSH key from vault
-        run: |
-          mkdir -p ~/.ssh
-          cd ansible
-
-          # Extract SSH key from vault
-          ansible localhost -m debug -a "var=github_actions_ssh_private_key" \
-            -e "@group_vars/all/vault.yml" \
-            -e "@group_vars/all/vars.yml" \
-            --vault-password-file .vault_pass \
-            | grep -A 100 "github_actions_ssh_private_key" \
-            | tail -n +3 | grep -v "^}" | sed 's/^[[:space:]]*//' | sed 's/"$//' | sed 's/^"//' > ~/.ssh/id_rsa
-
-          chmod 600 ~/.ssh/id_rsa
-
-      - name: Run server provisioning playbook
-        run: |
-          cd ansible
-          ansible-playbook -i inventory/hosts.yml playbooks/provision-server.yml \
-            -e "provision_target_host=${{ github.event.inputs.target_host }}" \
-            -e "github_repository=${{ github.repository }}" \
-            -v
+      - name: Provision server in devcontainer
+        uses: devcontainers/ci@v0.3
+        with:
+          imageName: ghcr.io/dolr-ai/yral-k8s-devcontainer
+          cacheFrom: ghcr.io/dolr-ai/yral-k8s-devcontainer
+          push: never
+          runCmd: |
+            set -e
+            
+            # Enable colored output for Ansible
+            export ANSIBLE_FORCE_COLOR=true
+            
+            # Set up vault password
+            echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > ansible/.vault_pass
+            chmod 600 ansible/.vault_pass
+            
+            # Validate vault password file
+            [ -s ansible/.vault_pass ] || { echo "ERROR: Vault password file is empty - GitHub secret may not be set"; exit 1; }
+            echo "✓ Vault password file created ($(wc -c < ansible/.vault_pass) bytes)"
+            
+            # Test vault password with quick decryption
+            ansible-vault view --vault-password-file=ansible/.vault_pass ansible/group_vars/all/vault.yml >/dev/null 2>&1 && echo "✓ Vault password validated successfully" || { echo "ERROR: Vault password test failed - incorrect password"; exit 1; }
+            
+            # Extract SSH key from vault (github-actions@yral.com)
+            mkdir -p ~/.ssh
+            ansible-vault view ansible/group_vars/all/vault.yml | awk '/vault_github_actions_ssh_private_key:/,/-----END OPENSSH PRIVATE KEY-----/' | tail -n +2 | sed 's/^  //' > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+            
+            # Cleanup function to remove temporary credentials
+            cleanup() {
+              rm -f ~/.ssh/id_rsa
+              rm -f ansible/.vault_pass
+            }
+            trap cleanup EXIT
+            
+            # Run bare metal provisioning
+            cd ansible
+            ansible-playbook -i inventory/hosts.yml playbooks/provision-server.yml \
+              -e "provision_target_host=${{ github.event.inputs.target_host }}" \
+              -e "github_repository=${{ github.repository }}" \
+              -v
 
       - name: Create job summary
         if: always()

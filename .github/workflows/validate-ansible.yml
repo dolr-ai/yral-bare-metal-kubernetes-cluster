@@ -24,56 +24,60 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
         with:
-          python-version: "3.11"
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install dependencies
-        run: |
-          pip install ansible ansible-lint yamllint
-
-      - name: Validate YAML syntax
-        run: |
-          echo "Validating YAML files..."
-          yamllint -c .yamllint ansible/ || true
-
-      - name: Validate Ansible playbooks
-        run: |
-          echo "Checking Ansible playbook syntax..."
-          cd ansible
-          for playbook in playbooks/*.yml; do
-            echo "Checking $playbook..."
-            ansible-playbook --syntax-check -i inventory/hosts.yml "$playbook"
-          done
-
-      - name: Run ansible-lint
-        run: |
-          echo "Running ansible-lint..."
-          cd ansible
-          ansible-lint playbooks/ roles/ || true
-
-      - name: Validate inventory
-        run: |
-          echo "Validating inventory structure..."
-          ansible-inventory -i ansible/inventory/hosts.yml --list > /dev/null
-
-      - name: Check for required secrets
-        run: |
-          echo "Checking inventory for required placeholders..."
-          if grep -q "PLACEHOLDER_UPDATE_ME" ansible/inventory/hosts.yml; then
-            echo "⚠️  Warning: Found PLACEHOLDER_UPDATE_ME in inventory"
-            echo "Please update the following in inventory/hosts.yml:"
-            echo "  - hetzner_s3_access_key"
-            echo "  - hetzner_s3_bucket"
-            echo ""
-            echo "Also ensure these GitHub Secrets are set:"
-            echo "  - HETZNER_ROBOT_PASSWORD"
-            echo "  - HETZNER_S3_SECRET_KEY"
-            echo "  - HETZNER_BARE_METAL_GITHUB_ACTIONS_SSH_PRIVATE_KEY"
-          else
-            echo "✅ No placeholders found in inventory"
-          fi
+      - name: Validate Ansible in devcontainer
+        uses: devcontainers/ci@v0.3
+        with:
+          imageName: ghcr.io/dolr-ai/yral-k8s-devcontainer
+          cacheFrom: ghcr.io/dolr-ai/yral-k8s-devcontainer
+          push: never
+          runCmd: |
+            set -e
+            
+            # Install linting tools
+            pip install ansible-lint yamllint
+            
+            # Validate YAML syntax
+            echo "Validating YAML files..."
+            yamllint -c .yamllint ansible/ || true
+            
+            # Validate Ansible playbooks
+            echo "Checking Ansible playbook syntax..."
+            cd ansible
+            for playbook in playbooks/*.yml; do
+              echo "Checking $playbook..."
+              ansible-playbook --syntax-check -i inventory/hosts.yml "$playbook"
+            done
+            
+            # Run ansible-lint
+            echo "Running ansible-lint..."
+            ansible-lint playbooks/ roles/ || true
+            
+            # Validate inventory
+            echo "Validating inventory structure..."
+            ansible-inventory -i inventory/hosts.yml --list > /dev/null
+            
+            # Check for required secrets
+            echo "Checking inventory for required placeholders..."
+            if grep -q "PLACEHOLDER_UPDATE_ME" inventory/hosts.yml; then
+              echo "⚠️  Warning: Found PLACEHOLDER_UPDATE_ME in inventory"
+              echo "Please update the following in inventory/hosts.yml:"
+              echo "  - hetzner_s3_access_key"
+              echo "  - hetzner_s3_bucket"
+              echo ""
+              echo "Also ensure these GitHub Secrets are set:"
+              echo "  - HETZNER_ROBOT_PASSWORD"
+              echo "  - HETZNER_S3_SECRET_KEY"
+              echo "  - HETZNER_BARE_METAL_GITHUB_ACTIONS_SSH_PRIVATE_KEY"
+            else
+              echo "✅ No placeholders found in inventory"
+            fi
 
       - name: Create validation summary
         if: always()
