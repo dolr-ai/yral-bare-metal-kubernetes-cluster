@@ -10,14 +10,15 @@
 	},
 	// Mount SSH agent socket from WSL host into container
 	"mounts": [
-		"type=bind,source=${env:HOME}/.ssh/agent.sock,target=/ssh-agent,consistency=cached"
+		"type=bind,source=${env:HOME}/.ssh/agent.sock,target=/ssh-agent,consistency=cached",
+		"type=bind,source=${env:HOME}/.config/gh,target=/home/vscode/.config/gh,consistency=cached"
 	],
 	// Set SSH_AUTH_SOCK environment variable to point to mounted socket
 	"remoteEnv": {
 		"SSH_AUTH_SOCK": "/ssh-agent"
 	},
-	// Verify SSH agent is accessible after container creation
-	"postCreateCommand": "echo 'SSH Agent Status:' && ssh-add -l || echo 'Warning: SSH agent not accessible. Ensure agent is running in WSL with fixed socket at ~/.ssh/agent.sock'"
+	// Verify SSH agent is accessible and configure gh CLI to use SSH
+	"postCreateCommand": "echo 'SSH Agent Status:' && ssh-add -l || echo 'Warning: SSH agent not accessible. Ensure agent is running in WSL with fixed socket at ~/.ssh/agent.sock' && gh config set git_protocol ssh --host github.com && gh config set git_protocol ssh && echo 'GitHub CLI configured to use SSH protocol'"
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 	// Configure tool-specific properties.
