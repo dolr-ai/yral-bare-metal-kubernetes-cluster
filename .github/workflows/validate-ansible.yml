@@ -48,6 +48,10 @@ jobs:
           runCmd: |
             set -e
             
+            # Install required Ansible collections
+            echo "Installing Ansible collections..."
+            ansible-galaxy collection install community.general
+            
             # Create vault password file for Ansible
             echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > ansible/.vault_pass
             chmod 600 ansible/.vault_pass

@@ -46,6 +46,10 @@ jobs:
           runCmd: |
             set -e
             
+            # Install required Ansible collections
+            echo "Installing Ansible collections..."
+            ansible-galaxy collection install community.general
+            
             # Enable colored output for Ansible
             export ANSIBLE_FORCE_COLOR=true
             
