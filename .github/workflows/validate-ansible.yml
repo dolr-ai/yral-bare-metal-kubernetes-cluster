@@ -50,7 +50,7 @@ jobs:
             
             # Install required Ansible collections
             echo "Installing Ansible collections..."
-            ansible-galaxy collection install community.general
+            ansible-galaxy collection install -r ansible/requirements.yml
             
             # Create vault password file for Ansible
             echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > ansible/.vault_pass

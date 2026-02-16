@@ -24,8 +24,8 @@ fi
 # Install required Ansible collections
 echo ""
 echo "Installing Ansible collections..."
-ansible-galaxy collection install community.general
-echo "✓ Installed community.general collection"
+ansible-galaxy collection install -r ansible/requirements.yml
+echo "✓ Installed Ansible collections from requirements.yml"
 
 # Check SSH Agent accessibility
 echo ""
