@@ -17,8 +17,8 @@
 	"remoteEnv": {
 		"SSH_AUTH_SOCK": "/ssh-agent"
 	},
-	// Verify SSH agent is accessible and configure gh CLI to use SSH
-	"postCreateCommand": "echo 'SSH Agent Status:' && ssh-add -l || echo 'Warning: SSH agent not accessible. Ensure agent is running in WSL with fixed socket at ~/.ssh/agent.sock' && gh config set git_protocol ssh --host github.com && gh config set git_protocol ssh && echo 'GitHub CLI configured to use SSH protocol'"
+	// Run post-create setup script
+	"postCreateCommand": ".devcontainer/postCreate.sh"
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 	// Configure tool-specific properties.
