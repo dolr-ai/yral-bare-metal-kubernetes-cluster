@@ -48,9 +48,8 @@ jobs:
           runCmd: |
             set -e
             
-            # Install required Ansible collections
-            echo "Installing Ansible collections..."
-            ansible-galaxy collection install -r ansible/requirements.yml
+            # Run devcontainer setup script
+            .devcontainer/postCreate.sh
             
             # Create vault password file for Ansible
             echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > ansible/.vault_pass

@@ -8,6 +8,12 @@ echo "========================================="
 echo "DevContainer Post-Create Setup"
 echo "========================================="
 
+# Install Python packages
+echo ""
+echo "Installing Python packages..."
+pip install --user -r requirements.txt
+echo "✓ Installed Python packages from requirements.txt"
+
 # Install required Ansible collections
 echo ""
 echo "Installing Ansible collections..."
