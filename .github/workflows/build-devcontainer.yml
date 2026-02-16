@@ -27,6 +27,14 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Create stub SSH and gh config directories for devcontainer
+        run: |
+          # Create stub files/directories for devcontainer mounts
+          # These are only needed for local development with WSL, not CI
+          mkdir -p ~/.ssh ~/.config/gh
+          touch ~/.ssh/agent.sock
+          echo "Stub directories created for devcontainer mounts"
+
       - name: Pre-build dev container image
         uses: devcontainers/ci@v0.3
         with:
