@@ -3,8 +3,12 @@
 {
 	"name": "Ubuntu",
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-	"image": "mcr.microsoft.com/devcontainers/python:3",
+	"image": "mcr.microsoft.com/devcontainers/base:ubuntu",
 	"features": {
+		"ghcr.io/devcontainers/features/python:1": {
+			"installTools": true,
+			"version": "3.12"
+		},
 		"ghcr.io/devcontainers-extra/features/ansible:2": {},
 		"ghcr.io/devcontainers/features/github-cli:1": {}
 	},
