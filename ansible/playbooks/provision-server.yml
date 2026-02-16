@@ -3,7 +3,7 @@
   hosts: localhost
   gather_facts: false
   vars:
-    target_host: "{{ provision_target_host }}"
+    target_host: "{{ provision_target_host | default('localhost') }}"
   
   tasks:
     - name: Load inventory to get server details
@@ -183,7 +183,7 @@
       changed_when: false
 
 - name: Configure Provisioned Server
-  hosts: "{{ provision_target_host }}"
+  hosts: "{{ provision_target_host | default('all') }}"
   gather_facts: true
   become: true
 
@@ -194,10 +194,10 @@
 
 - import_playbook: system-setup.yml
   vars:
-    target_hosts: "{{ provision_target_host }}"
+    target_hosts: "{{ provision_target_host | default('all') }}"
 
 - name: Reboot After System Setup
-  hosts: "{{ provision_target_host }}"
+  hosts: "{{ provision_target_host | default('all') }}"
   gather_facts: false
   become: true
 
@@ -208,19 +208,19 @@
 
 - import_playbook: btrfs-expand.yml
   vars:
-    target_hosts: "{{ provision_target_host }}"
+    target_hosts: "{{ provision_target_host | default('all') }}"
 
 - import_playbook: ssh-security.yml
   vars:
-    target_hosts: "{{ provision_target_host }}"
+    target_hosts: "{{ provision_target_host | default('all') }}"
 
 - import_playbook: containerd-setup.yml
   vars:
-    target_hosts: "{{ provision_target_host }}"
+    target_hosts: "{{ provision_target_host | default('all') }}"
 
 - import_playbook: kubeadm-install.yml
   vars:
-    target_hosts: "{{ provision_target_host }}"
+    target_hosts: "{{ provision_target_host | default('all') }}"
 
 - name: Provisioning Complete
   hosts: localhost
