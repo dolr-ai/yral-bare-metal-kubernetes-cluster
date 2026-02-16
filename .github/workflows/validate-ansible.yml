@@ -45,13 +45,11 @@ jobs:
           imageName: ghcr.io/dolr-ai/yral-k8s-devcontainer
           cacheFrom: ghcr.io/dolr-ai/yral-k8s-devcontainer
           push: never
-          env:
-            ANSIBLE_VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
           runCmd: |
             set -e
             
             # Create vault password file for Ansible
-            echo "$ANSIBLE_VAULT_PASSWORD" > ansible/.vault_pass
+            echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > ansible/.vault_pass
             chmod 600 ansible/.vault_pass
             
             # Install linting tools
