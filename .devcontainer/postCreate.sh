@@ -8,6 +8,25 @@ echo "========================================="
 echo "DevContainer Post-Create Setup"
 echo "========================================="
 
+# Install Python linting tools in user packages
+echo ""
+echo "Installing Python linting tools..."
+pip install --user --upgrade ansible-lint yamllint
+echo "✓ Installed ansible-lint and yamllint"
+
+# Add ~/.local/bin to PATH if not already there
+if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+    export PATH="$HOME/.local/bin:$PATH"
+    echo "✓ Added ~/.local/bin to PATH"
+fi
+
+# Install required Ansible collections
+echo ""
+echo "Installing Ansible collections..."
+ansible-galaxy collection install community.general
+echo "✓ Installed community.general collection"
+
 # Check SSH Agent accessibility
 echo ""
 echo "Checking SSH Agent..."
