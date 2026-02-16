@@ -69,7 +69,7 @@ jobs:
             echo "✓ Vault password file created ($(wc -c < ansible/.vault_pass) bytes)"
             
             # Test vault password with quick decryption
-            ansible-vault view --vault-password-file=ansible/.vault_pass ansible/group_vars/all/vault.yml >/dev/null 2>&1 && echo "✓ Vault password validated successfully" || { echo "ERROR: Vault password test failed - incorrect password"; exit 1; }
+            ansible-vault view ansible/group_vars/all/vault.yml >/dev/null 2>&1 && echo "✓ Vault password validated successfully" || { echo "ERROR: Vault password test failed - incorrect password"; exit 1; }
             
             # Extract SSH key from vault (github-actions@yral.com)
             mkdir -p ~/.ssh
@@ -84,22 +84,21 @@ jobs:
             trap cleanup EXIT
             
             # Test connectivity to control planes
-            cd ansible
-            ansible control_plane -i inventory/hosts.yml -m ping
+            ansible control_plane -m ping
             
             # Run selected playbook
             case "${{ github.event.inputs.playbook }}" in
               "base-system-setup")
-                ansible-playbook -i inventory/hosts.yml playbooks/base-system-setup.yml -v
+                ansible-playbook ansible/playbooks/base-system-setup.yml -v
                 ;;
               "kubernetes-only")
-                ansible-playbook -i inventory/hosts.yml playbooks/kubernetes-only.yml -v
+                ansible-playbook ansible/playbooks/kubernetes-only.yml -v
                 ;;
               "full-deployment")
-                ansible-playbook -i inventory/hosts.yml playbooks/full-deployment.yml -v
+                ansible-playbook ansible/playbooks/full-deployment.yml -v
                 ;;
               *)
-                ansible-playbook -i inventory/hosts.yml playbooks/${{ github.event.inputs.playbook }}.yml -v
+                ansible-playbook ansible/playbooks/${{ github.event.inputs.playbook }}.yml -v
                 ;;
             esac
 

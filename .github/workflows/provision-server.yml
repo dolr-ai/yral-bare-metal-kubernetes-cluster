@@ -58,7 +58,7 @@ jobs:
             echo "✓ Vault password file created ($(wc -c < ansible/.vault_pass) bytes)"
             
             # Test vault password with quick decryption
-            ansible-vault view --vault-password-file=ansible/.vault_pass ansible/group_vars/all/vault.yml >/dev/null 2>&1 && echo "✓ Vault password validated successfully" || { echo "ERROR: Vault password test failed - incorrect password"; exit 1; }
+            ansible-vault view ansible/group_vars/all/vault.yml >/dev/null 2>&1 && echo "✓ Vault password validated successfully" || { echo "ERROR: Vault password test failed - incorrect password"; exit 1; }
             
             # Extract SSH key from vault (github-actions@yral.com)
             mkdir -p ~/.ssh
@@ -73,8 +73,7 @@ jobs:
             trap cleanup EXIT
             
             # Run bare metal provisioning
-            cd ansible
-            ansible-playbook -i inventory/hosts.yml playbooks/provision-server.yml \
+            ansible-playbook ansible/playbooks/provision-server.yml \
               -e "provision_target_host=${{ github.event.inputs.target_host }}" \
               -e "github_repository=${{ github.repository }}" \
               -v
@@ -111,8 +110,7 @@ jobs:
           gh workflow run deploy-cluster.yml -f playbook=full-deployment
 
           # Or locally
-          cd ansible
-          ansible-playbook -i inventory/hosts.yml playbooks/full-deployment.yml -v
+          ansible-playbook ansible/playbooks/full-deployment.yml -v
           \`\`\`
 
           **Verify installation:**

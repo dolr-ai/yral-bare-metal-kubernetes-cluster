@@ -12,8 +12,8 @@ Ansible automation for managing a bare-metal Kubernetes cluster on Hetzner infra
 
 ```
 .
+├── ansible.cfg                  # Ansible configuration (at root)
 ├── ansible/
-│   ├── ansible.cfg               # Ansible configuration
 │   ├── inventory/
 │   │   └── hosts.yml            # Inventory file with host definitions
 │   ├── playbooks/               # Ansible playbooks for deployment
@@ -87,27 +87,27 @@ The recommended provisioning sequence for new bare-metal servers:
 
 1. **System Setup**: Update packages and configure unattended-upgrades
    ```bash
-   ansible-playbook -i inventory/hosts.yml playbooks/system-setup.yml
+   ansible-playbook ansible/playbooks/system-setup.yml
    ```
 
 2. **Btrfs Expansion** (if multiple drives): Expand filesystem across drives
    ```bash
-   ansible-playbook -i inventory/hosts.yml playbooks/btrfs-expand.yml
+   ansible-playbook ansible/playbooks/btrfs-expand.yml
    ```
 
 3. **SSH Security**: Harden SSH configuration
    ```bash
-   ansible-playbook -i inventory/hosts.yml playbooks/ssh-security.yml
+   ansible-playbook ansible/playbooks/ssh-security.yml
    ```
 
 4. **Container Runtime**: Install and configure containerd (pinned to 1.7.x)
    ```bash
-   ansible-playbook -i inventory/hosts.yml playbooks/containerd-setup.yml
+   ansible-playbook ansible/playbooks/containerd-setup.yml
    ```
 
 5. **Kubernetes Installation**: Install kubeadm, kubelet, and kubectl (pinned to v1.35)
    ```bash
-   ansible-playbook -i inventory/hosts.yml playbooks/kubeadm-install.yml
+   ansible-playbook ansible/playbooks/kubeadm-install.yml
    ```
 
 After these steps, the cluster is ready for Kubernetes initialization (control plane setup and worker node joins).
@@ -115,36 +115,36 @@ After these steps, the cluster is ready for Kubernetes initialization (control p
 ### Test Connectivity (Ping)
 
 ```bash
-ansible-playbook -i inventory/hosts.yml playbooks/ping.yml
+ansible-playbook ansible/playbooks/ping.yml
 ```
 
 With verbose output for debugging:
 
 ```bash
-ansible-playbook -i inventory/hosts.yml playbooks/ping.yml -vvv
+ansible-playbook ansible/playbooks/ping.yml -vvv
 ```
 
 ### Test Specific Host Groups
 
 ```bash
 # Ping only control plane nodes
-ansible-playbook -i inventory/hosts.yml playbooks/ping.yml --limit control_plane
+ansible-playbook ansible/playbooks/ping.yml --limit control_plane
 
 # Ping only worker nodes
-ansible-playbook -i inventory/hosts.yml playbooks/ping.yml --limit worker_nodes
+ansible-playbook ansible/playbooks/ping.yml --limit worker_nodes
 ```
 
 ### Ad-hoc Commands
 
 ```bash
 # Check uptime on all hosts
-ansible k8s_cluster -i inventory/hosts.yml -m shell -a "uptime"
+ansible k8s_cluster -m shell -a "uptime"
 
 # Check disk space
-ansible k8s_cluster -i inventory/hosts.yml -m shell -a "df -h"
+ansible k8s_cluster -m shell -a "df -h"
 
 # List all hosts in inventory
-ansible-inventory -i inventory/hosts.yml --list
+ansible-inventory --list
 ```
 
 ## GitHub Actions Workflow
@@ -189,12 +189,16 @@ Check the workflow run logs to see:
 
 ### ansible.cfg
 
-The [ansible.cfg](ansible.cfg) file contains important settings:
+The [ansible.cfg](ansible.cfg) file at the root of the repository contains important settings:
 
+- **inventory**: Points to `ansible/inventory/hosts.yml`
+- **vault_password_file**: Points to `ansible/.vault_pass` for encrypted secrets
 - **host_key_checking = False**: Disables SSH host key verification (suitable for automation)
 - **pipelining = True**: Improves performance by reducing SSH connections
 - **forks = 10**: Allows parallel execution on up to 10 hosts
 - **gathering = smart**: Only gathers facts when needed
+
+All ansible commands can be run from the repository root without specifying inventory paths.
 
 ### SSH Authentication
 

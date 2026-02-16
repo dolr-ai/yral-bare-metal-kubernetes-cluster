@@ -240,25 +240,25 @@ pip install ansible ansible-lint yamllint
 yamllint ansible/
 
 # Check Ansible syntax
-ansible-playbook --syntax-check -i ansible/inventory/hosts.yml ansible/playbooks/*.yml
+ansible-playbook --syntax-check ansible/playbooks/*.yml
 
 # Run ansible-lint
 ansible-lint ansible/
 
 # Validate inventory
-ansible-inventory -i ansible/inventory/hosts.yml --list
+ansible-inventory --list
 ```
 
 ### Test Playbook Locally
 ```bash
 # Dry run (check mode)
-ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/YOUR_PLAYBOOK.yml --check
+ansible-playbook ansible/playbooks/YOUR_PLAYBOOK.yml --check
 
 # Run with verbose output
-ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/YOUR_PLAYBOOK.yml -v
+ansible-playbook ansible/playbooks/YOUR_PLAYBOOK.yml -v
 
 # Run specific tags
-ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/YOUR_PLAYBOOK.yml --tags "YOUR_TAG"
+ansible-playbook ansible/playbooks/YOUR_PLAYBOOK.yml --tags "YOUR_TAG"
 ```
 
 ## Security Best Practices
