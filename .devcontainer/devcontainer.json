@@ -5,7 +5,9 @@
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
 	"image": "mcr.microsoft.com/devcontainers/python:3",
 	"features": {
-		"ghcr.io/devcontainers-extra/features/ansible:2": {},
+		"ghcr.io/devcontainers-extra/features/ansible:2": {
+			"inject_python_packages": "ansible-lint yamllint"
+		},
 		"ghcr.io/devcontainers/features/github-cli:1": {}
 	},
 	// Mount SSH agent socket from WSL host into container

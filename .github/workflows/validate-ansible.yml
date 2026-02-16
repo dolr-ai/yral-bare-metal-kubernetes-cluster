@@ -52,9 +52,6 @@ jobs:
             echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > ansible/.vault_pass
             chmod 600 ansible/.vault_pass
             
-            # Install linting tools
-            pip install ansible-lint yamllint
-            
             # Validate YAML syntax
             echo "Validating YAML files..."
             yamllint -c .yamllint ansible/ || true
