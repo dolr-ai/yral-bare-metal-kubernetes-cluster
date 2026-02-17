@@ -35,19 +35,20 @@ export HETZNER_ROBOT_PASSWORD="your-robot-password"
 export HETZNER_S3_SECRET_KEY="your-s3-secret-key"
 ```
 
-### 2. Provision Servers (if needed)
+### 2. Initial Cluster Deployment
 
-Provision servers with Ubuntu 24.04:
+For the initial cluster bootstrap, all servers must be pre-provisioned with Ubuntu 24.04. Using Hetzner Robot, activate rescue mode on each server and run the `scripts/install-ubuntu.sh` installation script manually, or use `provision-server.yml` if available.
+
 ```bash
-# Provision individual servers
-ansible-playbook ansible/playbooks/provision-server.yml -e target_host=control-plane-1
-ansible-playbook ansible/playbooks/provision-server.yml -e target_host=control-plane-2
-ansible-playbook ansible/playbooks/provision-server.yml -e target_host=control-plane-3
+# Deploy initial cluster stack
+ansible-playbook ansible/playbooks/full-deployment.yml
 ```
 
-### 3. Deploy Cluster
-
+Or deploy step-by-step:
 ```bash
+# Base system setup on all nodes
+ansible-playbook ansible/playbooks/base-system-setup.yml
+
 # Install Helm on control planes
 ansible-playbook ansible/playbooks/helm-install.yml
 
@@ -67,6 +68,26 @@ ansible-playbook ansible/playbooks/monitoring-deploy.yml
 ansible-playbook ansible/playbooks/etcd-backup.yml
 ansible-playbook ansible/playbooks/velero-install.yml
 ```
+
+### 3. Day-2 Operations: Add/Remove Nodes
+
+The cluster is designed for immutable node operations. To add or remove nodes, use the operations playbooks:
+
+```bash
+# Add a new worker node (provisions + configures + joins)
+ansible-playbook ansible/playbooks/operations/add-worker.yml -e target_host=worker-16
+
+# Add a new control plane node
+ansible-playbook ansible/playbooks/operations/add-control-plane.yml -e target_host=control-plane-4
+
+# Drain a node for maintenance
+ansible-playbook ansible/playbooks/operations/drain-node.yml -e target_host=worker-5
+
+# Remove a node permanently
+ansible-playbook ansible/playbooks/operations/remove-node.yml -e target_host=worker-5
+```
+
+To add capabilities to the cluster (new CNI features, monitoring updates, etc.), drain the node, remove it, and add it back to re-run all roles with updated configurations.
 
 ## Project Structure
 

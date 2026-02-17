@@ -1,29 +1,4 @@
 ---
-- name: Check that target_host is defined
-  ansible.builtin.fail:
-    msg: "target_host must be specified: -e target_host=control-plane-X"
-  when: target_host is not defined or target_host == ""
-  delegate_to: localhost
-  run_once: true
-
-- name: Verify target host exists in control_plane group
-  ansible.builtin.assert:
-    that:
-      - target_host in groups['control_plane']
-    fail_msg: "Host {{ target_host }} not found in control_plane group. Add it to inventory first."
-    success_msg: "Host {{ target_host }} found in inventory"
-  delegate_to: localhost
-  run_once: true
-
-- name: Verify cluster has an existing control plane
-  ansible.builtin.assert:
-    that:
-      - (groups['control_plane'] | difference([target_host]) | length) >= 1
-    fail_msg: "No existing control planes found. Use cluster-setup.yml for initial bootstrap."
-    success_msg: "Found {{ groups['control_plane'] | length }} control plane(s) in inventory"
-  delegate_to: localhost
-  run_once: true
-
 - name: Display control plane addition plan
   ansible.builtin.debug:
     msg: |
@@ -34,13 +9,10 @@
       Existing Control Planes: {{ groups['control_plane'] | difference([target_host]) | join(', ') }}
 
       Steps:
-      1. Provision server with Ubuntu 24.04
-      2. Setup base system (updates, SSH, containerd, kubeadm)
-      3. Upload control plane certificates
-      4. Join as control plane (with etcd)
-      5. Deploy kube-vip for VIP failover
-      6. Verify etcd cluster health
-      7. Apply node labels
+      1. Join as control plane (with etcd)
+      2. Deploy kube-vip for VIP failover
+      3. Verify etcd cluster health
+      4. Apply node labels
 
       ⚠️  IMPORTANT:
       - This will add another etcd member

@@ -1,20 +1,4 @@
 ---
-- name: Check that target_host is defined
-  ansible.builtin.fail:
-    msg: "target_host must be specified: -e target_host=worker-X"
-  when: target_host is not defined or target_host == ""
-  delegate_to: localhost
-  run_once: true
-
-- name: Verify target host exists in worker_nodes group
-  ansible.builtin.assert:
-    that:
-      - target_host in groups['worker_nodes']
-    fail_msg: "Host {{ target_host }} not found in worker_nodes group. Add it to inventory first."
-    success_msg: "Host {{ target_host }} found in inventory"
-  delegate_to: localhost
-  run_once: true
-
 - name: Display worker addition plan
   ansible.builtin.debug:
     msg: |
@@ -24,11 +8,9 @@
       Target: {{ target_host }}
 
       Steps:
-      1. Provision server with Ubuntu 24.04 (if needed)
-      2. Setup base system (updates, SSH, containerd, kubeadm)
-      3. Join worker to cluster
-      4. Apply node labels (topology, disk type, etc.)
-      5. Verify node is Ready
+      1. Join worker to cluster
+      2. Apply node labels (topology, disk type, etc.)
+      3. Verify node is Ready
       ============================================================
   delegate_to: localhost
   run_once: true
@@ -50,3 +32,16 @@
 - name: Display node status
   ansible.builtin.debug:
     msg: "{{ node_status.stdout_lines }}"
+
+- name: Success message
+  ansible.builtin.debug:
+    msg: |
+      ============================================================
+      ✅ Worker Node Added Successfully!
+      ============================================================
+      Node: {{ target_host }}
+
+      Verify with:
+        kubectl get nodes
+        kubectl get pods -A -o wide --field-selector spec.nodeName={{ target_host }}
+      ============================================================

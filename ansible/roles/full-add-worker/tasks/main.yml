@@ -1,0 +1,85 @@
+---
+# Orchestrator role: provisions server, applies base system config, and adds worker to cluster
+# This role handles all logic so playbooks remain thin
+
+- name: Display full workflow plan
+  ansible.builtin.debug:
+    msg: |
+      ============================================================
+      Full Worker Add Workflow
+      ============================================================
+      Target: {{ target_host }}
+
+      Steps:
+      1. Provision server with Ubuntu 24.04
+      2. Setup base system
+      3. Join worker to cluster
+      4. Apply node labels
+      ============================================================
+  run_once: true
+
+- name: Provision server on localhost
+  ansible.builtin.include_role:
+    name: provision
+  delegate_to: localhost
+  run_once: true
+
+- name: Base system configuration
+  block:
+    - name: Apply base-system role
+      ansible.builtin.include_role:
+        name: base-system
+
+    - name: Apply storage-setup role
+      ansible.builtin.include_role:
+        name: storage-setup
+
+    - name: Apply ssh-hardening role
+      ansible.builtin.include_role:
+        name: ssh-hardening
+
+    - name: Apply containerd role
+      ansible.builtin.include_role:
+        name: containerd
+
+    - name: Apply kubernetes role
+      ansible.builtin.include_role:
+        name: kubernetes
+
+    - name: Reboot server after base system configuration
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+        msg: "Reboot initiated by Ansible for post-provisioning configuration"
+
+- name: Worker node join and labeling
+  block:
+    - name: Join worker node to cluster
+      ansible.builtin.include_role:
+        name: worker-join
+
+    - name: Apply node labels
+      ansible.builtin.include_role:
+        name: node-labels
+
+    - name: Verify worker node status
+      ansible.builtin.command: kubectl get node {{ inventory_hostname }} -o wide
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      register: node_status
+      changed_when: false
+
+    - name: Display node status
+      ansible.builtin.debug:
+        msg: "{{ node_status.stdout_lines }}"
+
+    - name: Success message
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          ✅ Worker Node Added Successfully!
+          ============================================================
+          Node: {{ target_host }}
+
+          Verify with:
+            kubectl get nodes
+            kubectl get pods -A -o wide --field-selector spec.nodeName={{ target_host }}
+          ============================================================

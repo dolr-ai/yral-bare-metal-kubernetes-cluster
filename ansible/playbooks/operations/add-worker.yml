@@ -2,16 +2,11 @@
 # Add Worker Node to Kubernetes Cluster
 # Usage: ansible-playbook operations/add-worker.yml -e target_host=worker-X
 
-- name: Provision and setup base system
-  import_playbook: ../provision-server.yml
-  vars:
-    target_host: "{{ target_host }}"
-
-- name: Add worker node to cluster
+- name: Add worker node (provision, configure, join)
   hosts: "{{ target_host }}"
-  become: true
   gather_facts: true
+  become: true
   serial: 1
 
   roles:
-    - role: ../roles/add-worker
+    - role: ../roles/full-add-worker
