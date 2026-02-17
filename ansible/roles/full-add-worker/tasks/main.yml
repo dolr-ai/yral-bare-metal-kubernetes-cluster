@@ -19,8 +19,10 @@
   run_once: true
 
 - name: Provision server on localhost
-  ansible.builtin.include_role:
-    name: provision
+  block:
+    - name: Include provision role
+      ansible.builtin.include_role:
+        name: provision
   delegate_to: localhost
   run_once: true
 

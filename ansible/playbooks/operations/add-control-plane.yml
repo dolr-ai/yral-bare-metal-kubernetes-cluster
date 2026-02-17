@@ -2,55 +2,11 @@
 # Add Control Plane Node to Kubernetes Cluster
 # Usage: ansible-playbook operations/add-control-plane.yml -e target_host=control-plane-X
 
-- name: Provision bare metal server
-  hosts: localhost
-  gather_facts: false
-  vars:
-    target_host: "{{ target_host }}"
-
-  roles:
-    - role: ../roles/provision
-
-- name: Base system configuration
+- name: Add control plane node (provision, configure, join)
   hosts: "{{ target_host }}"
   gather_facts: true
   become: true
-
-  roles:
-    - role: ../roles/base-system
-    - role: ../roles/storage-setup
-    - role: ../roles/ssh-hardening
-    - role: ../roles/containerd
-    - role: ../roles/kubernetes
-
-  tasks:
-    - name: Reboot server after base system configuration
-      ansible.builtin.reboot:
-        reboot_timeout: 300
-        msg: "Reboot initiated by Ansible for post-provisioning configuration"
-
-- name: Provisioning complete
-  hosts: localhost
-  gather_facts: false
-
-  tasks:
-    - name: Display provisioning complete message
-      ansible.builtin.debug:
-        msg: |
-          ============================================================
-          ✅ Server Provisioning Complete!
-          ============================================================
-
-          Server: {{ target_host }}
-
-          The server is now ready for Kubernetes control plane join.
-          ============================================================
-
-- name: Add control plane node to cluster
-  hosts: "{{ target_host }}"
-  become: true
-  gather_facts: true
   serial: 1
 
   roles:
-    - role: ../roles/add-control-plane
+    - role: ../roles/full-add-control-plane
