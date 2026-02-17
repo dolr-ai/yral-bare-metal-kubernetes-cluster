@@ -34,7 +34,7 @@
           ============================================================
 
 - name: Phase 1 - Base System Setup
-  import_playbook: base-system-setup.yml
+  import_playbook: system-setup.yml
 
 - name: Phase 2 - Kubernetes Infrastructure  
   import_playbook: helm-install.yml

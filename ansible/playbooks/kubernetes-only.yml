@@ -17,7 +17,7 @@
           This playbook deploys the Kubernetes control plane and
           platform services. It assumes base system setup is complete.
           
-          Prerequisites: base-system-setup.yml already executed
+          Prerequisites: system-setup.yml already executed
           
           Components:
             - Helm 3 (control planes)

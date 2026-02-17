@@ -22,5 +22,4 @@ skip_list:
   - command-instead-of-module
 
 # Skip files that require runtime variables
-exclude_paths:
-  - playbooks/provision-server.yml
+exclude_paths: []

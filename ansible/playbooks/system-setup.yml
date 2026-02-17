@@ -1,11 +1,26 @@
 ---
-# System Setup - Standalone playbook using base-system role
-# Usage: ansible-playbook system-setup-simple.yml [--limit hostname]
+# Base System Setup - Prepare all nodes for Kubernetes
+# This installs and configures the required system components
+# Orchestrates: base-system, containerd, kubernetes, ssh-hardening roles
 
-- name: System Setup and Updates
-  hosts: all
+- name: Base system setup and security hardening
+  hosts: k8s_cluster
   become: true
   gather_facts: true
+  serial: 3
 
   roles:
-    - role: base-system
+    - role: ../roles/base-system
+    - role: ../roles/ssh-hardening
+    - role: ../roles/containerd
+    - role: ../roles/kubernetes
+
+  post_tasks:
+    - name: Verify system preparation
+      ansible.builtin.debug:
+        msg: |
+          ✓ Base system updates applied
+          ✓ SSH hardening enabled
+          ✓ Container runtime (containerd) installed
+          ✓ Kubernetes binaries (v1.35) installed
+          Next: Run cluster-setup.yml to initialize cluster

@@ -37,37 +37,20 @@ export HETZNER_S3_SECRET_KEY="your-s3-secret-key"
 
 ### 2. Initial Cluster Deployment
 
-For the initial cluster bootstrap, all servers must be pre-provisioned with Ubuntu 24.04. Using Hetzner Robot, activate rescue mode on each server and run the `scripts/install-ubuntu.sh` installation script manually, or use `provision-server.yml` if available.
+For the initial cluster bootstrap, all servers must be pre-provisioned with Ubuntu 24.04. Manually provision each server via Hetzner Robot by activating rescue mode and running `scripts/install-ubuntu.sh`.
 
 ```bash
-# Deploy initial cluster stack
+# Deploy complete cluster stack (all in proper order)
 ansible-playbook ansible/playbooks/full-deployment.yml
 ```
 
-Or deploy step-by-step:
-```bash
-# Base system setup on all nodes
-ansible-playbook ansible/playbooks/base-system-setup.yml
-
-# Install Helm on control planes
-ansible-playbook ansible/playbooks/helm-install.yml
-
-# Deploy kube-vip on all control planes
-ansible-playbook ansible/playbooks/kube-vip-deploy.yml
-
-# Initialize cluster and join all nodes
-ansible-playbook ansible/playbooks/cluster-setup.yml
-
-# Deploy Cilium CNI
-ansible-playbook ansible/playbooks/cilium-deploy.yml
-
-# Deploy monitoring stack
-ansible-playbook ansible/playbooks/monitoring-deploy.yml
-
-# Setup automated backups
-ansible-playbook ansible/playbooks/etcd-backup.yml
-ansible-playbook ansible/playbooks/velero-install.yml
-```
+This playbook orchestrates:
+- Helm installation on control planes
+- Kubernetes cluster initialization and node joins
+- kube-vip static pod deployment
+- Cilium CNI setup
+- Monitoring stack (Prometheus/Grafana)
+- Automated backup configuration (etcd + Velero)
 
 ### 3. Day-2 Operations: Add/Remove Nodes
 
@@ -97,27 +80,51 @@ To add capabilities to the cluster (new CNI features, monitoring updates, etc.),
 │   └── hosts.yml                     # Inventory with topology labels and credentials
 ├── ansible/
 │   ├── playbooks/
-│   ├── helm-install.yml              # Install Helm on control planes
-│   ├── kube-vip-deploy.yml           # Deploy kube-vip static pods
-│   ├── cluster-setup.yml             # Initialize cluster and join nodes
-│   ├── cilium-deploy.yml             # Deploy Cilium CNI
-│   ├── monitoring-deploy.yml         # Deploy Prometheus/Grafana
-│   ├── etcd-backup.yml               # Setup etcd automated backups
-│   ├── velero-install.yml            # Install Velero for cluster backups
-│   ├── system-setup.yml              # System updates (existing)
-│   ├── containerd-setup.yml          # Container runtime (existing)
-│   └── kubeadm-install.yml           # Kubernetes installation (existing)
-│   ├── roles/
-│   ├── kube-vip/                     # kube-vip configuration role
-│   ├── cluster-init/                 # Cluster initialization role
-│   ├── node-labels/                  # Topology labels role
-│   ├── cilium/                       # Cilium deployment role
-│   └── monitoring/                   # Monitoring stack role
+│   │   ├── full-deployment.yml       # Complete deployment orchestrator
+│   │   ├── kubernetes-only.yml       # Cluster bootstrap + Cilium + monitoring
+│   │   ├── cluster-setup.yml         # Cluster init and node joins
+│   │   ├── helm-install.yml          # Helm installation
+│   │   ├── kube-vip-deploy.yml       # kube-vip static pods
+│   │   ├── cilium-deploy.yml         # Cilium CNI deployment
+│   │   ├── monitoring-deploy.yml     # Prometheus/Grafana stack
+│   │   ├── etcd-backup.yml           # etcd backup automation
+│   │   ├── velero-install.yml        # Velero backup system
+│   │   ├── lint-check.yml            # Ansible linting
+│   │   └── operations/
+│   │       ├── add-worker.yml        # Add new worker to cluster
+│   │       ├── add-control-plane.yml # Add new control plane
+│   │       ├── drain-node.yml        # Drain node for maintenance
+│   │       └── remove-node.yml       # Remove node from cluster
+│   ├── roles/                        # Core roles (all logic lives here)
+│   │   ├── provision/                # Hetzner provisioning
+│   │   ├── base-system/              # System setup (updates, networking)
+│   │   ├── containerd/               # Container runtime
+│   │   ├── kubernetes/               # kubeadm installation
+│   │   ├── cluster-init/             # First control plane bootstrap
+│   │   ├── control-plane-join/       # Additional control planes
+│   │   ├── worker-join/              # Worker node join
+│   │   ├── kube-vip/                 # HA control plane VIP
+│   │   ├── cilium/                   # CNI deployment
+│   │   ├── monitoring/               # Observability stack
+│   │   ├── node-labels/              # Topology labeling
+│   │   ├── storage-setup/            # Storage provisioning
+│   │   ├── add-worker/               # Day-2: add worker operations
+│   │   ├── add-control-plane/        # Day-2: add control plane operations
+│   │   ├── node-drain/               # Day-2: drain node for maintenance
+│   │   ├── node-remove/              # Day-2: remove node operations
+│   │   ├── full-add-worker/          # Orchestrator: provision + setup + join
+│   │   └── full-add-control-plane/   # Orchestrator: provision + setup + join + vip
 │   ├── manifests/
-│   ├── cilium-values.yaml            # Cilium Helm values
-│   └── monitoring-values.yaml        # kube-prometheus-stack Helm values
+│   │   ├── cilium-values.yaml        # Cilium Helm values
+│   │   └── monitoring-values.yaml    # kube-prometheus-stack Helm values
+│   ├── inventory/
+│   │   └── hosts.yml                 # Node inventory and variables
+│   └── group_vars/
+│       └── all/
+│           ├── vars.yml              # Cluster configuration
+│           └── vault.yml             # Encrypted secrets
 └── scripts/
-    └── install-ubuntu.sh             # Ubuntu installation script (existing)
+    └── install-ubuntu.sh             # Hetzner bare-metal Ubuntu provisioning
 ```
 
 ## Cluster Features
@@ -272,16 +279,43 @@ velero backup describe <backup-name>
 
 ## Maintenance
 
-### Adding Worker Nodes
-1. Add to `ansible/inventory/hosts.yml` with topology labels
-2. Run system setup playbooks
-3. Run `cluster-setup.yml` with `--limit new-worker`
+### Adding/Removing Worker Nodes (Immutable Operations)
+
+The cluster uses immutable node operations—nodes are removed and re-added rather than modified:
+
+```bash
+# Add a new worker node (provisions + configures + joins)
+ansible-playbook ansible/playbooks/operations/add-worker.yml -e target_host=worker-16
+
+# Remove a worker node (graceful drain and removal)
+ansible-playbook ansible/playbooks/operations/remove-node.yml -e target_host=worker-5
+
+# Drain a node for maintenance without removal
+ansible-playbook ansible/playbooks/operations/drain-node.yml -e target_host=worker-5
+
+# To add capabilities to an existing node: drain → remove → add
+ansible-playbook ansible/playbooks/operations/drain-node.yml -e target_host=worker-5
+ansible-playbook ansible/playbooks/operations/remove-node.yml -e target_host=worker-5
+ansible-playbook ansible/playbooks/operations/add-worker.yml -e target_host=worker-5  # Rejoins with updated config
+```
+
+### Adding Control Plane Nodes
+
+```bash
+# Add a new control plane (provisions + configures + joins + deploys kube-vip)
+ansible-playbook ansible/playbooks/operations/add-control-plane.yml -e target_host=control-plane-4
+
+# Remove a control plane (drains, removes from etcd, deletes node)
+ansible-playbook ansible/playbooks/operations/remove-node.yml -e target_host=control-plane-4
+```
 
 ### Upgrading Kubernetes
+
 1. Backup cluster with Velero
-2. Drain nodes one by one
-3. Update kubeadm, kubelet, kubectl
-4. Upgrade control planes first, then workers
+2. Drain nodes one by one (`drain-node.yml`)
+3. Update kubeadm, kubelet, kubectl via new `provision` role
+4. Upgrade control planes first, then workers (via `add-*` operations)
+5. Verify cluster health
 
 ### Scaling Monitoring
 ```bash
