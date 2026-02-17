@@ -1,4 +1,14 @@
 ---
+# containerd Setup for Kubernetes
+# This playbook follows the official Kubernetes documentation:
+# https://kubernetes.io/docs/setup/production-environment/container-runtimes/#containerd
+#
+# Strategy:
+# 1. Install the latest containerd version from Docker's repository
+# 2. Pin the installed version to prevent automatic updates
+# 3. Configure systemd cgroup driver (supports both containerd 1.x and 2.x)
+# 4. Enable CRI support and configure kernel modules
+#
 - name: Install and Configure containerd for Kubernetes
   hosts: "{{ target_hosts | default('all') }}"
   become: true
@@ -48,13 +58,18 @@
       ansible.builtin.apt:
         update_cache: true
 
-    - name: Install containerd.io package (pinned to 1.7.x series)
+    - name: Install latest containerd.io package
       ansible.builtin.apt:
-        name: containerd.io=1.7.*
-        state: present
+        name: containerd.io
+        state: latest
       register: containerd_install
 
-    - name: Hold containerd package version
+    - name: Get installed containerd version
+      ansible.builtin.shell: dpkg -l containerd.io | grep '^ii' | awk '{print $3}'
+      register: containerd_version
+      changed_when: false
+
+    - name: Pin containerd to installed version
       ansible.builtin.dpkg_selections:
         name: containerd.io
         selection: hold
@@ -63,8 +78,8 @@
       ansible.builtin.debug:
         msg:
           - "✅ containerd.io package installed successfully"
-          - "Version: {{ containerd_install.stdout | default('1.7.x series') }}"
-          - "Package held from auto-updates"
+          - "Installed version: {{ containerd_version.stdout }}"
+          - "Package pinned and held from auto-updates"
 
     - name: Configure kernel modules for Kubernetes
       ansible.builtin.copy:
@@ -142,6 +157,11 @@
         path: /etc/containerd/config.toml
       register: containerd_config_content
 
+    - name: Detect containerd major version
+      ansible.builtin.shell: containerd --version | awk '{print $3}' | cut -d'.' -f1 | sed 's/v//'
+      register: containerd_major_version
+      changed_when: false
+
     - name: Check if SystemdCgroup is already enabled
       ansible.builtin.set_fact:
         systemd_cgroup_enabled: "{{ containerd_config_content.content | b64decode | regex_search('SystemdCgroup = true') is not none }}"
@@ -152,21 +172,25 @@
         regexp: '^disabled_plugins = \["cri"\]'
         state: absent
 
-    - name: Configure systemd cgroup driver for containerd
-      ansible.builtin.replace:
-        path: /etc/containerd/config.toml
-        regexp: '(\[plugins\."io\.containerd\.grpc\.v1\.cri"\.containerd\.runtimes\.runc\.options\]\s+)(\w+)'
-        after: '\[plugins\."io\.containerd\.grpc\.v1\.cri"\.containerd\.runtimes\.runc\.options\]'
-        before: '\[plugins\."io\.containerd'
-      when: not systemd_cgroup_enabled
-
-    - name: Set SystemdCgroup = true in containerd config
+    - name: Set SystemdCgroup = true for containerd 1.x
       ansible.builtin.lineinfile:
         path: /etc/containerd/config.toml
         insertafter: '^\s*\[plugins\."io\.containerd\.grpc\.v1\.cri"\.containerd\.runtimes\.runc\.options\]'
         line: "            SystemdCgroup = true"
         state: present
-      when: not systemd_cgroup_enabled
+      when:
+        - not systemd_cgroup_enabled
+        - containerd_major_version.stdout == "1"
+
+    - name: Set SystemdCgroup = true for containerd 2.x
+      ansible.builtin.lineinfile:
+        path: /etc/containerd/config.toml
+        insertafter: '^\s*\[plugins\.[''"]io\.containerd\.cri\.v1\.runtime[''"]\.containerd\.runtimes\.runc\.options\]'
+        line: "            SystemdCgroup = true"
+        state: present
+      when:
+        - not systemd_cgroup_enabled
+        - containerd_major_version.stdout == "2"
 
     - name: Verify SystemdCgroup configuration
       ansible.builtin.shell: grep -A 2 "runc.options" /etc/containerd/config.toml | grep SystemdCgroup || echo "NOT FOUND"
@@ -175,7 +199,9 @@
 
     - name: Display SystemdCgroup status
       ansible.builtin.debug:
-        msg: "{{ systemd_cgroup_check.stdout }}"
+        msg:
+          - "Containerd version: {{ containerd_major_version.stdout }}.x"
+          - "SystemdCgroup setting: {{ systemd_cgroup_check.stdout }}"
 
     - name: Restart containerd service
       ansible.builtin.systemd:
