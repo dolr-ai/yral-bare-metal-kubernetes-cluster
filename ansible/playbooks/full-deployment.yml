@@ -1,9 +1,13 @@
 ---
-- name: Full Kubernetes Cluster Deployment
+# Full Kubernetes Cluster Deployment
+# This orchestrates the complete deployment from base system to production cluster
+# Usage: ansible-playbook full-deployment.yml
+
+- name: Display deployment information
   hosts: localhost
   gather_facts: false
   tasks:
-    - name: Display deployment information
+    - name: Display deployment plan
       ansible.builtin.debug:
         msg: |
           ============================================================
@@ -11,32 +15,44 @@
           ============================================================
           This playbook orchestrates the complete deployment process:
           
-          Phase 1: Base System Setup
-            - System updates and configuration
-            - SSH security hardening
-            - Container runtime (containerd)
-            - Kubernetes binaries (kubeadm, kubelet, kubectl)
+          Phase 1: Base System Setup (all nodes)
+            - System updates and configuration (base-system role)
+            - SSH security hardening (ssh-hardening role)
+            - Container runtime containerd (containerd role)
+            - Kubernetes binaries v1.35 (kubernetes role)
           
           Phase 2: Kubernetes Infrastructure
-            - Helm package manager
+            - Helm package manager (control planes)
             - kube-vip for HA control plane
-            - Cluster initialization
-            - Cilium CNI
+            - Cluster initialization (kubeadm init + joins)
+            - Cilium CNI with WireGuard encryption
           
           Phase 3: Platform Services
             - Monitoring stack (Prometheus, Grafana)
-            - etcd backups
+            - Automated etcd backups to S3
             - Velero disaster recovery
           ============================================================
 
-- import_playbook: system-setup.yml
-- import_playbook: ssh-security.yml
-- import_playbook: containerd-setup.yml
-- import_playbook: kubeadm-install.yml
-- import_playbook: helm-install.yml
-- import_playbook: kube-vip-deploy.yml
-- import_playbook: cluster-setup.yml
-- import_playbook: cilium-deploy.yml
-- import_playbook: monitoring-deploy.yml
-- import_playbook: etcd-backup.yml
-- import_playbook: velero-install.yml
+- name: Phase 1 - Base System Setup
+  import_playbook: base-system-setup.yml
+
+- name: Phase 2 - Kubernetes Infrastructure  
+  import_playbook: helm-install.yml
+
+- name: Phase 2 - Deploy kube-vip
+  import_playbook: kube-vip-deploy.yml
+
+- name: Phase 2 - Initialize Cluster
+  import_playbook: cluster-setup.yml
+
+- name: Phase 2 - Deploy Cilium CNI
+  import_playbook: cilium-deploy.yml
+
+- name: Phase 3 - Deploy Monitoring
+  import_playbook: monitoring-deploy.yml
+
+- name: Phase 3 - Setup etcd Backups
+  import_playbook: etcd-backup.yml
+
+- name: Phase 3 - Install Velero
+  import_playbook: velero-install.yml

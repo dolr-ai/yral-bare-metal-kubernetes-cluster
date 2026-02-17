@@ -1,55 +1,11 @@
 ---
+# System Setup - Standalone playbook using base-system role
+# Usage: ansible-playbook system-setup-simple.yml [--limit hostname]
+
 - name: System Setup and Updates
-  hosts: "{{ target_hosts }}"
+  hosts: all
   become: true
   gather_facts: true
 
-  tasks:
-    - name: Update apt cache
-      ansible.builtin.apt:
-        update_cache: true
-        cache_valid_time: 3600
-
-    - name: Perform full system upgrade
-      ansible.builtin.apt:
-        upgrade: full
-        autoremove: true
-        autoclean: true
-      register: upgrade_result
-
-    - name: Install unattended-upgrades package
-      ansible.builtin.apt:
-        name: unattended-upgrades
-        state: present
-
-    - name: Configure unattended-upgrades
-      ansible.builtin.debconf:
-        name: unattended-upgrades
-        question: unattended-upgrades/enable_auto_updates
-        value: "true"
-        vtype: boolean
-
-    - name: Reconfigure unattended-upgrades
-      ansible.builtin.command: dpkg-reconfigure --priority=low unattended-upgrades
-      args:
-        creates: /etc/apt/apt.conf.d/20auto-upgrades
-
-    - name: Remove unnecessary packages
-      ansible.builtin.apt:
-        autoremove: true
-        purge: true
-
-    - name: Verify hostname
-      ansible.builtin.debug:
-        msg: "Current hostname: {{ ansible_hostname }}"
-
-    - name: Display system information
-      ansible.builtin.debug:
-        msg:
-          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
-          - "Kernel: {{ ansible_kernel }}"
-          - "Architecture: {{ ansible_architecture }}"
-
-    - name: Display upgrade results
-      ansible.builtin.debug:
-        msg: "System upgrade completed. Changed: {{ upgrade_result.changed }}"
+  roles:
+    - role: base-system

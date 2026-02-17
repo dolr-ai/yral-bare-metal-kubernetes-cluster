@@ -1,9 +1,14 @@
 ---
-- name: Kubernetes Stack Deployment
+# Kubernetes Stack Deployment (Kubernetes-Only)
+# Deploys Kubernetes control plane and platform services
+# Assumes base system setup (containerd, kubeadm) is already complete
+# Usage: ansible-playbook kubernetes-only.yml
+
+- name: Display Kubernetes deployment information
   hosts: localhost
   gather_facts: false
   tasks:
-    - name: Display Kubernetes deployment information
+    - name: Display deployment plan
       ansible.builtin.debug:
         msg: |
           ============================================================
@@ -12,20 +17,35 @@
           This playbook deploys the Kubernetes control plane and
           platform services. It assumes base system setup is complete.
           
+          Prerequisites: base-system-setup.yml already executed
+          
           Components:
-            - Helm 3
-            - kube-vip (HA virtual IP)
+            - Helm 3 (control planes)
+            - kube-vip (HA virtual IP with ARP failover)
             - Kubernetes cluster (kubeadm init + worker joins)
-            - Cilium CNI
+            - Cilium CNI with WireGuard encryption
             - Prometheus/Grafana monitoring
-            - etcd backup automation
+            - Automated etcd backups to S3
             - Velero disaster recovery
           ============================================================
 
-- import_playbook: helm-install.yml
-- import_playbook: kube-vip-deploy.yml
-- import_playbook: cluster-setup.yml
-- import_playbook: cilium-deploy.yml
-- import_playbook: monitoring-deploy.yml
-- import_playbook: etcd-backup.yml
-- import_playbook: velero-install.yml
+- name: Install Helm
+  import_playbook: helm-install.yml
+
+- name: Deploy kube-vip
+  import_playbook: kube-vip-deploy.yml
+
+- name: Initialize Cluster
+  import_playbook: cluster-setup.yml
+
+- name: Deploy Cilium CNI
+  import_playbook: cilium-deploy.yml
+
+- name: Deploy Monitoring
+  import_playbook: monitoring-deploy.yml
+
+- name: Setup etcd Backups
+  import_playbook: etcd-backup.yml
+
+- name: Install Velero
+  import_playbook: velero-install.yml

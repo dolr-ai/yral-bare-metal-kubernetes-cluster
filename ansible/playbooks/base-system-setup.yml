@@ -1,32 +1,32 @@
 ---
+# Base System Setup for Kubernetes Nodes
+# This playbook prepares bare metal servers for Kubernetes
+# Usage: ansible-playbook base-system-setup.yml [--limit hostname]
+
 - name: Base System Setup for Kubernetes Nodes
   hosts: all
-  gather_facts: false
-  tasks:
+  become: true
+  gather_facts: true
+
+  pre_tasks:
     - name: Display base setup information
       ansible.builtin.debug:
         msg: |
           ============================================================
           YRAL Bare Metal Kubernetes - Base System Setup
           ============================================================
-          This playbook prepares bare metal servers for Kubernetes:
-
-          1. System updates and base packages
-          2. SSH security hardening (disable password auth)
-          3. Container runtime installation (containerd v1.7.x)
-          4. Kubernetes binaries (kubeadm v1.35.0, kubelet, kubectl)
-
-          Run this after provisioning fresh Ubuntu 24.04 servers.
+          Target: {{ ansible_hostname }}
+          IP: {{ ansible_host }}
+          
+          Components:
+          1. System updates and base packages (base-system role)
+          2. SSH security hardening (ssh-hardening role)
+          3. Container runtime (containerd role)
+          4. Kubernetes binaries v1.35 (kubernetes role)
           ============================================================
 
-- name: Import system setup playbook
-  import_playbook: system-setup.yml
-
-- name: Import SSH security playbook
-  import_playbook: ssh-security.yml
-
-- name: Import containerd setup playbook
-  import_playbook: containerd-setup.yml
-
-- name: Import kubeadm installation playbook
-  import_playbook: kubeadm-install.yml
+  roles:
+    - role: base-system
+    - role: ssh-hardening
+    - role: containerd
+    - role: kubernetes
