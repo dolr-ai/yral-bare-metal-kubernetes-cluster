@@ -4,7 +4,7 @@
     msg:
       - "Deploying kube-vip on: {{ ansible_hostname }}"
       - "Control plane VIP: {{ control_plane_vip }}"
-      - "LoadBalancer IP range: {{ loadbalancer_ip_range }}"
+      - "LoadBalancer IP range: {{ loadbalancer_ip_range | default('Not configured') }}"
       - "Control plane endpoint: {{ control_plane_endpoint }}"
 
 - name: Create Kubernetes manifests directory
@@ -91,20 +91,21 @@
         cidr-global: "32"
     dest: /tmp/kube-vip-configmap.yaml
     mode: "0644"
+  when: loadbalancer_ip_range is defined
 
 - name: Display kube-vip deployment summary
   ansible.builtin.debug:
     msg:
       - "✅ kube-vip manifest created at /etc/kubernetes/manifests/kube-vip.yaml"
       - "✅ RBAC manifest created at /tmp/kube-vip-rbac.yaml (apply after cluster init)"
-      - "✅ ConfigMap created at /tmp/kube-vip-configmap.yaml (apply after cluster init)"
+      - "{{ '✅ ConfigMap created at /tmp/kube-vip-configmap.yaml (apply after cluster init)' if loadbalancer_ip_range is defined else '⚠️  ConfigMap skipped (loadbalancer_ip_range not configured)' }}"
       - ""
       - "Configuration:"
       - "  - Mode: ARP"
       - "  - Control plane VIP: {{ control_plane_vip }}"
-      - "  - LoadBalancer IP pool: {{ loadbalancer_ip_range }}"
+      - "{{ '  - LoadBalancer IP pool: ' + loadbalancer_ip_range if loadbalancer_ip_range is defined else '  - LoadBalancer IP pool: Not configured' }}"
       - "  - Leader election: Enabled"
-      - "  - Services LoadBalancer: Enabled"
+      - "  - Services LoadBalancer: {{ 'Enabled' if loadbalancer_ip_range is defined else 'Disabled (no IP pool)' }}"
       - ""
       - "⚠️  kube-vip will start automatically when kubelet starts"
-      - "⚠️  Apply RBAC and ConfigMap after 'kubeadm init' completes"
+      - "{{ '⚠️  Apply RBAC and ConfigMap after kubeadm init completes' if loadbalancer_ip_range is defined else '⚠️  Apply RBAC after kubeadm init completes' }}"
