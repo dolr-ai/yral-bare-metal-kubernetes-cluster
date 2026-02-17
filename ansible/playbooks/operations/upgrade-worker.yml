@@ -1,0 +1,20 @@
+---
+# Upgrade worker node(s) - system packages, reboot if required,
+# drain → delete → reboot → rejoin → verify for each node.
+#
+# Usage:
+#   All workers (one at a time):
+#     ansible-playbook playbooks/operations/upgrade-worker.yml
+#
+#   Single worker:
+#     ansible-playbook playbooks/operations/upgrade-worker.yml \
+#       -e target_host=worker-1
+
+- name: Upgrade worker node(s)
+  hosts: "{{ target_host | default('worker_nodes') }}"
+  gather_facts: true
+  become: true
+  serial: 1
+
+  roles:
+    - role: upgrade-worker

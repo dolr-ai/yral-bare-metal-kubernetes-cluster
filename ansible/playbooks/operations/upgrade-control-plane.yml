@@ -1,0 +1,20 @@
+---
+# Upgrade control plane node(s) - system packages, reboot if required,
+# cleanly rejoin etcd and the cluster.
+#
+# Usage:
+#   All control planes (one at a time):
+#     ansible-playbook playbooks/operations/upgrade-control-plane.yml
+#
+#   Single control plane:
+#     ansible-playbook playbooks/operations/upgrade-control-plane.yml \
+#       -e target_host=control-plane-2
+
+- name: Upgrade control plane node(s)
+  hosts: "{{ target_host | default('control_plane') }}"
+  gather_facts: true
+  become: true
+  serial: 1
+
+  roles:
+    - role: upgrade-control-plane

@@ -1,9 +1,11 @@
 ---
-- name: Validate node_target is defined
-  ansible.builtin.fail:
-    msg: "node_target must be specified"
-  when: node_target is not defined or node_target == ""
-  run_once: true
+# node_target defaults to inventory_hostname (the host being operated on).
+# When run via the upgrade-node.yml playbook, Ansible sets inventory_hostname
+# per host automatically. Pass node_target explicitly only when delegating
+# to a specific host from a localhost play.
+- name: Resolve node target
+  ansible.builtin.set_fact:
+    node_target: "{{ node_target | default(inventory_hostname) }}"
 
 - name: Verify target host exists in inventory
   ansible.builtin.assert:
@@ -11,14 +13,12 @@
       - node_target in groups['all']
     fail_msg: "Host {{ node_target }} not found in inventory"
     success_msg: "Host {{ node_target }} found in inventory"
-  run_once: true
 
 - name: Determine node type
   ansible.builtin.set_fact:
     is_control_plane: "{{ node_target in groups['control_plane'] }}"
     is_worker: "{{ node_target in groups['worker_nodes'] }}"
     node_type: "{{ 'control-plane' if node_target in groups['control_plane'] else 'worker' }}"
-  run_once: true
 
 - name: Display upgrade plan
   ansible.builtin.debug:
@@ -43,7 +43,6 @@
       5. Mark cluster as healthy
 
       ============================================================
-  run_once: true
 
 - name: Pre-flight check - verify cluster health
   ansible.builtin.command: kubectl get nodes -o jsonpath='{.items[?(@.status.conditions[?(@.type=="Ready")].status=="True")].metadata.name}'
@@ -51,13 +50,11 @@
     KUBECONFIG: /etc/kubernetes/admin.conf
   register: healthy_nodes
   changed_when: false
-  run_once: true
   delegate_to: "{{ groups['control_plane'][0] }}"
 
 - name: Display current healthy nodes
   ansible.builtin.debug:
     msg: "Healthy nodes: {{ healthy_nodes.stdout }}"
-  run_once: true
 
 # ========== UPGRADE PHASE ==========
 
@@ -78,7 +75,6 @@
 - name: Display upgrade results
   ansible.builtin.debug:
     msg: "{{ upgrade_result.stdout_lines | last }}"
-  run_once: true
 
 - name: Check if reboot is required
   ansible.builtin.stat:
@@ -89,7 +85,6 @@
 - name: Display reboot status
   ansible.builtin.debug:
     msg: "Reboot {{ 'REQUIRED' if reboot_required_stat.stat.exists else 'NOT required' }}"
-  run_once: true
 
 # ========== REBOOT PHASE (if required) ==========
 
@@ -106,7 +101,6 @@
           - Evicting all pods (except DaemonSets)
           - Waiting for graceful termination
           ============================================================
-      run_once: true
 
     - name: Cordon the node
       ansible.builtin.command: kubectl cordon {{ node_target }}
@@ -133,7 +127,6 @@
     - name: Verify drain completed
       ansible.builtin.debug:
         msg: "Node {{ node_target }} drained and cordoned"
-      run_once: true
 
     - name: Remove node from cluster
       ansible.builtin.command: kubectl delete node {{ node_target }}
@@ -158,7 +151,6 @@
     - name: Reboot the node
       ansible.builtin.debug:
         msg: "Rebooting {{ node_target }}..."
-      run_once: true
 
     - name: Initiate reboot with delay
       ansible.builtin.shell: sleep 5 && /usr/sbin/shutdown -r now &
@@ -174,7 +166,6 @@
         state: stopped
         timeout: 120
         sleep: 5
-      run_once: true
 
     - name: Wait for node to come back online
       ansible.builtin.wait_for:
@@ -183,7 +174,6 @@
         state: started
         timeout: 300
         sleep: 10
-      run_once: true
 
     - name: Wait for SSH to be ready
       ansible.builtin.command: ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no root@{{ hostvars[node_target].ansible_host }} "echo 'SSH ready'"
@@ -223,7 +213,6 @@
         - name: Display auto-rejoin message
           ansible.builtin.debug:
             msg: "{{ node_target }} auto-rejoined cluster (cord state cleared)"
-          run_once: true
 
     - name: Manual rejoin if node not present
       when: node_rejoin_check.rc != 0
@@ -336,7 +325,6 @@
     - name: Display node information
       ansible.builtin.debug:
         msg: "{{ node_info.stdout_lines }}"
-      run_once: true
 
     - name: Verify node system status
       ansible.builtin.shell: |
@@ -349,7 +337,6 @@
     - name: Display system health
       ansible.builtin.debug:
         msg: "{{ system_status.stdout_lines }}"
-      run_once: true
 
     - name: Check cluster API connectivity
       ansible.builtin.command: kubectl get componentstatus
@@ -373,7 +360,6 @@
         - name: Display etcd status
           ansible.builtin.debug:
             msg: "{{ etcd_pods.stdout_lines }}"
-          run_once: true
 
 - name: Display upgrade completion
   ansible.builtin.debug:
@@ -393,4 +379,3 @@
       4. Proceed to next node when ready
 
       ============================================================
-  run_once: true

@@ -1,0 +1,239 @@
+---
+# upgrade-worker role
+#
+# Safely upgrades one worker node at a time:
+#   1. Pre-flight: verify cluster is healthy before touching this node
+#   2. Upgrade system packages
+#   3. If reboot required:
+#      a. Cordon + drain (evict workloads to other nodes)
+#      b. kubectl delete node  → removes node object
+#      c. Reboot
+#      d. Wait for SSH + kubelet
+#      e. kubeadm join  → worker rejoins cluster
+#      f. Uncordon and verify Ready
+#   4. Post-flight: verify node Ready and services healthy
+#
+# serial: 1 in the playbook ensures only one worker is upgraded at a time,
+# keeping cluster capacity stable throughout a rolling upgrade.
+
+# ========== SETUP ==========
+
+- name: Identify kubectl delegate (any healthy control plane)
+  ansible.builtin.set_fact:
+    kubectl_delegate: "{{ groups['control_plane'][0] }}"
+
+- name: Display upgrade plan
+  ansible.builtin.debug:
+    msg: |
+      ============================================================
+      Upgrading Worker: {{ inventory_hostname }}
+      kubectl delegate: {{ kubectl_delegate }}
+      ============================================================
+
+# ========== PRE-FLIGHT ==========
+
+- name: Get Ready node count
+  ansible.builtin.command: >
+    kubectl get nodes
+    -o jsonpath='{.items[?(@.status.conditions[?(@.type=="Ready")].status=="True")].metadata.name}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: ready_nodes
+  changed_when: false
+  delegate_to: "{{ kubectl_delegate }}"
+
+- name: Display healthy nodes before upgrade
+  ansible.builtin.debug:
+    msg: "Healthy nodes: {{ ready_nodes.stdout.split() | join(', ') }}"
+
+# ========== UPGRADE PHASE ==========
+
+- name: Upgrade system packages
+  ansible.builtin.shell: |
+    set -euo pipefail
+    apt-get update -qq
+    DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
+  changed_when: true
+
+- name: Check if reboot is required
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: reboot_required_stat
+
+- name: Display reboot status
+  ansible.builtin.debug:
+    msg: "Reboot {{ 'REQUIRED - will drain, delete, reboot, and rejoin' if reboot_required_stat.stat.exists else 'NOT required - skipping reboot cycle' }}"
+
+# ========== DRAIN → DELETE → REBOOT → REJOIN (only if reboot required) ==========
+
+- name: Drain, reboot, and rejoin worker
+  when: reboot_required_stat.stat.exists
+  block:
+
+    # ----- Drain -----
+
+    - name: Cordon node (mark unschedulable)
+      ansible.builtin.command: kubectl cordon {{ inventory_hostname }}
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      delegate_to: "{{ kubectl_delegate }}"
+      changed_when: true
+
+    - name: Drain node (evict all evictable pods)
+      ansible.builtin.command: >
+        kubectl drain {{ inventory_hostname }}
+        --ignore-daemonsets
+        --delete-emptydir-data
+        --force
+        --grace-period=300
+        --timeout=600s
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      delegate_to: "{{ kubectl_delegate }}"
+      changed_when: true
+
+    # ----- Remove node object -----
+
+    - name: Delete node from cluster
+      ansible.builtin.command: kubectl delete node {{ inventory_hostname }}
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      delegate_to: "{{ kubectl_delegate }}"
+      changed_when: true
+
+    - name: Wait for node object to be gone
+      ansible.builtin.command: kubectl get node {{ inventory_hostname }}
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      delegate_to: "{{ kubectl_delegate }}"
+      register: node_gone_check
+      until: node_gone_check.rc != 0
+      retries: 30
+      delay: 5
+      changed_when: false
+      failed_when: false
+
+    # ----- Reboot -----
+
+    - name: Initiate reboot
+      ansible.builtin.shell: sleep 3 && /usr/sbin/shutdown -r now
+      async: 1
+      poll: 0
+      changed_when: true
+
+    - name: Wait for node to go offline
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[inventory_hostname].ansible_host }}"
+        port: 22
+        state: stopped
+        timeout: 120
+        sleep: 5
+      delegate_to: localhost
+
+    - name: Wait for node to come back online
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[inventory_hostname].ansible_host }}"
+        port: 22
+        state: started
+        timeout: 300
+        sleep: 10
+      delegate_to: localhost
+
+    - name: Confirm SSH is responsive
+      ansible.builtin.command: >
+        ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no
+        root@{{ hostvars[inventory_hostname].ansible_host }} "echo ok"
+      register: ssh_ready
+      until: ssh_ready.rc == 0
+      retries: 30
+      delay: 5
+      changed_when: false
+      delegate_to: localhost
+
+    # ----- Rejoin as worker -----
+
+    - name: Generate worker join command
+      ansible.builtin.shell: |
+        set -euo pipefail
+        TOKEN=$(kubeadm token create)
+        HASH=$(openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt \
+          | openssl rsa -pubin -outform der 2>/dev/null \
+          | openssl dgst -sha256 -hex | sed 's/^.* //')
+        echo "kubeadm join {{ control_plane_endpoint }}:6443 \
+          --token ${TOKEN} \
+          --discovery-token-ca-cert-hash sha256:${HASH}"
+      register: worker_join_cmd
+      changed_when: false
+      delegate_to: "{{ kubectl_delegate }}"
+
+    - name: Rejoin cluster as worker
+      ansible.builtin.command: "{{ worker_join_cmd.stdout }}"
+      changed_when: true
+
+    - name: Wait for kubelet to be active
+      ansible.builtin.command: systemctl is-active kubelet
+      register: kubelet_status
+      until: kubelet_status.rc == 0
+      retries: 30
+      delay: 5
+      changed_when: false
+
+    - name: Wait for node object to appear in cluster
+      ansible.builtin.command: kubectl get node {{ inventory_hostname }}
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      delegate_to: "{{ kubectl_delegate }}"
+      register: node_exists
+      until: node_exists.rc == 0
+      retries: 30
+      delay: 5
+      changed_when: false
+
+    - name: Uncordon node (restore schedulability)
+      ansible.builtin.command: kubectl uncordon {{ inventory_hostname }}
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      delegate_to: "{{ kubectl_delegate }}"
+      changed_when: true
+
+# ========== VERIFICATION ==========
+
+- name: Wait for node to be Ready
+  ansible.builtin.command: >
+    kubectl wait --for=condition=Ready node/{{ inventory_hostname }} --timeout=600s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  delegate_to: "{{ kubectl_delegate }}"
+  changed_when: false
+
+- name: Assert node is Ready
+  ansible.builtin.command: >
+    kubectl get node {{ inventory_hostname }}
+    -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: node_ready_status
+  failed_when: node_ready_status.stdout != "True"
+  changed_when: false
+  delegate_to: "{{ kubectl_delegate }}"
+
+- name: Verify kubelet and containerd are healthy
+  ansible.builtin.shell: |
+    systemctl is-active kubelet
+    systemctl is-active containerd
+  register: service_status
+  changed_when: false
+
+- name: Display upgrade completion
+  ansible.builtin.debug:
+    msg: |
+      ============================================================
+      ✅ Worker Upgrade Complete: {{ inventory_hostname }}
+      ============================================================
+      Rebooted:  {{ 'yes' if reboot_required_stat.stat.exists else 'no' }}
+      Status:    Ready ✓
+      Services:  {{ service_status.stdout_lines | join(', ') }}
+
+      kubectl get nodes
+      kubectl get pods -A --field-selector spec.nodeName={{ inventory_hostname }}
+      ============================================================
