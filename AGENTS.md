@@ -53,7 +53,8 @@ Used for cluster Day-2 operations. Each operation is a single play calling one r
 2. `add-control-plane.yml` - Add control plane for HA (chains: provision → base-system → storage-setup → ssh-hardening → containerd → kubernetes → control-plane-join → kube-vip → node-labels)
 3. `add-worker.yml` - Add worker node (chains: provision → base-system → storage-setup → ssh-hardening → containerd → kubernetes → worker-join → node-labels)
 4. `remove-node.yml` - Remove node from cluster (calls: `node-remove` role)
-5. `upgrade-node.yml` - Upgrade system packages with auto-reboot (chains: `node-upgrade` role per node with health checks)
+5. `upgrade-control-plane.yml` - Upgrade control plane node(s): cordon → drain → kubeadm reset → reboot → rejoin → verify. Accepts `-e target_host=<node>` for single node or runs all serially.
+6. `upgrade-worker.yml` - Upgrade worker node(s): cordon → drain → delete → reboot → rejoin → verify. Accepts `-e target_host=<node>` for single node or runs all serially.
 
 #### Utility Playbooks (`ansible/playbooks/`)
 Used for cluster-wide utilities. Can have limited logic if orchestrating multiple roles for a single operation.
@@ -144,6 +145,8 @@ hetzner_robot_api_user: "#ws+hEJX77Pr"
 hetzner_robot_api_password: "{{ vault_hetzner_robot_api_password }}"
 hetzner_s3_secret_key: "{{ vault_hetzner_s3_secret_key }}"
 ```
+
+**Important**: In role task args, always reference the indirection variable (e.g. `hetzner_robot_api_password`) rather than the raw `vault_` variable directly. Ansible evaluates task args before vault group_vars are merged when the `vault_` variable is used directly, causing "undefined" errors. The indirection variable in `vars.yml` is resolved correctly at play startup.
 
 **Example in role tasks:**
 ```yaml
@@ -289,6 +292,23 @@ Multi-node upgrade orchestration (happens in playbook via `node-upgrade` role):
 - `k8s_cluster` meta-group: all cluster nodes
 - Target node specified via `-e target_host=node-name`
 
+## Deployment Execution Principle
+
+**All mutations to cluster nodes must go through Ansible roles — never via ad-hoc terminal commands.**
+
+- ✅ Validation and status checks (read-only): run freely in the terminal — `kubectl get nodes`, `ssh root@<ip> "systemctl status kubelet"`, etc.
+- ❌ Mutations (installs, config changes, reboots, kubeadm operations): must live in a role task and be executed via a playbook
+- This ensures every change is:
+  - **Idempotent**: re-running the playbook reaches the same end state
+  - **Auditable**: changes are tracked in version control
+  - **Repeatable**: the same playbook can bootstrap any equivalent node
+
+**When a deployment step fails:**
+1. Investigate with read-only terminal commands to diagnose
+2. Fix the role/task that corresponds to the failing step
+3. Re-run the playbook (idempotency means already-completed steps are safe to re-run)
+4. Do NOT apply the fix manually on the node and skip updating the role
+
 ## Questions for Agents
 
 When in doubt:
@@ -297,6 +317,7 @@ When in doubt:
 3. Does this mutate existing nodes? → If yes, reconsider immutability
 4. Could this reboot? → If yes, ensure `base-system` handles it
 5. Can this be tested independently? → If no, it's too coupled
+6. Is this a mutation? → If yes, it must be in a role, not a terminal command
 
 ## Maintaining AGENTS.md Over Time
 
@@ -332,6 +353,6 @@ This document is a living guide. As you work on cluster operations and discover 
 ---
 
 **Last Updated**: 2026-02-17
-**Version**: 1.1 - Atomic Role Pattern
+**Version**: 1.2 - Deployment Execution Principle + Split Upgrade Playbooks
 **Maintainer**: Kubernetes Cluster Operations Team
 **Contributing**: All cluster operations agents should update this document as architectural knowledge evolves
