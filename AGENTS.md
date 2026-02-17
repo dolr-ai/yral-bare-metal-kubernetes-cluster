@@ -49,7 +49,7 @@ This document defines architectural patterns and constraints specific to this re
 Used for cluster Day-2 operations. Each operation is a single play calling one role.
 
 **Current operations** (must remain pure thin wrappers chaining atomic roles):
-1. `init-control-plane.yml` - Bootstrap first control plane (chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → cluster-init)
+1. `init-control-plane.yml` - Bootstrap first control plane (hardcoded to control-plane-1, chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → cluster-init)
 2. `add-control-plane.yml` - Add control plane for HA (chains: provision → base-system → storage-setup → ssh-hardening → containerd → kubernetes → control-plane-join → kube-vip → node-labels)
 3. `add-worker.yml` - Add worker node (chains: provision → base-system → storage-setup → ssh-hardening → containerd → kubernetes → worker-join → node-labels)
 4. `remove-node.yml` - Remove node from cluster (calls: `node-remove` role)

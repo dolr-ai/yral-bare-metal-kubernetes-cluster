@@ -1,34 +1,14 @@
 ---
-- name: Load inventory to get server details
-  ansible.builtin.include_vars:
-    file: "{{ playbook_dir }}/../../../inventory/hosts.yml"
-    name: inventory_data
-  run_once: true
-
-- name: Extract server IP from inventory
+- name: Set server IP from inventory
   ansible.builtin.set_fact:
-    provision_server_ip: "{{ inventory_data.all.children.k8s_cluster.children[item].hosts[target_host].ansible_host }}"
-  loop:
-    - control_plane
-    - worker_nodes
-  when: 
-    - inventory_data.all.children.k8s_cluster.children[item].hosts is defined
-    - target_host in inventory_data.all.children.k8s_cluster.children[item].hosts
-  loop_control:
-    label: "{{ item }}"
-  run_once: true
-
-- name: Fail if server not found
-  ansible.builtin.fail:
-    msg: "Server {{ target_host }} not found in inventory"
-  when: provision_server_ip is not defined
+    provision_server_ip: "{{ ansible_host }}"
   run_once: true
 
 - name: Display server information
   ansible.builtin.debug:
     msg: |
       ============================================================
-      Provisioning Server: {{ target_host }}
+      Provisioning Server: {{ inventory_hostname }}
       IP Address: {{ provision_server_ip }}
       ============================================================
   run_once: true
@@ -150,7 +130,7 @@
     ssh -i /home/vscode/.ssh/hetzner-ansible-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
       root@{{ provision_server_ip }} \
       "curl -fsSL https://raw.githubusercontent.com/{{ provision_github_repository }}/main/scripts/install-ubuntu.sh | \
-      MACHINE_HOSTNAME='{{ target_host }}' \
+      MACHINE_HOSTNAME='{{ inventory_hostname }}' \
       DRIVE_TO_USE='{{ provision_drive_to_use }}' bash"
   register: install_output
   failed_when: false

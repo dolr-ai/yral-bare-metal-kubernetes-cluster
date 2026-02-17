@@ -9,29 +9,12 @@
   serial: 1
 
   roles:
-    - name: Step 1: Provision server
-      role: provision
-    
-    - name: Step 2: Configure base system
-      role: base-system
-    
-    - name: Step 3: Configure storage
-      role: storage-setup
-    
-    - name: Step 4: Harden SSH access
-      role: ssh-hardening
-    
-    - name: Step 5: Install container runtime
-      role: containerd
-    
-    - name: Step 6: Install Kubernetes components
-      role: kubernetes
-    
-    - name: Step 7: Join as control plane
-      role: control-plane-join
-    
-    - name: Step 8: Deploy kube-vip VIP failover
-      role: kube-vip
-    
-    - name: Step 9: Apply node labels
-      role: node-labels
+    - role: provision
+    - role: base-system
+    - role: storage-setup
+    - role: ssh-hardening
+    - role: containerd
+    - role: kubernetes
+    - role: control-plane-join
+    - role: kube-vip
+    - role: node-labels
