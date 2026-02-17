@@ -20,11 +20,20 @@
   register: pull_result
   changed_when: "'Downloaded' in pull_result.stderr or 'Downloaded' in pull_result.stdout"
 
+- name: Detect primary network interface
+  ansible.builtin.shell: ip route | grep default | awk '{print $5}' | head -n1
+  register: primary_interface
+  changed_when: false
+
+- name: Display detected interface
+  ansible.builtin.debug:
+    msg: "Detected primary interface: {{ primary_interface.stdout }}"
+
 - name: Generate kube-vip static pod manifest
   ansible.builtin.shell: |
     ctr run --rm --net-host ghcr.io/kube-vip/kube-vip:v0.8.5 vip \
       /kube-vip manifest pod \
-      --interface eth0 \
+      --interface {{ primary_interface.stdout }} \
       --address {{ control_plane_vip }} \
       --controlplane \
       --services \
