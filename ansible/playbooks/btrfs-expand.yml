@@ -1,6 +1,6 @@
 ---
 - name: Expand btrfs filesystem to second drive
-  hosts: "{{ target_hosts | default('all') }}"
+  hosts: "{{ target_hosts }}"
   become: true
   gather_facts: true
 
