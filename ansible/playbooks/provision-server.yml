@@ -43,7 +43,9 @@
     - ../group_vars/all/vars.yml
     - ../group_vars/all/vault.yml
   vars:
+    target_host: "{{ provision_target_host | default('localhost') }}"
     hetzner_api_user: "#ws+hEJX77Pr"
+    github_repository: "dolr-ai/yral-bare-metal-kubernetes-cluster"
     required_ssh_keys:
       - "github-actions@yral.com"
       - "saikatdas0790@gmail.com"
@@ -78,9 +80,13 @@
       ansible.builtin.debug:
         msg: "Using {{ key_fingerprints | length }} SSH keys for rescue mode"
 
+    - name: Build authorized_key query string
+      ansible.builtin.set_fact:
+        authorized_keys_query: "{{ key_fingerprints | map('regex_replace', '^(.*)$', 'authorized_key[]=\\1') | join('&') }}"
+
     - name: Activate rescue mode
       ansible.builtin.uri:
-        url: "https://robot-ws.your-server.de/boot/{{ hostvars['localhost']['server_ip'] }}/rescue"
+        url: "https://robot-ws.your-server.de/boot/{{ server_ip }}/rescue?{{ authorized_keys_query }}"
         method: POST
         user: "{{ hetzner_api_user }}"
         password: "{{ hetzner_robot_api_password }}"
@@ -89,17 +95,16 @@
         body:
           os: linux
           arch: 64
-          authorized_key: "{{ key_fingerprints }}"
         return_content: true
       register: rescue_response
 
     - name: Display rescue mode activation
       ansible.builtin.debug:
-        msg: "✅ Rescue mode activated for {{ hostvars['localhost']['server_ip'] }}"
+        msg: "✅ Rescue mode activated for {{ server_ip }}"
 
     - name: Trigger hardware reset
       ansible.builtin.uri:
-        url: "https://robot-ws.your-server.de/reset/{{ hostvars['localhost']['server_ip'] }}"
+        url: "https://robot-ws.your-server.de/reset/{{ server_ip }}"
         method: POST
         user: "{{ hetzner_api_user }}"
         password: "{{ hetzner_robot_api_password }}"
@@ -112,7 +117,7 @@
 
     - name: Wait for server to boot into rescue mode
       ansible.builtin.wait_for:
-        host: "{{ hostvars['localhost']['server_ip'] }}"
+        host: "{{ server_ip }}"
         port: 22
         delay: 30
         timeout: 300
@@ -120,8 +125,8 @@
 
     - name: Verify rescue system is booted
       ansible.builtin.shell: |
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 \
-          root@{{ hostvars['localhost']['server_ip'] }} \
+        ssh -i /home/vscode/.ssh/hetzner-ansible-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 \
+          root@{{ server_ip }} \
           "test -f /root/.oldroot/nfs/install/installimage && echo 'rescue_ready'"
       register: rescue_check
       retries: 12
@@ -131,8 +136,8 @@
 
     - name: Detect drive type
       ansible.builtin.shell: |
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-          root@{{ hostvars['localhost']['server_ip'] }} \
+        ssh -i /home/vscode/.ssh/hetzner-ansible-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+          root@{{ server_ip }} \
           "lsblk -d -o NAME 2>/dev/null"
       register: drive_list
       changed_when: false
@@ -147,10 +152,10 @@
 
     - name: Run Ubuntu installation script
       ansible.builtin.shell: |
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-          root@{{ hostvars['localhost']['server_ip'] }} \
+        ssh -i /home/vscode/.ssh/hetzner-ansible-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+          root@{{ server_ip }} \
           "curl -fsSL https://raw.githubusercontent.com/{{ github_repository }}/main/scripts/install-ubuntu.sh | \
-          MACHINE_HOSTNAME='{{ hostvars['localhost']['target_host'] }}' \
+          MACHINE_HOSTNAME='{{ target_host }}' \
           DRIVE_TO_USE='{{ drive_to_use }}' bash"
       register: install_output
       changed_when: true
@@ -162,13 +167,13 @@
 
     - name: Reboot server into Ubuntu
       ansible.builtin.shell: |
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-          root@{{ hostvars['localhost']['server_ip'] }} "reboot" || true
+        ssh -i /home/vscode/.ssh/hetzner-ansible-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+          root@{{ server_ip }} "reboot" || true
       changed_when: true
 
     - name: Wait for server to reboot
       ansible.builtin.wait_for:
-        host: "{{ hostvars['localhost']['server_ip'] }}"
+        host: "{{ server_ip }}"
         port: 22
         delay: 60
         timeout: 600
@@ -176,8 +181,8 @@
 
     - name: Verify Ubuntu is running
       ansible.builtin.shell: |
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 \
-          root@{{ hostvars['localhost']['server_ip'] }} \
+        ssh -i /home/vscode/.ssh/hetzner-ansible-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 \
+          root@{{ server_ip }} \
           "cat /etc/os-release | grep Ubuntu"
       register: ubuntu_check
       retries: 24
