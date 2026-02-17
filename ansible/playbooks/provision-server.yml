@@ -39,6 +39,9 @@
 - name: Activate Rescue Mode and Install Ubuntu
   hosts: localhost
   gather_facts: false
+  vars_files:
+    - ../group_vars/all/vars.yml
+    - ../group_vars/all/vault.yml
   vars:
     hetzner_api_user: "#ws+hEJX77Pr"
     required_ssh_keys:
