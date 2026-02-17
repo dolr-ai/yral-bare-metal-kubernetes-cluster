@@ -61,7 +61,6 @@
         name: node-upgrade
       vars:
         node_target: "{{ target_host }}"
-      delegate_to: "{{ target_host }}"
 
 # ========== Cluster Mode ==========
 
@@ -73,7 +72,6 @@
         name: node-upgrade
       vars:
         node_target: "{{ item }}"
-      delegate_to: "{{ item }}"
       loop: "{{ groups.get('control_plane', []) }}"
 
     - name: Verify cluster health after control plane upgrades
@@ -101,7 +99,6 @@
         name: node-upgrade
       vars:
         node_target: "{{ item }}"
-      delegate_to: "{{ item }}"
       loop: "{{ groups.get('worker_nodes', []) }}"
 
     - name: Verify cluster health after worker upgrades

@@ -13,6 +13,13 @@ skip_list:
   - risky-shell-pipe # We use pipes intentionally
   - command-instead-of-shell # Sometimes shell is needed
   - command-instead-of-module # Sometimes direct commands are clearer
+  - role-name # Roles follow hyphenated naming convention
+
+# Exclude files with dynamic variables passed via -e flags
+exclude_paths:
+  - ansible/playbooks/operations/add-control-plane.yml
+  - ansible/playbooks/operations/add-worker.yml
+  - ansible/playbooks/operations/init-control-plane.yml
 
 # Enable offline mode to avoid GitHub API rate limits
 offline: true
