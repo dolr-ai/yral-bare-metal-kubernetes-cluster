@@ -234,6 +234,9 @@
 - name: Provisioning Complete
   hosts: localhost
   gather_facts: false
+  vars:
+    target_host: "{{ provision_target_host | default(hostvars['localhost']['target_host']) }}"
+    server_ip: "{{ hostvars['localhost']['server_ip'] }}"
 
   tasks:
     - name: Display completion message
