@@ -1,0 +1,11 @@
+---
+# Kubernetes Install - Standalone playbook using kubernetes role
+# Usage: ansible-playbook kubeadm-install-simple.yml [--limit hostname]
+
+- name: Install Kubernetes (kubeadm, kubelet, kubectl)
+  hosts: all
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: kubernetes

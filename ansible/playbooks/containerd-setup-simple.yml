@@ -1,0 +1,11 @@
+---
+# containerd Setup - Standalone playbook using containerd role
+# Usage: ansible-playbook containerd-setup-simple.yml [--limit hostname]
+
+- name: Install and Configure containerd for Kubernetes
+  hosts: all
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: containerd

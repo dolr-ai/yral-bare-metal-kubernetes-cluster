@@ -1,0 +1,178 @@
+---
+# Install Kubernetes (kubeadm, kubelet, kubectl)
+# This role installs Kubernetes v1.35 components and configures the system
+
+- name: Display target host information
+  ansible.builtin.debug:
+    msg:
+      - "Installing Kubernetes v1.35 on: {{ ansible_hostname }}"
+      - "IP: {{ ansible_host }}"
+      - "Node type: {{ node_type }}"
+
+- name: Check current swap status
+  ansible.builtin.shell: |
+    echo "=== Memory Status ==="
+    free -h
+    echo ""
+    echo "=== Swap Devices ==="
+    swapon --show || echo "No swap enabled"
+    echo ""
+    echo "=== /proc/swaps ==="
+    cat /proc/swaps
+  register: swap_status
+  changed_when: false
+  failed_when: false
+
+- name: Display current swap status
+  ansible.builtin.debug:
+    msg: "{{ swap_status.stdout_lines }}"
+
+- name: Disable swap immediately
+  ansible.builtin.command: swapoff -a
+  register: swapoff_result
+  changed_when: swapoff_result.rc == 0
+  failed_when: false
+
+- name: Check if swap entries exist in /etc/fstab
+  ansible.builtin.shell: grep -i swap /etc/fstab || echo "No swap entries found"
+  register: fstab_swap_check
+  changed_when: false
+
+- name: Display swap entries in /etc/fstab
+  ansible.builtin.debug:
+    msg: "{{ fstab_swap_check.stdout_lines }}"
+
+- name: Remove all swap entries from /etc/fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    state: absent
+    regexp: '.*\sswap\s.*'
+    backup: true
+
+- name: Verify swap is disabled
+  ansible.builtin.shell: |
+    echo "=== Swap Status After Disable ==="
+    swapon --show || echo "✅ No swap enabled"
+    echo ""
+    echo "=== /etc/fstab (swap entries) ==="
+    grep -i swap /etc/fstab || echo "✅ No swap entries in /etc/fstab"
+  register: swap_verify
+  changed_when: false
+
+- name: Display swap disable verification
+  ansible.builtin.debug:
+    msg: "{{ swap_verify.stdout_lines }}"
+
+- name: Install prerequisites for Kubernetes repository
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gpg
+    state: present
+    update_cache: true
+
+- name: Create keyrings directory for Kubernetes
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Download Kubernetes GPG key
+  ansible.builtin.shell: curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  args:
+    creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+- name: Add Kubernetes apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.35/deb/ /"
+    state: present
+    filename: kubernetes
+
+- name: Update apt cache after adding Kubernetes repository
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install kubeadm, kubelet, and kubectl
+  ansible.builtin.apt:
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: present
+
+- name: Display Kubernetes packages installation status
+  ansible.builtin.debug:
+    msg: "✅ kubelet, kubeadm, and kubectl installed successfully"
+
+- name: Pin kubelet package version
+  ansible.builtin.dpkg_selections:
+    name: kubelet
+    selection: hold
+
+- name: Pin kubeadm package version
+  ansible.builtin.dpkg_selections:
+    name: kubeadm
+    selection: hold
+
+- name: Pin kubectl package version
+  ansible.builtin.dpkg_selections:
+    name: kubectl
+    selection: hold
+
+- name: Verify packages are held
+  ansible.builtin.shell: apt-mark showhold
+  register: held_packages
+  changed_when: false
+
+- name: Display held packages
+  ansible.builtin.debug:
+    msg: "{{ held_packages.stdout_lines }}"
+
+- name: Enable kubelet service
+  ansible.builtin.systemd:
+    name: kubelet
+    enabled: true
+    daemon_reload: true
+
+- name: Get kubelet service status
+  ansible.builtin.shell: systemctl status kubelet --no-pager || true
+  register: kubelet_status
+  changed_when: false
+
+- name: Display kubelet service status
+  ansible.builtin.debug:
+    msg: "{{ kubelet_status.stdout_lines }}"
+
+- name: Get installed versions
+  ansible.builtin.shell: |
+    echo "kubeadm version:"
+    kubeadm version -o short
+    echo ""
+    echo "kubelet version:"
+    kubelet --version
+    echo ""
+    echo "kubectl version:"
+    kubectl version --client -o yaml
+  register: k8s_versions
+  changed_when: false
+
+- name: Display installed Kubernetes versions
+  ansible.builtin.debug:
+    msg: "{{ k8s_versions.stdout_lines }}"
+
+- name: Display installation summary
+  ansible.builtin.debug:
+    msg:
+      - "✅ Kubernetes v1.35 installation completed successfully"
+      - "✅ Swap disabled and removed from /etc/fstab"
+      - "✅ kubeadm, kubelet, and kubectl packages pinned (held)"
+      - "✅ kubelet service enabled"
+      - "⚠️  Note: kubelet will remain in a crashloop until kubeadm init/join is executed"
+      - ""
+      - "Next steps:"
+      - "1. Verify containerd is running: systemctl status containerd"
+      - "2. Check containerd socket: ls -la /run/containerd/containerd.sock"
+      - "3. Verify systemd cgroup: grep SystemdCgroup /etc/containerd/config.toml"
+      - "4. Initialize control plane or join cluster using kubeadm"

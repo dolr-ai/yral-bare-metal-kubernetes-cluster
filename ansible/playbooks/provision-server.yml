@@ -196,40 +196,18 @@
   gather_facts: true
   become: true
 
-  tasks:
-    - name: Display configuration start
-      ansible.builtin.debug:
-        msg: "Starting post-installation configuration for {{ inventory_hostname }}"
-
-- import_playbook: system-setup.yml
-  vars:
-    target_hosts: "{{ target_host }}"
-
-- name: Reboot After System Setup
-  hosts: "{{ target_host }}"
-  gather_facts: false
-  become: true
+  roles:
+    - role: base-system
+    - role: storage-setup
+    - role: ssh-hardening
+    - role: containerd
+    - role: kubernetes
 
   tasks:
-    - name: Reboot server
+    - name: Reboot server after configuration
       ansible.builtin.reboot:
         reboot_timeout: 300
-
-- import_playbook: btrfs-expand.yml
-  vars:
-    target_hosts: "{{ target_host }}"
-
-- import_playbook: ssh-security.yml
-  vars:
-    target_hosts: "{{ target_host }}"
-
-- import_playbook: containerd-setup.yml
-  vars:
-    target_hosts: "{{ target_host }}"
-
-- import_playbook: kubeadm-install.yml
-  vars:
-    target_hosts: "{{ target_host }}"
+        msg: "Reboot initiated by Ansible for post-provisioning configuration"
 
 - name: Provisioning Complete
   hosts: localhost

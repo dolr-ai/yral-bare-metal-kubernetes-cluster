@@ -1,0 +1,11 @@
+---
+# System Setup - Standalone playbook using base-system role
+# Usage: ansible-playbook system-setup-simple.yml [--limit hostname]
+
+- name: System Setup and Updates
+  hosts: all
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: base-system
