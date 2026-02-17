@@ -1,54 +1,102 @@
-# Day-2 Operations Playbooks
+# Kubernetes Cluster Operations
 
-This directory contains operational playbooks for managing the Kubernetes cluster lifecycle after initial deployment.
+This directory contains immutable, role-based playbooks for managing the Kubernetes cluster lifecycle. All operations are idempotent and use roles exclusively—no logic is embedded in the playbooks.
 
 ## Overview
 
-These playbooks handle common operational tasks:
-- **Adding nodes**: Provision and join new worker or control plane nodes
-- **Removing nodes**: Safely remove nodes from the cluster
-- **Maintenance**: Drain nodes for maintenance windows
+These operations handle all cluster node management tasks:
+- **Initialize**: Bootstrap the first control plane node and add initial infrastructure
+- **Scale Control Plane**: Add control plane nodes for HA (stacked etcd)
+- **Scale Workers**: Add worker nodes to the cluster
+- **Drain**: Safely prepare nodes for maintenance
+- **Remove**: Permanently remove nodes from the cluster
 
 ## Prerequisites
 
-- Initial cluster setup completed (`kubernetes-only.yml` or `full-deployment.yml`)
 - Ansible vault password configured at `ansible/.vault_pass`
 - SSH access to all nodes
-- Valid Hetzner API credentials in vault (for provisioning operations)
+- Valid Hetzner API credentials in vault (for provisioning)
+- Inventory configured at `ansible/inventory/hosts.yml`
 
-## Playbooks
+## Operations
 
-### 1. Add Worker Node
+### 1. Initialize Control Plane
 
-**File**: `add-worker.yml`
+**File**: `init-control-plane.yml`
 
-**Purpose**: Provision a new worker node and join it to the cluster.
+**Purpose**: Bootstrap the first control plane node. This must be run before any other operations.
 
 **Usage**:
 ```bash
 cd ansible
-ansible-playbook playbooks/operations/add-worker.yml -e target_host=worker-14
+ansible-playbook playbooks/operations/init-control-plane.yml -e target_host=control-plane-1
 ```
 
-**Steps**:
-1. Validates target host exists in inventory under `worker_nodes` group
-2. Provisions server via Hetzner Robot API (if not already provisioned)
-3. Installs Ubuntu 24.04, base system, containerd, kubeadm
-4. Generates join token from existing control plane
+**What It Does**:
+1. Checks if Kubernetes is already initialized
+2. Runs kubeadm init with control plane endpoint
+3. Configures kubectl for root user
+4. Extracts and saves join commands for workers and control planes
+5. Applies kube-vip RBAC and configuration
+6. Waits for kube-vip to be Ready
+
+**Requirements**:
+- Target host must be in inventory under `control_plane` group
+- Base system setup must be complete (contained, kubeadm, etc.)
+- VIP address must be configured in inventory
+
+**Important**:
+- This must be done before any other cluster operations
+- Run only once per cluster
+- Idempotent: safe to run again if it fails
+
+**Example Inventory Entry**:
+```yaml
+control_plane:
+  hosts:
+    control-plane-1:
+      ansible_host: 168.119.70.100
+      datacenter: fsn1-dc14
+      region: eu-central
+      country: de
+```
+
+---
+
+### 2. Add Worker Node
+
+### 2. Add Worker Node
+
+**File**: `add-worker.yml`
+
+**Purpose**: Provision a new worker node and join it to the cluster (Day 2 scaling).
+
+**Usage**:
+```bash
+cd ansible
+ansible-playbook playbooks/operations/add-worker.yml -e target_host=worker-1
+```
+
+**What It Does**:
+1. Validates target host in inventory under `worker_nodes` group
+2. Provisions server via Hetzner Robot API
+3. Installs base system, containerd, kubeadm
+4. Generates join token from first control plane
 5. Joins node to cluster as worker
 6. Applies topology and workload labels
 7. Verifies node is Ready
 
 **Requirements**:
 - Target host must be in `ansible/inventory/hosts.yml` under `worker_nodes` group
-- Hetzner credentials in vault for provisioning
-- Sufficient cluster capacity
+- Cluster must be initialized (control plane up and running)
+- Hetzner credentials configured in vault
+- Sufficient cluster capacity for new workloads
 
 **Example Inventory Entry**:
 ```yaml
 worker_nodes:
   hosts:
-    worker-14:
+    worker-1:
       ansible_host: 168.119.70.14
       datacenter: fsn1-dc14
       region: eu-central
@@ -58,20 +106,20 @@ worker_nodes:
 
 ---
 
-### 2. Add Control Plane Node
+### 3. Add Control Plane Node
 
 **File**: `add-control-plane.yml`
 
-**Purpose**: Add a new control plane node to the HA cluster.
+**Purpose**: Add a new control plane node to scale the HA cluster (stacked etcd). Add one at a time.
 
 **Usage**:
 ```bash
 cd ansible
-ansible-playbook playbooks/operations/add-control-plane.yml -e target_host=control-plane-4
+ansible-playbook playbooks/operations/add-control-plane.yml -e target_host=control-plane-2
 ```
 
-**Steps**:
-1. Validates target host exists in inventory under `control_plane` group
+**What It Does**:
+1. Validates target host in inventory under `control_plane` group
 2. Provisions server and installs base system
 3. Uploads control plane certificates from existing control plane
 4. Joins node as control plane with etcd member
@@ -81,22 +129,33 @@ ansible-playbook playbooks/operations/add-control-plane.yml -e target_host=contr
 
 **Requirements**:
 - Target host must be in `ansible/inventory/hosts.yml` under `control_plane` group
-- At least one existing control plane must be healthy
-- VIP address must be configured in inventory (`vip_address`)
+- Initial control plane must be healthy and running
+- VIP address configured in inventory (`control_plane_endpoint`)
 - Hetzner credentials in vault
 
 **Important Notes**:
-- ⚠️ Adding control planes changes etcd quorum requirements
+- **⚠️ Add one control plane at a time** - wait for Ready before adding next
+- **⚠️ Maintain odd number**: 3 (or 5, 7) for proper quorum
 - 3 control planes = 2 nodes required for quorum
 - 5 control planes = 3 nodes required for quorum
-- Always maintain odd number of control planes (3, 5, 7)
+- Always verify etcd health after adding
+
+**Verify etcd After Addition**:
+```bash
+kubectl exec -n kube-system etcd-control-plane-1 -- etcdctl \
+  --endpoints=https://127.0.0.1:2379 \
+  --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+  --cert=/etc/kubernetes/pki/etcd/server.crt \
+  --key=/etc/kubernetes/pki/etcd/server.key \
+  member list
+```
 
 **Example Inventory Entry**:
 ```yaml
 control_plane:
   hosts:
-    control-plane-4:
-      ansible_host: 168.119.70.100
+    control-plane-2:
+      ansible_host: 168.119.70.101
       datacenter: hel1-dc2
       region: eu-north
       country: fi
@@ -104,7 +163,7 @@ control_plane:
 
 ---
 
-### 3. Drain Node
+### 4. Drain Node
 
 **File**: `drain-node.yml`
 
@@ -113,11 +172,11 @@ control_plane:
 **Usage**:
 ```bash
 cd ansible
-ansible-playbook playbooks/operations/drain-node.yml -e target_host=worker-5
+ansible-playbook playbooks/operations/drain-node.yml -e target_host=worker-1
 ```
 
-**Steps**:
-1. Validates target host exists in inventory
+**What It Does**:
+1. Validates target host in inventory
 2. Cordons the node (marks as unschedulable)
 3. Evicts all pods (except DaemonSets)
 4. Waits for pods to terminate gracefully
@@ -126,39 +185,40 @@ ansible-playbook playbooks/operations/drain-node.yml -e target_host=worker-5
 **Options**:
 - Grace period: 300 seconds (5 minutes)
 - Timeout: 600 seconds (10 minutes)
-- DaemonSets are ignored (they run on all nodes)
+- DaemonSets are ignored
 - EmptyDir data is deleted
 
-**Important Notes**:
-- ⚠️ This will cause service disruption!
-- Ensure sufficient capacity on other nodes before draining
-- StatefulSet pods will reschedule to other nodes (if storage allows)
-- After maintenance, uncordon the node: `kubectl uncordon <node>`
+**Important**:
+- ⚠️ This causes temporary service disruption
+- Ensure sufficient capacity on other nodes
+- StatefulSet pods will reschedule to other nodes
+- After maintenance, uncordon the node
 
-**To Uncordon**:
+**After Maintenance - Uncordon Node**:
 ```bash
-kubectl uncordon worker-5
+kubectl uncordon worker-1
 ```
 
 ---
 
-### 4. Remove Node
+### 5. Remove Node
 
 **File**: `remove-node.yml`
 
-**Purpose**: Permanently remove a node (worker or control plane) from the cluster.
+**Purpose**: Permanently remove a node (worker **or** control plane) from the cluster.
 
 **Usage**:
 ```bash
 cd ansible
-# Remove worker
-ansible-playbook playbooks/operations/remove-node.yml -e target_host=worker-5
+
+# Remove worker node
+ansible-playbook playbooks/operations/remove-node.yml -e target_host=worker-1
 
 # Remove control plane (requires explicit confirmation)
-ansible-playbook playbooks/operations/remove-node.yml -e target_host=control-plane-3
+ansible-playbook playbooks/operations/remove-node.yml -e target_host=control-plane-2
 ```
 
-**Steps**:
+**What It Does**:
 1. Validates target host and determines node type
 2. Drains node (evicts all pods)
 3. For control planes: Removes etcd member
@@ -168,98 +228,93 @@ ansible-playbook playbooks/operations/remove-node.yml -e target_host=control-pla
 
 **Requirements**:
 - For control planes: Must type `yes-remove-control-plane` to confirm
-- For control planes: At least 2 control planes must remain for quorum
+- For control planes: At least 1 control plane must remain (ideally 2+)
 - Node must be in inventory
+- At least 2 control planes must remain for quorum
 
-**Important Notes**:
-- ⚠️ This is DESTRUCTIVE and PERMANENT!
+**Important**:
+- ⚠️ **DESTRUCTIVE AND PERMANENT!**
 - For control planes: Reduces HA capability
-- Never remove more than 1 control plane at a time
-- After removal, manually update `ansible/inventory/hosts.yml`
-- Optionally return server to Hetzner if no longer needed
+- Never remove multiple control planes simultaneously
+- After removal, update `ansible/inventory/hosts.yml`
+- Optionally return server to Hetzner
 
 **Post-Removal Steps**:
 1. Remove node from `ansible/inventory/hosts.yml`
 2. Verify cluster health: `kubectl get nodes`
-3. For control planes: Verify etcd health: `kubectl get pods -n kube-system | grep etcd`
-4. Return server to Hetzner (optional): Use Hetzner Robot interface
+3. For control planes: Verify etcd: `kubectl get pods -n kube-system | grep etcd`
+4. Return server to Hetzner (optional)
 
 ---
 
-## Workflows
+## Usage Patterns
 
-### Adding Capacity
+### Initial Cluster Setup
 
-**Add multiple workers**:
+```bash
+cd ansible
+
+# Step 1: Bootstrap first control plane
+ansible-playbook playbooks/operations/init-control-plane.yml -e target_host=control-plane-1
+kubectl get nodes  # Should show control plane 1 as Ready
+
+# Step 2 (optional): Scale to 3 control planes for HA
+ansible-playbook playbooks/operations/add-control-plane.yml -e target_host=control-plane-2
+kubectl get nodes  # Should show 2 control planes Ready
+
+ansible-playbook playbooks/operations/add-control-plane.yml -e target_host=control-plane-3
+kubectl get nodes  # Should show 3 control planes Ready
+
+# Step 3: Add worker nodes
+ansible-playbook playbooks/operations/add-worker.yml -e target_host=worker-1
+ansible-playbook playbooks/operations/add-worker.yml -e target_host=worker-2
+ansible-playbook playbooks/operations/add-worker.yml -e target_host=worker-3
+```
+
+### Scale Out Cluster
+
 ```bash
 cd ansible
 
 # Add workers one at a time
-ansible-playbook playbooks/operations/add-worker.yml -e target_host=worker-14
-ansible-playbook playbooks/operations/add-worker.yml -e target_host=worker-15
-ansible-playbook playbooks/operations/add-worker.yml -e target_host=worker-16
+ansible-playbook playbooks/operations/add-worker.yml -e target_host=worker-4
+ansible-playbook playbooks/operations/add-worker.yml -e target_host=worker-5
+ansible-playbook playbooks/operations/add-worker.yml -e target_host=worker-6
 
-# Verify
+# Verify all nodes are Ready
 kubectl get nodes -o wide
 ```
 
-### Scaling Control Plane (3 → 5)
+### Node Maintenance Window
 
-**Add control planes for higher availability**:
-```bash
-cd ansible
-
-# Add control planes one at a time
-ansible-playbook playbooks/operations/add-control-plane.yml -e target_host=control-plane-4
-# Wait for node to be Ready
-kubectl get nodes | grep control-plane-4
-
-ansible-playbook playbooks/operations/add-control-plane.yml -e target_host=control-plane-5
-# Wait for node to be Ready
-kubectl get nodes | grep control-plane-5
-
-# Verify etcd cluster
-kubectl get pods -n kube-system | grep etcd
-kubectl exec -n kube-system etcd-control-plane-1 -- etcdctl \
-  --endpoints=https://127.0.0.1:2379 \
-  --cacert=/etc/kubernetes/pki/etcd/ca.crt \
-  --cert=/etc/kubernetes/pki/etcd/server.crt \
-  --key=/etc/kubernetes/pki/etcd/server.key \
-  member list
-```
-
-### Node Maintenance
-
-**Perform maintenance on a worker node**:
 ```bash
 cd ansible
 
 # Step 1: Drain the node
-ansible-playbook playbooks/operations/drain-node.yml -e target_host=worker-5
+ansible-playbook playbooks/operations/drain-node.yml -e target_host=worker-2
 
-# Step 2: Perform maintenance on worker-5
-ssh root@worker-5
+# Step 2: Perform maintenance on worker-2
+ssh root@worker-2
 apt-get update && apt-get upgrade -y
+# ... perform maintenance ...
 reboot
 
-# Step 3: Wait for node to come back
+# Step 3: Wait for reboot to complete
 # Step 4: Uncordon the node
-kubectl uncordon worker-5
+kubectl uncordon worker-2
 
-# Step 5: Verify
-kubectl get nodes
-kubectl get pods -A -o wide --field-selector spec.nodeName=worker-5
+# Step 5: Verify workloads rescheduled
+kubectl get pods -A -o wide --field-selector spec.nodeName=worker-2
 ```
 
-### Decommissioning Nodes
+### Decommission and Replace Workers
 
-**Remove old workers and replace with new ones**:
 ```bash
 cd ansible
 
-# Step 1: Add new workers first
-ansible-playbook playbooks/operations/add-worker.yml -e target_host=worker-14
-ansible-playbook playbooks/operations/add-worker.yml -e target_host=worker-15
+# Step 1: Add new replacement workers first
+ansible-playbook playbooks/operations/add-worker.yml -e target_host=worker-7
+ansible-playbook playbooks/operations/add-worker.yml -e target_host=worker-8
 
 # Step 2: Wait for new workers to be Ready
 kubectl get nodes
@@ -268,10 +323,10 @@ kubectl get nodes
 ansible-playbook playbooks/operations/remove-node.yml -e target_host=worker-1
 ansible-playbook playbooks/operations/remove-node.yml -e target_host=worker-2
 
-# Step 4: Update inventory (remove worker-1 and worker-2)
-vim ansible/inventory/hosts.yml
+# Step 4: Update inventory
+vim ansible/inventory/hosts.yml  # Remove worker-1 and worker-2
 
-# Step 5: Verify cluster health
+# Step 5: Verify
 kubectl get nodes
 kubectl get pods -A
 ```
@@ -322,6 +377,26 @@ kubectl get pods -A
 - Perform operations during maintenance windows
 - Document all changes in runbook or tickets
 - Update inventory immediately after changes
+
+---
+
+## Role-Based Architecture
+
+All operations use Ansible roles exclusively for logic encapsulation:
+
+| Role | Purpose |
+|------|---------|
+| `cluster-init` | Initialize first control plane (kubeadm init) |
+| `full-add-control-plane` | Add control plane node (provision + join + etcd) |
+| `full-add-worker` | Add worker node (provision + join + labels) |
+| `node-drain` | Safely drain node for maintenance |
+| `node-remove` | Permanently remove node from cluster |
+
+**Design Principles**:
+- **Immutable operations**: Each operation is self-contained and idempotent
+- **Role-based**: All logic in roles, playbooks are thin wrappers
+- **Day-2 operations**: All operations are repeatable cluster management tasks
+- **No mutation**: Adding/removing nodes doesn't require modifying existing nodes
 
 ---
 

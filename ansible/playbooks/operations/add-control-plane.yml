@@ -9,4 +9,4 @@
   serial: 1
 
   roles:
-    - role: ../roles/full-add-control-plane
+    - role: full-add-control-plane

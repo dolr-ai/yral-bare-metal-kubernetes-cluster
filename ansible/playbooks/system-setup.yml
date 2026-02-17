@@ -10,10 +10,10 @@
   serial: 3
 
   roles:
-    - role: ../roles/base-system
-    - role: ../roles/ssh-hardening
-    - role: ../roles/containerd
-    - role: ../roles/kubernetes
+    - role: base-system
+    - role: ssh-hardening
+    - role: containerd
+    - role: kubernetes
 
   post_tasks:
     - name: Verify system preparation
