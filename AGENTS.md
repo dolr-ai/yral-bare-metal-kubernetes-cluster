@@ -115,10 +115,50 @@ No intermediate orchestrator roles between playbook and task roles.
 
 ### 8. Variable Management
 
-- **Global vars**: `ansible/group_vars/all/vars.yml`
+- **Global vars**: `ansible/group_vars/all/vars.yml` (plaintext + vault indirection)
 - **Secrets**: `ansible/group_vars/all/vault.yml` (encrypted)
 - **Role defaults**: `roles/role-name/defaults/main.yml`
 - **Runtime vars**: Passed via `-e target_host=node-name` (not in playbooks)
+
+**Variable Naming Convention:**
+- Plaintext variables: lowercase with underscores (`hetzner_robot_api_user`)
+- Vault-backed variables: `vault_` prefix (`vault_hetzner_robot_api_password`) - defined in vault.yml
+- In vars.yml: Create indirection mappings to document the vault schema (reference vault variables with comments)
+- In roles/tasks: Reference vault variables directly (vault variables auto-loaded via ansible.cfg vault_password_file)
+- This allows operators to see vault schema in vars.yml without decrypting vault.yml
+
+**Benefits of this pattern:**
+- Tasks reference vault variables directly (no indirection lookup overhead)
+- vars.yml documents which vault secrets exist in vault.yml (shows the mapping)
+- Operators can discover what secrets are defined without decrypting: grep for `vault_` in vars.yml
+- Vault variables automatically available (ansible.cfg vault_password_file handles loading)
+- No need for pre_tasks in playbooks - vault is always accessible
+- Single source of truth: vault.yml has secrets, vars.yml documents schema
+
+**Example in vars.yml:**
+```yaml
+# Plaintext values
+hetzner_robot_api_user: "#ws+hEJX77Pr"
+
+# Indirection/documentation - shows what vault secrets exist
+hetzner_robot_api_password: "{{ vault_hetzner_robot_api_password }}"
+hetzner_s3_secret_key: "{{ vault_hetzner_s3_secret_key }}"
+```
+
+**Example in role tasks:**
+```yaml
+- name: Call Hetzner API
+  ansible.builtin.uri:
+    url: "https://robot-ws.your-server.de/key"
+    user: "{{ hetzner_robot_api_user }}"          # Plaintext from vars.yml
+    password: "{{ vault_hetzner_robot_api_password }}"  # Vault variable (auto-loaded)
+```
+
+**Ansible.cfg configuration:**
+```ini
+vault_password_file = ansible/.vault_pass
+```
+This enables automatic loading of vault variables without pre_tasks.
 
 ### 9. Lint and Validation
 

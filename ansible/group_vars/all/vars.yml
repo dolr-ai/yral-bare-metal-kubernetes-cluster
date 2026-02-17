@@ -1,14 +1,12 @@
 ---
-# Ansible Variables - References to Vault Secrets
-# This file is unencrypted and references encrypted values from vault.yml
-#
-# All sensitive values are stored in vault.yml and referenced here
+# Ansible Variables - Configuration and Vault Indirection
+# This file contains plaintext configuration values and indirection for vault secrets.
+# Vault variables (prefixed with vault_) are loaded in pre_tasks before roles execute.
 
 # Hetzner Robot API credentials
-hetzner_robot_api_password: "{{ vault_hetzner_robot_api_password }}"
+hetzner_robot_api_user: "#ws+hEJX77Pr"
+hetzner_robot_api_password: "{{ vault_hetzner_robot_api_password }}"  # Indirection to vault
 
 # Hetzner S3 credentials
-hetzner_s3_secret_key: "{{ vault_hetzner_s3_secret_key }}"
-
-# GitHub Actions SSH key
-github_actions_ssh_private_key: "{{ vault_github_actions_ssh_private_key }}"
+hetzner_s3_access_key: "XO5X9A1W8AMHY3DSTKMS"
+hetzner_s3_secret_key: "{{ vault_hetzner_s3_secret_key }}"  # Indirection to vault

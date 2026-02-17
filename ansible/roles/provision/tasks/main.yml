@@ -18,7 +18,7 @@
     url: "https://robot-ws.your-server.de/key"
     method: GET
     user: "{{ hetzner_robot_api_user }}"
-    password: "{{ hetzner_robot_api_password }}"
+    password: "{{ vault_hetzner_robot_api_password }}"
     force_basic_auth: true
     return_content: true
   register: hetzner_keys_response
@@ -56,7 +56,7 @@
     url: "https://robot-ws.your-server.de/boot/{{ provision_server_ip }}/rescue?{{ provision_authorized_keys_query }}"
     method: POST
     user: "{{ hetzner_robot_api_user }}"
-    password: "{{ hetzner_robot_api_password }}"
+    password: "{{ vault_hetzner_robot_api_password }}"
     force_basic_auth: true
     body_format: form-urlencoded
     body:
@@ -76,7 +76,7 @@
     url: "https://robot-ws.your-server.de/reset/{{ provision_server_ip }}"
     method: POST
     user: "{{ hetzner_robot_api_user }}"
-    password: "{{ hetzner_robot_api_password }}"
+    password: "{{ vault_hetzner_robot_api_password }}"
     force_basic_auth: true
     body_format: form-urlencoded
     body:
