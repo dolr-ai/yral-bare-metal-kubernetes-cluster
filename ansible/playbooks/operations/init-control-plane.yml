@@ -2,11 +2,30 @@
 # Initialize First Control Plane Node
 # Usage: ansible-playbook operations/init-control-plane.yml -e target_host=control-plane-1
 
-- name: Initialize first control plane node
+- name: Initialize first control plane node (provision from scratch)
   hosts: "{{ target_host }}"
   gather_facts: true
   become: true
   serial: 1
 
   roles:
-    - role: cluster-init
+    - name: Step 1: Provision via Hetzner
+      role: provision
+    
+    - name: Step 2: Configure storage
+      role: storage-setup
+    
+    - name: Step 3: Harden SSH access
+      role: ssh-hardening
+    
+    - name: Step 4: System setup and updates
+      role: base-system
+    
+    - name: Step 5: Install container runtime
+      role: containerd
+    
+    - name: Step 6: Install Kubernetes components
+      role: kubernetes
+    
+    - name: Step 7: Initialize Kubernetes cluster
+      role: cluster-init

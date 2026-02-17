@@ -1,14 +1,50 @@
 ---
-# Upgrade Nodes - System packages with intelligent reboot handling
+# Upgrade Nodes - Single node or cluster-wide with intelligent reboot handling
 # Usage: 
 #   Upgrade all nodes (control planes then workers):
 #     ansible-playbook operations/upgrade-node.yml
 #   Upgrade single node:
 #     ansible-playbook operations/upgrade-node.yml -e target_host=worker-1
 
-- name: Upgrade cluster nodes
+- name: Upgrade nodes with intelligent orchestration
   hosts: localhost
   gather_facts: false
 
-  roles:
-    - role: cluster-node-upgrade
+  tasks:
+    # ===== Single node mode
+    
+    - name: Upgrade single node
+      when: target_host is defined and target_host != ""
+      block:
+        - name: Call node-upgrade role for target
+          ansible.builtin.include_role:
+            name: node-upgrade
+          vars:
+            node_target: "{{ target_host }}"
+
+    # ===== Cluster-wide mode
+    
+    - name: Upgrade all control plane nodes
+      when: target_host is not defined or target_host == ""
+      block:
+        - name: Upgrade each control plane
+          ansible.builtin.include_role:
+            name: node-upgrade
+          vars:
+            node_target: "{{ item }}"
+          loop: "{{ groups['control_plane'] }}"
+
+    - name: Pause before worker upgrade
+      when: target_host is not defined or target_host == ""
+      ansible.builtin.pause:
+        prompt: "✅ All control planes upgraded. Press ENTER to upgrade workers (or Ctrl+C to cancel)"
+
+    - name: Upgrade all worker nodes
+      when: target_host is not defined or target_host == ""
+      block:
+        - name: Upgrade each worker
+          ansible.builtin.include_role:
+            name: node-upgrade
+          vars:
+            node_target: "{{ item }}"
+          loop: "{{ groups['worker_nodes'] }}"

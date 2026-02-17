@@ -13,8 +13,23 @@
   ansible.builtin.set_fact:
     is_first_control_plane: "{{ ansible_hostname == groups['control_plane'][0] }}"
 
+- name: Validate this is the first control plane
+  ansible.builtin.assert:
+    that:
+      - is_first_control_plane
+      - not kubeconfig_stat.stat.exists
+    fail_msg: |
+      This role (cluster-init) is for initializing the FIRST control plane only.
+      
+      If this is an additional control plane, use 'control-plane-join' role instead.
+      If Kubernetes is already initialized, this node may already be in the cluster.
+      
+      Current state:
+        - Is first control plane: {{ is_first_control_plane }}
+        - kubeconfig exists: {{ kubeconfig_stat.stat.exists }}
+    success_msg: "Validated: This is the first control plane and not yet initialized"
+
 - name: Initialize first control plane node
-  when: is_first_control_plane and not kubeconfig_stat.stat.exists
   block:
     - name: Run kubeadm init
       ansible.builtin.command: >
@@ -112,10 +127,5 @@
           - ""
           - "Next steps:"
           - "1. Install Cilium CNI"
-          - "2. Join remaining control plane nodes"
-          - "3. Join worker nodes"
-
-- name: Join additional control plane nodes
-  when: not is_first_control_plane and not kubeconfig_stat.stat.exists
-  ansible.builtin.include_role:
-    name: control-plane-join
+          - "2. Join remaining control plane nodes using control-plane-join role"
+          - "3. Join worker nodes using worker-join role"
