@@ -146,6 +146,12 @@
       ansible.builtin.set_fact:
         systemd_cgroup_enabled: "{{ containerd_config_content.content | b64decode | regex_search('SystemdCgroup = true') is not none }}"
 
+    - name: Remove CRI plugin from disabled_plugins list
+      ansible.builtin.lineinfile:
+        path: /etc/containerd/config.toml
+        regexp: '^disabled_plugins = \["cri"\]'
+        state: absent
+
     - name: Configure systemd cgroup driver for containerd
       ansible.builtin.replace:
         path: /etc/containerd/config.toml
