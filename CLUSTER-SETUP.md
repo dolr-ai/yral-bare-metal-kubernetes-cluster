@@ -37,10 +37,12 @@ export HETZNER_S3_SECRET_KEY="your-s3-secret-key"
 
 ### 2. Provision Servers (if needed)
 
-Reprovision control-plane-3 and worker-2 with swapped IPs:
+Provision servers with Ubuntu 24.04:
 ```bash
-# Use GitHub Actions workflow or manual provisioning
-# Servers: control-plane-3 (95.216.24.51), worker-2 (88.99.213.237)
+# Provision individual servers
+ansible-playbook ansible/playbooks/provision-server.yml -e target_host=control-plane-1
+ansible-playbook ansible/playbooks/provision-server.yml -e target_host=control-plane-2
+ansible-playbook ansible/playbooks/provision-server.yml -e target_host=control-plane-3
 ```
 
 ### 3. Deploy Cluster

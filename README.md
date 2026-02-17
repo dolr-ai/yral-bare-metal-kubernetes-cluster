@@ -34,12 +34,8 @@ Ansible automation for managing a bare-metal Kubernetes cluster on Hetzner infra
 │   └── manifests/               # Kubernetes manifests and Helm values
 │       ├── cilium-values.yaml
 │       └── monitoring-values.yaml
-├── scripts/
-│   └── install-ubuntu.sh        # Ubuntu installation script
-└── .github/
-    └── workflows/               # GitHub Actions CI/CD workflows
-        ├── validate-ansible.yml
-        └── deploy-cluster.yml
+└── scripts/
+    └── install-ubuntu.sh        # Ubuntu installation script
 ```
 
 ## Inventory Configuration
@@ -147,36 +143,9 @@ ansible k8s_cluster -m shell -a "df -h"
 ansible-inventory --list
 ```
 
-## GitHub Actions Workflow
+## Day-2 Operations
 
-### Setup
-
-The workflow requires the SSH private key to be stored as a GitHub secret:
-
-1. Go to your repository settings
-2. Navigate to **Settings** → **Secrets and variables** → **Actions**
-3. Ensure the secret `HETZNER_BARE_METAL_GITHUB_ACTIONS_SSH_PRIVATE_KEY` is configured with your SSH private key
-
-The private key should include the full key with headers:
-```
------BEGIN OPENSSH PRIVATE KEY-----
-...key content...
------END OPENSSH PRIVATE KEY-----
-```
-
-### Running the Workflow
-
-1. Go to the **Actions** tab in your GitHub repository
-2. Select **Ansible Ping Test** workflow from the left sidebar
-3. Click **Run workflow** button
-4. Select the environment (staging/production)
-5. Click **Run workflow** to start the test
-
-The workflow will:
-- Install Ansible
-- Configure SSH authentication using your private key
-- Run the ping playbook with verbose output (`-vvv`)
-- Display success/failure message
+For cluster operations like adding/removing nodes, see the operational playbooks in [ansible/playbooks/operations/](ansible/playbooks/operations/README.md)
 
 ### Viewing Results
 

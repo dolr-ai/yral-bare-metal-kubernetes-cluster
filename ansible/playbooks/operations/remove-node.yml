@@ -1,0 +1,279 @@
+---
+# Remove Node from Kubernetes Cluster
+# This playbook safely removes a node from the cluster (worker or control plane)
+# Usage: ansible-playbook operations/remove-node.yml -e target_host=worker-X
+
+- name: Validate input
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Check that target_host is defined
+      ansible.builtin.fail:
+        msg: "target_host must be specified: -e target_host=worker-X"
+      when: target_host is not defined or target_host == ""
+
+    - name: Verify target host exists in inventory
+      ansible.builtin.assert:
+        that:
+          - target_host in groups['all']
+        fail_msg: "Host {{ target_host }} not found in inventory"
+        success_msg: "Host {{ target_host }} found in inventory"
+
+    - name: Determine node type
+      ansible.builtin.set_fact:
+        is_control_plane: "{{ target_host in groups['control_plane'] }}"
+
+- name: Display removal plan
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Show operation details for worker
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          Removing Worker Node from Kubernetes Cluster
+          ============================================================
+          Target: {{ target_host }}
+          
+          Steps:
+          1. Drain node (evict all pods)
+          2. Delete node from cluster
+          3. Cleanup kubelet config on node
+          4. Remove from inventory (manual step)
+          
+          ⚠️  WARNING: This is DESTRUCTIVE!
+          - All pods will be evicted
+          - Node will be permanently removed
+          - You must manually remove from inventory afterward
+          ============================================================
+      when: not is_control_plane
+
+    - name: Show operation details for control plane
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          Removing Control Plane Node from Kubernetes Cluster
+          ============================================================
+          Target: {{ target_host }}
+          
+          Steps:
+          1. Drain node (evict all pods)
+          2. Remove from etcd cluster
+          3. Delete node from cluster
+          4. Cleanup kubelet config on node
+          5. Remove from inventory (manual step)
+          
+          ⚠️  CRITICAL WARNING: This is EXTREMELY DESTRUCTIVE!
+          - Reduces HA quorum (3 → 2 control planes)
+          - Loss of quorum requires cluster rebuild
+          - etcd member will be removed permanently
+          - You must manually remove from inventory afterward
+          
+          DO NOT remove more than 1 control plane at a time!
+          ============================================================
+      when: is_control_plane
+
+    - name: Require explicit confirmation for control plane
+      ansible.builtin.pause:
+        prompt: |
+          
+          YOU ARE REMOVING A CONTROL PLANE NODE!
+          Type 'yes-remove-control-plane' to confirm
+      register: control_plane_confirm
+      when: is_control_plane
+
+    - name: Validate control plane confirmation
+      ansible.builtin.fail:
+        msg: "Control plane removal cancelled - confirmation not provided"
+      when:
+        - is_control_plane
+        - control_plane_confirm.user_input != 'yes-remove-control-plane'
+
+    - name: Pause for worker confirmation
+      ansible.builtin.pause:
+        prompt: "Press ENTER to continue or Ctrl+C to abort"
+      when: not is_control_plane
+
+- name: Drain the node
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Check if node exists in cluster
+      ansible.builtin.command: kubectl get node {{ target_host }}
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      register: node_check
+      failed_when: false
+      changed_when: false
+
+    - name: Skip drain if node not in cluster
+      ansible.builtin.debug:
+        msg: "Node {{ target_host }} not found in cluster, skipping drain"
+      when: node_check.rc != 0
+
+    - name: Drain the node
+      ansible.builtin.command: >
+        kubectl drain {{ target_host }}
+        --ignore-daemonsets
+        --delete-emptydir-data
+        --force
+        --grace-period=120
+        --timeout=600s
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      when: node_check.rc == 0
+      register: drain_result
+
+    - name: Display drain result
+      ansible.builtin.debug:
+        msg: "{{ drain_result.stdout_lines }}"
+      when: node_check.rc == 0
+
+- name: Remove from etcd cluster (control plane only)
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Get etcd member ID
+      ansible.builtin.shell: |
+        ETCDCTL_API=3 etcdctl member list \
+          --endpoints=https://127.0.0.1:2379 \
+          --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+          --cert=/etc/kubernetes/pki/etcd/server.crt \
+          --key=/etc/kubernetes/pki/etcd/server.key \
+          | grep {{ target_host }} | cut -d',' -f1
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      register: etcd_member_id
+      when: is_control_plane
+      failed_when: false
+
+    - name: Display etcd member ID
+      ansible.builtin.debug:
+        msg: "etcd member ID: {{ etcd_member_id.stdout }}"
+      when: is_control_plane and etcd_member_id.stdout != ""
+
+    - name: Remove etcd member
+      ansible.builtin.shell: |
+        ETCDCTL_API=3 etcdctl member remove {{ etcd_member_id.stdout }} \
+          --endpoints=https://127.0.0.1:2379 \
+          --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+          --cert=/etc/kubernetes/pki/etcd/server.crt \
+          --key=/etc/kubernetes/pki/etcd/server.key
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      when:
+        - is_control_plane
+        - etcd_member_id.stdout != ""
+      register: etcd_remove
+
+    - name: Display etcd removal result
+      ansible.builtin.debug:
+        msg: "{{ etcd_remove.stdout }}"
+      when:
+        - is_control_plane
+        - etcd_member_id.stdout != ""
+
+- name: Delete node from cluster
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Delete node from Kubernetes
+      ansible.builtin.command: kubectl delete node {{ target_host }}
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      register: delete_result
+      failed_when: false
+
+    - name: Display deletion result
+      ansible.builtin.debug:
+        msg: "{{ delete_result.stdout }}"
+      when: delete_result.rc == 0
+
+- name: Cleanup node configuration
+  hosts: "{{ target_host }}"
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Stop kubelet service
+      ansible.builtin.systemd:
+        name: kubelet
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Remove Kubernetes configuration
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/kubernetes
+        - /var/lib/kubelet
+        - /var/lib/etcd
+      failed_when: false
+
+    - name: Reset iptables (optional)
+      ansible.builtin.command: iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
+      failed_when: false
+      when: reset_iptables | default(false)
+
+- name: Verify removal
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: List remaining nodes
+      ansible.builtin.command: kubectl get nodes
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      register: nodes_list
+      changed_when: false
+
+    - name: Display nodes
+      ansible.builtin.debug:
+        msg: "{{ nodes_list.stdout_lines }}"
+
+    - name: Verify etcd cluster health (control plane only)
+      ansible.builtin.shell: |
+        ETCDCTL_API=3 etcdctl endpoint health \
+          --endpoints=https://127.0.0.1:2379 \
+          --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+          --cert=/etc/kubernetes/pki/etcd/server.crt \
+          --key=/etc/kubernetes/pki/etcd/server.key \
+          --cluster
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      register: etcd_health
+      when: is_control_plane
+      changed_when: false
+
+    - name: Display etcd health
+      ansible.builtin.debug:
+        msg: "{{ etcd_health.stdout_lines }}"
+      when: is_control_plane
+
+    - name: Success message for worker
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          ✅ Worker Node Removed Successfully!
+          ============================================================
+          Node: {{ target_host }}
+          
+          Next steps:
+          1. Remove {{ target_host }} from ansible/inventory/hosts.yml
+          2. Verify cluster health: kubectl get nodes
+          3. Return server to Hetzner if no longer needed
+          ============================================================
+      when: not is_control_plane
+
+    - name: Success message for control plane
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          ✅ Control Plane Node Removed Successfully!
+          ============================================================
+          Node: {{ target_host }}
+          
+          CRITICAL: Your cluster now has REDUCED HA capability!
+          Remaining control planes: {{ groups['control_plane'] | length - 1 }}
+          
+          Next steps:
+          1. Remove {{ target_host }} from ansible/inventory/hosts.yml
+          2. Verify etcd cluster: kubectl get pods -n kube-system | grep etcd
+          3. Verify API server: kubectl get cs
+          4. Consider adding replacement control plane for HA
+          5. Return server to Hetzner if no longer needed
+          ============================================================
+      when: is_control_plane

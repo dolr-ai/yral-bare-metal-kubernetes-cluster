@@ -1,0 +1,160 @@
+---
+# Add Worker Node to Kubernetes Cluster
+# This playbook provisions a new worker node and joins it to the existing cluster
+# Usage: ansible-playbook operations/add-worker.yml -e target_host=worker-X
+
+- name: Validate input
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Check that target_host is defined
+      ansible.builtin.fail:
+        msg: "target_host must be specified: -e target_host=worker-X"
+      when: target_host is not defined or target_host == ""
+
+    - name: Verify target host exists in inventory
+      ansible.builtin.assert:
+        that:
+          - target_host in groups['worker_nodes']
+        fail_msg: "Host {{ target_host }} not found in worker_nodes group. Add it to inventory first."
+        success_msg: "Host {{ target_host }} found in inventory"
+
+- name: Display worker addition plan
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Show operation details
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          Adding Worker Node to Kubernetes Cluster
+          ============================================================
+          Target: {{ target_host }}
+          
+          Steps:
+          1. Provision server with Ubuntu 24.04 (if needed)
+          2. Setup base system (updates, SSH, containerd, kubeadm)
+          3. Join worker to cluster
+          4. Apply node labels (topology, disk type, etc.)
+          5. Verify node is Ready
+          ============================================================
+
+- name: Provision and setup base system
+  import_playbook: ../provision-server.yml
+  vars:
+    target_host: "{{ target_host }}"
+
+- name: Join worker to cluster
+  hosts: "{{ target_host }}"
+  become: true
+  gather_facts: true
+  serial: 1
+
+  tasks:
+    - name: Check if node already joined
+      ansible.builtin.stat:
+        path: /etc/kubernetes/kubelet.conf
+      register: kubelet_conf
+
+    - name: Skip if already joined
+      ansible.builtin.debug:
+        msg: "Node {{ inventory_hostname }} is already part of the cluster"
+      when: kubelet_conf.stat.exists
+
+    - name: Get worker join command from control plane
+      ansible.builtin.shell: kubeadm token create --print-join-command
+      register: join_command
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      when: not kubelet_conf.stat.exists
+
+    - name: Join worker node to cluster
+      ansible.builtin.command: "{{ join_command.stdout }}"
+      when: not kubelet_conf.stat.exists
+      register: join_result
+
+    - name: Display join result
+      ansible.builtin.debug:
+        msg: "{{ join_result.stdout_lines }}"
+      when: not kubelet_conf.stat.exists
+
+- name: Apply node labels
+  hosts: "{{ target_host }}"
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Wait for node to register with API server
+      ansible.builtin.command: kubectl get node {{ inventory_hostname }}
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      register: node_check
+      until: node_check.rc == 0
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Apply topology zone label
+      ansible.builtin.command: >
+        kubectl label node {{ inventory_hostname }}
+        topology.kubernetes.io/zone={{ datacenter }}
+        --overwrite
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      when: datacenter is defined
+
+    - name: Apply topology region label
+      ansible.builtin.command: >
+        kubectl label node {{ inventory_hostname }}
+        topology.kubernetes.io/region={{ region }}
+        --overwrite
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      when: region is defined
+
+    - name: Apply topology country label
+      ansible.builtin.command: >
+        kubectl label node {{ inventory_hostname }}
+        topology.kubernetes.io/country={{ country }}
+        --overwrite
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      when: country is defined
+
+    - name: Apply disk type label
+      ansible.builtin.command: >
+        kubectl label node {{ inventory_hostname }}
+        node.yral.com/disk-type={{ disk_type }}
+        --overwrite
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      when: disk_type is defined
+
+    - name: Apply workload preference label
+      ansible.builtin.command: >
+        kubectl label node {{ inventory_hostname }}
+        node.yral.com/workload-preference=stateful
+        --overwrite
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      when: disk_type is defined and disk_type == "nvme"
+
+- name: Verify worker node status
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Get node status
+      ansible.builtin.command: kubectl get node {{ target_host }} -o wide
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      register: node_status
+      changed_when: false
+
+    - name: Display node status
+      ansible.builtin.debug:
+        msg: "{{ node_status.stdout_lines }}"
+
+    - name: Success message
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          ✅ Worker Node Added Successfully!
+          ============================================================
+          Node: {{ target_host }}
+          
+          Verify with:
+            kubectl get nodes
+            kubectl get pods -A -o wide --field-selector spec.nodeName={{ target_host }}
+          ============================================================
