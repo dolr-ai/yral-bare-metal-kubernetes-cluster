@@ -8,8 +8,7 @@ These operations handle all cluster node management tasks:
 - **Initialize**: Bootstrap the first control plane node and add initial infrastructure
 - **Scale Control Plane**: Add control plane nodes for HA (stacked etcd)
 - **Scale Workers**: Add worker nodes to the cluster
-- **Drain**: Safely prepare nodes for maintenance
-- **Remove**: Permanently remove nodes from the cluster
+- **Remove**: Permanently remove nodes from the cluster (with graceful drain)
 - **Upgrade**: Perform system upgrades with intelligent reboot handling and automatic rejoin
 
 ## Prerequisites
@@ -164,45 +163,7 @@ control_plane:
 
 ---
 
-### 4. Drain Node
-
-**File**: `drain-node.yml`
-
-**Purpose**: Safely drain a node for maintenance by evicting all pods.
-
-**Usage**:
-```bash
-cd ansible
-ansible-playbook playbooks/operations/drain-node.yml -e target_host=worker-1
-```
-
-**What It Does**:
-1. Validates target host in inventory
-2. Cordons the node (marks as unschedulable)
-3. Evicts all pods (except DaemonSets)
-4. Waits for pods to terminate gracefully
-5. Verifies drain completed successfully
-
-**Options**:
-- Grace period: 300 seconds (5 minutes)
-- Timeout: 600 seconds (10 minutes)
-- DaemonSets are ignored
-- EmptyDir data is deleted
-
-**Important**:
-- ⚠️ This causes temporary service disruption
-- Ensure sufficient capacity on other nodes
-- StatefulSet pods will reschedule to other nodes
-- After maintenance, uncordon the node
-
-**After Maintenance - Uncordon Node**:
-```bash
-kubectl uncordon worker-1
-```
-
----
-
-### 5. Remove Node
+### 4. Remove Node
 
 **File**: `remove-node.yml`
 
@@ -286,26 +247,44 @@ ansible-playbook playbooks/operations/add-worker.yml -e target_host=worker-6
 kubectl get nodes -o wide
 ```
 
-### Node Maintenance Window
+### Node Maintenance: System Upgrades
+
+**Best Practice**: Use the `upgrade-node.yml` operation for system updates with automatic reboot handling.
 
 ```bash
 cd ansible
 
-# Step 1: Drain the node
-ansible-playbook playbooks/operations/drain-node.yml -e target_host=worker-2
+# Upgrade all nodes with automatic reboot, drain, and rejoin
+ansible-playbook playbooks/operations/upgrade-node.yml
 
-# Step 2: Perform maintenance on worker-2
-ssh root@worker-2
-apt-get update && apt-get upgrade -y
-# ... perform maintenance ...
-reboot
+# Upgrade single node
+ansible-playbook playbooks/operations/upgrade-node.yml -e target_host=worker-2
 
-# Step 3: Wait for reboot to complete
-# Step 4: Uncordon the node
-kubectl uncordon worker-2
+# Verify nodes are Ready after upgrade
+kubectl get nodes -o wide
+kubectl get pods -A -o wide
+```
 
-# Step 5: Verify workloads rescheduled
-kubectl get pods -A -o wide --field-selector spec.nodeName=worker-2
+**Alternative: Manual Hardware Maintenance**
+
+For hardware-level maintenance, follow the immutable pattern:
+
+```bash
+cd ansible
+
+# Step 1: Remove the node (gracefully drains all pods)
+ansible-playbook playbooks/operations/remove-node.yml -e target_host=worker-2
+
+# Step 2: Perform hardware maintenance
+ssh root@worker-2  # If node is still running
+# ... repair hardware, firmware updates, etc. ...
+
+# Step 3: Re-add the node to the cluster
+ansible-playbook playbooks/operations/add-worker.yml -e target_host=worker-2
+
+# Step 4: Verify node is Ready and workloads rescheduled
+kubectl get nodes -o wide
+kubectl get pods -A -o wide
 ```
 
 ### Decommission and Replace Workers
@@ -317,7 +296,7 @@ cd ansible
 ansible-playbook playbooks/operations/add-worker.yml -e target_host=worker-7
 ansible-playbook playbooks/operations/add-worker.yml -e target_host=worker-8
 
-# Step 2: Wait for new workers to be Ready
+# Step 2: Wait for new workers to be Ready and workloads to distribute
 kubectl get nodes
 
 # Step 3: Remove old workers
@@ -334,7 +313,7 @@ kubectl get pods -A
 
 ---
 
-### 5. Upgrade Nodes
+### 5. Upgrade Nodes (System Packages & Kernel)
 
 **File**: `upgrade-node.yml`
 
@@ -495,9 +474,9 @@ All operations use Ansible roles exclusively for logic encapsulation:
 | `cluster-init` | Initialize first control plane (kubeadm init) |
 | `full-add-control-plane` | Add control plane node (provision + join + etcd) |
 | `full-add-worker` | Add worker node (provision + join + labels) |
-| `node-drain` | Safely drain node for maintenance |
-| `node-remove` | Permanently remove node from cluster |
-| `node-upgrade` | Upgrade system packages with intelligent reboot handling |
+| `node-remove` | Permanently remove node (drain + delete + cleanup) |
+| `cluster-node-upgrade` | Orchestrate cluster-wide or single-node upgrades |
+| `node-upgrade` | Upgrade system packages with intelligent reboot/rejoin |
 
 **Design Principles**:
 - **Immutable operations**: Each operation is self-contained and idempotent
