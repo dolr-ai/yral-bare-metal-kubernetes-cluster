@@ -1,0 +1,3 @@
+---
+# Default kube-vip version; override via inventory or extra vars as needed.
+kube_vip_version: "v0.8.5"

@@ -3,6 +3,7 @@
   ansible.builtin.debug:
     msg:
       - "Deploying kube-vip on: {{ ansible_hostname }}"
+      - "kube-vip version: {{ kube_vip_version }}"
       - "Control plane VIP: {{ control_plane_vip }}"
       - "LoadBalancer IP range: {{ loadbalancer_ip_range | default('Not configured') }}"
       - "Control plane endpoint: {{ control_plane_endpoint }}"
@@ -16,7 +17,7 @@
     group: root
 
 - name: Pull kube-vip container image
-  ansible.builtin.command: ctr image pull ghcr.io/kube-vip/kube-vip:v0.8.5
+  ansible.builtin.command: ctr image pull ghcr.io/kube-vip/kube-vip:{{ kube_vip_version }}
   register: pull_result
   changed_when: "'Downloaded' in pull_result.stderr or 'Downloaded' in pull_result.stdout"
 
@@ -24,16 +25,21 @@
   ansible.builtin.shell: ip route | grep default | awk '{print $5}' | head -n1
   register: primary_interface
   changed_when: false
+  when: kube_vip_interface is not defined
+
+- name: Set kube-vip interface
+  ansible.builtin.set_fact:
+    kube_vip_interface_effective: "{{ kube_vip_interface | default(primary_interface.stdout) }}"
 
 - name: Display detected interface
   ansible.builtin.debug:
-    msg: "Detected primary interface: {{ primary_interface.stdout }}"
+    msg: "Using kube-vip interface: {{ kube_vip_interface_effective }}"
 
 - name: Generate kube-vip static pod manifest
   ansible.builtin.shell: |
-    ctr run --rm --net-host ghcr.io/kube-vip/kube-vip:v0.8.5 vip \
+    ctr run --rm --net-host ghcr.io/kube-vip/kube-vip:{{ kube_vip_version }} vip \
       /kube-vip manifest pod \
-      --interface {{ primary_interface.stdout }} \
+      --interface {{ kube_vip_interface_effective }} \
       --address {{ control_plane_vip }} \
       --controlplane \
       --services \

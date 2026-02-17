@@ -1,0 +1,135 @@
+---
+- name: Check that target_host is defined
+  ansible.builtin.fail:
+    msg: "target_host must be specified: -e target_host=worker-X"
+  when: target_host is not defined or target_host == ""
+  run_once: true
+
+- name: Verify target host exists in inventory
+  ansible.builtin.assert:
+    that:
+      - target_host in groups['all']
+    fail_msg: "Host {{ target_host }} not found in inventory"
+    success_msg: "Host {{ target_host }} found in inventory"
+  run_once: true
+
+- name: Display drain plan
+  ansible.builtin.debug:
+    msg: |
+      ============================================================
+      Draining Node for Maintenance
+      ============================================================
+      Target: {{ target_host }}
+
+      This will:
+      1. Cordon the node (mark as unschedulable)
+      2. Evict all pods from the node
+      3. Wait for pods to terminate gracefully
+
+      WARNING: This will cause service disruption!
+      - Ensure sufficient capacity on other nodes
+      - StatefulSet pods will reschedule to other nodes
+      - DaemonSet pods will be ignored (they run on all nodes)
+
+      To uncordon: kubectl uncordon {{ target_host }}
+      ============================================================
+  run_once: true
+
+- name: Pause for confirmation
+  ansible.builtin.pause:
+    prompt: "Press ENTER to continue or Ctrl+C to abort"
+  run_once: true
+
+- name: Cordon the node
+  ansible.builtin.command: >
+    kubectl cordon {{ target_host }}
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: cordon_result
+  changed_when: "'cordoned' in cordon_result.stdout"
+
+- name: Display cordon result
+  ansible.builtin.debug:
+    msg: "{{ cordon_result.stdout }}"
+
+- name: Get pod count on node before drain
+  ansible.builtin.shell: >
+    kubectl get pods -A --field-selector spec.nodeName={{ target_host }} --no-headers | wc -l
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: pod_count_before
+  changed_when: false
+
+- name: Show pod count
+  ansible.builtin.debug:
+    msg: "Pods on node before drain: {{ pod_count_before.stdout }}"
+
+- name: Drain the node
+  ansible.builtin.command: >
+    kubectl drain {{ target_host }}
+    --ignore-daemonsets
+    --delete-emptydir-data
+    --force
+    --grace-period=300
+    --timeout=600s
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: drain_result
+  failed_when: false
+
+- name: Display drain output
+  ansible.builtin.debug:
+    msg: "{{ drain_result.stdout_lines }}"
+
+- name: Check if drain succeeded
+  ansible.builtin.fail:
+    msg: "Drain operation failed: {{ drain_result.stderr }}"
+  when: drain_result.rc != 0
+
+- name: Wait for pods to terminate
+  ansible.builtin.shell: >
+    kubectl get pods -A --field-selector spec.nodeName={{ target_host }} --no-headers 2>/dev/null |
+    grep -v -E '(kube-system.*kube-proxy|kube-system.*cilium)' | wc -l
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: remaining_pods
+  until: remaining_pods.stdout | int == 0
+  retries: 60
+  delay: 5
+  changed_when: false
+
+- name: Get node status
+  ansible.builtin.command: kubectl get node {{ target_host }}
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: node_status
+  changed_when: false
+
+- name: Display node status
+  ansible.builtin.debug:
+    msg: "{{ node_status.stdout_lines }}"
+
+- name: Get remaining pods
+  ansible.builtin.shell: >
+    kubectl get pods -A --field-selector spec.nodeName={{ target_host }} -o wide
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: remaining_pods_list
+  changed_when: false
+
+- name: Display remaining pods
+  ansible.builtin.debug:
+    msg: "{{ remaining_pods_list.stdout_lines }}"
+
+- name: Success message
+  ansible.builtin.debug:
+    msg: |
+      ============================================================
+      ✅ Node Drained Successfully!
+      ============================================================
+      Node: {{ target_host }}
+      Status: Cordoned (SchedulingDisabled)
+
+      The node is now safe for maintenance.
+
+      Next steps:
+      1. Perform maintenance on {{ target_host }}
+      2. Verify node health
+      3. Uncordon: kubectl uncordon {{ target_host }}
+
+      To remove permanently: ansible-playbook operations/remove-node.yml -e target_host={{ target_host }}
+      ============================================================

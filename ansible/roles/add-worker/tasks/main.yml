@@ -1,0 +1,52 @@
+---
+- name: Check that target_host is defined
+  ansible.builtin.fail:
+    msg: "target_host must be specified: -e target_host=worker-X"
+  when: target_host is not defined or target_host == ""
+  delegate_to: localhost
+  run_once: true
+
+- name: Verify target host exists in worker_nodes group
+  ansible.builtin.assert:
+    that:
+      - target_host in groups['worker_nodes']
+    fail_msg: "Host {{ target_host }} not found in worker_nodes group. Add it to inventory first."
+    success_msg: "Host {{ target_host }} found in inventory"
+  delegate_to: localhost
+  run_once: true
+
+- name: Display worker addition plan
+  ansible.builtin.debug:
+    msg: |
+      ============================================================
+      Adding Worker Node to Kubernetes Cluster
+      ============================================================
+      Target: {{ target_host }}
+
+      Steps:
+      1. Provision server with Ubuntu 24.04 (if needed)
+      2. Setup base system (updates, SSH, containerd, kubeadm)
+      3. Join worker to cluster
+      4. Apply node labels (topology, disk type, etc.)
+      5. Verify node is Ready
+      ============================================================
+  delegate_to: localhost
+  run_once: true
+
+- name: Join worker node to cluster
+  ansible.builtin.include_role:
+    name: worker-join
+
+- name: Apply node labels
+  ansible.builtin.include_role:
+    name: node-labels
+
+- name: Verify worker node status
+  ansible.builtin.command: kubectl get node {{ inventory_hostname }} -o wide
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: node_status
+  changed_when: false
+
+- name: Display node status
+  ansible.builtin.debug:
+    msg: "{{ node_status.stdout_lines }}"

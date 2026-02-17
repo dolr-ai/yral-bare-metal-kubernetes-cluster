@@ -1,0 +1,165 @@
+---
+- name: Check that target_host is defined
+  ansible.builtin.fail:
+    msg: "target_host must be specified: -e target_host=control-plane-X"
+  when: target_host is not defined or target_host == ""
+  delegate_to: localhost
+  run_once: true
+
+- name: Verify target host exists in control_plane group
+  ansible.builtin.assert:
+    that:
+      - target_host in groups['control_plane']
+    fail_msg: "Host {{ target_host }} not found in control_plane group. Add it to inventory first."
+    success_msg: "Host {{ target_host }} found in inventory"
+  delegate_to: localhost
+  run_once: true
+
+- name: Verify cluster has an existing control plane
+  ansible.builtin.assert:
+    that:
+      - (groups['control_plane'] | difference([target_host]) | length) >= 1
+    fail_msg: "No existing control planes found. Use cluster-setup.yml for initial bootstrap."
+    success_msg: "Found {{ groups['control_plane'] | length }} control plane(s) in inventory"
+  delegate_to: localhost
+  run_once: true
+
+- name: Display control plane addition plan
+  ansible.builtin.debug:
+    msg: |
+      ============================================================
+      Adding Control Plane Node to HA Kubernetes Cluster
+      ============================================================
+      Target: {{ target_host }}
+      Existing Control Planes: {{ groups['control_plane'] | difference([target_host]) | join(', ') }}
+
+      Steps:
+      1. Provision server with Ubuntu 24.04
+      2. Setup base system (updates, SSH, containerd, kubeadm)
+      3. Upload control plane certificates
+      4. Join as control plane (with etcd)
+      5. Deploy kube-vip for VIP failover
+      6. Verify etcd cluster health
+      7. Apply node labels
+
+      ⚠️  IMPORTANT:
+      - This will add another etcd member
+      - Ensure VIP {{ control_plane_vip | default(vip_address) }} is configured correctly
+      - Verify DNS resolves to VIP before proceeding
+      ============================================================
+  delegate_to: localhost
+  run_once: true
+
+- name: Pause for confirmation
+  ansible.builtin.pause:
+    prompt: "Press ENTER to continue or Ctrl+C to abort"
+  delegate_to: localhost
+  run_once: true
+
+- name: Join as control plane
+  ansible.builtin.include_role:
+    name: control-plane-join
+
+- name: Deploy kube-vip manifest
+  ansible.builtin.include_role:
+    name: kube-vip
+
+- name: Apply node labels
+  ansible.builtin.include_role:
+    name: node-labels
+
+- name: Wait for new control plane to be Ready
+  ansible.builtin.shell: |
+    kubectl get node {{ inventory_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: node_status
+  until: node_status.stdout == "True"
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Get all control plane nodes
+  ansible.builtin.command: kubectl get nodes -l node-role.kubernetes.io/control-plane
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: control_planes
+  changed_when: false
+
+- name: Display control planes
+  ansible.builtin.debug:
+    msg: "{{ control_planes.stdout_lines }}"
+
+- name: Verify etcd cluster health
+  ansible.builtin.shell: |
+    ETCDCTL_API=3 etcdctl endpoint health \
+      --endpoints=https://127.0.0.1:2379 \
+      --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+      --cert=/etc/kubernetes/pki/etcd/server.crt \
+      --key=/etc/kubernetes/pki/etcd/server.key \
+      --cluster
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: etcd_health
+  changed_when: false
+
+- name: Display etcd health
+  ansible.builtin.debug:
+    msg: "{{ etcd_health.stdout_lines }}"
+
+- name: List etcd members
+  ansible.builtin.shell: |
+    ETCDCTL_API=3 etcdctl member list \
+      --endpoints=https://127.0.0.1:2379 \
+      --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+      --cert=/etc/kubernetes/pki/etcd/server.crt \
+      --key=/etc/kubernetes/pki/etcd/server.key
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: etcd_members
+  changed_when: false
+
+- name: Display etcd members
+  ansible.builtin.debug:
+    msg: "{{ etcd_members.stdout_lines }}"
+
+- name: Verify kube-vip on new node
+  ansible.builtin.command: kubectl get pod -n kube-system -l component=kube-vip --field-selector spec.nodeName={{ inventory_hostname }}
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: kube_vip_pod
+  changed_when: false
+
+- name: Display kube-vip status
+  ansible.builtin.debug:
+    msg: "{{ kube_vip_pod.stdout_lines }}"
+
+- name: Test API server on new control plane
+  ansible.builtin.command: kubectl --kubeconfig=/etc/kubernetes/admin.conf get nodes
+  delegate_to: "{{ inventory_hostname }}"
+  register: api_test
+  changed_when: false
+
+- name: Display API server test
+  ansible.builtin.debug:
+    msg: "{{ api_test.stdout_lines }}"
+
+- name: Success message
+  ansible.builtin.debug:
+    msg: |
+      ============================================================
+      ✅ Control Plane Node Added Successfully!
+      ============================================================
+      Node: {{ target_host }}
+      Total Control Planes: {{ groups['control_plane'] | length }}
+      etcd Quorum: {{ (groups['control_plane'] | length / 2) | int + 1 }} nodes required
+
+      Cluster Status:
+      - ✅ Node joined as control plane
+      - ✅ etcd member added to cluster
+      - ✅ kube-vip deployed for VIP failover
+      - ✅ API server responding
+
+      Verify with:
+        kubectl get nodes -o wide
+        kubectl get pods -n kube-system -l tier=control-plane
+        kubectl get endpoints kubernetes
+
+      Test failover:
+        curl -k https://{{ control_plane_vip | default(vip_address) }}:6443/healthz
+      ============================================================

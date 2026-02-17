@@ -114,30 +114,8 @@
           - "1. Install Cilium CNI"
           - "2. Join remaining control plane nodes"
           - "3. Join worker nodes"
-    - name: Join additional control plane nodes
-      when: not is_first_control_plane and not kubeconfig_stat.stat.exists
-      block:
-        - name: Get join command from first control plane
-          ansible.builtin.set_fact:
-            join_command: "{{ hostvars[groups['control_plane'][0]]['control_plane_join_command'] }}"
 
-        - name: Join control plane
-          ansible.builtin.command: "{{ join_command }}"
-          register: join_result
-
-        - name: Display join result
-          ansible.builtin.debug:
-            msg: "{{ join_result.stdout_lines }}"
-
-        - name: Create .kube directory
-          ansible.builtin.file:
-            path: /root/.kube
-            state: directory
-            mode: "0755"
-
-        - name: Copy admin.conf to .kube/config
-          ansible.builtin.copy:
-            src: /etc/kubernetes/admin.conf
-            dest: /root/.kube/config
-            remote_src: true
-            mode: "0600"
+- name: Join additional control plane nodes
+  when: not is_first_control_plane and not kubeconfig_stat.stat.exists
+  ansible.builtin.include_role:
+    name: control-plane-join
