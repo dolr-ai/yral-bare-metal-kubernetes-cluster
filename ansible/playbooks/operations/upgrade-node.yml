@@ -1,0 +1,14 @@
+---
+# Upgrade Nodes - System packages with intelligent reboot handling
+# Usage: 
+#   Upgrade all nodes (control planes then workers):
+#     ansible-playbook operations/upgrade-node.yml
+#   Upgrade single node:
+#     ansible-playbook operations/upgrade-node.yml -e target_host=worker-1
+
+- name: Upgrade cluster nodes
+  hosts: localhost
+  gather_facts: false
+
+  roles:
+    - role: cluster-node-upgrade

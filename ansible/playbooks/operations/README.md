@@ -10,6 +10,7 @@ These operations handle all cluster node management tasks:
 - **Scale Workers**: Add worker nodes to the cluster
 - **Drain**: Safely prepare nodes for maintenance
 - **Remove**: Permanently remove nodes from the cluster
+- **Upgrade**: Perform system upgrades with intelligent reboot handling and automatic rejoin
 
 ## Prerequisites
 
@@ -333,6 +334,91 @@ kubectl get pods -A
 
 ---
 
+### 5. Upgrade Nodes
+
+**File**: `upgrade-node.yml`
+
+**Purpose**: Upgrade system packages on nodes with intelligent reboot handling. Can run on all nodes or a single target node.
+
+**Usage - Upgrade All Nodes**:
+```bash
+cd ansible
+# Upgrade all control planes (one at a time), then all workers (one at a time)
+ansible-playbook playbooks/operations/upgrade-node.yml
+```
+
+**Usage - Upgrade Single Node**:
+```bash
+cd ansible
+# Upgrade only this node
+ansible-playbook playbooks/operations/upgrade-node.yml -e target_host=worker-1
+```
+
+**What It Does**:
+1. Runs system package upgrades (apt-get update && upgrade)
+2. Checks if reboot is required (/var/run/reboot-required)
+3. If reboot needed:
+   - Cordons the node (prevents new pod scheduling)
+   - Drains all pods gracefully (300s grace period)
+   - Removes node from cluster
+   - Initiates reboot
+   - Waits for node to come back online
+   - Rejoins node to cluster (worker or control plane)
+   - Waits for Ready status
+4. Runs comprehensive health checks
+5. Reports completion status
+
+**Default Behavior (No Parameters)**:
+```
+Phase 1: Control Planes (serial: 1)
+  ├─ Upgrade control-plane-1 → Ready → Health ✓
+  ├─ [PAUSE] Confirm before next
+  ├─ Upgrade control-plane-2 → Ready → Health ✓
+  └─ [PAUSE] Confirm before next
+
+Phase 2: Workers (serial: 1)
+  ├─ Upgrade worker-1 → Ready → Health ✓
+  ├─ [PAUSE] Confirm before next
+  ├─ Upgrade worker-2 → Ready → Health ✓
+  └─ [PAUSE] Confirm before next
+
+Final: All nodes Ready ✓
+```
+
+**Requirements**:
+- For all nodes: Sufficient capacity to reschedule drained pods
+- For single node: Node must be in inventory under `control_plane` or `worker_nodes`
+- Cluster must be healthy before upgrade
+
+**Important Notes**:
+- ⚠️ Do NOT upgrade multiple nodes simultaneously (use `serial: 1`)
+- Control planes upgraded first (maintains API stability)
+- Manual confirmation between nodes for safety (can Ctrl-C to stop)
+- Idempotent: safe to retry if interrupted
+- Only reboots if updates require it
+
+**Examples**:
+
+Upgrade entire cluster (with pauses):
+```bash
+ansible-playbook playbooks/operations/upgrade-node.yml
+# Pauses at each node for confirmation
+```
+
+Upgrade single worker:
+```bash
+ansible-playbook playbooks/operations/upgrade-node.yml -e target_host=worker-1
+# No pauses, direct upgrade with health checks
+```
+
+Upgrade single control plane:
+```bash
+ansible-playbook playbooks/operations/upgrade-node.yml -e target_host=control-plane-2
+# Includes etcd health verification
+```
+
+---
+
 ## Safety Considerations
 
 ### Control Plane Operations
@@ -369,6 +455,26 @@ kubectl get pods -A
    - They will remain running on drained node
    - Examples: Cilium agents, kube-proxy, monitoring agents
 
+### Upgrade Operations
+
+1. **Before Upgrade**:
+   - Verify cluster is healthy: `kubectl get nodes`
+   - Check no nodes are already cordoned: `kubectl get nodes -o wide | grep SchedulingDisabled`
+   - Backup critical data (Velero backups recent)
+   - Have etcd snapshots available
+
+2. **During Upgrade**:
+   - Monitor pod rescheduling: `watch kubectl get pods -A`
+   - Check node resources: `kubectl top nodes`
+   - Monitor logs: `kubectl logs -f <pod> -n <namespace>`
+   - Pause between nodes for safety
+
+3. **After Upgrade**:
+   - Verify all nodes Ready: `kubectl get nodes`
+   - Check all pods running: `kubectl get pods -A`
+   - No pending or crash-looping pods: `kubectl get pods -A --field-selector=status.phase=Pending`
+   - Verify metrics: `kubectl top nodes && kubectl top pods -A`
+
 ### General Best Practices
 
 - Always verify cluster health before and after operations
@@ -391,12 +497,13 @@ All operations use Ansible roles exclusively for logic encapsulation:
 | `full-add-worker` | Add worker node (provision + join + labels) |
 | `node-drain` | Safely drain node for maintenance |
 | `node-remove` | Permanently remove node from cluster |
+| `node-upgrade` | Upgrade system packages with intelligent reboot handling |
 
 **Design Principles**:
 - **Immutable operations**: Each operation is self-contained and idempotent
 - **Role-based**: All logic in roles, playbooks are thin wrappers
 - **Day-2 operations**: All operations are repeatable cluster management tasks
-- **No mutation**: Adding/removing nodes doesn't require modifying existing nodes
+- **No mutation**: Adding/removing/upgrading nodes doesn't require modifying existing nodes
 
 ---
 

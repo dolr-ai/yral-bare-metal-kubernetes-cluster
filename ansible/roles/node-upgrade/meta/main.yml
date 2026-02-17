@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  author: Yral Infrastructure Team
+  role_name: node-upgrade
+  description: Upgrade system packages on nodes with intelligent reboot handling
+  license: MIT
+  min_ansible_version: 2.9
+  platforms:
+    - name: Ubuntu
+      versions:
+        - 24.04
+        - 22.04
+
+dependencies: []

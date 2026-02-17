@@ -1,0 +1,23 @@
+---
+galaxy_info:
+  author: "Kubernetes Cluster Operations"
+  description: "Orchestrate node upgrades across the cluster"
+  company: "YRAL"
+  license: "Apache License 2.0"
+  min_ansible_version: 2.9
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "22.04"
+        - "24.04"
+
+  galaxy_tags:
+    - kubernetes
+    - k8s
+    - cluster-operations
+    - node-upgrade
+    - orchestration
+
+dependencies:
+  - role: node-upgrade

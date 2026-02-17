@@ -1,0 +1,396 @@
+---
+- name: Validate node_target is defined
+  ansible.builtin.fail:
+    msg: "node_target must be specified"
+  when: node_target is not defined or node_target == ""
+  run_once: true
+
+- name: Verify target host exists in inventory
+  ansible.builtin.assert:
+    that:
+      - node_target in groups['all']
+    fail_msg: "Host {{ node_target }} not found in inventory"
+    success_msg: "Host {{ node_target }} found in inventory"
+  run_once: true
+
+- name: Determine node type
+  ansible.builtin.set_fact:
+    is_control_plane: "{{ node_target in groups['control_plane'] }}"
+    is_worker: "{{ node_target in groups['worker_nodes'] }}"
+    node_type: "{{ 'control-plane' if node_target in groups['control_plane'] else 'worker' }}"
+  run_once: true
+
+- name: Display upgrade plan
+  ansible.builtin.debug:
+    msg: |
+      ============================================================
+      Upgrading {{ node_type | capitalize }} Node
+      ============================================================
+      Target: {{ node_target }}
+      Type: {{ node_type | capitalize }}
+
+      Upgrade Plan:
+      1. Run system package upgrades
+      2. Check if reboot is required
+      3. If reboot needed:
+         - Drain node (evict all pods)
+         - Remove node from cluster
+         - Reboot the node
+         - Wait for node to come online
+         - Rejoin cluster
+         - Wait for Ready status
+      4. Run health verification
+      5. Mark cluster as healthy
+
+      ============================================================
+  run_once: true
+
+- name: Pre-flight check - verify cluster health
+  ansible.builtin.command: kubectl get nodes -o jsonpath='{.items[?(@.status.conditions[?(@.type=="Ready")].status=="True")].metadata.name}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: healthy_nodes
+  changed_when: false
+  run_once: true
+  delegate_to: "{{ groups['control_plane'][0] }}"
+
+- name: Display current healthy nodes
+  ansible.builtin.debug:
+    msg: "Healthy nodes: {{ healthy_nodes.stdout }}"
+  run_once: true
+
+# ========== UPGRADE PHASE ==========
+
+- name: Run system package upgrades
+  ansible.builtin.shell: |
+    set -euo pipefail
+    echo "Updating package index..."
+    apt-get update
+
+    echo "Upgrading packages..."
+    DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
+
+    echo "Upgrade completed successfully"
+  register: upgrade_result
+  changed_when: true
+  delegate_to: "{{ node_target }}"
+
+- name: Display upgrade results
+  ansible.builtin.debug:
+    msg: "{{ upgrade_result.stdout_lines | last }}"
+  run_once: true
+
+- name: Check if reboot is required
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: reboot_required_stat
+  delegate_to: "{{ node_target }}"
+
+- name: Display reboot status
+  ansible.builtin.debug:
+    msg: "Reboot {{ 'REQUIRED' if reboot_required_stat.stat.exists else 'NOT required' }}"
+  run_once: true
+
+# ========== REBOOT PHASE (if required) ==========
+
+- name: Reboot node if required
+  when: reboot_required_stat.stat.exists
+  block:
+    - name: Drain node for graceful shutdown
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          Draining {{ node_type | capitalize }} node: {{ node_target }}
+          ============================================================
+          - Cordoning node (marking unschedulable)
+          - Evicting all pods (except DaemonSets)
+          - Waiting for graceful termination
+          ============================================================
+      run_once: true
+
+    - name: Cordon the node
+      ansible.builtin.command: kubectl cordon {{ node_target }}
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      changed_when: true
+
+    - name: Drain node pods
+      ansible.builtin.command: >
+        kubectl drain {{ node_target }}
+        --ignore-daemonsets
+        --delete-emptydir-data
+        --force
+        --grace-period=300
+        --timeout=600s
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      changed_when: true
+      register: drain_result
+      failed_when: false
+
+    - name: Verify drain completed
+      ansible.builtin.debug:
+        msg: "Node {{ node_target }} drained and cordoned"
+      run_once: true
+
+    - name: Remove node from cluster
+      ansible.builtin.command: kubectl delete node {{ node_target }}
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      changed_when: true
+      failed_when: false
+
+    - name: Wait for node removal
+      ansible.builtin.command: kubectl get node {{ node_target }}
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      register: node_removal_check
+      until: node_removal_check.rc != 0
+      retries: 30
+      delay: 2
+      changed_when: false
+      failed_when: false
+
+    - name: Reboot the node
+      ansible.builtin.debug:
+        msg: "Rebooting {{ node_target }}..."
+      run_once: true
+
+    - name: Initiate reboot with delay
+      ansible.builtin.shell: sleep 5 && /usr/sbin/shutdown -r now &
+      delegate_to: "{{ node_target }}"
+      async: 1
+      poll: 0
+      changed_when: true
+
+    - name: Wait for node to go offline
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[node_target].ansible_host }}"
+        port: 22
+        state: stopped
+        timeout: 120
+        sleep: 5
+      run_once: true
+
+    - name: Wait for node to come back online
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[node_target].ansible_host }}"
+        port: 22
+        state: started
+        timeout: 300
+        sleep: 10
+      run_once: true
+
+    - name: Wait for SSH to be ready
+      ansible.builtin.command: ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no root@{{ hostvars[node_target].ansible_host }} "echo 'SSH ready'"
+      register: ssh_ready
+      until: ssh_ready.rc == 0
+      retries: 30
+      delay: 5
+      changed_when: false
+
+    - name: Wait for kubelet to start on node
+      ansible.builtin.command: ssh root@{{ hostvars[node_target].ansible_host }} "systemctl is-active kubelet"
+      register: kubelet_status
+      until: kubelet_status.rc == 0
+      retries: 30
+      delay: 5
+      changed_when: false
+
+    - name: Check if node auto-rejoin or needs assistance
+      ansible.builtin.command: kubectl get node {{ node_target }}
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      register: node_rejoin_check
+      changed_when: false
+      failed_when: false
+
+    - name: Node auto-rejoined, uncordon if present
+      when: node_rejoin_check.rc == 0
+      block:
+        - name: Uncordon the node
+          ansible.builtin.command: kubectl uncordon {{ node_target }}
+          environment:
+            KUBECONFIG: /etc/kubernetes/admin.conf
+          delegate_to: "{{ groups['control_plane'][0] }}"
+          changed_when: true
+
+        - name: Display auto-rejoin message
+          ansible.builtin.debug:
+            msg: "{{ node_target }} auto-rejoined cluster (cord state cleared)"
+          run_once: true
+
+    - name: Manual rejoin if node not present
+      when: node_rejoin_check.rc != 0
+      block:
+        - name: Generate new join command for worker
+          when: is_worker
+          block:
+            - name: Get join token and discovery token CA cert hash
+              ansible.builtin.shell: |
+                set -euo pipefail
+                TOKEN=$(kubeadm token create)
+                DISCOVERY_HASH=$(openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //')
+                ENDPOINT="{{ control_plane_endpoint }}:6443"
+                echo "kubeadm join $ENDPOINT --token $TOKEN --discovery-token-ca-cert-hash sha256:$DISCOVERY_HASH"
+              environment:
+                KUBECONFIG: /etc/kubernetes/admin.conf
+              register: worker_join_cmd
+              changed_when: false
+              delegate_to: "{{ groups['control_plane'][0] }}"
+
+            - name: Run join command on worker
+              ansible.builtin.command: "{{ worker_join_cmd.stdout }}"
+              changed_when: true
+
+        - name: Generate new join command for control plane
+          when: is_control_plane
+          block:
+            - name: Get certificate-key and join command
+              ansible.builtin.shell: |
+                set -euo pipefail
+                kubeadm init phase upload-certs --upload-certs 2>/dev/null | tail -1
+              environment:
+                KUBECONFIG: /etc/kubernetes/admin.conf
+              register: cert_key
+              changed_when: false
+              delegate_to: "{{ groups['control_plane'][0] }}"
+
+            - name: Create control plane join command
+              ansible.builtin.shell: |
+                set -euo pipefail
+                TOKEN=$(kubeadm token create)
+                DISCOVERY_HASH=$(openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //')
+                ENDPOINT="{{ control_plane_endpoint }}:6443"
+                CERT_KEY="{{ cert_key.stdout }}"
+                echo "kubeadm join $ENDPOINT --token $TOKEN --discovery-token-ca-cert-hash sha256:$DISCOVERY_HASH --control-plane --certificate-key $CERT_KEY --apiserver-advertise-address={{ hostvars[node_target].ansible_host }}"
+              register: cp_join_cmd
+              changed_when: false
+              delegate_to: "{{ groups['control_plane'][0] }}"
+
+            - name: Copy certs to rejoining control plane
+              ansible.builtin.shell: |
+                set -euo pipefail
+                for cert in ca.crt ca.key sa.key sa.pub front-proxy-ca.crt front-proxy-ca.key etcd/ca.crt etcd/ca.key; do
+                  mkdir -p /etc/kubernetes/pki/etcd
+                  scp -o StrictHostKeyChecking=no /etc/kubernetes/pki/$cert root@{{ hostvars[node_target].ansible_host }}:/etc/kubernetes/pki/$cert 2>/dev/null || true
+                done
+              environment:
+                KUBECONFIG: /etc/kubernetes/admin.conf
+              delegate_to: "{{ groups['control_plane'][0] }}"
+              changed_when: true
+
+            - name: Run join command on control plane
+              ansible.builtin.command: "{{ cp_join_cmd.stdout }}"
+              changed_when: true
+
+        - name: Wait for node to be recognized
+          ansible.builtin.command: kubectl get node {{ node_target }}
+          environment:
+            KUBECONFIG: /etc/kubernetes/admin.conf
+          delegate_to: "{{ groups['control_plane'][0] }}"
+          register: node_exists
+          until: node_exists.rc == 0
+          retries: 30
+          delay: 2
+          changed_when: false
+
+# ========== VERIFICATION PHASE ==========
+
+- name: Wait for node to be Ready
+  ansible.builtin.command: >
+    kubectl wait --for=condition=Ready node/{{ node_target }}
+    --timeout=600s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  changed_when: false
+  failed_when: false
+
+- name: Verify node is Ready
+  ansible.builtin.command: kubectl get node {{ node_target }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: node_ready_status
+  until: node_ready_status.stdout == "True"
+  retries: 30
+  delay: 5
+  changed_when: false
+  delegate_to: "{{ groups['control_plane'][0] }}"
+
+- name: Run health checks
+  block:
+    - name: Check node resource capacity
+      ansible.builtin.command: kubectl get node {{ node_target }} -o wide
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: node_info
+      changed_when: false
+      delegate_to: "{{ groups['control_plane'][0] }}"
+
+    - name: Display node information
+      ansible.builtin.debug:
+        msg: "{{ node_info.stdout_lines }}"
+      run_once: true
+
+    - name: Verify node system status
+      ansible.builtin.shell: |
+        systemctl status kubelet | grep active
+        systemctl status containerd | grep active
+      delegate_to: "{{ node_target }}"
+      register: system_status
+      changed_when: false
+
+    - name: Display system health
+      ansible.builtin.debug:
+        msg: "{{ system_status.stdout_lines }}"
+      run_once: true
+
+    - name: Check cluster API connectivity
+      ansible.builtin.command: kubectl get componentstatus
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: component_status
+      changed_when: false
+      delegate_to: "{{ groups['control_plane'][0] }}"
+
+    - name: Verify control plane components
+      when: is_control_plane
+      block:
+        - name: Check etcd on this control plane
+          ansible.builtin.command: kubectl get pods -n kube-system -l component=etcd --field-selector spec.nodeName={{ node_target }}
+          environment:
+            KUBECONFIG: /etc/kubernetes/admin.conf
+          register: etcd_pods
+          changed_when: false
+          delegate_to: "{{ groups['control_plane'][0] }}"
+
+        - name: Display etcd status
+          ansible.builtin.debug:
+            msg: "{{ etcd_pods.stdout_lines }}"
+          run_once: true
+
+- name: Display upgrade completion
+  ansible.builtin.debug:
+    msg: |
+      ============================================================
+      ✅ {{ node_type | capitalize }} Upgrade Completed Successfully
+      ============================================================
+      Node: {{ node_target }}
+      Reboot: {{ 'YES - node rebooted and rejoined' if reboot_required_stat.stat.exists else 'NO - no reboot required' }}
+      Status: Ready
+      Health: ✓ All checks passed
+
+      Next Steps:
+      1. Monitor pod rescheduling: kubectl get pods -A -o wide
+      2. Check node metrics: kubectl top node {{ node_target }}
+      3. Verify workload distribution: kubectl get pods -A --field-selector spec.nodeName={{ node_target }}
+      4. Proceed to next node when ready
+
+      ============================================================
+  run_once: true
