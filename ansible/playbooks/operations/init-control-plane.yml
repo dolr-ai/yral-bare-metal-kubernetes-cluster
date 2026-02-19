@@ -1,6 +1,10 @@
 ---
 # Initialize First Control Plane Node
 # Usage: ansible-playbook operations/init-control-plane.yml
+#
+# Uses tasks: with include_role because kube-vip needs to run pre-init
+# before cluster-init and post-init after. tasks_from is silently ignored
+# in the roles: list, so include_role in tasks: is required here.
 
 - name: Initialize first control plane node (provision from scratch)
   hosts: control-plane-1
@@ -8,15 +12,24 @@
   become: true
   serial: 1
 
-  roles:
-    - role: provision
-    - role: storage-setup
-    - role: ssh-hardening
-    - role: base-system
-    - role: containerd
-    - role: kubernetes
-    - role: kube-vip
-      tasks_from: pre-init
-    - role: cluster-init
-    - role: kube-vip
-      tasks_from: post-init
+  tasks:
+    - ansible.builtin.include_role:
+        name: provision
+    - ansible.builtin.include_role:
+        name: storage-setup
+    - ansible.builtin.include_role:
+        name: ssh-hardening
+    - ansible.builtin.include_role:
+        name: base-system
+    - ansible.builtin.include_role:
+        name: containerd
+    - ansible.builtin.include_role:
+        name: kubernetes
+    - ansible.builtin.include_role:
+        name: kube-vip
+        tasks_from: pre-init
+    - ansible.builtin.include_role:
+        name: cluster-init
+    - ansible.builtin.include_role:
+        name: kube-vip
+        tasks_from: post-init

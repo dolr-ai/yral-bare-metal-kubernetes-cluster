@@ -18,9 +18,10 @@ This document defines architectural patterns and constraints specific to this re
 - **Mandatory**: ALL playbooks must be thin wrappers (single play)
 - **Mandatory**: Single play per playbook (no multiple plays)
 - **Allowed**: Multiple role entries within the single play (playbooks can chain roles in sequence)
+- **Allowed**: A minimal `tasks:` section containing **only** `include_role` calls with `tasks_from` — no other modules, logic, or variables. This lets a single role expose multiple task files (e.g. `pre-init.yml`, `post-init.yml`) without duplicating the role.
 - **Pattern**: Playbooks orchestrate atomic role execution, roles contain only their specific logic
 
-**Valid playbook structure (single play, multiple roles allowed):**
+**Valid playbook structures (single play, roles-only or thin tasks):**
 ```yaml
 ---
 - name: Operation description
@@ -35,9 +36,24 @@ This document defines architectural patterns and constraints specific to this re
     - role: task-role-3
 ```
 
+```yaml
+# Also valid: include_role with tasks_from (thin wrapper only)
+  tasks:
+    - ansible.builtin.include_role:
+        name: my-role
+        tasks_from: pre-init
+    - ansible.builtin.include_role:
+        name: other-role
+    - ansible.builtin.include_role:
+        name: my-role
+        tasks_from: post-init
+```
+
+**Note:** `tasks_from` does NOT work in the `roles:` list — it is silently ignored. Use `include_role` in a `tasks:` section instead.
+
 **Invalid patterns:**
 - ❌ Multiple plays in a playbook
-- ❌ Any `tasks:` section in playbooks
+- ❌ Any modules in `tasks:` other than `include_role` (no shell, command, debug, copy, etc.)
 - ❌ Direct shell commands or modules in playbooks
 - ❌ Conditional logic in playbooks (when:, if statements)
 - ❌ Loops in playbooks (with_items, loop:)
@@ -363,6 +379,6 @@ This document is a living guide. As you work on cluster operations and discover 
 ---
 
 **Last Updated**: 2026-02-19
-**Version**: 1.3 - Active Deployment Handoff section + kube-vip pre/post-init split
+**Version**: 1.4 - Allow include_role with tasks_from in playbooks; tasks_from gotcha documented
 **Maintainer**: Kubernetes Cluster Operations Team
 **Contributing**: All cluster operations agents should update this document as architectural knowledge evolves

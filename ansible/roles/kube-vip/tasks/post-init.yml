@@ -2,6 +2,14 @@
 # post-init.yml: Apply kube-vip RBAC and ConfigMap AFTER kubeadm init.
 # Requires a running cluster (kubectl access via /etc/kubernetes/admin.conf).
 
+- name: Wait for kube-vip to start and bind VIP (port 6443 reachable via VIP)
+  ansible.builtin.wait_for:
+    host: "{{ control_plane_vip }}"
+    port: 6443
+    timeout: 120
+    delay: 5
+    msg: "Timed out waiting for kube-vip to bind VIP {{ control_plane_vip }}:6443"
+
 - name: Create kube-vip RBAC manifest
   ansible.builtin.copy:
     content: |

@@ -47,6 +47,12 @@
         msg: "Current btrfs devices: {{ btrfs_devices.stdout_lines }}"
       when: root_fs_type.stdout == "btrfs"
 
+    # Idempotency: if btrfs already spans 2+ devices, storage expansion is done.
+    - name: Skip if btrfs already spans multiple devices
+      ansible.builtin.debug:
+        msg: "✅ btrfs already spans {{ btrfs_devices.stdout_lines | length }} devices — skipping storage expansion (idempotent)."
+      when: root_fs_type.stdout == "btrfs" and btrfs_devices.stdout_lines | length >= 2
+
     - name: Get root device name (without partition)
       ansible.builtin.shell: |
         set -o pipefail && root_dev=$(df / | tail -1 | awk '{print $1}')
