@@ -1,0 +1,71 @@
+---
+# pre-init.yml: Deploy kube-vip static pod manifest BEFORE kubeadm init.
+# The manifest is placed in /etc/kubernetes/manifests so kubelet picks it up
+# immediately when it starts during kubeadm init, making the VIP available
+# before kubeadm's upload-config phase tries to reach the control-plane endpoint.
+
+- name: Display kube-vip pre-init information
+  ansible.builtin.debug:
+    msg:
+      - "Deploying kube-vip static pod manifest (pre-init) on: {{ ansible_hostname }}"
+      - "kube-vip version: {{ kube_vip_version }}"
+      - "Control plane VIP: {{ control_plane_vip }}"
+      - "Control plane endpoint: {{ control_plane_endpoint }}"
+
+- name: Create Kubernetes manifests directory
+  ansible.builtin.file:
+    path: /etc/kubernetes/manifests
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+
+- name: Pull kube-vip container image
+  ansible.builtin.command: ctr image pull ghcr.io/kube-vip/kube-vip:{{ kube_vip_version }}
+  register: kube_vip_pull_result
+  changed_when: "'Downloaded' in kube_vip_pull_result.stderr or 'Downloaded' in kube_vip_pull_result.stdout"
+
+- name: Detect primary network interface
+  ansible.builtin.shell: ip route | grep default | awk '{print $5}' | head -n1
+  register: kube_vip_primary_interface
+  changed_when: false
+  when: kube_vip_interface is not defined
+
+- name: Set kube-vip interface
+  ansible.builtin.set_fact:
+    kube_vip_interface_effective: "{{ kube_vip_interface | default(kube_vip_primary_interface.stdout) }}"
+
+- name: Display detected interface
+  ansible.builtin.debug:
+    msg: "Using kube-vip interface: {{ kube_vip_interface_effective }}"
+
+- name: Generate kube-vip static pod manifest
+  ansible.builtin.shell: |
+    ctr run --rm --net-host ghcr.io/kube-vip/kube-vip:{{ kube_vip_version }} vip \
+      /kube-vip manifest pod \
+      --interface {{ kube_vip_interface_effective }} \
+      --address {{ control_plane_vip }} \
+      --controlplane \
+      --services \
+      --arp \
+      --leaderElection \
+      --enableLoadBalancer
+  register: kube_vip_manifest
+  changed_when: false
+
+- name: Write kube-vip manifest to file
+  ansible.builtin.copy:
+    content: "{{ kube_vip_manifest.stdout }}"
+    dest: /etc/kubernetes/manifests/kube-vip.yaml
+    mode: "0600"
+    owner: root
+    group: root
+
+- name: Display kube-vip pre-init summary
+  ansible.builtin.debug:
+    msg:
+      - "✅ kube-vip static pod manifest written to /etc/kubernetes/manifests/kube-vip.yaml"
+      - "✅ kube-vip will start alongside the API server during kubeadm init"
+      - "✅ VIP {{ control_plane_vip }} will be reachable before kubeadm upload-config phase"
+      - "  - Interface: {{ kube_vip_interface_effective }}"
+      - "  - Mode: ARP with leader election"

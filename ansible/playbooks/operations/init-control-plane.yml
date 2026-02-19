@@ -15,4 +15,8 @@
     - role: base-system
     - role: containerd
     - role: kubernetes
+    - role: kube-vip
+      tasks_from: pre-init
     - role: cluster-init
+    - role: kube-vip
+      tasks_from: post-init

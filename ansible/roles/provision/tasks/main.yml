@@ -22,6 +22,7 @@
     force_basic_auth: true
     return_content: true
   register: hetzner_keys_response
+  delegate_to: localhost
   run_once: true
 
 - name: Build SSH key fingerprint mapping
@@ -64,6 +65,7 @@
       arch: 64
     return_content: true
   register: rescue_response
+  delegate_to: localhost
   run_once: true
 
 - name: Display rescue mode activation
@@ -83,6 +85,7 @@
       type: hw
     status_code: [200, 201]
   register: reset_response
+  delegate_to: localhost
   run_once: true
 
 - name: Wait for server to boot into rescue mode
@@ -92,6 +95,7 @@
     delay: 30
     timeout: 300
     state: started
+  delegate_to: localhost
   run_once: true
 
 - name: Verify rescue system is booted
@@ -104,6 +108,7 @@
   delay: 5
   until: rescue_check.stdout == 'rescue_ready'
   changed_when: false
+  delegate_to: localhost
   run_once: true
 
 - name: Detect drive type
@@ -113,6 +118,7 @@
       "lsblk -d -o NAME 2>/dev/null"
   register: provision_drive_list
   changed_when: false
+  delegate_to: localhost
   run_once: true
 
 - name: Determine drive to use
@@ -135,6 +141,7 @@
   register: install_output
   failed_when: false
   changed_when: true
+  delegate_to: localhost
   run_once: true
 
 - name: Check installation success
@@ -148,6 +155,7 @@
     ssh -i /home/vscode/.ssh/hetzner-ansible-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
       root@{{ provision_server_ip }} "reboot" || true
   changed_when: true
+  delegate_to: localhost
   run_once: true
 
 - name: Wait for server to reboot
@@ -157,6 +165,7 @@
     delay: 60
     timeout: 600
     state: started
+  delegate_to: localhost
   run_once: true
 
 - name: Verify Ubuntu is running
@@ -168,5 +177,6 @@
   retries: 24
   delay: 5
   until: ubuntu_check.rc == 0
+  delegate_to: localhost
   changed_when: false
   run_once: true

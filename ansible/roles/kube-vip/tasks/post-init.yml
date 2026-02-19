@@ -1,0 +1,88 @@
+---
+# post-init.yml: Apply kube-vip RBAC and ConfigMap AFTER kubeadm init.
+# Requires a running cluster (kubectl access via /etc/kubernetes/admin.conf).
+
+- name: Create kube-vip RBAC manifest
+  ansible.builtin.copy:
+    content: |
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: kube-vip
+        namespace: kube-system
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      metadata:
+        name: kube-vip-role
+      rules:
+        - apiGroups: [""]
+          resources: ["services", "services/status", "nodes", "endpoints"]
+          verbs: ["list", "get", "watch", "update"]
+        - apiGroups: ["coordination.k8s.io"]
+          resources: ["leases"]
+          verbs: ["list", "get", "watch", "update", "create"]
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: kube-vip-binding
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: kube-vip-role
+      subjects:
+      - kind: ServiceAccount
+        name: kube-vip
+        namespace: kube-system
+    dest: /tmp/kube-vip-rbac.yaml
+    mode: "0644"
+
+- name: Create kube-vip cloud provider ConfigMap template
+  ansible.builtin.copy:
+    content: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: kubevip
+        namespace: kube-system
+      data:
+        range-global: {{ loadbalancer_ip_range }}
+        cidr-global: "32"
+    dest: /tmp/kube-vip-configmap.yaml
+    mode: "0644"
+  when: loadbalancer_ip_range is defined
+
+- name: Apply kube-vip RBAC
+  ansible.builtin.command: kubectl apply -f /tmp/kube-vip-rbac.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: kube_vip_rbac_result
+  changed_when: "'configured' in kube_vip_rbac_result.stdout or 'created' in kube_vip_rbac_result.stdout"
+
+- name: Apply kube-vip ConfigMap
+  ansible.builtin.command: kubectl apply -f /tmp/kube-vip-configmap.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: kube_vip_configmap_result
+  changed_when: "'configured' in kube_vip_configmap_result.stdout or 'created' in kube_vip_configmap_result.stdout"
+  when: loadbalancer_ip_range is defined
+
+- name: Wait for kube-vip pod to be ready
+  ansible.builtin.shell: kubectl get pods -n kube-system -l component=kube-vip -o jsonpath='{.items[0].status.phase}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: kube_vip_pod_status
+  until: kube_vip_pod_status.stdout == "Running"
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Display kube-vip post-init summary
+  ansible.builtin.debug:
+    msg:
+      - "✅ kube-vip RBAC applied"
+      - "{{ '✅ kube-vip ConfigMap applied (LoadBalancer IP pool: ' + loadbalancer_ip_range + ')' if loadbalancer_ip_range is defined else '⚠️  ConfigMap skipped (loadbalancer_ip_range not configured)' }}"
+      - "✅ kube-vip pod is Running"
+      - "  - VIP: {{ control_plane_vip }}"
+      - "  - Mode: ARP with leader election"

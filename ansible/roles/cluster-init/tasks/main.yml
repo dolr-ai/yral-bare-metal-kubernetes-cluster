@@ -4,11 +4,6 @@
     path: /etc/kubernetes/admin.conf
   register: kubeconfig_stat
 
-- name: Skip if already initialized
-  ansible.builtin.debug:
-    msg: "Kubernetes cluster is already initialized on {{ ansible_hostname }}"
-  when: kubeconfig_stat.stat.exists
-
 - name: Determine if this is the first control plane
   ansible.builtin.set_fact:
     is_first_control_plane: "{{ ansible_hostname == groups['control_plane'][0] }}"
@@ -17,19 +12,56 @@
   ansible.builtin.assert:
     that:
       - is_first_control_plane
-      - not kubeconfig_stat.stat.exists
     fail_msg: |
       This role (cluster-init) is for initializing the FIRST control plane only.
-      
       If this is an additional control plane, use 'control-plane-join' role instead.
-      If Kubernetes is already initialized, this node may already be in the cluster.
-      
       Current state:
         - Is first control plane: {{ is_first_control_plane }}
         - kubeconfig exists: {{ kubeconfig_stat.stat.exists }}
-    success_msg: "Validated: This is the first control plane and not yet initialized"
+    success_msg: "Validated: This is the first control plane node"
+
+# If admin.conf already exists, check whether the cluster is actually healthy by
+# probing the API server on the node's own IP (not the VIP, which requires kube-vip
+# to already be running).  If the probe fails the previous kubeadm init was partial
+# and we must reset before re-trying.
+- name: Probe API server on node IP to detect partial init
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 6443
+    timeout: 10
+  register: api_probe
+  when: kubeconfig_stat.stat.exists
+  ignore_errors: true
+
+- name: Reset partial kubeadm init (admin.conf exists but API server unreachable)
+  ansible.builtin.command: kubeadm reset --force
+  when:
+    - kubeconfig_stat.stat.exists
+    - api_probe is defined
+    - api_probe.failed | default(false)
+
+- name: Remove stale admin.conf after reset
+  ansible.builtin.file:
+    path: /etc/kubernetes/admin.conf
+    state: absent
+  when:
+    - kubeconfig_stat.stat.exists
+    - api_probe is defined
+    - api_probe.failed | default(false)
+
+# Re-check state after potential reset
+- name: Re-check if Kubernetes is initialized
+  ansible.builtin.stat:
+    path: /etc/kubernetes/admin.conf
+  register: kubeconfig_stat_after_reset
+
+- name: Skip cluster-init (cluster already healthy)
+  ansible.builtin.debug:
+    msg: "Kubernetes cluster is already initialized and healthy on {{ ansible_hostname }} — skipping kubeadm init"
+  when: kubeconfig_stat_after_reset.stat.exists
 
 - name: Initialize first control plane node
+  when: not kubeconfig_stat_after_reset.stat.exists
   block:
     - name: Run kubeadm init
       ansible.builtin.command: >
@@ -94,26 +126,6 @@
         remote_src: true
         mode: "0600"
 
-    - name: Apply kube-vip RBAC
-      ansible.builtin.command: kubectl apply -f /tmp/kube-vip-rbac.yaml
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-
-    - name: Apply kube-vip ConfigMap
-      ansible.builtin.command: kubectl apply -f /tmp/kube-vip-configmap.yaml
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-
-    - name: Wait for kube-vip pod to be ready
-      ansible.builtin.shell: kubectl get pods -n kube-system -l component=kube-vip -o jsonpath='{.items[0].status.phase}'
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      register: kube_vip_status
-      until: kube_vip_status.stdout == "Running"
-      retries: 30
-      delay: 10
-      changed_when: false
-
     - name: Display initialization summary
       ansible.builtin.debug:
         msg:
@@ -121,11 +133,11 @@
           - "✅ Control plane endpoint: {{ control_plane_endpoint }}:6443"
           - "✅ Pod network CIDR: {{ pod_network_cidr }}"
           - "✅ kube-proxy skipped (Cilium will replace it)"
-          - "✅ kube-vip RBAC and ConfigMap applied"
           - ""
           - "Join commands saved to /root/kubeadm-join-commands.txt"
           - ""
           - "Next steps:"
-          - "1. Install Cilium CNI"
-          - "2. Join remaining control plane nodes using control-plane-join role"
-          - "3. Join worker nodes using worker-join role"
+          - "1. Apply kube-vip RBAC (kube-vip role)"
+          - "2. Install Cilium CNI"
+          - "3. Join remaining control plane nodes using control-plane-join role"
+          - "4. Join worker nodes using worker-join role"
