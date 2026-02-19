@@ -49,7 +49,7 @@ This document defines architectural patterns and constraints specific to this re
 Used for cluster Day-2 operations. Each operation is a single play calling one role.
 
 **Current operations** (must remain pure thin wrappers chaining atomic roles):
-1. `init-control-plane.yml` - Bootstrap first control plane (hardcoded to control-plane-1, chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → cluster-init)
+1. `init-control-plane.yml` - Bootstrap first control plane (hardcoded to control-plane-1, chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → kube-vip[pre-init] → cluster-init → kube-vip[post-init])
 2. `add-control-plane.yml` - Add control plane for HA (chains: provision → base-system → storage-setup → ssh-hardening → containerd → kubernetes → control-plane-join → kube-vip → node-labels)
 3. `add-worker.yml` - Add worker node (chains: provision → base-system → storage-setup → ssh-hardening → containerd → kubernetes → worker-join → node-labels)
 4. `remove-node.yml` - Remove node from cluster (calls: `node-remove` role)
@@ -319,6 +319,16 @@ When in doubt:
 5. Can this be tested independently? → If no, it's too coupled
 6. Is this a mutation? → If yes, it must be in a role, not a terminal command
 
+## Active Deployment Handoff
+
+If a `HANDOFF.md` file exists in the repository root, **read it before starting any work**. It contains:
+- Current node states (which nodes are provisioned, partially initialized, or healthy)
+- The exact next step to resume from
+- Context on in-progress failures and the fixes already applied
+- Prerequisites for the current environment (SSH key, vault password)
+
+`HANDOFF.md` is a living document maintained during active deployments. Delete it once the deployment is fully complete and all nodes are healthy.
+
 ## Maintaining AGENTS.md Over Time
 
 This document is a living guide. As you work on cluster operations and discover new patterns, valid practices, or constraints:
@@ -352,7 +362,7 @@ This document is a living guide. As you work on cluster operations and discover 
 
 ---
 
-**Last Updated**: 2026-02-17
-**Version**: 1.2 - Deployment Execution Principle + Split Upgrade Playbooks
+**Last Updated**: 2026-02-19
+**Version**: 1.3 - Active Deployment Handoff section + kube-vip pre/post-init split
 **Maintainer**: Kubernetes Cluster Operations Team
 **Contributing**: All cluster operations agents should update this document as architectural knowledge evolves
