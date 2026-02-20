@@ -54,7 +54,7 @@
       delay: 10
 
     - name: Wait for Cilium operator to be ready
-      ansible.builtin.command: kubectl wait --for=condition=ready pod -l name=cilium-operator -n kube-system --timeout=180s
+      ansible.builtin.command: kubectl wait --for=condition=available deployment/cilium-operator -n kube-system --timeout=300s
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
 
@@ -117,7 +117,7 @@
         msg: "{{ nodes_status.stdout_lines }}"
 
     - name: Create Hubble UI LoadBalancer Service
-      ansible.builtin.command: |
+      ansible.builtin.shell: |
         kubectl apply -f - <<EOF
         apiVersion: v1
         kind: Service
