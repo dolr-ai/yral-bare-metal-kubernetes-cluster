@@ -1,0 +1,4 @@
+---
+# Helm version to install. Always pin to latest stable at time of adoption.
+# Latest at time of pinning: https://github.com/helm/helm/releases
+helm_version: "4.1.1"

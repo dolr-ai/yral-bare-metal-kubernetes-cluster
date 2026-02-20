@@ -166,7 +166,8 @@ healthChecking: true
 # VXLAN tunnel mode: encapsulates pod traffic, fully compatible with Hetzner's L3
 # routing. Native/direct routing caused packet reflection (VIP responses routed
 # back to gateway because VIPs are not bound to any local interface).
-tunnel: vxlan
+# Note: 'tunnel' key was removed in Cilium 1.15; use routingMode + tunnelProtocol instead.
+tunnelProtocol: vxlan
 routingMode: tunnel
 
 # Enable host services
