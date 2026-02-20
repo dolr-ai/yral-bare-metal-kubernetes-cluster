@@ -125,7 +125,7 @@
           name: hubble-ui-loadbalancer
           namespace: kube-system
           annotations:
-            io.cilium/lb-ipam-ips: "95.217.49.194"
+            io.cilium/lb-ipam-ips: "95.216.82.98"
         spec:
           type: LoadBalancer
           selector:

@@ -32,7 +32,7 @@
         msg:
           - "Installing kube-prometheus-stack with:"
           - "  - Prometheus: 2 replicas on workers"
-          - "  - Grafana: LoadBalancer at 95.217.49.195"
+          - "  - Grafana: LoadBalancer at 95.216.82.99"
           - "  - AlertManager: 2 replicas on workers"
           - "  - Node exporter: All nodes"
           - "  - Topology: Datacenter-aware soft preferences"

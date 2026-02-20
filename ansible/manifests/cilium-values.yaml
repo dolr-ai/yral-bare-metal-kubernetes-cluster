@@ -63,9 +63,7 @@ ingressController:
   loadbalancerMode: shared
   service:
     annotations:
-      io.cilium/lb-ipam-ips: "95.217.49.193" # First IP from LoadBalancer pool
-
-# Gateway API
+        io.cilium/lb-ipam-ips: "95.216.82.97" # First IP from LoadBalancer pool (95.216.82.96/27)
 gatewayAPI:
   enabled: true
 

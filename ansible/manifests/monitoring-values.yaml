@@ -116,12 +116,12 @@ grafana:
     type: LoadBalancer
     port: 80
     annotations:
-      io.cilium/lb-ipam-ips: "95.217.49.195"
+      io.cilium/lb-ipam-ips: "95.216.82.99"
 
   # Grafana configuration
   grafana.ini:
     server:
-      root_url: "http://95.217.49.195"
+      root_url: "http://95.216.82.99"
     analytics:
       check_for_updates: true
     security:
