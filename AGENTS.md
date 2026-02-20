@@ -10,6 +10,13 @@ This document defines architectural patterns and constraints specific to this re
 - Decommissioned nodes are removed and replaced, not repaired in-place
 - Day-2 operations follow the same immutability principle as Day-1 setup
 
+**No "already done" skip guards in provisioning roles.**
+Roles like `provision` and `storage-setup` run unconditionally every time — they do not check whether the OS is already installed or the disk already configured and skip if so. A clean slate on every run is the guarantee. Shortcuts that detect existing state and bypass destructive steps shorten the feedback loop during debugging but silently break the clean-slate contract; do not add them.
+
+The only legitimate guards in roles are:
+- **Correctness guards**: prevent a command from erroring when it would be a no-op (e.g., don't run `btrfs device add` if the device is already in the filesystem).
+- **Safety nets**: detect partial failures and recover (e.g., `kubeadm reset` when `admin.conf` exists but the API server is unreachable).
+
 ### 2. Role-Based Architecture
 - **Mandatory**: ALL business logic must live in roles
 - **Mandatory**: Roles must be atomic (single responsibility, no orchestration logic)

@@ -55,11 +55,6 @@
     path: /etc/kubernetes/admin.conf
   register: kubeconfig_stat_after_reset
 
-- name: Skip cluster-init (cluster already healthy)
-  ansible.builtin.debug:
-    msg: "Kubernetes cluster is already initialized and healthy on {{ ansible_hostname }} — skipping kubeadm init"
-  when: kubeconfig_stat_after_reset.stat.exists
-
 - name: Initialize first control plane node
   when: not kubeconfig_stat_after_reset.stat.exists
   block:
@@ -133,8 +128,8 @@
           - "3. Join remaining control plane nodes using control-plane-join role"
           - "4. Join worker nodes using worker-join role"
 
-# Run unconditionally (idempotent) — ensures .kube/config is always present
-# even when kubeadm init block is skipped on idempotent re-runs.
+# Run unconditionally — ensures .kube/config is always present regardless of
+# whether kubeadm init ran this play or the partial-reset recovery path was taken.
 - name: Create .kube directory for root
   ansible.builtin.file:
     path: /root/.kube

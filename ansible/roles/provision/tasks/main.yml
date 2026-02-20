@@ -13,33 +13,7 @@
       ============================================================
   run_once: true
 
-# Idempotency guard: if Ubuntu 24.04 is already running and responding,
-# skip all provisioning steps (rescue mode, install, reboot).
-- name: Check if Ubuntu 24.04 already running on server
-  ansible.builtin.shell: |
-    ssh -i /home/vscode/.ssh/hetzner-ansible-key \
-      -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 \
-      root@{{ provision_server_ip }} \
-      'grep -q "Ubuntu 24" /etc/os-release 2>/dev/null && echo UBUNTU_RUNNING || echo NOT_UBUNTU'
-  register: provision_os_check
-  failed_when: false
-  changed_when: false
-  delegate_to: localhost
-  run_once: true
-
-- name: Display provision skip message
-  ansible.builtin.debug:
-    msg: "✅ Ubuntu 24.04 already running on {{ provision_server_ip }} — skipping provision (idempotent)."
-  when: "'UBUNTU_RUNNING' in (provision_os_check.stdout | default(''))"
-  run_once: true
-
-- name: Set provision skip flag
-  ansible.builtin.set_fact:
-    provision_skip: "{{ 'UBUNTU_RUNNING' in (provision_os_check.stdout | default('')) }}"
-  run_once: true
-
 - name: Provision server (install Ubuntu from Hetzner rescue)
-  when: not provision_skip
   run_once: true
   block:
     - name: Fetch SSH keys from Hetzner API
