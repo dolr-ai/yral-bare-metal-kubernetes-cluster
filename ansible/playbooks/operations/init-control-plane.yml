@@ -33,3 +33,7 @@
     - ansible.builtin.include_role:
         name: kube-vip
         tasks_from: post-init
+    - ansible.builtin.include_role:
+        name: helm
+    - ansible.builtin.include_role:
+        name: cilium

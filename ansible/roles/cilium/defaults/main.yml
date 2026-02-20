@@ -1,0 +1,5 @@
+---
+# Cilium CNI version pin
+# Policy: always use latest stable release.
+# Only downgrade if confirmed incompatible; document reason here.
+cilium_version: "1.19.1"

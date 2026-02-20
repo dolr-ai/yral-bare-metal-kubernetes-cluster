@@ -1,5 +1,5 @@
 # Cilium Helm Values - Production HA Configuration
-# Version: 1.16.x
+# Version pin is in ansible/roles/cilium/defaults/main.yml
 
 # Cluster configuration
 cluster:

@@ -1,23 +1,18 @@
 ---
-- name: Check if Cilium is already installed
-  ansible.builtin.command: helm list -n kube-system -o json
-  environment:
-    KUBECONFIG: /etc/kubernetes/admin.conf
-  register: helm_list
-  changed_when: false
-
-- name: Parse Helm releases
-  ansible.builtin.set_fact:
-    cilium_installed: "{{ (helm_list.stdout | from_json) | selectattr('name', 'equalto', 'cilium') | list | length > 0 }}"
-
-- name: Display Cilium installation status
-  ansible.builtin.debug:
-    msg: "Cilium is already installed"
-  when: cilium_installed
-
 - name: Install Cilium using Helm
-  when: not cilium_installed
   block:
+    - name: Add Cilium Helm repository
+      ansible.builtin.command: helm repo add cilium https://helm.cilium.io/
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: repo_add
+      changed_when: "'has been added' in repo_add.stdout"
+
+    - name: Update Helm repositories
+      ansible.builtin.command: helm repo update
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      changed_when: true
     - name: Display Cilium installation parameters
       ansible.builtin.debug:
         msg:
@@ -32,14 +27,14 @@
 
     - name: Copy Cilium values file
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../manifests/cilium-values.yaml"
+        src: "{{ playbook_dir }}/../../manifests/cilium-values.yaml"
         dest: /tmp/cilium-values.yaml
         mode: "0644"
 
-    - name: Install Cilium
+    - name: Install or upgrade Cilium
       ansible.builtin.command: >
-        helm install cilium cilium/cilium
-        --version 1.16.5
+        helm upgrade --install cilium cilium/cilium
+        --version {{ cilium_version }}
         --namespace kube-system
         --values /tmp/cilium-values.yaml
       environment:

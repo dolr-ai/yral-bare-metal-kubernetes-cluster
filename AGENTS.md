@@ -10,6 +10,12 @@ This document defines architectural patterns and constraints specific to this re
 - Decommissioned nodes are removed and replaced, not repaired in-place
 - Day-2 operations follow the same immutability principle as Day-1 setup
 
+**Nodes are never patched in place. If a node is misconfigured or missing a component, it is reprovisioned from scratch — not fixed on top.**
+Examples of what this means in practice:
+- A control plane initialized without CNI is NOT fixed by running a CNI-only playbook on top of it. It is torn down and re-initialized with the corrected `init-control-plane.yml`.
+- A node that got stuck mid-provisioning is NOT recovered by SSHing in and running the missing commands. The playbook is re-run from the start, which wipes and reinstalls.
+- There is no "partial apply" or "resume from step N" workflow. Every node reaches its final state through a single clean run of its full provisioning playbook.
+
 **No "already done" skip guards in provisioning roles.**
 Roles like `provision` and `storage-setup` run unconditionally every time — they do not check whether the OS is already installed or the disk already configured and skip if so. A clean slate on every run is the guarantee. Shortcuts that detect existing state and bypass destructive steps shorten the feedback loop during debugging but silently break the clean-slate contract; do not add them.
 
@@ -72,12 +78,21 @@ The only legitimate guards in roles are:
 Used for cluster Day-2 operations. Each operation is a single play calling one role.
 
 **Current operations** (must remain pure thin wrappers chaining atomic roles):
-1. `init-control-plane.yml` - Bootstrap first control plane (hardcoded to control-plane-1, chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → kube-vip[pre-init] → cluster-init → kube-vip[post-init])
-2. `add-control-plane.yml` - Add control plane for HA (chains: provision → base-system → storage-setup → ssh-hardening → containerd → kubernetes → control-plane-join → kube-vip → node-labels)
-3. `add-worker.yml` - Add worker node (chains: provision → base-system → storage-setup → ssh-hardening → containerd → kubernetes → worker-join → node-labels)
+1. `init-control-plane.yml` - Bootstrap first control plane (hardcoded to control-plane-1, chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → kube-vip[pre-init] → cluster-init → kube-vip[post-init] → helm → cilium)
+2. `add-control-plane.yml` - Add control plane for HA (chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → control-plane-join → kube-vip → node-labels). Cilium DaemonSet deploys automatically via the existing installation.
+3. `add-worker.yml` - Add worker node (chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → worker-join → node-labels)
 4. `remove-node.yml` - Remove node from cluster (calls: `node-remove` role)
 5. `upgrade-control-plane.yml` - Upgrade control plane node(s): cordon → drain → kubeadm reset → reboot → rejoin → verify. Accepts `-e target_host=<node>` for single node or runs all serially.
 6. `upgrade-worker.yml` - Upgrade worker node(s): cordon → drain → delete → reboot → rejoin → verify. Accepts `-e target_host=<node>` for single node or runs all serially.
+
+**There is no "partial install" or "apply missing component" playbook.** If a node is missing something that should have been installed during init (e.g. CNI, kube-vip, a system package), the correct fix is to re-run its full provisioning playbook from scratch, not to create a targeted playbook that applies only the missing piece.
+
+**Adding new playbooks requires explicit user confirmation.** Before creating any new playbook:
+1. Check whether the new functionality fits into an existing playbook by adding a role to it.
+2. If a new playbook is genuinely needed, propose it to the user and wait for explicit agreement before creating it.
+3. Never create a new playbook unilaterally — not even as a "convenience" or "one-off" wrapper.
+
+When adding new capability, the default path is: **create a new role → add it to an existing playbook**. A new playbook is only justified when the operation is structurally distinct from all existing ones (different host targeting, different lifecycle stage, etc.).
 
 #### Utility Playbooks (`ansible/playbooks/`)
 Used for cluster-wide utilities. Can have limited logic if orchestrating multiple roles for a single operation.
@@ -320,9 +335,15 @@ Multi-node upgrade orchestration (happens in playbook via `node-upgrade` role):
 - v1.35 with kubeadm
 - Stacked etcd for HA control planes
 - Odd number of control planes required (1, 3, 5...)
+- 5 control planes in HEL1-DC2 (Helsinki)
 - kube-vip v1.0.4 for virtual IP failover
-- Cilium CNI with WireGuard encryption
+- Cilium v1.19.1 CNI with WireGuard encryption
 - Serial: 1 for node operations (one node at a time)
+
+**Deployment order:**
+1. `init-control-plane.yml` — bootstrap CP-1 (includes Cilium CNI install at end)
+2. `add-control-plane.yml -e target_host=control-plane-N` — for CP-2 through CP-5 (one at a time; Cilium DaemonSet auto-deploys)
+3. `add-worker.yml -e target_host=worker-N` — add worker nodes (Cilium DaemonSet auto-deploys)
 
 ### Inventory Structure
 - `control_plane` group: control plane hosts
@@ -332,30 +353,40 @@ Multi-node upgrade orchestration (happens in playbook via `node-upgrade` role):
 
 ## Deployment Execution Principle
 
-**All mutations to cluster nodes must go through Ansible roles — never via ad-hoc terminal commands.**
+**All mutations to cluster nodes must go through Ansible roles — never via ad-hoc terminal commands or SSH.**
 
-- ✅ Validation and status checks (read-only): run freely in the terminal — `kubectl get nodes`, `ssh root@<ip> "systemctl status kubelet"`, etc.
-- ❌ Mutations (installs, config changes, reboots, kubeadm operations): must live in a role task and be executed via a playbook
-- This ensures every change is:
+- ✅ Validation and status checks (read-only): run freely in the terminal — `kubectl get nodes`, `ssh root@<ip> "systemctl status kubelet"`, `ssh root@<ip> "journalctl -u kubelet -n 50"`, etc.
+- ❌ Mutations via SSH: strictly prohibited — no `ssh root@<ip> "apt install ..."`, no `ssh root@<ip> "systemctl restart ..."`, no `ssh root@<ip> "kubeadm ..."`, no copying files to nodes by hand.
+- ❌ Mutations via `kubectl exec`: strictly prohibited for making changes to node state.
+- ❌ Mutations (installs, config changes, reboots, kubeadm operations): must live in a role task and be executed via a playbook.
+
+This ensures every change is:
   - **Idempotent**: re-running the playbook reaches the same end state
   - **Auditable**: changes are tracked in version control
   - **Repeatable**: the same playbook can bootstrap any equivalent node
 
+**SSH is a diagnostic tool only.** If you find yourself about to run a mutating command over SSH, stop. Instead:
+1. Identify which role/task the mutation belongs to.
+2. Implement or fix it in that role.
+3. Re-run the playbook from scratch (immutability: full clean run, not resume).
+
 **When a deployment step fails:**
-1. Investigate with read-only terminal commands to diagnose
-2. Fix the role/task that corresponds to the failing step
-3. Re-run the playbook (idempotency means already-completed steps are safe to re-run)
-4. Do NOT apply the fix manually on the node and skip updating the role
+1. Investigate with read-only terminal commands to diagnose.
+2. Fix the role/task that corresponds to the failing step.
+3. Re-run the full provisioning playbook from scratch — not from the failing step.
+4. Do NOT apply the fix manually on the node and skip updating the role.
 
 ## Questions for Agents
 
 When in doubt:
-1. Is this logic in a role? → If no, move it to a role
-2. Is this playbook a thin wrapper? → If no, extract logic to role
-3. Does this mutate existing nodes? → If yes, reconsider immutability
-4. Could this reboot? → If yes, ensure `base-system` handles it
-5. Can this be tested independently? → If no, it's too coupled
-6. Is this a mutation? → If yes, it must be in a role, not a terminal command
+1. Is this logic in a role? → If no, move it to a role.
+2. Is this playbook a thin wrapper? → If no, extract logic to role.
+3. Does this mutate existing nodes? → If yes, reconsider immutability — reprovision from scratch instead.
+4. Could this reboot? → If yes, ensure `base-system` handles it.
+5. Can this be tested independently? → If no, it's too coupled.
+6. Is this a mutation? → If yes, it must be in a role run via a playbook, never via SSH or terminal.
+7. Am I about to create a new playbook? → Stop. Can this fit into an existing playbook via a new role? If yes, do that. If no, ask the user first.
+8. Am I about to SSH into a node and run a command that changes state? → Stop. Implement it in a role and run the full playbook instead.
 
 ## Active Deployment Handoff
 
