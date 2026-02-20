@@ -87,6 +87,8 @@
       ansible.builtin.shell: |
         set -o pipefail && grep -A 2 "kubeadm join" /root/kubeadm-init-output.txt | \
         grep -A 2 "control-plane" | tr -d '\n' | sed 's/\\//g'
+      args:
+        executable: /bin/bash
       register: control_plane_join_cmd
       changed_when: false
 
@@ -94,6 +96,8 @@
       ansible.builtin.shell: |
         set -o pipefail && grep "kubeadm join" /root/kubeadm-init-output.txt | \
         grep -v "control-plane" | tr -d '\n' | sed 's/\\//g'
+      args:
+        executable: /bin/bash
       register: worker_join_cmd
       changed_when: false
 
@@ -113,19 +117,6 @@
         dest: /root/kubeadm-join-commands.txt
         mode: "0600"
 
-    - name: Create .kube directory for root
-      ansible.builtin.file:
-        path: /root/.kube
-        state: directory
-        mode: "0755"
-
-    - name: Copy admin.conf to .kube/config
-      ansible.builtin.copy:
-        src: /etc/kubernetes/admin.conf
-        dest: /root/.kube/config
-        remote_src: true
-        mode: "0600"
-
     - name: Display initialization summary
       ansible.builtin.debug:
         msg:
@@ -141,3 +132,18 @@
           - "2. Install Cilium CNI"
           - "3. Join remaining control plane nodes using control-plane-join role"
           - "4. Join worker nodes using worker-join role"
+
+# Run unconditionally (idempotent) — ensures .kube/config is always present
+# even when kubeadm init block is skipped on idempotent re-runs.
+- name: Create .kube directory for root
+  ansible.builtin.file:
+    path: /root/.kube
+    state: directory
+    mode: "0755"
+
+- name: Copy admin.conf to .kube/config
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    remote_src: true
+    mode: "0600"

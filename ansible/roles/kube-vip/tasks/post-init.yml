@@ -76,21 +76,65 @@
   changed_when: "'configured' in kube_vip_configmap_result.stdout or 'created' in kube_vip_configmap_result.stdout"
   when: loadbalancer_ip_range is defined
 
-- name: Wait for kube-vip pod to be ready
-  ansible.builtin.shell: kubectl get pods -n kube-system -l component=kube-vip -o jsonpath='{.items[0].status.phase}'
-  environment:
-    KUBECONFIG: /etc/kubernetes/admin.conf
-  register: kube_vip_pod_status
-  until: kube_vip_pod_status.stdout == "Running"
+# Now that RBAC is in place, regenerate the manifest with leader election
+# enabled and admin.conf (standard, limited-privilege kubeconfig).
+# This is the production configuration used long-term.
+- name: Detect primary network interface for production manifest
+  ansible.builtin.shell: ip route | grep default | awk '{print $5}' | head -n1
+  register: kube_vip_prod_interface
+  changed_when: false
+  when: kube_vip_interface is not defined
+
+- name: Set kube-vip production interface
+  ansible.builtin.set_fact:
+    kube_vip_interface_production: "{{ kube_vip_interface | default(kube_vip_prod_interface.stdout | default(kube_vip_interface_effective | default(''))) }}"
+
+- name: Generate kube-vip production manifest (leader election + admin.conf)
+  ansible.builtin.shell: |
+    ctr run --rm --net-host ghcr.io/kube-vip/kube-vip:{{ kube_vip_version }} vip \
+      /kube-vip manifest pod \
+      --interface {{ kube_vip_interface_production }} \
+      --address {{ control_plane_vip }} \
+      --controlplane \
+      --services \
+      --arp \
+      --leaderElection \
+      --enableLoadBalancer
+  register: kube_vip_manifest_prod
+  changed_when: false
+
+- name: Write production kube-vip manifest (replaces bootstrap manifest)
+  ansible.builtin.copy:
+    content: "{{ kube_vip_manifest_prod.stdout }}"
+    dest: /etc/kubernetes/manifests/kube-vip.yaml
+    mode: "0600"
+    owner: root
+    group: root
+
+- name: Wait for kube-vip pod to restart with production manifest
+  ansible.builtin.shell: |
+    crictl ps --name kube-vip --state running -q 2>/dev/null | head -1
+  register: kube_vip_container_status
+  until: kube_vip_container_status.stdout | length > 0
   retries: 30
   delay: 10
   changed_when: false
+  # Static pods don't have standard labels, so we check via crictl instead of kubectl
+
+- name: Verify VIP still reachable after production manifest swap
+  ansible.builtin.wait_for:
+    host: "{{ control_plane_vip }}"
+    port: 6443
+    timeout: 120
+    delay: 5
+    msg: "VIP {{ control_plane_vip }}:6443 not reachable after manifest swap"
 
 - name: Display kube-vip post-init summary
   ansible.builtin.debug:
     msg:
       - "✅ kube-vip RBAC applied"
       - "{{ '✅ kube-vip ConfigMap applied (LoadBalancer IP pool: ' + loadbalancer_ip_range + ')' if loadbalancer_ip_range is defined else '⚠️  ConfigMap skipped (loadbalancer_ip_range not configured)' }}"
-      - "✅ kube-vip pod is Running"
-      - "  - VIP: {{ control_plane_vip }}"
+      - "✅ Production manifest deployed (admin.conf + leader election)"
+      - "✅ kube-vip container is running"
+      - "✅ VIP {{ control_plane_vip }} verified reachable"
       - "  - Mode: ARP with leader election"

@@ -287,6 +287,21 @@ Multi-node upgrade orchestration (happens in playbook via `node-upgrade` role):
 - The `node-upgrade` role handles single-node upgrade logic: drain → remove → upgrade → reboot → rejoin → verify
 - Playbook controls loop across all nodes
 
+## Component Versioning Policy
+
+**Default: always start with the latest released version of each component.**
+
+- When adding or upgrading any component (kube-vip, Cilium, Helm, containerd, etc.), use the latest stable release.
+- Only downgrade to an older version if the latest is confirmed incompatible with the current Kubernetes version, and document the reason in the role's `defaults/main.yml`.
+- During Kubernetes version upgrades, upgrade other components **one at a time**, following each component's own upgrade guidance before moving to the next.
+- Version pins live exclusively in `roles/<role>/defaults/main.yml` — never hardcoded in task files or playbooks.
+- When a newer version is adopted after a downgrade workaround, remove the workaround comment from `defaults/main.yml`.
+
+**Upgrade order for cluster upgrades:**
+1. Upgrade one control plane node at a time (cordon → drain → upgrade → rejoin → verify)
+2. Then upgrade worker nodes one at a time
+3. Then upgrade cluster add-ons (kube-vip, Cilium, monitoring) individually
+
 ## Repository-Specific Patterns
 
 ### Hetzner Integration
@@ -298,7 +313,7 @@ Multi-node upgrade orchestration (happens in playbook via `node-upgrade` role):
 - v1.35 with kubeadm
 - Stacked etcd for HA control planes
 - Odd number of control planes required (1, 3, 5...)
-- kube-vip for virtual IP failover
+- kube-vip v1.0.4 for virtual IP failover
 - Cilium CNI with WireGuard encryption
 - Serial: 1 for node operations (one node at a time)
 
@@ -337,13 +352,9 @@ When in doubt:
 
 ## Active Deployment Handoff
 
-If a `HANDOFF.md` file exists in the repository root, **read it before starting any work**. It contains:
-- Current node states (which nodes are provisioned, partially initialized, or healthy)
-- The exact next step to resume from
-- Context on in-progress failures and the fixes already applied
-- Prerequisites for the current environment (SSH key, vault password)
+If a `HANDOFF.md` file exists in the repository root, **read it before starting any work**, then **delete it** once the context has been ingested and work is resumed.
 
-`HANDOFF.md` is a living document maintained during active deployments. Delete it once the deployment is fully complete and all nodes are healthy.
+`HANDOFF.md` is created exclusively by the agent-handoff prompt — never by agents during normal workflows. Do not create or update `HANDOFF.md` as part of regular cluster operations.
 
 ## Maintaining AGENTS.md Over Time
 
@@ -378,7 +389,7 @@ This document is a living guide. As you work on cluster operations and discover 
 
 ---
 
-**Last Updated**: 2026-02-19
-**Version**: 1.4 - Allow include_role with tasks_from in playbooks; tasks_from gotcha documented
+**Last Updated**: 2026-02-20
+**Version**: 1.6 - Clarify HANDOFF.md is write-once (agent-handoff prompt only), not updated during normal workflows
 **Maintainer**: Kubernetes Cluster Operations Team
 **Contributing**: All cluster operations agents should update this document as architectural knowledge evolves
