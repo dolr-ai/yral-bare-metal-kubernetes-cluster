@@ -370,6 +370,20 @@ This ensures every change is:
 2. Implement or fix it in that role.
 3. Re-run the playbook from scratch (immutability: full clean run, not resume).
 
+**Running playbooks — always foreground, never background:**
+
+Always run `ansible-playbook` synchronously (foreground, `isBackground=false`). Never pipe to `tee` or redirect to a log file and tail it separately.
+
+```bash
+# ✅ Correct — blocks until done, full output in one shot
+ansible-playbook ansible/playbooks/operations/init-control-plane.yml -v
+
+# ❌ Wrong — background process, output truncates, timeouts, invisible failures
+ansible-playbook ... -v 2>&1 | tee /tmp/some.log &
+```
+
+Rationale: background execution causes output buffer overflows, silent truncation, and read timeouts. Foreground execution streams output directly, blocks until the play finishes, and makes failures immediately visible. Long playbooks (30–60 min) are fine to run foreground — the terminal stays open for the duration.
+
 **When a deployment step fails:**
 1. Investigate with read-only terminal commands to diagnose.
 2. Fix the role/task that corresponds to the failing step.
