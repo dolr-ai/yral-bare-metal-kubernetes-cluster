@@ -23,7 +23,7 @@
           - "  - Ingress Controller: Enabled"
           - "  - Gateway API: Enabled"
           - "  - Service Mesh (Envoy): Enabled"
-          - "  - LoadBalancer IP pool: {{ loadbalancer_ip_range }}"
+          - "  - LoadBalancer IP pool: {{ loadbalancer_ip_range | default('not configured yet') }}"
 
     - name: Copy Cilium values file
       ansible.builtin.copy:

@@ -151,11 +151,6 @@
     path: /etc/containerd/config.toml
   register: containerd_config_content
 
-- name: Detect containerd major version
-  ansible.builtin.shell: containerd --version | awk '{print $3}' | cut -d'.' -f1 | sed 's/v//'
-  register: containerd_major_version
-  changed_when: false
-
 - name: Check if SystemdCgroup is already enabled
   ansible.builtin.set_fact:
     systemd_cgroup_enabled: "{{ containerd_config_content.content | b64decode | regex_search('SystemdCgroup = true') is not none }}"
@@ -166,25 +161,13 @@
     regexp: '^disabled_plugins = \["cri"\]'
     state: absent
 
-- name: Set SystemdCgroup = true for containerd 1.x
-  ansible.builtin.lineinfile:
-    path: /etc/containerd/config.toml
-    insertafter: '^\s*\[plugins\."io\.containerd\.grpc\.v1\.cri"\.containerd\.runtimes\.runc\.options\]'
-    line: "            SystemdCgroup = true"
-    state: present
-  when:
-    - not systemd_cgroup_enabled
-    - containerd_major_version.stdout == "1"
-
-- name: Set SystemdCgroup = true for containerd 2.x
+- name: Set SystemdCgroup = true
   ansible.builtin.lineinfile:
     path: /etc/containerd/config.toml
     insertafter: '^\s*\[plugins\.[''"]io\.containerd\.cri\.v1\.runtime[''"]\.containerd\.runtimes\.runc\.options\]'
     line: "            SystemdCgroup = true"
     state: present
-  when:
-    - not systemd_cgroup_enabled
-    - containerd_major_version.stdout == "2"
+  when: not systemd_cgroup_enabled
 
 - name: Verify SystemdCgroup configuration
   ansible.builtin.shell: grep -A 2 "runc.options" /etc/containerd/config.toml | grep SystemdCgroup || echo "NOT FOUND"
@@ -193,9 +176,7 @@
 
 - name: Display SystemdCgroup status
   ansible.builtin.debug:
-    msg:
-      - "Containerd version: {{ containerd_major_version.stdout }}.x"
-      - "SystemdCgroup setting: {{ systemd_cgroup_check.stdout }}"
+    msg: "SystemdCgroup setting: {{ systemd_cgroup_check.stdout }}"
 
 - name: Restart containerd service
   ansible.builtin.systemd:

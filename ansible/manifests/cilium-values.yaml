@@ -104,9 +104,13 @@ bgpControlPlane:
   enabled: false
 
 # kube-vip LoadBalancer integration
+# SNAT mode: responses are source-NAT'd to the node's own IP.
+# DSR is incompatible with Hetzner bare metal — DSR sends responses directly from
+# the VIP IP, but since VIPs aren't bound to any local interface the kernel
+# routes them back out to the gateway, causing Hetzner to flag packet reflection.
 loadBalancer:
   algorithm: maglev
-  mode: dsr
+  mode: snat
 
 # Enable socket-level load balancing
 socketLB:
@@ -124,18 +128,17 @@ bandwidthManager:
 # Enable local redirect policy for better performance
 localRedirectPolicy: true
 
-# Enable host-routing for XDP acceleration
+# bpf.hostRouting requires native routing mode — disabled with VXLAN
 bpf:
   masquerade: true
-  hostRouting: true
   preallocateMaps: true
 
 # Enable Cilium endpoint routes for better performance
 endpointRoutes:
   enabled: true
 
-# Auto-direct node routes
-autoDirectNodeRoutes: true
+# autoDirectNodeRoutes only works with native routing — not applicable with VXLAN
+autoDirectNodeRoutes: false
 
 # Enable MTU detection
 enableIPv4Masquerade: true
@@ -162,9 +165,11 @@ prometheus:
 # Enable health checking
 healthChecking: true
 
-# Tunnel mode - disabled for better performance with direct routing
-tunnel: disabled
-routingMode: native
+# VXLAN tunnel mode: encapsulates pod traffic, fully compatible with Hetzner's L3
+# routing. Native/direct routing caused packet reflection (VIP responses routed
+# back to gateway because VIPs are not bound to any local interface).
+tunnel: vxlan
+routingMode: tunnel
 
 # Enable host services
 hostServices:
@@ -172,9 +177,10 @@ hostServices:
   protocols: tcp,udp
 
 # Node port acceleration
+# SNAT mode for consistency with loadBalancer.mode — DSR causes same reflection issue
 nodePort:
   enabled: true
-  mode: dsr
+  mode: snat
 
 # External IPs support
 externalIPs:
