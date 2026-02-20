@@ -3,7 +3,7 @@
   block:
     - name: Upload control plane certificates on first control plane
       ansible.builtin.shell: |
-        kubeadm init phase upload-certs --upload-certs 2>&1 | tail -1
+        kubeadm init phase upload-certs --upload-certs 2>/dev/null | grep -E '^[a-f0-9]{64}$'
       delegate_to: "{{ groups['control_plane'][0] }}"
       register: certificate_key
 

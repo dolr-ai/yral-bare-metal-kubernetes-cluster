@@ -89,6 +89,11 @@
   ansible.builtin.set_fact:
     kube_vip_interface_production: "{{ kube_vip_interface | default(kube_vip_prod_interface.stdout | default(kube_vip_interface_effective | default(''))) }}"
 
+- name: Pull kube-vip container image
+  ansible.builtin.command: ctr image pull ghcr.io/kube-vip/kube-vip:{{ kube_vip_version }}
+  register: kube_vip_pull_result
+  changed_when: "'Downloaded' in kube_vip_pull_result.stderr or 'Downloaded' in kube_vip_pull_result.stdout"
+
 - name: Generate kube-vip production manifest (leader election + admin.conf)
   ansible.builtin.shell: |
     ctr run --rm --net-host ghcr.io/kube-vip/kube-vip:{{ kube_vip_version }} vip \
