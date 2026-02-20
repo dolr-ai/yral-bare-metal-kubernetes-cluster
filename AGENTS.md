@@ -390,13 +390,3 @@ This document is a living guide. As you work on cluster operations and discover 
 **Process for updates:**
 1. Identify the section(s) needing update
 2. Update AGENTS.md with the new or clarified guidance
-3. Include a brief explanation in commit message
-4. Update the "Last Updated" date
-5. Ensure changes are backwards-compatible or document breaking changes
-
----
-
-**Last Updated**: 2026-02-20
-**Version**: 1.6 - Clarify HANDOFF.md is write-once (agent-handoff prompt only), not updated during normal workflows
-**Maintainer**: Kubernetes Cluster Operations Team
-**Contributing**: All cluster operations agents should update this document as architectural knowledge evolves
