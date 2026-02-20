@@ -1,0 +1,26 @@
+# Hubble UI LoadBalancer Service
+#
+# Exposes the Cilium Hubble UI on a dedicated LoadBalancer IP.
+# Requires:
+#   - cilium-lb-pool.yaml applied first (defines the IP pool)
+#   - At least one worker node available for Hubble UI pod scheduling
+#     (Hubble UI has no control-plane toleration by default)
+#
+# Access: http://95.216.82.98
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hubble-ui-loadbalancer
+  namespace: kube-system
+  annotations:
+    io.cilium/lb-ipam-ips: "95.216.82.98"
+spec:
+  type: LoadBalancer
+  selector:
+    k8s-app: hubble-ui
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8081
+      protocol: TCP

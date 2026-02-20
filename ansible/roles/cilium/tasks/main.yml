@@ -1,5 +1,5 @@
 ---
-- name: Install Cilium using Helm
+- name: Install Cilium CNI using Helm
   block:
     - name: Add Cilium Helm repository
       ansible.builtin.command: helm repo add cilium https://helm.cilium.io/
@@ -13,10 +13,11 @@
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       changed_when: true
+
     - name: Display Cilium installation parameters
       ansible.builtin.debug:
         msg:
-          - "Installing Cilium CNI with:"
+          - "Installing Cilium CNI v{{ cilium_version }} with:"
           - "  - kube-proxy replacement: ENABLED (strict mode)"
           - "  - Encryption: WireGuard"
           - "  - Hubble: Enabled (Relay + UI)"
@@ -45,7 +46,7 @@
       ansible.builtin.debug:
         msg: "{{ cilium_install.stdout_lines }}"
 
-    - name: Wait for Cilium to be ready
+    - name: Wait for Cilium agent DaemonSet to be ready
       ansible.builtin.command: kubectl wait --for=condition=ready pod -l k8s-app=cilium -n kube-system --timeout=300s
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
@@ -53,47 +54,25 @@
       retries: 3
       delay: 10
 
-    - name: Wait for Cilium operator to be ready
+    - name: Wait for Cilium operator deployment to be available
       ansible.builtin.command: kubectl wait --for=condition=available deployment/cilium-operator -n kube-system --timeout=300s
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
 
-- name: Verify Cilium installation
+- name: Verify Cilium core installation
   block:
-    - name: Get Cilium status
+    - name: Get Cilium agent pods
       ansible.builtin.command: kubectl get pods -n kube-system -l k8s-app=cilium -o wide
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: cilium_pods
       changed_when: false
 
-    - name: Display Cilium pods
+    - name: Display Cilium agent pods
       ansible.builtin.debug:
         msg: "{{ cilium_pods.stdout_lines }}"
 
-    - name: Get Hubble Relay status
-      ansible.builtin.command: kubectl get pods -n kube-system -l k8s-app=hubble-relay
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      register: hubble_relay
-      changed_when: false
-
-    - name: Display Hubble Relay pods
-      ansible.builtin.debug:
-        msg: "{{ hubble_relay.stdout_lines }}"
-
-    - name: Get Hubble UI status
-      ansible.builtin.command: kubectl get pods -n kube-system -l k8s-app=hubble-ui
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      register: hubble_ui
-      changed_when: false
-
-    - name: Display Hubble UI pods
-      ansible.builtin.debug:
-        msg: "{{ hubble_ui.stdout_lines }}"
-
-    - name: Check Cilium encryption status
+    - name: Check WireGuard encryption status
       ansible.builtin.shell: kubectl exec -n kube-system ds/cilium -- cilium-dbg status | grep -i encryption
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
@@ -105,7 +84,7 @@
       ansible.builtin.debug:
         msg: "{{ encryption_status.stdout_lines }}"
 
-    - name: Get all nodes status
+    - name: Get nodes status
       ansible.builtin.command: kubectl get nodes -o wide
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
@@ -116,55 +95,14 @@
       ansible.builtin.debug:
         msg: "{{ nodes_status.stdout_lines }}"
 
-    - name: Create Hubble UI LoadBalancer Service
-      ansible.builtin.shell: |
-        kubectl apply -f - <<EOF
-        apiVersion: v1
-        kind: Service
-        metadata:
-          name: hubble-ui-loadbalancer
-          namespace: kube-system
-          annotations:
-            io.cilium/lb-ipam-ips: "95.216.82.98"
-        spec:
-          type: LoadBalancer
-          selector:
-            k8s-app: hubble-ui
-          ports:
-          - name: http
-            port: 80
-            targetPort: 8081
-            protocol: TCP
-        EOF
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      register: hubble_lb
-      changed_when: "'created' in hubble_lb.stdout or 'configured' in hubble_lb.stdout"
-
-    - name: Wait for LoadBalancer IP assignment
-      ansible.builtin.shell: kubectl get svc -n kube-system hubble-ui-loadbalancer -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      register: lb_ip
-      until: lb_ip.stdout != ""
-      retries: 30
-      delay: 10
-      changed_when: false
-
     - name: Display installation summary
       ansible.builtin.debug:
         msg:
-          - "✅ Cilium installation completed successfully"
-          - "✅ WireGuard encryption: {{ encryption_status.stdout }}"
-          - "✅ Hubble Relay: Running"
-          - "✅ Hubble UI: Running"
-          - "✅ Hubble UI LoadBalancer: {{ lb_ip.stdout }}"
-          - "✅ Ingress Controller: Enabled"
-          - "✅ Gateway API: Enabled"
+          - "✅ Cilium v{{ cilium_version }} CNI installed successfully"
+          - "✅ WireGuard encryption: {{ encryption_status.stdout | default('check manually') }}"
           - ""
-          - "Access Hubble UI at: http://{{ lb_ip.stdout }}"
+          - "NOTE: Hubble Relay/UI and second operator replica will be Pending"
+          - "until additional nodes join. This is expected."
           - ""
-          - "Next steps:"
-          - "1. Deploy monitoring stack (Prometheus/Grafana)"
-          - "2. Setup automated backups"
-          - "3. Deploy test applications"
+          - "After cluster has 3 CPs + 1 worker, apply kubernetes/ manifests:"
+          - "  kubectl apply -f kubernetes/networking/"

@@ -1,0 +1,21 @@
+# CiliumLoadBalancerIPPool
+#
+# Defines the IP range Cilium IPAM uses to assign addresses to LoadBalancer
+# services annotated with io.cilium/lb-ipam-ips.
+#
+# Subnet: 95.216.82.96/27 (statically routed to CP-1 at 95.216.228.60)
+# Usable: 95.216.82.97 - 95.216.82.126 (30 IPs)
+#
+# IP assignments:
+#   95.216.82.97  - Cilium Ingress Controller (set in ansible/manifests/cilium-values.yaml)
+#   95.216.82.98  - Hubble UI             (kubernetes/networking/hubble-ui-service.yaml)
+#   95.216.82.99  - Grafana               (ansible/manifests/monitoring-values.yaml)
+#   95.216.82.100+ - Available for future services
+---
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: default-pool
+spec:
+  blocks:
+    - cidr: "95.216.82.96/27"

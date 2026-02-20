@@ -351,6 +351,27 @@ Multi-node upgrade orchestration (happens in playbook via `node-upgrade` role):
 - `k8s_cluster` meta-group: all cluster nodes
 - Target node specified via `-e target_host=node-name`
 
+### Kubernetes Manifests (`kubernetes/`)
+
+Pure Kubernetes declarative objects live in `kubernetes/`, not in `ansible/`. This separation is intentional:
+
+| Location | Contents | Applied by |
+|----------|----------|------------|
+| `ansible/manifests/` | Helm values files | Ansible roles (via `copy` module) |
+| `kubernetes/` | K8s objects, CRDs | `kubectl apply` after cluster is ready |
+
+**Rule**: If it's a Kubernetes object (Service, CRD, ConfigMap, etc.), it belongs in `kubernetes/`. If it's configuration consumed by an Ansible role, it belongs in `ansible/manifests/`.
+
+**When to apply**: After the cluster has sufficient nodes for the workloads to schedule. For the current cluster: 3 CPs + at least 1 worker.
+
+```bash
+# Apply in order — pool must exist before services request IPs from it
+kubectl apply -f kubernetes/networking/cilium-lb-pool.yaml
+kubectl apply -f kubernetes/networking/hubble-ui-service.yaml
+```
+
+**Do NOT embed `kubectl apply` of these manifests inside Ansible roles.** Ansible provisions infrastructure; Kubernetes manages its own workloads declaratively. When ArgoCD/Flux is added, this directory becomes the GitOps source with zero restructuring.
+
 ## Deployment Execution Principle
 
 **All mutations to cluster nodes must go through Ansible roles — never via ad-hoc terminal commands or SSH.**
