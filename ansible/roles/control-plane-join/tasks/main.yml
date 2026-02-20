@@ -1,16 +1,5 @@
 ---
-- name: Check if already a control plane
-  ansible.builtin.stat:
-    path: /etc/kubernetes/admin.conf
-  register: admin_conf
-
-- name: Skip if already a control plane
-  ansible.builtin.debug:
-    msg: "Node {{ inventory_hostname }} is already a control plane"
-  when: admin_conf.stat.exists
-
 - name: Join control plane node
-  when: not admin_conf.stat.exists
   block:
     - name: Upload control plane certificates on first control plane
       ansible.builtin.shell: |

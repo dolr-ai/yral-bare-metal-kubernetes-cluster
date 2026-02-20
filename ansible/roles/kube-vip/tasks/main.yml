@@ -1,26 +1,12 @@
 ---
-# main.yml: Full kube-vip setup — manifest generation + RBAC/ConfigMap apply.
-# Used by add-control-plane where the cluster is already running.
+# main.yml: kube-vip deployment for ADDITIONAL control planes.
+# The cluster is already running and the VIP is already bound by the first CP;
+# no bootstrap (pre-init) is needed — just write the production manifest directly.
 #
-# For first-control-plane bootstrap (init-control-plane.yml), call the split
-# task files directly via tasks_from:
-#   - role: kube-vip
-#     tasks_from: pre-init   # before kubeadm init  (writes static pod manifest)
-#   - role: kube-vip
-#     tasks_from: post-init  # after kubeadm init   (applies RBAC / ConfigMap)
+# For first-control-plane bootstrap (init-control-plane.yml), the split task
+# files are called directly via tasks_from:
+#   - tasks_from: pre-init   # before kubeadm init (bootstrap manifest, no leaderElection)
+#   - tasks_from: post-init  # after kubeadm init  (RBAC + production manifest)
 
-- name: Deploy kube-vip static pod manifest
-  ansible.builtin.include_tasks: pre-init.yml
-
-- name: Apply kube-vip RBAC and ConfigMap
+- name: Apply kube-vip RBAC, ConfigMap, and production manifest
   ansible.builtin.include_tasks: post-init.yml
-
-- name: Display kube-vip deployment summary
-  ansible.builtin.debug:
-    msg:
-      - "✅ kube-vip fully deployed on {{ ansible_hostname }}"
-      - "✅ Static pod manifest: /etc/kubernetes/manifests/kube-vip.yaml"
-      - "✅ RBAC applied"
-      - "{{ '✅ ConfigMap applied (LoadBalancer IP pool: ' + loadbalancer_ip_range + ')' if loadbalancer_ip_range is defined else '⚠️  ConfigMap skipped (loadbalancer_ip_range not configured)' }}"
-      - "  - VIP: {{ control_plane_vip }}"
-      - "  - Mode: ARP with leader election"

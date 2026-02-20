@@ -10,9 +10,9 @@
 
   roles:
     - role: provision
-    - role: base-system
     - role: storage-setup
     - role: ssh-hardening
+    - role: base-system
     - role: containerd
     - role: kubernetes
     - role: control-plane-join
