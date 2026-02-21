@@ -41,3 +41,5 @@
         name: gateway-api-crds
     - ansible.builtin.include_role:
         name: cilium
+    - ansible.builtin.include_role:
+        name: hetzner-firewall

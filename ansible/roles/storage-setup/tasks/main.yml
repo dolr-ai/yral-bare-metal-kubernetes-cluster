@@ -123,54 +123,54 @@
           when: second_drive is defined and second_drive != "" and second_drive_stat.stat.exists and wipe_result.changed
           register: btrfs_add
 
-        - name: Display btrfs filesystem before balance
-          ansible.builtin.command: btrfs filesystem show
-          when: btrfs_add is changed
-          register: btrfs_before
+        - name: Record whether btrfs device was added
+          ansible.builtin.set_fact:
+            btrfs_device_added: "{{ btrfs_add is changed }}"
 
-        - name: Show filesystem before balance
-          ansible.builtin.debug:
-            msg: "{{ btrfs_before.stdout_lines }}"
-          when: btrfs_add is changed
+        - name: Balance and report btrfs filesystem expansion
+          when: btrfs_device_added
+          block:
+            - name: Display btrfs filesystem before balance
+              ansible.builtin.command: btrfs filesystem show
+              changed_when: false
+              register: btrfs_before
 
-        - name: Start btrfs balance (full)
-          ansible.builtin.command: btrfs balance start / --full-balance
-          when: btrfs_add is changed
-          async: 3600
-          poll: 30
-          register: balance_result
+            - name: Show filesystem before balance
+              ansible.builtin.debug:
+                msg: "{{ btrfs_before.stdout_lines }}"
 
-        - name: Display btrfs filesystem after balance
-          ansible.builtin.command: btrfs filesystem show
-          when: btrfs_add is changed
-          register: btrfs_after
+            - name: Start btrfs balance (full)
+              ansible.builtin.command: btrfs balance start / --full-balance
+              async: 3600
+              poll: 30
 
-        - name: Show filesystem after balance
-          ansible.builtin.debug:
-            msg: "{{ btrfs_after.stdout_lines }}"
-          when: btrfs_add is changed
+            - name: Display btrfs filesystem after balance
+              ansible.builtin.command: btrfs filesystem show
+              changed_when: false
+              register: btrfs_after
 
-        - name: Display disk usage
-          ansible.builtin.command: df -h /
-          register: df_output
-          when: btrfs_add is changed
+            - name: Show filesystem after balance
+              ansible.builtin.debug:
+                msg: "{{ btrfs_after.stdout_lines }}"
 
-        - name: Show disk usage
-          ansible.builtin.debug:
-            msg: "{{ df_output.stdout_lines }}"
-          when: btrfs_add is changed
+            - name: Display disk usage
+              ansible.builtin.command: df -h /
+              changed_when: false
+              register: df_output
 
-        - name: Display btrfs filesystem usage
-          ansible.builtin.command: btrfs filesystem usage /
-          register: btrfs_usage
-          when: btrfs_add is changed
+            - name: Show disk usage
+              ansible.builtin.debug:
+                msg: "{{ df_output.stdout_lines }}"
 
-        - name: Show btrfs usage
-          ansible.builtin.debug:
-            msg: "{{ btrfs_usage.stdout_lines }}"
-          when: btrfs_add is changed
+            - name: Display btrfs filesystem usage
+              ansible.builtin.command: btrfs filesystem usage /
+              changed_when: false
+              register: btrfs_usage
 
-        - name: Success message
-          ansible.builtin.debug:
-            msg: "✅ Successfully expanded btrfs filesystem to /dev/{{ second_drive }}"
-          when: btrfs_add is changed
+            - name: Show btrfs usage
+              ansible.builtin.debug:
+                msg: "{{ btrfs_usage.stdout_lines }}"
+
+            - name: Success message
+              ansible.builtin.debug:
+                msg: "✅ Successfully expanded btrfs filesystem to /dev/{{ second_drive }}"

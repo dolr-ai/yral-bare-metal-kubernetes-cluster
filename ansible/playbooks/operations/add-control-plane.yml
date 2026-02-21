@@ -18,3 +18,4 @@
     - role: control-plane-join
     - role: kube-vip
     - role: node-labels
+    - role: hetzner-firewall

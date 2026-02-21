@@ -2,3 +2,5 @@
 collections:
   - name: community.general
     version: ">=12.0.0"
+  - name: community.hrobot
+    version: ">=2.0.0"
