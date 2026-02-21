@@ -14,8 +14,10 @@
 # Adding a new service: create an HTTPRoute in the appropriate namespace.
 # No changes to this Gateway are required.
 #
-# cert-manager annotation: automatically provisions and renews the TLS certificate
-# for all hostnames present in attached HTTPRoutes on the HTTPS listener.
+# cert-manager: TLS certificates are managed per-hostname. Each HTTPRoute attached
+# to the https listener carries a cert-manager.io/cluster-issuer annotation —
+# cert-manager's gateway-shim creates a Certificate + Secret per hostname.
+# The HTTPS listener certificateRefs must name the Secret for that hostname.
 # Start with letsencrypt-staging and switch to letsencrypt-prod once verified.
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -23,6 +25,8 @@ kind: Gateway
 metadata:
   name: web-gateway
   namespace: kube-system
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
 spec:
   gatewayClassName: cilium
   listeners:

@@ -94,6 +94,29 @@ else
     echo "⚠ Vault password file not found — kubeconfig setup skipped"
 fi
 
+# Export GitHub PAT (Flux) into all shells via ~/.bashrc
+echo ""
+echo "Setting up GitHub token for Flux..."
+if [ -f "$ANSIBLE_DIR/.vault_pass" ]; then
+    GITHUB_FLUX_TOKEN=$(ansible-vault view "$ANSIBLE_DIR/inventory/group_vars/all/vault.yml" 2>/dev/null | \
+        python3 -c "
+import sys, yaml
+d = yaml.safe_load(sys.stdin)
+print(d.get('vault_github_flux_token', ''))
+")
+    if [ -n "$GITHUB_FLUX_TOKEN" ]; then
+        # Remove any previous injection then append fresh (idempotent)
+        sed -i '/# BEGIN flux-github-token/,/# END flux-github-token/d' ~/.bashrc
+        printf '\n# BEGIN flux-github-token\nexport GITHUB_TOKEN=%s\n# END flux-github-token\n' "$GITHUB_FLUX_TOKEN" >> ~/.bashrc
+        export GITHUB_TOKEN="$GITHUB_FLUX_TOKEN"
+        echo "✓ GITHUB_TOKEN written to ~/.bashrc (available in all new shells)"
+    else
+        echo "⚠ vault_github_flux_token not found in vault (add it when ready)"
+    fi
+else
+    echo "⚠ Vault password file not found — GitHub token setup skipped"
+fi
+
 # Configure GitHub CLI to use SSH
 echo ""
 echo "Configuring GitHub CLI..."

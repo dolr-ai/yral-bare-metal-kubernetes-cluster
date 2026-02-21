@@ -1,14 +1,16 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# Step 1: Install cert-manager CRDs and controllers.
-# Apply this first, wait for pods to be ready, then apply cluster-issuers.yaml.
+# Installs cert-manager CRDs and controllers.
 #
-# Manual apply (before Flux):
+# ClusterIssuers live in kubernetes/infrastructure/cert-manager-issuers/ and are
+# applied by a separate Flux Kustomization that dependsOn this one, ensuring
+# CRDs exist before ClusterIssuer objects are created.
+#
+# Manual apply (before Flux is bootstrapped):
 #   kubectl apply -k kubernetes/infrastructure/cert-manager
 #   kubectl wait --for=condition=available -n cert-manager deployment/cert-manager --timeout=120s
 #   kubectl wait --for=condition=available -n cert-manager deployment/cert-manager-webhook --timeout=120s
-#
-# Flux: depends on this Kustomization becoming Ready before cluster-issuers Kustomization runs.
+#   kubectl apply -k kubernetes/infrastructure/cert-manager-issuers
 resources:
   - https://github.com/cert-manager/cert-manager/releases/download/v1.19.3/cert-manager.yaml
 

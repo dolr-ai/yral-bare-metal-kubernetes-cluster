@@ -373,28 +373,44 @@ Ansible manages infrastructure *below* the Kubernetes API: OS provisioning, kube
 
 | Component | Location | Reason |
 |-----------|----------|--------|
-| Cilium CNI | Ansible role | Must exist before any pod can schedule |
+| Cilium CNI | Ansible role | Must exist before any pod can schedule (Day-1 bootstrap only) |
+| Cilium Day-2 (config/version) | `kubernetes/infrastructure/cilium/` | HelmRelease managed by Flux after bootstrap |
 | Gateway API CRDs | Ansible role | Cilium needs them at CNI startup |
 | cert-manager | `kubernetes/infrastructure/cert-manager/` | Runs as pods, managed declaratively |
+| cert-manager ClusterIssuers | `kubernetes/infrastructure/cert-manager-issuers/` | Separate dir — Flux enforces ordering via dependsOn |
 | Monitoring stack | `kubernetes/infrastructure/monitoring/` | Runs as pods, managed declaratively |
 | Gateway / HTTPRoute | `kubernetes/networking/` | Pure K8s objects |
 | Application workloads | `kubernetes/apps/` | Pure K8s objects |
 
-**Flux readiness**: `kubernetes/` is structured as a Flux Kustomization source. When Flux is bootstrapped, point it at `kubernetes/` — no restructuring needed.
+**Flux readiness**: `kubernetes/` is structured as a Flux Kustomization source. Bootstrap with:
+```bash
+flux bootstrap github \
+  --owner=dolr-ai \
+  --repository=yral-bare-metal-kubernetes-cluster \
+  --branch=main \
+  --path=./kubernetes/clusters/yral-k8s
+```
+Flux reconciliation order is enforced via `dependsOn` in `kubernetes/clusters/yral-k8s/`:
+- `infrastructure-cilium` (no deps)
+- `infrastructure-cert-manager` (no deps)
+- `infrastructure-cert-manager-issuers` → dependsOn: cert-manager
+- `networking` → dependsOn: cilium + cert-manager-issuers
 
-**Manual apply order** (before Flux, after cluster has 3 CPs + 1 worker):
+**Manual apply order** (before Flux is bootstrapped, after cluster has 3 CPs + 1 worker):
 ```bash
 # 1. Install cert-manager (controller + CRDs)
 kubectl apply -k kubernetes/infrastructure/cert-manager
 kubectl wait --for=condition=available -n cert-manager deployment/cert-manager --timeout=120s
 kubectl wait --for=condition=available -n cert-manager deployment/cert-manager-webhook --timeout=120s
 
-# 2. Apply ClusterIssuers (requires cert-manager CRDs to exist)
-kubectl apply -f kubernetes/infrastructure/cert-manager/cluster-issuers.yaml
+# 2. Apply Cilium Day-2 HelmRelease (requires Flux CRDs — skip until Flux is bootstrapped)
+# kubectl apply -k kubernetes/infrastructure/cilium
 
-# 3. Apply Gateway and routes
-kubectl apply -f kubernetes/networking/gateway.yaml
-kubectl apply -f kubernetes/networking/routes/
+# 3. Apply ClusterIssuers (requires cert-manager CRDs to exist)
+kubectl apply -k kubernetes/infrastructure/cert-manager-issuers
+
+# 4. Apply Gateway and routes
+kubectl apply -k kubernetes/networking
 ```
 
 **Do NOT embed `kubectl apply` of these manifests inside Ansible roles.** Ansible provisions infrastructure; Kubernetes manages its own workloads declaratively.
@@ -407,6 +423,7 @@ kubectl apply -f kubernetes/networking/routes/
 - ❌ Mutations via SSH: strictly prohibited — no `ssh root@<ip> "apt install ..."`, no `ssh root@<ip> "systemctl restart ..."`, no `ssh root@<ip> "kubeadm ..."`, no copying files to nodes by hand.
 - ❌ Mutations via `kubectl exec`: strictly prohibited for making changes to node state.
 - ❌ Mutations (installs, config changes, reboots, kubeadm operations): must live in a role task and be executed via a playbook.
+- ❌ Direct `helm` CLI mutations from the terminal: strictly prohibited — no `helm upgrade`, `helm install`, `helm uninstall`, or `helm repo add` as standalone terminal mutations. Helm operations that change cluster state must be embedded in a role (the role runs `helm` on the target node via Ansible) and invoked through a playbook. The only exception is read-only Helm commands like `helm list` or `helm status`.
 
 This ensures every change is:
   - **Idempotent**: re-running the playbook reaches the same end state

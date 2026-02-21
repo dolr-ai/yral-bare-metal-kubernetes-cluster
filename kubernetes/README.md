@@ -69,11 +69,13 @@ kubectl apply -f kubernetes/networking/routes/
 
 ## TLS workflow
 
-cert-manager handles TLS automatically:
+cert-manager handles TLS automatically via the gateway-shim controller:
 - The `web-gateway` is annotated with `cert-manager.io/cluster-issuer: letsencrypt-staging`
-- cert-manager creates `Secret/web-gateway-tls` in `kube-system` covering all hostnames in attached HTTPRoutes
+- cert-manager creates a per-hostname `Secret` in `kube-system` (e.g. `hubble-ui-yral-com-tls`) based on the `hostname` set on each HTTPS listener
 - HTTP-01 challenge: cert-manager creates a temporary HTTPRoute on port 80; Let's Encrypt validates via any CP IP
-- To switch to production certs: change annotation to `letsencrypt-prod`, delete `Secret/web-gateway-tls`
+- To switch to production certs: change the Gateway annotation to `letsencrypt-prod`, delete the TLS Secret — cert-manager re-issues it
+
+**Adding a new hostname** requires adding a new HTTPS listener to the Gateway with the correct `hostname` and a new `certificateRefs` Secret name.
 
 ## Adding a new service
 

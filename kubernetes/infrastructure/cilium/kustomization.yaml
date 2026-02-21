@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Cilium CNI — Day-2 management via Flux HelmRelease.
+#
+# Day-1 (bootstrap): Ansible `cilium` role installs Cilium at cluster init
+# so CNI exists before any pod (including Flux) can schedule.
+#
+# Day-2 (config/version changes): edit helmrelease.yaml values or bump
+# spec.chart.spec.version, commit, and Flux reconciles via `helm upgrade`.
+#
+# Manual apply (before Flux is bootstrapped):
+#   kubectl apply -k kubernetes/infrastructure/cilium
+#
+# Flux: depends on the cluster being ready; Flux reconciles this continuously.
+resources:
+  - helmrepository.yaml
+  - helmrelease.yaml
