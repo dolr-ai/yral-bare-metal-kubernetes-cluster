@@ -117,6 +117,32 @@ else
     echo "⚠ Vault password file not found — GitHub token setup skipped"
 fi
 
+# Create sops-age decryption key secret for Flux
+# Flux uses this to decrypt SOPS-encrypted secrets (e.g. cloudflare-api-token) from git.
+# The age private key is stored in vault and materialized into the cluster on every devcontainer start.
+echo ""
+echo "Setting up sops-age secret for Flux SOPS decryption..."
+if [ -f "$ANSIBLE_DIR/.vault_pass" ]; then
+    AGE_PRIVATE_KEY=$(ansible-vault view "$ANSIBLE_DIR/inventory/group_vars/all/vault.yml" 2>/dev/null | \
+        python3 -c "
+import sys, yaml
+d = yaml.safe_load(sys.stdin)
+print(d.get('vault_age_private_key', ''))
+")
+    if [ -n "$AGE_PRIVATE_KEY" ]; then
+        kubectl create secret generic sops-age \
+            --namespace flux-system \
+            --from-literal=age.agekey="$AGE_PRIVATE_KEY" \
+            --dry-run=client -o yaml | kubectl apply -f - && \
+            echo "✓ sops-age secret applied in flux-system namespace" || \
+            echo "⚠ Could not apply sops-age secret (cluster may not be reachable yet)"
+    else
+        echo "⚠ vault_age_private_key not found in vault — run SOPS setup first (see .sops.yaml)"
+    fi
+else
+    echo "⚠ Vault password file not found — sops-age setup skipped"
+fi
+
 # Configure GitHub CLI to use SSH
 echo ""
 echo "Configuring GitHub CLI..."

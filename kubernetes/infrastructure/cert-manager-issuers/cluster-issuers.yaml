@@ -4,18 +4,19 @@
 #   letsencrypt-staging  — use while testing; no rate limits, certs are untrusted
 #   letsencrypt-prod     — use for real services; browser-trusted, strict rate limits
 #
-# HTTP-01 challenge flow:
-#   cert-manager creates a temporary HTTPRoute on the web-gateway HTTP listener (port 80).
-#   Let's Encrypt hits /.well-known/acme-challenge/<token> on any CP public IP.
-#   DNS round-robin ensures at least one CP responds — challenge succeeds.
+# DNS-01 challenge flow:
+#   cert-manager calls the Cloudflare API to create a _acme-challenge TXT record.
+#   Let's Encrypt validates via DNS — works through Cloudflare orange-cloud proxy.
+#   Supports wildcards (*.yral.com).
+#
+# Cloudflare API token secret:
+#   Name: cloudflare-api-token, Namespace: cert-manager, Key: api-token
+#   Managed by Flux via SOPS-encrypted cloudflare-api-token.sops.yaml in this directory.
 #
 # Switching from staging to prod:
-#   1. Change cert-manager.io/cluster-issuer annotation on the HTTPRoute to letsencrypt-prod
-#   2. Delete the TLS Secret (e.g. hubble-yral-com-tls) so cert-manager re-issues it
+#   1. Change cert-manager.io/cluster-issuer annotation on Gateway to letsencrypt-prod
+#   2. Delete the TLS Secret so cert-manager re-issues it
 #   3. cert-manager requests a prod cert automatically
-#
-# Apply AFTER cert-manager pods are running:
-#   kubectl apply -f kubernetes/infrastructure/cert-manager/cluster-issuers.yaml
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -28,13 +29,11 @@ spec:
     privateKeySecretRef:
       name: letsencrypt-staging-account-key
     solvers:
-      - http01:
-          gatewayHTTPRoute:
-            parentRefs:
-              - name: web-gateway
-                namespace: kube-system
-                kind: Gateway
-                sectionName: http
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -47,10 +46,8 @@ spec:
     privateKeySecretRef:
       name: letsencrypt-prod-account-key
     solvers:
-      - http01:
-          gatewayHTTPRoute:
-            parentRefs:
-              - name: web-gateway
-                namespace: kube-system
-                kind: Gateway
-                sectionName: http
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token

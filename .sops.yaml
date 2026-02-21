@@ -1,0 +1,21 @@
+# SOPS configuration for encrypting Kubernetes secrets
+#
+# Usage:
+#   Encrypt:  sops --encrypt --in-place kubernetes/path/to/file.sops.yaml
+#   Decrypt:  sops --decrypt kubernetes/path/to/file.sops.yaml
+#   Edit:     sops kubernetes/path/to/file.sops.yaml
+#
+# All files matching *.sops.yaml under kubernetes/ are encrypted with age.
+# The age public key below comes from the age keypair stored in ansible-vault.
+#
+# Initial setup (run once after devcontainer rebuild):
+#   1. age-keygen -o /tmp/age.key
+#   2. Copy the public key line (# public key: age1...) from the output
+#   3. Replace the placeholder below with that public key
+#   4. Store the full /tmp/age.key content in vault as vault_age_private_key
+#   5. rm /tmp/age.key
+#
+creation_rules:
+  - path_regex: kubernetes/.*\.sops\.yaml$
+    age: >-
+      age1pdqae3ffmt9rxtmn2758pxjqaaxnytg6mzx3wpepuhs7de2ttfkqk3z7hl

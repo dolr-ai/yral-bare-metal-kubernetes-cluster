@@ -16,3 +16,9 @@ kubeconfig: "{{ vault_kubeconfig }}"  # Indirection to vault
 
 # GitHub PAT for Flux bootstrap (stored in vault, exported as GITHUB_TOKEN by postCreate.sh)
 github_flux_token: "{{ vault_github_flux_token }}"  # Indirection to vault
+
+# Age private key for Flux SOPS decryption
+# postCreate.sh creates k8s Secret 'sops-age' in flux-system namespace.
+# Flux uses this key to decrypt *.sops.yaml files from git (e.g. cloudflare-api-token).
+# To generate: age-keygen -o /tmp/age.key  (then store contents as vault_age_private_key)
+age_private_key: "{{ vault_age_private_key }}"  # Indirection to vault

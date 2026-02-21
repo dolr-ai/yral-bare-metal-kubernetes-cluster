@@ -1,24 +1,23 @@
 # web-gateway — shared Gateway for all cluster services
 #
 # Handles:
-#   - HTTP (port 80):  ACME HTTP-01 challenges + redirect to HTTPS (via HTTPRoute)
+#   - HTTP (port 80):  redirect to HTTPS (via HTTPRoute)
 #   - HTTPS (port 443): TLS termination for all services
 #
 # Traffic path:
 #   DNS *.yral.com → A records for all 5 CP IPv4 addresses (round-robin)
-#   → any CP:80/443 (NodePort via Cilium Ingress Controller)
-#   → Cilium Envoy (Gateway API implementation)
-#   → cert-manager manages the TLS secret via the cert-manager.io/cluster-issuer annotation
+#   → any CP:80/443 (Cilium Envoy, hostNetwork mode — binds directly to host port)
+#   → TLS terminated with Let's Encrypt wildcard cert (*.yral.com)
 #   → backend pod
+#
+# TLS certificate:
+#   Managed by cert-manager via DNS-01 challenge against Cloudflare API.
+#   Wildcard *.yral.com — covers all subdomains; no per-service cert changes needed.
+#   Secret: wildcard-yral-com-tls in kube-system (created/renewed automatically).
+#   Switching to prod: change annotation to letsencrypt-prod + delete the secret.
 #
 # Adding a new service: create an HTTPRoute in the appropriate namespace.
 # No changes to this Gateway are required.
-#
-# cert-manager: TLS certificates are managed per-hostname. Each HTTPRoute attached
-# to the https listener carries a cert-manager.io/cluster-issuer annotation —
-# cert-manager's gateway-shim creates a Certificate + Secret per hostname.
-# The HTTPS listener certificateRefs must name the Secret for that hostname.
-# Start with letsencrypt-staging and switch to letsencrypt-prod once verified.
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
@@ -39,11 +38,11 @@ spec:
     - name: https
       port: 443
       protocol: HTTPS
-      hostname: "hubble-ui.yral.com"
+      hostname: "*.yral.com"
       tls:
         mode: Terminate
         certificateRefs:
-          - name: hubble-ui-yral-com-tls
+          - name: wildcard-yral-com-tls
             kind: Secret
       allowedRoutes:
         namespaces:

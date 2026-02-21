@@ -201,7 +201,83 @@ vault_password_file = ansible/.vault_pass
 ```
 This enables automatic loading of vault variables without pre_tasks.
 
-### 9. Lint and Validation
+### 9. Kubernetes Secrets Management (SOPS + Flux)
+
+Kubernetes secrets that belong to cluster workloads (e.g. `cloudflare-api-token` for cert-manager) are managed via **SOPS-encrypted files committed to git**. Flux decrypts them at apply time using an age keypair.
+
+**Two-tier secret strategy:**
+
+| Secret | Stored in | Materialized by |
+|--------|-----------|-----------------|
+| Ansible/infra secrets (SSH keys, API passwords, kubeconfig, GitHub PAT) | `ansible-vault` (`vault.yml`) | `postCreate.sh` |
+| Age private key (Flux decryption root of trust) | `ansible-vault` (`vault.yml`) | `postCreate.sh` → `sops-age` Secret in `flux-system` |
+| Kubernetes workload secrets (cloudflare token, etc.) | SOPS-encrypted `*.sops.yaml` in `kubernetes/` | Flux (decrypts via `sops-age` key) |
+
+**Why this split:**
+- Ansible vault protects infrastructure-level secrets (pre-cluster-API)
+- SOPS protects cluster workload secrets (post-cluster-API, fully GitOps)
+- `postCreate.sh` only handles the bridge: it materializes the age key into the cluster so Flux can take over
+
+**SOPS setup (one-time per cluster):**
+```bash
+# 1. Generate age keypair
+age-keygen -o /tmp/age.key
+# Output includes: # public key: age1...
+
+# 2. Copy public key into .sops.yaml (replace placeholder)
+
+# 3. Add private key to ansible vault
+ansible-vault edit ansible/inventory/group_vars/all/vault.yml
+# Add: vault_age_private_key: |
+#        # created: ...
+#        # public key: age1...
+#        AGE-SECRET-KEY-...
+
+# 4. Remove temp key file
+rm /tmp/age.key
+
+# 5. Source postCreate.sh to apply sops-age secret to cluster
+source .devcontainer/postCreate.sh
+```
+
+**Adding a new Kubernetes secret (SOPS workflow):**
+```bash
+# 1. Create the secret YAML (must be named *.sops.yaml)
+cat > kubernetes/path/to/my-secret.sops.yaml << 'EOF'
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+  namespace: my-namespace
+type: Opaque
+stringData:
+  key: value
+EOF
+
+# 2. Encrypt it (requires .sops.yaml to have correct public key)
+sops --encrypt --in-place kubernetes/path/to/my-secret.sops.yaml
+
+# 3. Add to the directory's kustomization.yaml resources list
+
+# 4. Add decryption block to the Flux Kustomization that applies this directory
+```
+
+**Flux Kustomization decryption block:**
+```yaml
+spec:
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-age   # Secret in flux-system namespace
+```
+
+**Rules:**
+- `*.sops.yaml` files MUST be encrypted before committing — never commit plaintext secrets
+- Only the Flux Kustomization that applies the directory containing encrypted files needs the `decryption:` block
+- The `sops-age` Secret in `flux-system` is the single root of trust; without it Flux cannot decrypt
+- The age private key lives ONLY in ansible-vault and the ephemeral `sops-age` cluster secret — never in git
+
+### 10. Lint and Validation
 
 - Run from workspace root: `ansible-lint ansible/playbooks/operations/`
 - All playbooks must pass lint checks
@@ -209,7 +285,7 @@ This enables automatic loading of vault variables without pre_tasks.
   - `role-name` (hyphenated names allowed)
   - `syntax-check[specific]` (for `{{ target_host }}` runtime variables)
 
-### 10. Error Handling and Validation
+### 11. Error Handling and Validation
 
 In roles:
 - Use `ansible.builtin.fail` with clear messages
