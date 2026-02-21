@@ -353,24 +353,44 @@ Multi-node upgrade orchestration (happens in playbook via `node-upgrade` role):
 
 ### Kubernetes Manifests (`kubernetes/`)
 
-Pure Kubernetes declarative objects live in `kubernetes/`, not in `ansible/`. This separation is intentional:
+**Strict separation rule: if it runs as a pod, it belongs in `kubernetes/`, never in Ansible.**
+
+Ansible manages infrastructure *below* the Kubernetes API: OS provisioning, kubelet, containerd, kube-vip, kubeadm cluster initialization, and the few components Kubernetes itself needs to start (CNI, Gateway API CRDs). Once the cluster API is available, **all further workloads** — cert-manager, monitoring, Flux, application services — are expressed as Kubernetes resources in `kubernetes/`.
 
 | Location | Contents | Applied by |
 |----------|----------|------------|
-| `ansible/manifests/` | Helm values files | Ansible roles (via `copy` module) |
-| `kubernetes/` | K8s objects, CRDs | `kubectl apply` after cluster is ready |
+| `ansible/manifests/` | Helm values files consumed by Ansible roles | Ansible roles (via `copy` module) |
+| `kubernetes/` | All K8s objects: Gateways, HTTPRoutes, Kustomizations, HelmReleases, workloads | `kubectl apply` (manual) → Flux (GitOps) |
 
-**Rule**: If it's a Kubernetes object (Service, CRD, ConfigMap, etc.), it belongs in `kubernetes/`. If it's configuration consumed by an Ansible role, it belongs in `ansible/manifests/`.
+**Examples of what goes where:**
 
-**When to apply**: After the cluster has sufficient nodes for the workloads to schedule. For the current cluster: 3 CPs + at least 1 worker.
+| Component | Location | Reason |
+|-----------|----------|--------|
+| Cilium CNI | Ansible role | Must exist before any pod can schedule |
+| Gateway API CRDs | Ansible role | Cilium needs them at CNI startup |
+| cert-manager | `kubernetes/infrastructure/cert-manager/` | Runs as pods, managed declaratively |
+| Monitoring stack | `kubernetes/infrastructure/monitoring/` | Runs as pods, managed declaratively |
+| Gateway / HTTPRoute | `kubernetes/networking/` | Pure K8s objects |
+| Application workloads | `kubernetes/apps/` | Pure K8s objects |
 
+**Flux readiness**: `kubernetes/` is structured as a Flux Kustomization source. When Flux is bootstrapped, point it at `kubernetes/` — no restructuring needed.
+
+**Manual apply order** (before Flux, after cluster has 3 CPs + 1 worker):
 ```bash
-# Apply in order — pool must exist before services request IPs from it
-kubectl apply -f kubernetes/networking/cilium-lb-pool.yaml
-kubectl apply -f kubernetes/networking/hubble-ui-service.yaml
+# 1. Install cert-manager (controller + CRDs)
+kubectl apply -k kubernetes/infrastructure/cert-manager
+kubectl wait --for=condition=available -n cert-manager deployment/cert-manager --timeout=120s
+kubectl wait --for=condition=available -n cert-manager deployment/cert-manager-webhook --timeout=120s
+
+# 2. Apply ClusterIssuers (requires cert-manager CRDs to exist)
+kubectl apply -f kubernetes/infrastructure/cert-manager/cluster-issuers.yaml
+
+# 3. Apply Gateway and routes
+kubectl apply -f kubernetes/networking/gateway.yaml
+kubectl apply -f kubernetes/networking/routes/
 ```
 
-**Do NOT embed `kubectl apply` of these manifests inside Ansible roles.** Ansible provisions infrastructure; Kubernetes manages its own workloads declaratively. When ArgoCD/Flux is added, this directory becomes the GitOps source with zero restructuring.
+**Do NOT embed `kubectl apply` of these manifests inside Ansible roles.** Ansible provisions infrastructure; Kubernetes manages its own workloads declaratively.
 
 ## Deployment Execution Principle
 
