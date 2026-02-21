@@ -15,6 +15,8 @@ spec:
         namespace: kube-system
   # Upgrade strategy: never uninstall on failure — Cilium is CNI, pulling it
   # out would take down all pod networking. Instead, retry the upgrade.
+  # 15m timeout: Cilium DaemonSet rolling update across all nodes takes >5m.
+  timeout: 15m
   upgrade:
     remediation:
       retries: 3
