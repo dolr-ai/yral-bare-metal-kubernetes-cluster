@@ -94,7 +94,9 @@ spec:
         capabilities:
           keepCapNetBindService: true
           envoy:
-            - NET_BIND_SERVICE
+            - NET_ADMIN       # Required for IP_TRANSPARENT socket option (proxy)
+            - SYS_ADMIN       # Required for BPF datapath integration (< kernel 5.8)
+            - NET_BIND_SERVICE # Required to bind privileged ports 80/443 on host network
       resources:
         limits:
           cpu: 500m
