@@ -12,7 +12,7 @@
 - name: Display target host information
   ansible.builtin.debug:
     msg:
-      - "Installing containerd on: {{ ansible_hostname }}"
+      - "Installing containerd on: {{ ansible_facts['hostname'] }}"
       - "IP: {{ ansible_host }}"
       - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
 

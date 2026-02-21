@@ -6,7 +6,7 @@
 
 - name: Skip if already joined
   ansible.builtin.debug:
-    msg: "Node {{ ansible_hostname }} is already part of the cluster"
+    msg: "Node {{ ansible_facts['hostname'] }} is already part of the cluster"
   when: kubelet_conf_stat.stat.exists
 
 - name: Join worker node to cluster

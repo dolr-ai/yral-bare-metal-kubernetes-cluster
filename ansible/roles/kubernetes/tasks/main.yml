@@ -5,7 +5,7 @@
 - name: Display target host information
   ansible.builtin.debug:
     msg:
-      - "Installing Kubernetes v1.35 on: {{ ansible_hostname }}"
+      - "Installing Kubernetes v1.35 on: {{ ansible_facts['hostname'] }}"
       - "IP: {{ ansible_host }}"
       - "Node type: {{ node_type }}"
 

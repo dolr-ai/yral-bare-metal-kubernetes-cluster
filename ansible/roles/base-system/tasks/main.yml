@@ -39,7 +39,7 @@
 
 - name: Verify hostname
   ansible.builtin.debug:
-    msg: "Current hostname: {{ ansible_hostname }}"
+    msg: "Current hostname: {{ ansible_facts['hostname'] }}"
 
 - name: Display system information
   ansible.builtin.debug:

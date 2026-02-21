@@ -2,7 +2,7 @@
 - name: Display etcd backup configuration
   ansible.builtin.debug:
     msg:
-      - "Configuring etcd backups on: {{ ansible_hostname }}"
+      - "Configuring etcd backups on: {{ ansible_facts['hostname'] }}"
       - "Backup directory: {{ etcd_backup_dir | default('/var/backups/etcd') }}"
       - "Retention: {{ etcd_retention_count | default('10') }} snapshots"
       - "Schedule: {{ etcd_backup_schedule | default('0 2 * * *') }} (Daily at 2 AM UTC)"
@@ -56,7 +56,7 @@
       BACKUP_DIR="{{ etcd_backup_dir }}"
       RETENTION_COUNT={{ etcd_retention_count }}
       S3_BUCKET="{{ hetzner_s3_bucket }}"
-      HOSTNAME="{{ ansible_hostname }}"
+      HOSTNAME="{{ ansible_facts['hostname'] }}"
       TIMESTAMP=$(date +%Y%m%d-%H%M%S)
       BACKUP_FILE="${BACKUP_DIR}/etcd-snapshot-${HOSTNAME}-${TIMESTAMP}.db"
 
@@ -165,24 +165,24 @@
   register: backup_test
   changed_when: false
   failed_when: false
-  when: ansible_hostname == groups['control_plane'][0]
+  when: ansible_facts['hostname'] == groups['control_plane'][0]
 
 - name: Display backup test results
   ansible.builtin.debug:
     msg: "{{ backup_test.stdout_lines }}"
-  when: ansible_hostname == groups['control_plane'][0] and backup_test.rc is defined
+  when: ansible_facts['hostname'] == groups['control_plane'][0] and backup_test.rc is defined
 
 - name: Verify backup was created
   ansible.builtin.find:
     paths: "{{ etcd_backup_dir }}"
     patterns: "etcd-snapshot-*.db"
   register: backup_files
-  when: ansible_hostname == groups['control_plane'][0]
+  when: ansible_facts['hostname'] == groups['control_plane'][0]
 
 - name: Display backup files
   ansible.builtin.debug:
     msg: "Found {{ backup_files.matched }} backup file(s)"
-  when: ansible_hostname == groups['control_plane'][0]
+  when: ansible_facts['hostname'] == groups['control_plane'][0]
 
 - name: Display setup summary
   ansible.builtin.debug:
@@ -203,7 +203,7 @@
       - "  tail -f /var/log/etcd-backup.log"
       - ""
       - "List S3 backups:"
-      - "  s3cmd ls s3://{{ hetzner_s3_bucket }}/etcd-backups/{{ ansible_hostname }}/"
+      - "  s3cmd ls s3://{{ hetzner_s3_bucket }}/etcd-backups/{{ ansible_facts['hostname'] }}/"
       - ""
       - "⚠️  Note: Backups are stored per-node in S3"
       - "⚠️  Test restore procedure before relying on backups!"

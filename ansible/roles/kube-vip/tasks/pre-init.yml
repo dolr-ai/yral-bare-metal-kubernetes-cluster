@@ -7,7 +7,7 @@
 - name: Display kube-vip pre-init information
   ansible.builtin.debug:
     msg:
-      - "Deploying kube-vip static pod manifest (pre-init) on: {{ ansible_hostname }}"
+      - "Deploying kube-vip static pod manifest (pre-init) on: {{ ansible_facts['hostname'] }}"
       - "kube-vip version: {{ kube_vip_version }}"
       - "Control plane VIP: {{ control_plane_vip }}"
       - "Control plane endpoint: {{ control_plane_endpoint }}"

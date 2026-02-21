@@ -1,6 +1,6 @@
 ---
 - name: Wait for node to be registered
-  ansible.builtin.shell: kubectl get node {{ ansible_hostname }} --no-headers 2>/dev/null | wc -l
+  ansible.builtin.shell: kubectl get node {{ ansible_facts['hostname'] }} --no-headers 2>/dev/null | wc -l
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   register: node_check
@@ -12,7 +12,7 @@
 
 - name: Apply topology labels to node
   ansible.builtin.command: >
-    kubectl label node {{ ansible_hostname }}
+    kubectl label node {{ ansible_facts['hostname'] }}
     topology.kubernetes.io/zone={{ datacenter }}
     topology.kubernetes.io/region={{ region }}
     topology.kubernetes.io/country={{ country }}
@@ -25,7 +25,7 @@
 
 - name: Apply disk type label to node
   ansible.builtin.command: >
-    kubectl label node {{ ansible_hostname }}
+    kubectl label node {{ ansible_facts['hostname'] }}
     node.yral.com/disk-type={{ disk_type }}
     --overwrite
   environment:
@@ -37,7 +37,7 @@
 
 - name: Apply workload preference label for NVMe nodes
   ansible.builtin.command: >
-    kubectl label node {{ ansible_hostname }}
+    kubectl label node {{ ansible_facts['hostname'] }}
     node.yral.com/workload-preference=stateful
     --overwrite
   environment:
@@ -48,7 +48,7 @@
   when: disk_type is defined and disk_type == "nvme"
 
 - name: Verify control plane taint
-  ansible.builtin.command: kubectl get node {{ ansible_hostname }} -o jsonpath='{.spec.taints}'
+  ansible.builtin.command: kubectl get node {{ ansible_facts['hostname'] }} -o jsonpath='{.spec.taints}'
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   delegate_to: "{{ groups['control_plane'][0] }}"
@@ -59,12 +59,12 @@
 - name: Display taint status for control plane
   ansible.builtin.debug:
     msg:
-      - "Control plane node {{ ansible_hostname }} taints:"
+      - "Control plane node {{ ansible_facts['hostname'] }} taints:"
       - "{{ taint_check.stdout }}"
   when: node_type == "control-plane"
 
 - name: Verify node labels
-  ansible.builtin.command: kubectl get node {{ ansible_hostname }} --show-labels
+  ansible.builtin.command: kubectl get node {{ ansible_facts['hostname'] }} --show-labels
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   delegate_to: "{{ groups['control_plane'][0] }}"

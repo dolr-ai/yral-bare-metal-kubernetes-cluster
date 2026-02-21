@@ -6,7 +6,7 @@
 
 - name: Determine if this is the first control plane
   ansible.builtin.set_fact:
-    is_first_control_plane: "{{ ansible_hostname == groups['control_plane'][0] }}"
+    is_first_control_plane: "{{ ansible_facts['hostname'] == groups['control_plane'][0] }}"
 
 - name: Validate this is the first control plane
   ansible.builtin.assert:

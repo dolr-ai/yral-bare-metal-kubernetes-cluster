@@ -2,7 +2,7 @@
 - name: Display target host information
   ansible.builtin.debug:
     msg:
-      - "Installing Helm on: {{ ansible_hostname }}"
+      - "Installing Helm on: {{ ansible_facts['hostname'] }}"
       - "IP: {{ ansible_host }}"
       - "Node type: {{ node_type }}"
 
