@@ -1,12 +1,12 @@
 # Hubble UI HTTPRoute
 #
-# Exposes the Cilium Hubble UI at https://hubble.yral.com
+# Exposes the Cilium Hubble UI at https://hubble-ui.yral.com
 #
 # Two rules:
 #   1. HTTP → HTTPS redirect (any path on port 80)
 #   2. HTTPS → hubble-ui service on port 80 (TLS terminated by web-gateway)
 #
-# cert-manager sees hubble.yral.com in this HTTPRoute's hostnames and includes
+# cert-manager sees hubble-ui.yral.com in this HTTPRoute's hostnames and includes
 # it in the web-gateway-tls certificate automatically.
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -20,7 +20,7 @@ spec:
       namespace: kube-system
       sectionName: http
   hostnames:
-    - hubble.yral.com
+    - hubble-ui.yral.com
   rules:
     - filters:
         - type: RequestRedirect
@@ -39,7 +39,7 @@ spec:
       namespace: kube-system
       sectionName: https
   hostnames:
-    - hubble.yral.com
+    - hubble-ui.yral.com
   rules:
     - backendRefs:
         - name: hubble-ui
