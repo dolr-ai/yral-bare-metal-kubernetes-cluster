@@ -311,9 +311,16 @@ Multi-node upgrade orchestration (happens in playbook via `node-upgrade` role):
 
 ## Component Versioning Policy
 
-**Default: always start with the latest released version of each component.**
+**Always ask the user which version to pin before adding or upgrading any component.**
 
-- When adding or upgrading any component (kube-vip, Cilium, Helm, containerd, etc.), use the latest stable release.
+When introducing a new component or upgrading an existing one:
+1. Identify the component's releases page (e.g. `https://github.com/<org>/<repo>/releases`).
+2. Share the releases URL with the user and ask which version to pin.
+3. Wait for an explicit version number before writing any code or defaults.
+4. Pin exactly that version in `roles/<role>/defaults/main.yml`.
+
+Never silently pick "latest" or assume the most recent release — always get explicit user confirmation first.
+
 - Only downgrade to an older version if the latest is confirmed incompatible with the current Kubernetes version, and document the reason in the role's `defaults/main.yml`.
 - During Kubernetes version upgrades, upgrade other components **one at a time**, following each component's own upgrade guidance before moving to the next.
 - Version pins live exclusively in `roles/<role>/defaults/main.yml` — never hardcoded in task files or playbooks.
