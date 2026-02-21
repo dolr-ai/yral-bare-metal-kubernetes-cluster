@@ -7,7 +7,7 @@
 - name: Apply Gateway API standard-channel CRDs
   ansible.builtin.command: >
     kubectl apply -f
-    https://github.com/kubernetes-sigs/gateway-api/releases/download/{{ gateway_api_version }}/standard-channel.yaml
+    https://github.com/kubernetes-sigs/gateway-api/releases/download/{{ gateway_api_version }}/standard-install.yaml
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   register: gateway_crds_result
