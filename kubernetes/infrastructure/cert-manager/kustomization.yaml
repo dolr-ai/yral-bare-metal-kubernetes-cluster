@@ -11,3 +11,22 @@ kind: Kustomization
 # Flux: depends on this Kustomization becoming Ready before cluster-issuers Kustomization runs.
 resources:
   - https://github.com/cert-manager/cert-manager/releases/download/v1.19.3/cert-manager.yaml
+
+patches:
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: cert-manager
+        namespace: cert-manager
+      spec:
+        template:
+          spec:
+            containers:
+              - name: cert-manager-controller
+                args:
+                  - --v=2
+                  - --cluster-resource-namespace=$(POD_NAMESPACE)
+                  - --leader-election-namespace=kube-system
+                  - --acme-http01-solver-image=quay.io/jetstack/cert-manager-acmesolver:v1.19.3
+                  - --enable-gateway-api

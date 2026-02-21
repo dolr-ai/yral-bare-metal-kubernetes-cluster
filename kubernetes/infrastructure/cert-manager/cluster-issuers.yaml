@@ -10,8 +10,8 @@
 #   DNS round-robin ensures at least one CP responds — challenge succeeds.
 #
 # Switching from staging to prod:
-#   1. Change cert-manager.io/cluster-issuer annotation on the Gateway to letsencrypt-prod
-#   2. Delete the TLS Secret (e.g. web-gateway-tls) so cert-manager re-issues it
+#   1. Change cert-manager.io/cluster-issuer annotation on the HTTPRoute to letsencrypt-prod
+#   2. Delete the TLS Secret (e.g. hubble-yral-com-tls) so cert-manager re-issues it
 #   3. cert-manager requests a prod cert automatically
 #
 # Apply AFTER cert-manager pods are running:
@@ -34,6 +34,7 @@ spec:
               - name: web-gateway
                 namespace: kube-system
                 kind: Gateway
+                sectionName: http
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -52,3 +53,4 @@ spec:
               - name: web-gateway
                 namespace: kube-system
                 kind: Gateway
+                sectionName: http

@@ -23,8 +23,6 @@ kind: Gateway
 metadata:
   name: web-gateway
   namespace: kube-system
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-staging
 spec:
   gatewayClassName: cilium
   listeners:
@@ -37,10 +35,11 @@ spec:
     - name: https
       port: 443
       protocol: HTTPS
+      hostname: "hubble-ui.yral.com"
       tls:
         mode: Terminate
         certificateRefs:
-          - name: web-gateway-tls
+          - name: hubble-ui-yral-com-tls
             kind: Secret
       allowedRoutes:
         namespaces:
