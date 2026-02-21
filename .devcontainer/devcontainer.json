@@ -10,7 +10,8 @@
 			"version": "3.12"
 		},
 		"ghcr.io/devcontainers-extra/features/ansible:2": {},
-		"ghcr.io/devcontainers/features/github-cli:1": {}
+		"ghcr.io/devcontainers/features/github-cli:1": {},
+		"ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {}
 	},
 	// Mount SSH agent socket from WSL host into container
 	"mounts": [

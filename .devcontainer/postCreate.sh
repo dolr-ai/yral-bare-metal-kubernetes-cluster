@@ -70,6 +70,30 @@ else
     echo "  See: https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster/blob/main/README.md#ssh-setup"
 fi
 
+# Extract cluster kubeconfig for local kubectl access
+echo ""
+echo "Setting up cluster kubeconfig..."
+if [ -f "$ANSIBLE_DIR/.vault_pass" ]; then
+    mkdir -p ~/.kube
+    ansible-vault view "$ANSIBLE_DIR/inventory/group_vars/all/vault.yml" 2>/dev/null | \
+        python3 -c "
+import sys, yaml
+d = yaml.safe_load(sys.stdin)
+kubeconfig = d.get('vault_kubeconfig', '')
+if kubeconfig:
+    print(kubeconfig.rstrip())
+" > ~/.kube/config
+    if [ -s ~/.kube/config ]; then
+        chmod 600 ~/.kube/config
+        echo "✓ Cluster kubeconfig written to ~/.kube/config"
+    else
+        rm -f ~/.kube/config
+        echo "⚠ Kubeconfig not found in vault (cluster may not be initialized yet)"
+    fi
+else
+    echo "⚠ Vault password file not found — kubeconfig setup skipped"
+fi
+
 # Configure GitHub CLI to use SSH
 echo ""
 echo "Configuring GitHub CLI..."

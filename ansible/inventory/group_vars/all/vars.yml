@@ -10,3 +10,6 @@ hetzner_robot_api_password: "{{ vault_hetzner_robot_api_password }}"  # Indirect
 # Hetzner S3 credentials
 hetzner_s3_access_key: "XO5X9A1W8AMHY3DSTKMS"
 hetzner_s3_secret_key: "{{ vault_hetzner_s3_secret_key }}"  # Indirection to vault
+
+# Kubernetes cluster admin kubeconfig (stored in vault, used by postCreate.sh)
+kubeconfig: "{{ vault_kubeconfig }}"  # Indirection to vault
