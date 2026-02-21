@@ -78,7 +78,7 @@ The only legitimate guards in roles are:
 Used for cluster Day-2 operations. Each operation is a single play calling one role.
 
 **Current operations** (must remain pure thin wrappers chaining atomic roles):
-1. `init-control-plane.yml` - Bootstrap first control plane (hardcoded to control-plane-1, chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → kube-vip[pre-init] → cluster-init → kube-vip[post-init] → helm → cilium)
+1. `init-control-plane.yml` - Bootstrap first control plane (hardcoded to control-plane-1, chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → kube-vip[pre-init] → cluster-init → kube-vip[post-init] → node-labels → helm → gateway-api-crds → cilium)
 2. `add-control-plane.yml` - Add control plane for HA (chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → control-plane-join → kube-vip → node-labels). Cilium DaemonSet deploys automatically via the existing installation.
 3. `add-worker.yml` - Add worker node (chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → worker-join → node-labels)
 4. `remove-node.yml` - Remove node from cluster (calls: `node-remove` role)

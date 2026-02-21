@@ -1,0 +1,20 @@
+---
+# Install Gateway API CRDs (standard channel).
+# Must run BEFORE Cilium is deployed so Cilium's gatewayAPI controller can
+# register against the GatewayClass CRD on startup.
+# apply is idempotent — safe to re-run, does nothing if already at the target version.
+
+- name: Apply Gateway API standard-channel CRDs
+  ansible.builtin.command: >
+    kubectl apply -f
+    https://github.com/kubernetes-sigs/gateway-api/releases/download/{{ gateway_api_version }}/standard-channel.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: gateway_crds_result
+  changed_when: >
+    'created' in gateway_crds_result.stdout or
+    'configured' in gateway_crds_result.stdout
+
+- name: Display Gateway API CRD result
+  ansible.builtin.debug:
+    msg: "{{ gateway_crds_result.stdout_lines }}"

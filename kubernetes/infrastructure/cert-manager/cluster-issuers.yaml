@@ -1,0 +1,54 @@
+# Let's Encrypt ClusterIssuers
+#
+# Two issuers:
+#   letsencrypt-staging  — use while testing; no rate limits, certs are untrusted
+#   letsencrypt-prod     — use for real services; browser-trusted, strict rate limits
+#
+# HTTP-01 challenge flow:
+#   cert-manager creates a temporary HTTPRoute on the web-gateway HTTP listener (port 80).
+#   Let's Encrypt hits /.well-known/acme-challenge/<token> on any CP public IP.
+#   DNS round-robin ensures at least one CP responds — challenge succeeds.
+#
+# Switching from staging to prod:
+#   1. Change cert-manager.io/cluster-issuer annotation on the Gateway to letsencrypt-prod
+#   2. Delete the TLS Secret (e.g. web-gateway-tls) so cert-manager re-issues it
+#   3. cert-manager requests a prod cert automatically
+#
+# Apply AFTER cert-manager pods are running:
+#   kubectl apply -f kubernetes/infrastructure/cert-manager/cluster-issuers.yaml
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: ops@yral.com
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+    solvers:
+      - http01:
+          gatewayHTTPRoute:
+            parentRefs:
+              - name: web-gateway
+                namespace: kube-system
+                kind: Gateway
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: ops@yral.com
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          gatewayHTTPRoute:
+            parentRefs:
+              - name: web-gateway
+                namespace: kube-system
+                kind: Gateway

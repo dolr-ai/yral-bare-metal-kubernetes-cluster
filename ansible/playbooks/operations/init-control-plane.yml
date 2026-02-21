@@ -38,4 +38,6 @@
     - ansible.builtin.include_role:
         name: helm
     - ansible.builtin.include_role:
+        name: gateway-api-crds
+    - ansible.builtin.include_role:
         name: cilium
