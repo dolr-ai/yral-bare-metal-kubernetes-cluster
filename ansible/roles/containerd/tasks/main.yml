@@ -14,7 +14,7 @@
     msg:
       - "Installing containerd on: {{ ansible_facts['hostname'] }}"
       - "IP: {{ ansible_host }}"
-      - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+      - "OS: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
 
 - name: Install prerequisites for containerd
   ansible.builtin.apt:

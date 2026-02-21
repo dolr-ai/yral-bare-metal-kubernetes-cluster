@@ -44,9 +44,9 @@
 - name: Display system information
   ansible.builtin.debug:
     msg:
-      - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
-      - "Kernel: {{ ansible_kernel }}"
-      - "Architecture: {{ ansible_architecture }}"
+      - "OS: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
+      - "Kernel: {{ ansible_facts['kernel'] }}"
+      - "Architecture: {{ ansible_facts['architecture'] }}"
 
 - name: Display upgrade results
   ansible.builtin.debug:
