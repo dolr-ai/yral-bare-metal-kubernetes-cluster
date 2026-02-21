@@ -85,6 +85,14 @@ spec:
 
     envoy:
       enabled: true
+      # Required for hostNetwork mode with privileged ports (80, 443 < 1024).
+      # Without NET_BIND_SERVICE, Envoy cannot bind to ports <= 1023.
+      # ref: https://docs.cilium.io/en/v1.19/network/servicemesh/gateway-api/host-network-mode/#bind-to-privileged-port
+      securityContext:
+        capabilities:
+          keepCapNetBindService: true
+          envoy:
+            - NET_BIND_SERVICE
       resources:
         limits:
           cpu: 500m
