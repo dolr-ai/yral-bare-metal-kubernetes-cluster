@@ -1,0 +1,20 @@
+---
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: InitConfiguration
+localAPIEndpoint:
+  advertiseAddress: "{{ ansible_host }}"
+  bindPort: 6443
+skipPhases:
+  - addon/kube-proxy
+---
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: ClusterConfiguration
+controlPlaneEndpoint: "{{ control_plane_endpoint }}:6443"
+networking:
+  podSubnet: "{{ pod_network_cidr }}"
+apiServer:
+  extraArgs:
+    - name: service-node-port-range
+      value: "{{ service_node_port_range }}"
+  certSANs:
+    - "{{ control_plane_vip }}"

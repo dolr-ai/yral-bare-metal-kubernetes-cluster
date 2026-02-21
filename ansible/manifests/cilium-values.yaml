@@ -57,13 +57,17 @@ hubble:
       - httpV2:exemplars=true;labelsContext=source_ip,source_namespace,source_workload,destination_ip,destination_namespace,destination_workload,traffic_direction
 
 # Ingress Controller
+# DNS round-robin: *.yral.com A records point to all 5 control-plane public IPs.
+# Cilium Ingress Controller runs as NodePort on 80/443 so traffic hitting any
+# CP IP on port 80 or 443 is handled directly — no LoadBalancer or LB-IPAM needed.
 ingressController:
   enabled: true
   default: true
   loadbalancerMode: shared
   service:
-    annotations:
-        io.cilium/lb-ipam-ips: "95.216.82.97" # First IP from LoadBalancer pool (95.216.82.96/27)
+    type: NodePort
+    insecureNodePort: 80
+    secureNodePort: 443
 gatewayAPI:
   enabled: true
 

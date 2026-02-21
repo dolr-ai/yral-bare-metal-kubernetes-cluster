@@ -1,0 +1,5 @@
+---
+# Service NodePort range — expanded from the default (30000-32767) to allow
+# Cilium Ingress Controller to bind directly on ports 80 and 443.
+# Traffic arrives via DNS round-robin on control-plane public IPs.
+service_node_port_range: "80-32767"

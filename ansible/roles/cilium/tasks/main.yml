@@ -24,7 +24,7 @@
           - "  - Ingress Controller: Enabled"
           - "  - Gateway API: Enabled"
           - "  - Service Mesh (Envoy): Enabled"
-          - "  - LoadBalancer IP pool: {{ loadbalancer_ip_range | default('not configured yet') }}"
+          - "  - Ingress mode: NodePort 80/443 (DNS round-robin on CP IPs)"
 
     - name: Copy Cilium values file
       ansible.builtin.copy:

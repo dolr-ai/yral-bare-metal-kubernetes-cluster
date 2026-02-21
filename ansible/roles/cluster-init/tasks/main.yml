@@ -58,14 +58,15 @@
 - name: Initialize first control plane node
   when: not kubeconfig_stat_after_reset.stat.exists
   block:
+    - name: Template kubeadm configuration
+      ansible.builtin.template:
+        src: kubeadm-config.yml.j2
+        dest: /root/kubeadm-config.yaml
+        mode: "0600"
+
     - name: Run kubeadm init
       ansible.builtin.command: >
-        kubeadm init
-        --control-plane-endpoint="{{ control_plane_endpoint }}:6443"
-        --upload-certs
-        --skip-phases=addon/kube-proxy
-        --pod-network-cidr={{ pod_network_cidr }}
-        --apiserver-advertise-address={{ ansible_host }}
+        kubeadm init --config /root/kubeadm-config.yaml --upload-certs
       register: kubeadm_init
 
     - name: Display kubeadm init output
