@@ -4,100 +4,26 @@
 # All Robot API calls are delegated to localhost (the Ansible control node).
 # The firewall is applied to the node identified by ansible_host.
 #
-# Hetzner Robot Firewall is stateless — there is no connection tracking.
-# Rule order matters: first match wins.
+# Policy: permissive — "Allow all" incoming, Hetzner Services whitelist enabled.
 #
-# Rule order:
-#   1. Accept TCP with ACK flag from any IPv4
-#      — return packets for all outbound TCP connections (apt, image pulls, etc.)
-#        New inbound connections have SYN set but NOT ACK, so they skip this rule.
-#   2. Accept UDP from any IPv4
-#      — return traffic for outbound UDP (DNS, NTP). Stateless: cannot track UDP state.
-#   3. Accept ICMP from any IPv4
-#      — diagnostics and Kubernetes health checks
-#   4. Accept TCP 22 from any IPv4
-#      — SSH (key-only access enforced by ssh-hardening role)
-#   5. Accept TCP 6443 from any IPv4
-#      — Kubernetes API server
-#   6. Accept all protocols from each cluster node IP
-#      — inter-node traffic: etcd (2379/2380), kubelet (10250), kube-vip,
-#        WireGuard/Cilium (51871/UDP), and any other cluster-internal protocols
-#   7. Accept TCP 80,443 from each Cloudflare IPv4 CIDR
-#      — new inbound HTTP/HTTPS connections (SYN packets from Cloudflare)
-#   8. Discard all remaining traffic
+# Rationale: Cloudflare CIDR-based access restrictions for HTTP/HTTPS are enforced
+# at the Kubernetes layer via CiliumNetworkPolicy (in kubernetes/), not at the
+# Hetzner firewall layer. This avoids the 50-rule limit on Hetzner's stateless
+# per-server firewall and keeps security policy in GitOps / Flux rather than
+# requiring full node reprovisioning to update Cloudflare CIDR ranges.
+#
+# Hetzner Services (whitelist_hos): enabled — allows Hetzner's own management
+# infrastructure (KVM console, rescue system, monitoring) to reach the node.
 
-- name: Collect all cluster node IPs from inventory
-  ansible.builtin.set_fact:
-    hetzner_firewall_cluster_ips: >-
-      {{ groups['k8s_cluster'] | map('extract', hostvars, 'ansible_host') | list }}
-
-- name: Build base firewall rules (rules 1-5)
-  ansible.builtin.set_fact:
-    hetzner_firewall_input_rules:
-      - ip_version: ipv4
-        action: accept
-        protocol: tcp
-        tcp_flags: "ack"
-        name: "Allow established TCP (return traffic for outbound connections)"
-      - ip_version: ipv4
-        action: accept
-        protocol: udp
-        name: "Allow UDP (DNS, NTP, and outbound UDP return traffic)"
-      - ip_version: ipv4
-        action: accept
-        protocol: icmp
-        name: "Allow ICMP"
-      - ip_version: ipv4
-        action: accept
-        protocol: tcp
-        dst_port: "22"
-        name: "Allow SSH"
-      - ip_version: ipv4
-        action: accept
-        protocol: tcp
-        dst_port: "6443"
-        name: "Allow Kubernetes API"
-
-- name: Append inter-node rule for each cluster node (rule 6)
-  ansible.builtin.set_fact:
-    hetzner_firewall_input_rules: >-
-      {{ hetzner_firewall_input_rules + [{
-        'ip_version': 'ipv4',
-        'action': 'accept',
-        'src_ip': item + '/32',
-        'name': 'Allow cluster node ' + item
-      }] }}
-  loop: "{{ hetzner_firewall_cluster_ips }}"
-
-- name: Append Cloudflare rule for each CIDR (rule 7)
-  ansible.builtin.set_fact:
-    hetzner_firewall_input_rules: >-
-      {{ hetzner_firewall_input_rules + [{
-        'ip_version': 'ipv4',
-        'action': 'accept',
-        'protocol': 'tcp',
-        'dst_port': '80,443',
-        'src_ip': item,
-        'name': 'Allow Cloudflare ' + item
-      }] }}
-  loop: "{{ hetzner_firewall_cloudflare_ipv4 }}"
-
-- name: Append final discard-all rule (rule 8)
-  ansible.builtin.set_fact:
-    hetzner_firewall_input_rules: >-
-      {{ hetzner_firewall_input_rules + [{
-        'ip_version': 'ipv4',
-        'action': 'discard',
-        'name': 'Discard all'
-      }] }}
-
-- name: Apply firewall rules via Hetzner Robot API
+- name: Reset firewall to permissive default
   community.hrobot.firewall:
     hetzner_user: "{{ hetzner_robot_api_user }}"
     hetzner_password: "{{ hetzner_robot_api_password }}"
     server_ip: "{{ ansible_host }}"
     state: present
-    whitelist_hos: false
+    allowlist_hos: true
     rules:
-      input: "{{ hetzner_firewall_input_rules }}"
+      input:
+        - action: accept
+          name: "Allow all"
   delegate_to: localhost
