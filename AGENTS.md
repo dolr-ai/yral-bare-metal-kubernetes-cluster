@@ -476,7 +476,8 @@ Ansible manages infrastructure *below* the Kubernetes API: OS provisioning, kube
 | cert-manager | `kubernetes/infrastructure/cert-manager/` | Runs as pods, managed declaratively |
 | cert-manager ClusterIssuers | `kubernetes/infrastructure/cert-manager-issuers/` | Separate dir — Flux enforces ordering via dependsOn |
 | Monitoring stack | `kubernetes/infrastructure/monitoring/` | Runs as pods, managed declaratively |
-| Gateway / HTTPRoute | `kubernetes/networking/` | Pure K8s objects |
+| cloudflared tunnel | `kubernetes/infrastructure/cloudflared/` | Internal-only tool exposure via outbound tunnel; no inbound port on Gateway |
+| Gateway / HTTPRoute | `kubernetes/networking/` | User-facing services only |
 | Application workloads | `kubernetes/apps/` | Pure K8s objects |
 
 **CiliumNetworkPolicy and the cilium-envoy proxy — source IP constraint:**
@@ -488,6 +489,29 @@ Client IP → node:80/443 (cilium-envoy, hostNetwork) → backend pod
 When a `CiliumNetworkPolicy` with `fromCIDRSet` is applied to a backend pod, the source IP Cilium enforces against is **cilium-envoy's node IP**, not the original client IP. The original client IP is consumed at the cilium-envoy proxy boundary and is not visible to the downstream pod's network policy.
 
 **Consequence:** `fromCIDRSet` on backend pods (e.g. hubble-ui) cannot be used to restrict access to Cloudflare CIDRs or any other external IP ranges — the restriction will deny all legitimate traffic. The correct enforcement point for external IP restrictions in this cluster is at the cilium-envoy level or via Cloudflare Access (application-layer auth), not via pod-level `CiliumNetworkPolicy`.
+
+**Two-tier exposure model — Gateway vs. Cloudflare Tunnel:**
+
+Services in this cluster are exposed via one of two paths depending on their audience:
+
+| Service type | Exposure path | Rationale |
+|---|---|---|
+| **User-facing apps** (public APIs, frontends) | Cilium Gateway API (HTTPRoute) | Low-overhead inbound path; Cloudflare proxies for DDoS/CDN; app has its own auth |
+| **Internal-only tools** (Hubble UI, Grafana, etc.) | Cloudflare Tunnel (`cloudflared`) | No public port required; zero direct-to-nodeIP exposure; Cloudflare Access provides auth |
+
+**Rules:**
+- Internal tools with no built-in authentication (Hubble UI, etc.) MUST use the Cloudflare Tunnel path — never an HTTPRoute. The Gateway exposes a public listener; internal tools do not belong there.
+- User-facing services with their own auth MAY use the Gateway path. Cloudflare proxying provides DDoS protection and CDN; the cluster still performs inbound TLS termination.
+- A service that is both internal AND has built-in auth (e.g. Grafana with SSO) may use either path — prefer the tunnel to eliminate the attack surface.
+
+**Adding a new internal service to the tunnel** is done by adding one line to `kubernetes/infrastructure/cloudflared/configmap.yaml`:
+```yaml
+- hostname: my-tool.yral.com
+  service: http://my-service.my-namespace.svc.cluster.local:<port>
+```
+No new Secrets, no new Deployments, no HTTPRoute — commit, push, Flux reconciles.
+
+**Cloudflare Access still applies on top of the tunnel** — configure an Access policy for each internal hostname in the Cloudflare Zero Trust dashboard. The tunnel controls *how* traffic reaches the cluster; Access controls *who* is allowed through.
 
 **Flux readiness**: `kubernetes/` is structured as a Flux Kustomization source. Bootstrap with:
 ```bash
