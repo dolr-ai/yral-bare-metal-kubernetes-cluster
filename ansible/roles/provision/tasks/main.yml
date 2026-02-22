@@ -1,4 +1,21 @@
 ---
+- name: Clear stale fact cache files for this host
+  ansible.builtin.find:
+    paths: /tmp/ansible_facts
+    patterns: "*{{ inventory_hostname }}*"
+  register: provision_fact_cache_files
+  delegate_to: localhost
+
+- name: Delete stale fact cache files
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ provision_fact_cache_files.files }}"
+  delegate_to: localhost
+
+- name: Clear in-memory facts before reprovisioning
+  ansible.builtin.meta: clear_facts
+
 - name: Set server IP from inventory
   ansible.builtin.set_fact:
     provision_server_ip: "{{ ansible_host }}"

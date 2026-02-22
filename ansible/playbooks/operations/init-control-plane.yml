@@ -8,7 +8,7 @@
 
 - name: Initialize first control plane node (provision from scratch)
   hosts: control-plane-1
-  gather_facts: true
+  gather_facts: false
   become: true
   serial: 1
 

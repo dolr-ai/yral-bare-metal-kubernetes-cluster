@@ -4,7 +4,7 @@
 
 - name: Add control plane node (provision, configure, join)
   hosts: "{{ target_host }}"
-  gather_facts: true
+  gather_facts: false
   become: true
   serial: 1
 
