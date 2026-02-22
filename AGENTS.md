@@ -414,6 +414,27 @@ Never silently pick "latest" or assume the most recent release — always get ex
 - SSH keys from vault, extracted by postCreate.sh
 - Machine hostname passed to install script via environment variable
 
+### DevContainer Setup (`postCreate.sh`)
+
+`postCreate.sh` runs automatically on container creation and is the single source of truth for all environment bootstrapping. It handles:
+- Installing Python packages and Ansible collections
+- Extracting the SSH private key (`vault_github_actions_ssh_private_key`) from vault to `~/.ssh/hetzner-ansible-key`
+- Writing `~/.kube/config` from `vault_kubeconfig`
+- Injecting `GITHUB_TOKEN` into `~/.bashrc`
+- Applying the `sops-age` secret to the cluster
+
+**All secrets must be extracted in `postCreate.sh` using `yaml.safe_load` via Python** — not grep/sed. The vault file is at `ansible/inventory/group_vars/all/vault.yml`. Example pattern:
+```bash
+VALUE=$(ansible-vault view "$ANSIBLE_DIR/inventory/group_vars/all/vault.yml" 2>/dev/null | \
+    python3 -c "
+import sys, yaml
+d = yaml.safe_load(sys.stdin)
+print(d.get('vault_my_secret', ''))
+")
+```
+
+**If the SSH key or any other secret is missing after a container rebuild, fix `postCreate.sh` — never extract secrets manually in the terminal.** The postCreate.sh script is the contract that makes the devcontainer self-contained; workarounds defeat that contract and will silently break for future agents.
+
 ### Kubernetes Cluster
 - v1.35 with kubeadm
 - Stacked etcd for HA control planes

@@ -28,27 +28,22 @@ SSH_KEY_FILE="$HOME/.ssh/hetzner-ansible-key"
 
 # Extract the SSH key from vault
 if [ -f "$ANSIBLE_DIR/.vault_pass" ]; then
-    # Use ansible-vault to extract the SSH key
-    ansible-vault view "$ANSIBLE_DIR/group_vars/all/vault.yml" 2>/dev/null | \
-        grep -A 50 "vault_github_actions_ssh_private_key:" | \
-        tail -n +2 | \
-        sed '/^[a-z]/,$d' | \
-        sed 's/^  //' > "$SSH_KEY_FILE"
-    
-    # Set proper permissions
-    chmod 600 "$SSH_KEY_FILE"
-    
-    # Verify the key was extracted properly
-    if grep -q "BEGIN OPENSSH PRIVATE KEY" "$SSH_KEY_FILE" && grep -q "END OPENSSH PRIVATE KEY" "$SSH_KEY_FILE"; then
+    SSH_KEY=$(ansible-vault view "$ANSIBLE_DIR/inventory/group_vars/all/vault.yml" 2>/dev/null | \
+        python3 -c "
+import sys, yaml
+d = yaml.safe_load(sys.stdin)
+print(d.get('vault_github_actions_ssh_private_key', ''))
+")
+    if [ -n "$SSH_KEY" ]; then
+        mkdir -p "$(dirname "$SSH_KEY_FILE")"
+        printf '%s\n' "$SSH_KEY" > "$SSH_KEY_FILE"
+        chmod 600 "$SSH_KEY_FILE"
         echo "✓ SSH key extracted from vault to $SSH_KEY_FILE"
-        
-        # Add to SSH agent if available
         if [ -n "$SSH_AUTH_SOCK" ]; then
             ssh-add "$SSH_KEY_FILE" 2>/dev/null && echo "✓ SSH key added to agent" || echo "⚠ Could not add key to agent (may already be added)"
         fi
     else
-        echo "⚠ Warning: SSH key extraction may have failed"
-        rm -f "$SSH_KEY_FILE"
+        echo "⚠ Warning: vault_github_actions_ssh_private_key not found in vault"
     fi
 else
     echo "⚠ Warning: Vault password file not found at $ANSIBLE_DIR/.vault_pass"
