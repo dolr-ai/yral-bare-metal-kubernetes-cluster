@@ -464,7 +464,7 @@ Ansible manages infrastructure *below* the Kubernetes API: OS provisioning, kube
 | Location | Contents | Applied by |
 |----------|----------|------------|
 | `ansible/manifests/` | Helm values files consumed by Ansible roles | Ansible roles (via `copy` module) |
-| `kubernetes/` | All K8s objects: Gateways, HTTPRoutes, Kustomizations, HelmReleases, workloads | `kubectl apply` (manual) → Flux (GitOps) |
+| `kubernetes/` | All K8s objects: Gateways, HTTPRoutes, Kustomizations, HelmReleases, workloads | Flux (GitOps) — see note below about `kubectl apply` |
 
 **Examples of what goes where:**
 
@@ -478,6 +478,16 @@ Ansible manages infrastructure *below* the Kubernetes API: OS provisioning, kube
 | Monitoring stack | `kubernetes/infrastructure/monitoring/` | Runs as pods, managed declaratively |
 | Gateway / HTTPRoute | `kubernetes/networking/` | Pure K8s objects |
 | Application workloads | `kubernetes/apps/` | Pure K8s objects |
+
+**CiliumNetworkPolicy and the cilium-envoy proxy — source IP constraint:**
+
+The Cilium Gateway API implementation uses a `cilium-envoy` DaemonSet that runs with `hostNetwork: true`. External traffic flows:
+```
+Client IP → node:80/443 (cilium-envoy, hostNetwork) → backend pod
+```
+When a `CiliumNetworkPolicy` with `fromCIDRSet` is applied to a backend pod, the source IP Cilium enforces against is **cilium-envoy's node IP**, not the original client IP. The original client IP is consumed at the cilium-envoy proxy boundary and is not visible to the downstream pod's network policy.
+
+**Consequence:** `fromCIDRSet` on backend pods (e.g. hubble-ui) cannot be used to restrict access to Cloudflare CIDRs or any other external IP ranges — the restriction will deny all legitimate traffic. The correct enforcement point for external IP restrictions in this cluster is at the cilium-envoy level or via Cloudflare Access (application-layer auth), not via pod-level `CiliumNetworkPolicy`.
 
 **Flux readiness**: `kubernetes/` is structured as a Flux Kustomization source. Bootstrap with:
 ```bash
@@ -512,6 +522,8 @@ kubectl apply -k kubernetes/networking
 
 **Do NOT embed `kubectl apply` of these manifests inside Ansible roles.** Ansible provisions infrastructure; Kubernetes manages its own workloads declaratively.
 
+**`kubectl apply` is only valid before Flux is bootstrapped.** Once Flux is running (i.e., the Flux Kustomizations exist and are reconciling), all changes to `kubernetes/` must go through git — commit, push, and let Flux reconcile. Never use `kubectl apply` or `kubectl delete` to imperatively push changes that belong to the Flux-managed state. Flux's `prune: true` will delete resources removed from git; there is no need to `kubectl delete` them manually.
+
 ## Deployment Execution Principle
 
 **All mutations to cluster nodes must go through Ansible roles — never via ad-hoc terminal commands or SSH.**
@@ -521,6 +533,7 @@ kubectl apply -k kubernetes/networking
 - ❌ Mutations via `kubectl exec`: strictly prohibited for making changes to node state.
 - ❌ Mutations (installs, config changes, reboots, kubeadm operations): must live in a role task and be executed via a playbook.
 - ❌ Direct `helm` CLI mutations from the terminal: strictly prohibited — no `helm upgrade`, `helm install`, `helm uninstall`, or `helm repo add` as standalone terminal mutations. Helm operations that change cluster state must be embedded in a role (the role runs `helm` on the target node via Ansible) and invoked through a playbook. The only exception is read-only Helm commands like `helm list` or `helm status`.
+- ❌ `kubectl apply` / `kubectl delete` for Flux-managed resources: strictly prohibited once Flux is bootstrapped. Commit the desired state to git and let Flux reconcile. For urgent rollbacks, remove the resource from git (Flux prunes it); do not delete it imperatively.
 
 This ensures every change is:
   - **Idempotent**: re-running the playbook reaches the same end state
