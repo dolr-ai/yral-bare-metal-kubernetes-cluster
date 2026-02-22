@@ -165,3 +165,6 @@
       until: ubuntu_check.rc == 0
       delegate_to: localhost
       changed_when: false
+
+- name: Refresh facts after OS reinstall
+  ansible.builtin.setup:

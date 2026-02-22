@@ -18,7 +18,7 @@
         join_command_final: >-
           {{ join_command.stdout }}
           {{ '' if '--control-plane' in join_command.stdout else '--control-plane' }}
-          {{ '' if '--apiserver-advertise-address' in join_command.stdout else '--apiserver-advertise-address=' + ansible_default_ipv4.address }}
+          {{ '' if '--apiserver-advertise-address' in join_command.stdout else '--apiserver-advertise-address=' + ansible_facts['default_ipv4']['address'] }}
 
     - name: Join as control plane
       ansible.builtin.command: "{{ join_command_final }}"
