@@ -121,12 +121,15 @@
 
 - name: Get etcd member ID
   ansible.builtin.shell: |
-    ETCDCTL_API=3 etcdctl member list \
+    kubectl -n kube-system exec etcd-{{ groups['control_plane'][0] }} -- \
+      etcdctl member list \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
       --cert=/etc/kubernetes/pki/etcd/server.crt \
       --key=/etc/kubernetes/pki/etcd/server.key \
       | grep {{ target_host }} | cut -d',' -f1
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
   delegate_to: "{{ groups['control_plane'][0] }}"
   register: etcd_member_id
   when: is_control_plane
@@ -134,20 +137,23 @@
 
 - name: Display etcd member ID
   ansible.builtin.debug:
-    msg: "etcd member ID: {{ etcd_member_id.stdout }}"
-  when: is_control_plane and etcd_member_id.stdout != ""
+    msg: "etcd member ID: {{ etcd_member_id.stdout | trim }}"
+  when: is_control_plane and etcd_member_id.stdout | trim != ""
 
 - name: Remove etcd member
   ansible.builtin.shell: |
-    ETCDCTL_API=3 etcdctl member remove {{ etcd_member_id.stdout }} \
+    kubectl -n kube-system exec etcd-{{ groups['control_plane'][0] }} -- \
+      etcdctl member remove {{ etcd_member_id.stdout | trim }} \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
       --cert=/etc/kubernetes/pki/etcd/server.crt \
       --key=/etc/kubernetes/pki/etcd/server.key
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
   delegate_to: "{{ groups['control_plane'][0] }}"
   when:
     - is_control_plane
-    - etcd_member_id.stdout != ""
+    - etcd_member_id.stdout | trim != ""
   register: etcd_remove
 
 - name: Display etcd removal result
@@ -155,7 +161,7 @@
     msg: "{{ etcd_remove.stdout }}"
   when:
     - is_control_plane
-    - etcd_member_id.stdout != ""
+    - etcd_member_id.stdout | trim != ""
 
 - name: Delete node from Kubernetes
   ansible.builtin.command: kubectl delete node {{ target_host }}
@@ -208,12 +214,15 @@
 
 - name: Verify etcd cluster health (control plane only)
   ansible.builtin.shell: |
-    ETCDCTL_API=3 etcdctl endpoint health \
+    kubectl -n kube-system exec etcd-{{ groups['control_plane'][0] }} -- \
+      etcdctl endpoint health \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
       --cert=/etc/kubernetes/pki/etcd/server.crt \
       --key=/etc/kubernetes/pki/etcd/server.key \
       --cluster
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
   delegate_to: "{{ groups['control_plane'][0] }}"
   register: etcd_health
   when: is_control_plane
