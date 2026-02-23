@@ -35,3 +35,28 @@
     - name: Display join result
       ansible.builtin.debug:
         msg: "{{ join_result.stdout_lines }}"
+
+- name: Add worker app wildcard A record to Cloudflare DNS after successful join
+  ansible.builtin.uri:
+    url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ cloudflare_api_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      type: "A"
+      name: "{{ cloudflare_app_wildcard_hostname }}"
+      content: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
+      ttl: 1
+      proxied: true
+    status_code: 200
+  delegate_to: localhost
+  register: worker_join_cf_result
+  changed_when: worker_join_cf_result.status == 200
+
+- name: Display Cloudflare DNS registration result
+  ansible.builtin.debug:
+    msg: >-
+      Added A record: {{ cloudflare_app_wildcard_hostname }} → {{ hostvars[inventory_hostname]['ansible_host'] }}
+      (record id: {{ worker_join_cf_result.json.result.id }})

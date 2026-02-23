@@ -145,6 +145,49 @@
     - node_remove_cf_records.json.result | length == 0
   run_once: true
 
+- name: Query Cloudflare for app wildcard A record (all nodes)
+  ansible.builtin.uri:
+    url: >-
+      https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records
+      ?type=A&name={{ cloudflare_app_wildcard_hostname }}&content={{ node_remove_target_ip }}
+    method: GET
+    headers:
+      Authorization: "Bearer {{ cloudflare_api_token }}"
+      Content-Type: "application/json"
+    status_code: 200
+  delegate_to: localhost
+  register: node_remove_cf_wildcard_records
+  run_once: true
+  changed_when: false
+
+- name: Set Cloudflare wildcard record ID fact
+  ansible.builtin.set_fact:
+    node_remove_cf_wildcard_record_id: "{{ node_remove_cf_wildcard_records.json.result[0].id }}"
+  when: node_remove_cf_wildcard_records.json.result | length > 0
+  run_once: true
+
+- name: Remove app wildcard A record from Cloudflare
+  ansible.builtin.uri:
+    url: >-
+      https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records/{{ node_remove_cf_wildcard_record_id }}
+    method: DELETE
+    headers:
+      Authorization: "Bearer {{ cloudflare_api_token }}"
+      Content-Type: "application/json"
+    status_code: 200
+  delegate_to: localhost
+  when: node_remove_cf_wildcard_record_id is defined
+  run_once: true
+
+- name: Warn if no app wildcard A record found for node
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: No Cloudflare A record found for {{ node_remove_target_ip }} under {{ cloudflare_app_wildcard_hostname }}.
+      The DNS record may have already been removed or the IP is wrong.
+      Continuing with node removal.
+  when: node_remove_cf_wildcard_records.json.result | length == 0
+  run_once: true
+
 - name: Check if node exists in cluster
   ansible.builtin.command: kubectl get node {{ target_host }}
   delegate_to: "{{ groups['control_plane'][0] }}"

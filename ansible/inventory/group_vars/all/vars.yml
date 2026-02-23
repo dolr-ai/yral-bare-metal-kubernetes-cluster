@@ -28,3 +28,4 @@ age_private_key: "{{ vault_age_private_key }}"  # Indirection to vault
 cloudflare_api_token: "{{ vault_cloudflare_api_token }}"  # Indirection to vault
 cloudflare_zone_id: "f0e13310b0b3c66709f0debd5e3bbb10"
 kubernetes_api_hostname: "kubernetes-api.yral.com"
+cloudflare_app_wildcard_hostname: "*.yral.com"  # Proxied wildcard served by cilium-envoy on all nodes
