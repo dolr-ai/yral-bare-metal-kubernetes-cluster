@@ -1,0 +1,76 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: velero
+  namespace: velero
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: velero
+      version: "11.3.2"
+      sourceRef:
+        kind: HelmRepository
+        name: vmware-tanzu
+        namespace: velero
+  timeout: 5m
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    # Credentials are in a SOPS-encrypted Secret applied by Flux
+    credentials:
+      existingSecret: velero-credentials
+
+    # AWS plugin init container (required for S3-compatible backup storage)
+    # v1.13.x is required for Velero 1.17.x; v1.12.x is for 1.16.x
+    initContainers:
+      - name: velero-plugin-for-aws
+        image: velero/velero-plugin-for-aws:v1.13.2
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+          - mountPath: /target
+            name: plugins
+
+    configuration:
+      backupStorageLocation:
+        - name: default
+          provider: aws
+          bucket: yral-bare-metal-kubernetes-cluster-control-plane-backup
+          default: true
+          config:
+            region: hel1
+            s3Url: https://hel1.your-objectstorage.com
+            s3ForcePathStyle: "true"
+      volumeSnapshotLocation:
+        - name: default
+          provider: aws
+          config:
+            region: hel1
+      # Use kopia (filesystem backup) for PVs — Hetzner Object Storage has no
+      # native volume snapshot API.
+      defaultVolumesToFsBackup: true
+
+    # Volume snapshots require a cloud provider snapshot API; Hetzner S3 does
+    # not have one. Disable to avoid misleading "snapshot" resources.
+    snapshotsEnabled: false
+
+    # Daily backup of all namespaces; 30-day retention.
+    schedules:
+      daily-backup:
+        disabled: false
+        schedule: "0 0 * * *"
+        useOwnerReferencesInBackup: false
+        template:
+          ttl: "720h"
+          storageLocation: default
+          includedNamespaces:
+            - "*"
+
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
