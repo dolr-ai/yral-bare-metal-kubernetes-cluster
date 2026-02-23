@@ -4,3 +4,4 @@ resources:
   - secret.sops.yaml
   - receiver.yaml
   - httproute.yaml
+  - networkpolicy.yaml

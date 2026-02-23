@@ -1,0 +1,27 @@
+# Allow ingress to the Flux webhook-receiver from any source on port 9292.
+#
+# Why: Flux's default allow-webhooks NetworkPolicy uses namespaceSelector: {} which
+# matches namespace-scoped pods. cilium-envoy (the Cilium Gateway proxy) runs with
+# hostNetwork: true, so its traffic arrives at the backend pod appearing as a node IP,
+# which has no Kubernetes namespace association and is dropped by namespaceSelector rules.
+#
+# The webhook path is /hook/<sha256(token)> — unguessable. The token is also
+# verified as an HMAC-SHA256 signature by notification-controller. IP-level
+# restriction adds no meaningful security on top of this, so allowing from any
+# source on the webhook port is safe.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-webhook-from-gateway
+  namespace: flux-system
+spec:
+  podSelector:
+    matchLabels:
+      app: notification-controller
+  ingress:
+    - ports:
+        - port: 9292
+          protocol: TCP
+  policyTypes:
+    - Ingress
