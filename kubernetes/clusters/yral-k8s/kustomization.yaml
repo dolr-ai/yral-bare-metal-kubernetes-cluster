@@ -12,4 +12,5 @@ resources:
   - infrastructure-cilium.yaml
   - infrastructure-cert-manager.yaml
   - infrastructure-cert-manager-issuers.yaml
+  - infrastructure-oauth2-proxy.yaml
   - networking.yaml

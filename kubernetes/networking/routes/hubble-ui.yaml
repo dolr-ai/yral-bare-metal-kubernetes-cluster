@@ -42,5 +42,6 @@ spec:
     - hubble-ui.yral.com
   rules:
     - backendRefs:
-        - name: hubble-ui
-          port: 80
+        - name: oauth2-proxy-hubble-ui
+          namespace: oauth2-proxy
+          port: 4180

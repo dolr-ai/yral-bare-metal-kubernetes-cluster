@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - secret.sops.yaml
+  - deployment-hubble-ui.yaml
+  - service-hubble-ui.yaml
+  - reference-grant.yaml
