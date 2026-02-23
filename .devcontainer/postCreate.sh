@@ -125,6 +125,12 @@ d = yaml.safe_load(sys.stdin)
 print(d.get('vault_age_private_key', ''))
 ")
     if [ -n "$AGE_PRIVATE_KEY" ]; then
+        # Write age key locally so `sops` CLI can decrypt/edit SOPS files in this devcontainer
+        mkdir -p "$HOME/.config/sops/age"
+        printf '%s\n' "$AGE_PRIVATE_KEY" > "$HOME/.config/sops/age/keys.txt"
+        chmod 600 "$HOME/.config/sops/age/keys.txt"
+        echo "✓ Age private key written to ~/.config/sops/age/keys.txt"
+
         kubectl create secret generic sops-age \
             --namespace flux-system \
             --from-literal=age.agekey="$AGE_PRIVATE_KEY" \
