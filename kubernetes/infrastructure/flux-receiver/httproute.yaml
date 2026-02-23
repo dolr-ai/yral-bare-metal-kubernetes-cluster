@@ -1,10 +1,10 @@
 # HTTPRoute — Flux webhook receiver
 #
-# Exposes the notification-controller webhook endpoint at:
+# Exposes the webhook-receiver endpoint at:
 #   https://flux-webhook.yral.com/hook/<sha256-of-token>
 #
-# Routes in flux-system namespace to reference notification-controller Service
-# in the same namespace without a ReferenceGrant.
+# Routes to the dedicated webhook-receiver Service (port 80 → pod port 9292),
+# not notification-controller (port 80 → 9090, the notification API).
 #
 # TLS: covered by existing wildcard *.yral.com cert (cert-manager, letsencrypt-prod).
 ---
@@ -41,5 +41,5 @@ spec:
     - flux-webhook.yral.com
   rules:
     - backendRefs:
-        - name: notification-controller
+        - name: webhook-receiver
           port: 80
