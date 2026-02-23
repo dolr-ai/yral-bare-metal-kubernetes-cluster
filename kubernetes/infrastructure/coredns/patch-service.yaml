@@ -1,0 +1,12 @@
+# Strategic merge patch: enable topology-aware routing on the kube-dns Service.
+#
+# topology-mode: Auto makes Kubernetes prefer routing DNS queries to an
+# endpoint in the same zone as the caller. Combined with one CoreDNS pod per
+# zone (patch-deployment.yaml), DNS traffic never crosses datacenter boundaries.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-dns
+  namespace: kube-system
+  annotations:
+    service.kubernetes.io/topology-mode: "Auto"

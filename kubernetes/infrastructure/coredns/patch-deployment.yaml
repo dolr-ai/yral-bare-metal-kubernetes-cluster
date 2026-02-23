@@ -1,0 +1,23 @@
+# Strategic merge patch: spread CoreDNS across topology zones so that
+# DNS traffic from pods never crosses datacenters.
+#
+# 3 replicas → one per zone (HEL1-DC2, FSN1-DC1, FSN1-DC8).
+# topologyKey: topology.kubernetes.io/zone ensures the scheduler places
+# one replica in each zone. whenUnsatisfiable: ScheduleAnyway lets
+# Kubernetes still schedule if a zone constraint can't be strictly met.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coredns
+  namespace: kube-system
+spec:
+  replicas: 3
+  template:
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              k8s-app: kube-dns
