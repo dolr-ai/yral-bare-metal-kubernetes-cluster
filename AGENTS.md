@@ -481,15 +481,30 @@ Ansible manages infrastructure *below* the Kubernetes API: OS provisioning, kube
 | Gateway / HTTPRoute | `kubernetes/networking/` | All services — internal tools go via oauth2-proxy backend, user-facing services directly |
 | Application workloads | `kubernetes/apps/` | Pure K8s objects |
 
-**CiliumNetworkPolicy and the cilium-envoy proxy — source IP constraint:**
+**NetworkPolicy and the cilium-envoy proxy — source IP constraint:**
 
 The Cilium Gateway API implementation uses a `cilium-envoy` DaemonSet that runs with `hostNetwork: true`. External traffic flows:
 ```
 Client IP → node:80/443 (cilium-envoy, hostNetwork) → backend pod
 ```
-When a `CiliumNetworkPolicy` with `fromCIDRSet` is applied to a backend pod, the source IP Cilium enforces against is **cilium-envoy's node IP**, not the original client IP. The original client IP is consumed at the cilium-envoy proxy boundary and is not visible to the downstream pod's network policy.
+Because cilium-envoy runs with `hostNetwork: true`, traffic it forwards to backend pods arrives at the pod's network policy enforcement point as a **node IP**, not as a pod/namespace-scoped identity. This affects **both** `CiliumNetworkPolicy` and standard Kubernetes `NetworkPolicy`:
 
-**Consequence:** `fromCIDRSet` on backend pods (e.g. hubble-ui) cannot be used to restrict access to Cloudflare CIDRs or any other external IP ranges — the restriction will deny all legitimate traffic. The correct enforcement point for external IP restrictions in this cluster is an in-cluster auth proxy (oauth2-proxy), not pod-level `CiliumNetworkPolicy`.
+- **`CiliumNetworkPolicy` with `fromCIDRSet`**: enforcement is against the cilium-envoy node IP, not the original client IP — `fromCIDRSet` with Cloudflare CIDRs will deny all legitimate traffic.
+- **Standard `NetworkPolicy` with `namespaceSelector` / `podSelector`**: also does NOT match traffic from cilium-envoy, because node IPs have no Kubernetes namespace association and are not matched by pod/namespace selectors.
+
+**Consequence:** Neither CiliumNetworkPolicy nor standard NetworkPolicy selectors can be used to restrict (or reliably allow) gateway-originated traffic to backend pods based on IP or namespace identity. To allow gateway traffic through a NetworkPolicy, add an explicit ingress rule with **no `from:` clause** scoped to the relevant port — security is then enforced by the application layer (HMAC secrets, auth proxies, etc.), not by IP.
+
+**Pattern for allowing gateway traffic through NetworkPolicy:**
+```yaml
+# Allows gateway (cilium-envoy hostNetwork) traffic on a specific port.
+# No from: clause = allow from any source. Scope with port to limit exposure.
+ingress:
+  - ports:
+      - port: 9292
+        protocol: TCP
+```
+
+The correct enforcement point for access control in this cluster is an in-cluster auth proxy (oauth2-proxy) or application-level authentication, not pod-level network policy IP rules.
 
 **Exposure model — all services go via the Cilium Gateway:**
 
