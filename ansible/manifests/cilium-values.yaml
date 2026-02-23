@@ -116,11 +116,10 @@ ipv6:
 bgpControlPlane:
   enabled: false
 
-# kube-vip LoadBalancer integration
-# SNAT mode: responses are source-NAT'd to the node's own IP.
+# LoadBalancer mode: SNAT — responses are source-NAT'd to the node's own IP.
 # DSR is incompatible with Hetzner bare metal — DSR sends responses directly from
-# the VIP IP, but since VIPs aren't bound to any local interface the kernel
-# routes them back out to the gateway, causing Hetzner to flag packet reflection.
+# the service IP, but since those IPs aren't bound to any local interface the
+# kernel routes them back out to the gateway, causing Hetzner to flag packet reflection.
 loadBalancer:
   algorithm: maglev
   mode: snat

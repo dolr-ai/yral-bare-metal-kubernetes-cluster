@@ -37,13 +37,10 @@ ansible-playbook playbooks/operations/init-control-plane.yml -e target_host=cont
 2. Runs kubeadm init with control plane endpoint
 3. Configures kubectl for root user
 4. Extracts and saves join commands for workers and control planes
-5. Applies kube-vip RBAC and configuration
-6. Waits for kube-vip to be Ready
 
 **Requirements**:
 - Target host must be in inventory under `control_plane` group
-- Base system setup must be complete (contained, kubeadm, etc.)
-- VIP address must be configured in inventory
+- Base system setup must be complete (containerd, kubeadm, etc.)
 
 **Important**:
 - This must be done before any other cluster operations
@@ -123,14 +120,12 @@ ansible-playbook playbooks/operations/add-control-plane.yml -e target_host=contr
 2. Provisions server and installs base system
 3. Uploads control plane certificates from existing control plane
 4. Joins node as control plane with etcd member
-5. Deploys kube-vip for VIP failover
-6. Verifies etcd cluster health
-7. Tests API server on new control plane
+5. Verifies etcd cluster health
+6. Tests API server on new control plane
 
 **Requirements**:
 - Target host must be in `ansible/inventory/hosts.yml` under `control_plane` group
 - Initial control plane must be healthy and running
-- VIP address configured in inventory (`control_plane_endpoint`)
 - Hetzner credentials in vault
 
 **Important Notes**:

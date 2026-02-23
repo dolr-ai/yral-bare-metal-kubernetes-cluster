@@ -84,7 +84,6 @@ Used for cluster Day-2 operations. Each operation is a single play calling one r
 4. `remove-node.yml` - Remove node from cluster (calls: `node-remove` role)
 5. `upgrade-control-plane.yml` - Upgrade control plane node(s): cordon → drain → kubeadm reset → reboot → rejoin → verify. Accepts `-e target_host=<node>` for single node or runs all serially.
 6. `upgrade-worker.yml` - Upgrade worker node(s): cordon → drain → delete → reboot → rejoin → verify. Accepts `-e target_host=<node>` for single node or runs all serially.
-7. `remove-kube-vip.yml` - Remove kube-vip static pod from all control planes (one-time migration playbook; deletes `/etc/kubernetes/manifests/kube-vip.yaml` and RBAC resources).
 
 **There is no "partial install" or "apply missing component" playbook.** If a node is missing something that should have been installed during init (e.g. CNI, a system package), the correct fix is to re-run its full provisioning playbook from scratch, not to create a targeted playbook that applies only the missing piece.
 
@@ -441,7 +440,7 @@ print(d.get('vault_my_secret', ''))
 - Stacked etcd for HA control planes
 - Odd number of control planes required (1, 3, 5...)
 - 5 control planes in HEL1-DC2 (Helsinki)
-- **No VIP / no kube-vip**: control plane HA via DNS round-robin (`kubernetes-api.yral.com` → 5 A records, TTL=60, DNS-only at Cloudflare)
+- **Control plane HA**: DNS round-robin (`kubernetes-api.yral.com` → 5 A records, TTL=60, DNS-only at Cloudflare)
 - Cilium v1.19.1 CNI with WireGuard encryption
 - Serial: 1 for node operations (one node at a time)
 

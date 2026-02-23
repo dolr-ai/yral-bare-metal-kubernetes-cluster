@@ -18,14 +18,12 @@ Ansible automation for managing a bare-metal Kubernetes cluster on Hetzner infra
 │   │   └── hosts.yml            # Inventory file with host definitions
 │   ├── playbooks/               # Ansible playbooks for deployment
 │   │   ├── helm-install.yml
-│   │   ├── kube-vip-deploy.yml
 │   │   ├── cluster-setup.yml
 │   │   ├── cilium-deploy.yml
 │   │   ├── monitoring-deploy.yml
 │   │   ├── etcd-backup.yml
 │   │   └── velero-install.yml
 │   ├── roles/                   # Ansible roles
-│   │   ├── kube-vip/
 │   │   ├── cluster-init/
 │   │   ├── worker-join/
 │   │   ├── node-labels/

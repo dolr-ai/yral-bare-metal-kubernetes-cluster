@@ -4,9 +4,9 @@ Complete Ansible automation for a production-grade High Availability Kubernetes 
 
 ## Architecture
 
-- **Control Plane**: 3 nodes in HEL1-DC2 (Helsinki, Finland) - HA with kube-vip ARP failover
-- **Workers**: 10 nodes (9 in FSN1 Falkenstein, 1 in HEL1-DC2 Helsinki)
-- **VIP**: 77.42.49.55 (Failover IP) for kubernetes-api.yral.com
+- **Control Plane**: 5 nodes in HEL1-DC2 (Helsinki, Finland) - HA with DNS round-robin
+- **Workers**: 2+ nodes in FSN1/HEL1
+- **DNS**: kubernetes-api.yral.com → 5 A records (one per control plane), TTL=60, DNS-only
 - **LoadBalancer Pool**: 95.217.49.193-95.217.49.222 (Failover subnet /27, 30 IPs)
 - **CNI**: Cilium with kube-proxy replacement, WireGuard encryption, Ingress, Service Mesh
 - **Monitoring**: Prometheus + Grafana on workers with datacenter-aware scheduling
@@ -19,7 +19,7 @@ Complete Ansible automation for a production-grade High Availability Kubernetes 
 - Python 3.x on target hosts
 - Hetzner Robot API credentials
 - Hetzner Object Storage bucket and credentials
-- Cloudflare DNS configured: kubernetes-api.yral.com → 77.42.49.55 (DNS-only)
+- Cloudflare DNS configured: kubernetes-api.yral.com → 5 A records (one per control plane IP), DNS-only
 
 ## Quick Start
 
@@ -47,7 +47,6 @@ ansible-playbook ansible/playbooks/full-deployment.yml
 This playbook orchestrates:
 - Helm installation on control planes
 - Kubernetes cluster initialization and node joins
-- kube-vip static pod deployment
 - Cilium CNI setup
 - Monitoring stack (Prometheus/Grafana)
 - Automated backup configuration (etcd + Velero)
@@ -84,7 +83,6 @@ To add capabilities to the cluster (new CNI features, monitoring updates, etc.),
 │   │   ├── kubernetes-only.yml       # Cluster bootstrap + Cilium + monitoring
 │   │   ├── cluster-setup.yml         # Cluster init and node joins
 │   │   ├── helm-install.yml          # Helm installation
-│   │   ├── kube-vip-deploy.yml       # kube-vip static pods
 │   │   ├── cilium-deploy.yml         # Cilium CNI deployment
 │   │   ├── monitoring-deploy.yml     # Prometheus/Grafana stack
 │   │   ├── etcd-backup.yml           # etcd backup automation
@@ -103,7 +101,6 @@ To add capabilities to the cluster (new CNI features, monitoring updates, etc.),
 │   │   ├── cluster-init/             # First control plane bootstrap
 │   │   ├── control-plane-join/       # Additional control planes
 │   │   ├── worker-join/              # Worker node join
-│   │   ├── kube-vip/                 # HA control plane VIP
 │   │   ├── cilium/                   # CNI deployment
 │   │   ├── monitoring/               # Observability stack
 │   │   ├── node-labels/              # Topology labeling
@@ -130,8 +127,7 @@ To add capabilities to the cluster (new CNI features, monitoring updates, etc.),
 ## Cluster Features
 
 ### High Availability
-- **Control Plane VIP**: kube-vip with ARP mode for 2-10s failover
-- **Failover subnet**: API-based failover for control-plane-1 server failure (90-110s)
+- **Control Plane HA**: DNS round-robin (kubernetes-api.yral.com → 5 A records, TTL=60)
 - **Multi-datacenter workers**: Geographic distribution for resilience
 - **Automated backups**: Daily etcd snapshots + Velero cluster backups
 
@@ -141,7 +137,7 @@ To add capabilities to the cluster (new CNI features, monitoring updates, etc.),
 - **Encryption**: WireGuard for pod-to-pod traffic
 - **Ingress**: Cilium Ingress Controller with Gateway API
 - **Service Mesh**: Envoy-based L7 proxy
-- **LoadBalancer**: kube-vip with 30 IP pool
+
 
 ### Observability
 - **Hubble**: Network flow visibility (UI at 95.217.49.194)
@@ -205,9 +201,8 @@ kubectl -n kube-system get pods -l k8s-app=cilium
 kubectl -n kube-system exec ds/cilium -- cilium-dbg status
 kubectl -n kube-system exec ds/cilium -- cilium-dbg encrypt status
 
-# Check kube-vip
+# Check LoadBalancer services
 kubectl get svc -A | grep LoadBalancer
-kubectl get configmap -n kube-system kubevip
 
 # Verify monitoring
 kubectl get pods -n monitoring -o wide
@@ -224,16 +219,6 @@ velero backup get
 ```
 
 ## Troubleshooting
-
-### kube-vip not working
-```bash
-# Check static pod
-kubectl get pods -n kube-system -l component=kube-vip
-kubectl logs -n kube-system -l component=kube-vip
-
-# Verify manifest
-cat /etc/kubernetes/manifests/kube-vip.yaml
-```
 
 ### Cilium issues
 ```bash
@@ -302,7 +287,7 @@ ansible-playbook ansible/playbooks/operations/add-worker.yml -e target_host=work
 ### Adding Control Plane Nodes
 
 ```bash
-# Add a new control plane (provisions + configures + joins + deploys kube-vip)
+# Add a new control plane (provisions + configures + joins)
 ansible-playbook ansible/playbooks/operations/add-control-plane.yml -e target_host=control-plane-4
 
 # Remove a control plane (drains, removes from etcd, deletes node)
