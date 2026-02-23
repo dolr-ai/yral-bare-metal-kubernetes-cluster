@@ -19,3 +19,6 @@ creation_rules:
   - path_regex: kubernetes/.*\.sops\.yaml$
     age: >-
       age1pdqae3ffmt9rxtmn2758pxjqaaxnytg6mzx3wpepuhs7de2ttfkqk3z7hl
+  - path_regex: archive/.*\.sops\.yaml$
+    age: >-
+      age1pdqae3ffmt9rxtmn2758pxjqaaxnytg6mzx3wpepuhs7de2ttfkqk3z7hl
