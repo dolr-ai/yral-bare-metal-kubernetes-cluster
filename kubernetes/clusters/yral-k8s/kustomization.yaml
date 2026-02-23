@@ -14,4 +14,5 @@ resources:
   - infrastructure-cert-manager-issuers.yaml
   - infrastructure-oauth2-proxy.yaml
   - infrastructure-velero.yaml
+  - infrastructure-flux-receiver.yaml
   - networking.yaml
