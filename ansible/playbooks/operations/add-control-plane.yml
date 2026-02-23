@@ -16,5 +16,4 @@
     - role: containerd
     - role: kubernetes
     - role: control-plane-join
-    - role: kube-vip
     - role: node-labels

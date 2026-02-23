@@ -1,4 +1,0 @@
----
-# Default kube-vip version; override via inventory or extra vars as needed.
-# Versioning policy: start with latest, downgrade only if incompatible with current k8s version.
-kube_vip_version: "v1.0.4"

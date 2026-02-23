@@ -78,14 +78,15 @@ The only legitimate guards in roles are:
 Used for cluster Day-2 operations. Each operation is a single play calling one role.
 
 **Current operations** (must remain pure thin wrappers chaining atomic roles):
-1. `init-control-plane.yml` - Bootstrap first control plane (hardcoded to control-plane-1, chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → kube-vip[pre-init] → cluster-init → kube-vip[post-init] → node-labels → helm → gateway-api-crds → cilium)
-2. `add-control-plane.yml` - Add control plane for HA (chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → control-plane-join → kube-vip → node-labels). Cilium DaemonSet deploys automatically via the existing installation.
+1. `init-control-plane.yml` - Bootstrap first control plane (hardcoded to control-plane-1, chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → cluster-init → node-labels → helm → gateway-api-crds → cilium)
+2. `add-control-plane.yml` - Add control plane for HA (chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → control-plane-join → node-labels). Cilium DaemonSet deploys automatically via the existing installation.
 3. `add-worker.yml` - Add worker node (chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → worker-join → node-labels)
 4. `remove-node.yml` - Remove node from cluster (calls: `node-remove` role)
 5. `upgrade-control-plane.yml` - Upgrade control plane node(s): cordon → drain → kubeadm reset → reboot → rejoin → verify. Accepts `-e target_host=<node>` for single node or runs all serially.
 6. `upgrade-worker.yml` - Upgrade worker node(s): cordon → drain → delete → reboot → rejoin → verify. Accepts `-e target_host=<node>` for single node or runs all serially.
+7. `remove-kube-vip.yml` - Remove kube-vip static pod from all control planes (one-time migration playbook; deletes `/etc/kubernetes/manifests/kube-vip.yaml` and RBAC resources).
 
-**There is no "partial install" or "apply missing component" playbook.** If a node is missing something that should have been installed during init (e.g. CNI, kube-vip, a system package), the correct fix is to re-run its full provisioning playbook from scratch, not to create a targeted playbook that applies only the missing piece.
+**There is no "partial install" or "apply missing component" playbook.** If a node is missing something that should have been installed during init (e.g. CNI, a system package), the correct fix is to re-run its full provisioning playbook from scratch, not to create a targeted playbook that applies only the missing piece.
 
 **Adding new playbooks requires explicit user confirmation.** Before creating any new playbook:
 1. Check whether the new functionality fits into an existing playbook by adding a role to it.
@@ -405,7 +406,7 @@ Never silently pick "latest" or assume the most recent release — always get ex
 **Upgrade order for cluster upgrades:**
 1. Upgrade one control plane node at a time (cordon → drain → upgrade → rejoin → verify)
 2. Then upgrade worker nodes one at a time
-3. Then upgrade cluster add-ons (kube-vip, Cilium, monitoring) individually
+3. Then upgrade cluster add-ons (Cilium, monitoring) individually
 
 ## Repository-Specific Patterns
 
@@ -440,7 +441,7 @@ print(d.get('vault_my_secret', ''))
 - Stacked etcd for HA control planes
 - Odd number of control planes required (1, 3, 5...)
 - 5 control planes in HEL1-DC2 (Helsinki)
-- kube-vip v1.0.4 for virtual IP failover
+- **No VIP / no kube-vip**: control plane HA via DNS round-robin (`kubernetes-api.yral.com` → 5 A records, TTL=60, DNS-only at Cloudflare)
 - Cilium v1.19.1 CNI with WireGuard encryption
 - Serial: 1 for node operations (one node at a time)
 
@@ -459,7 +460,7 @@ print(d.get('vault_my_secret', ''))
 
 **Strict separation rule: if it runs as a pod, it belongs in `kubernetes/`, never in Ansible.**
 
-Ansible manages infrastructure *below* the Kubernetes API: OS provisioning, kubelet, containerd, kube-vip, kubeadm cluster initialization, and the few components Kubernetes itself needs to start (CNI, Gateway API CRDs). Once the cluster API is available, **all further workloads** — cert-manager, monitoring, Flux, application services — are expressed as Kubernetes resources in `kubernetes/`.
+Ansible manages infrastructure *below* the Kubernetes API: OS provisioning, kubelet, containerd, kubeadm cluster initialization, and the few components Kubernetes itself needs to start (CNI, Gateway API CRDs). Once the cluster API is available, **all further workloads** — cert-manager, monitoring, Flux, application services — are expressed as Kubernetes resources in `kubernetes/`.
 
 | Location | Contents | Applied by |
 |----------|----------|------------|

@@ -1,0 +1,15 @@
+---
+# Remove kube-vip from all control plane nodes
+# Usage: ansible-playbook operations/remove-kube-vip.yml
+#
+# Removes the kube-vip static pod manifest from each control plane node and
+# deletes the cluster-scoped RBAC resources. DNS round-robin replaces the VIP.
+
+- name: Remove kube-vip static pod from all control plane nodes
+  hosts: control_plane
+  gather_facts: false
+  become: true
+  serial: 1
+
+  roles:
+    - role: kube-vip-remove

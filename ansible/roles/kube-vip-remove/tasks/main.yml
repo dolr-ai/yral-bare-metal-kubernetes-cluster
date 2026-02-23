@@ -1,0 +1,32 @@
+---
+# Remove kube-vip static pod and cluster RBAC resources.
+# The static pod manifest is removed on each node; kubelet stops the container
+# automatically. RBAC cleanup runs once from the first control plane.
+
+- name: Remove kube-vip static pod manifest
+  ansible.builtin.file:
+    path: /etc/kubernetes/manifests/kube-vip.yaml
+    state: absent
+
+- name: Wait for kubelet to stop the kube-vip pod (manifest removed)
+  ansible.builtin.pause:
+    seconds: 10
+
+- name: Delete kube-vip RBAC resources from cluster
+  ansible.builtin.command: >
+    kubectl delete
+    serviceaccount/kube-vip
+    clusterrole/kube-vip-role
+    clusterrolebinding/kube-vip-binding
+    -n kube-system
+    --ignore-not-found=true
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: true
+  when: inventory_hostname == groups['control_plane'][0]
+
+- name: Display removal summary
+  ansible.builtin.debug:
+    msg:
+      - "kube-vip static pod removed from {{ inventory_hostname }}"
+      - "RBAC cleanup: {{ 'done' if inventory_hostname == groups['control_plane'][0] else 'skipped (runs on first CP only)' }}"
