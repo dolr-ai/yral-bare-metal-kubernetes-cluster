@@ -39,12 +39,12 @@
 
 - name: Get Ubuntu codename
   ansible.builtin.shell: . /etc/os-release && echo "$VERSION_CODENAME"
-  register: ubuntu_codename
+  register: containerd_ubuntu_codename
   changed_when: false
 
 - name: Add Docker repository
   ansible.builtin.apt_repository:
-    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ubuntu_codename.stdout }} stable"
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ containerd_ubuntu_codename.stdout }} stable"
     state: present
     filename: docker
 
@@ -55,7 +55,7 @@
 - name: Install latest containerd.io package
   ansible.builtin.apt:
     name: containerd.io
-    state: latest
+    state: present
   register: containerd_install
 
 - name: Get installed containerd version
@@ -97,12 +97,12 @@
 
 - name: Verify kernel modules are loaded
   ansible.builtin.shell: lsmod | grep -E "overlay|br_netfilter"
-  register: kernel_modules
+  register: containerd_kernel_modules
   changed_when: false
 
 - name: Display loaded kernel modules
   ansible.builtin.debug:
-    msg: "{{ kernel_modules.stdout_lines }}"
+    msg: "{{ containerd_kernel_modules.stdout_lines }}"
 
 - name: Configure sysctl parameters for Kubernetes networking
   ansible.builtin.copy:
@@ -124,12 +124,12 @@
     echo "net.ipv4.ip_forward = $(sysctl -n net.ipv4.ip_forward)"
     echo "net.bridge.bridge-nf-call-iptables = $(sysctl -n net.bridge.bridge-nf-call-iptables)"
     echo "net.bridge.bridge-nf-call-ip6tables = $(sysctl -n net.bridge.bridge-nf-call-ip6tables)"
-  register: sysctl_status
+  register: containerd_sysctl_status
   changed_when: false
 
 - name: Display sysctl parameters
   ansible.builtin.debug:
-    msg: "{{ sysctl_status.stdout_lines }}"
+    msg: "{{ containerd_sysctl_status.stdout_lines }}"
 
 - name: Create containerd config directory
   ansible.builtin.file:
@@ -153,7 +153,7 @@
 
 - name: Check if SystemdCgroup is already enabled
   ansible.builtin.set_fact:
-    systemd_cgroup_enabled: "{{ containerd_config_content.content | b64decode | regex_search('SystemdCgroup = true') is not none }}"
+    containerd_systemd_cgroup_enabled: "{{ containerd_config_content.content | b64decode | regex_search('SystemdCgroup = true') is not none }}"
 
 - name: Remove CRI plugin from disabled_plugins list
   ansible.builtin.lineinfile:
@@ -167,16 +167,16 @@
     insertafter: '^\s*\[plugins\.[''"]io\.containerd\.cri\.v1\.runtime[''"]\.containerd\.runtimes\.runc\.options\]'
     line: "            SystemdCgroup = true"
     state: present
-  when: not systemd_cgroup_enabled
+  when: not containerd_systemd_cgroup_enabled
 
 - name: Verify SystemdCgroup configuration
   ansible.builtin.shell: grep -A 2 "runc.options" /etc/containerd/config.toml | grep SystemdCgroup || echo "NOT FOUND"
-  register: systemd_cgroup_check
+  register: containerd_systemd_cgroup_check
   changed_when: false
 
 - name: Display SystemdCgroup status
   ansible.builtin.debug:
-    msg: "SystemdCgroup setting: {{ systemd_cgroup_check.stdout }}"
+    msg: "SystemdCgroup setting: {{ containerd_systemd_cgroup_check.stdout }}"
 
 - name: Restart containerd service
   ansible.builtin.systemd:

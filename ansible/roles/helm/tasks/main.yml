@@ -68,5 +68,5 @@
       - "✅ Repositories updated"
       - ""
       - "Next steps:"
-          - "1. Initialize Kubernetes cluster with kubeadm"
-          - "2. Deploy Cilium CNI using Helm"
+      - "1. Initialize Kubernetes cluster with kubeadm"
+      - "2. Deploy Cilium CNI using Helm"

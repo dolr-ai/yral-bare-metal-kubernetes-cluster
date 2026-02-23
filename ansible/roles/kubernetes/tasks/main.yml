@@ -19,28 +19,28 @@
     echo ""
     echo "=== /proc/swaps ==="
     cat /proc/swaps
-  register: swap_status
+  register: kubernetes_swap_status
   changed_when: false
   failed_when: false
 
 - name: Display current swap status
   ansible.builtin.debug:
-    msg: "{{ swap_status.stdout_lines }}"
+    msg: "{{ kubernetes_swap_status.stdout_lines }}"
 
 - name: Disable swap immediately
   ansible.builtin.command: swapoff -a
-  register: swapoff_result
-  changed_when: swapoff_result.rc == 0
+  register: kubernetes_swapoff_result
+  changed_when: kubernetes_swapoff_result.rc == 0
   failed_when: false
 
 - name: Check if swap entries exist in /etc/fstab
   ansible.builtin.shell: grep -i swap /etc/fstab || echo "No swap entries found"
-  register: fstab_swap_check
+  register: kubernetes_fstab_swap_check
   changed_when: false
 
 - name: Display swap entries in /etc/fstab
   ansible.builtin.debug:
-    msg: "{{ fstab_swap_check.stdout_lines }}"
+    msg: "{{ kubernetes_fstab_swap_check.stdout_lines }}"
 
 - name: Remove all swap entries from /etc/fstab
   ansible.builtin.lineinfile:
@@ -56,12 +56,12 @@
     echo ""
     echo "=== /etc/fstab (swap entries) ==="
     grep -i swap /etc/fstab || echo "✅ No swap entries in /etc/fstab"
-  register: swap_verify
+  register: kubernetes_swap_verify
   changed_when: false
 
 - name: Display swap disable verification
   ansible.builtin.debug:
-    msg: "{{ swap_verify.stdout_lines }}"
+    msg: "{{ kubernetes_swap_verify.stdout_lines }}"
 
 - name: Install prerequisites for Kubernetes repository
   ansible.builtin.apt:
@@ -123,12 +123,12 @@
 
 - name: Verify packages are held
   ansible.builtin.shell: apt-mark showhold
-  register: held_packages
+  register: kubernetes_held_packages
   changed_when: false
 
 - name: Display held packages
   ansible.builtin.debug:
-    msg: "{{ held_packages.stdout_lines }}"
+    msg: "{{ kubernetes_held_packages.stdout_lines }}"
 
 - name: Enable kubelet service
   ansible.builtin.systemd:
@@ -138,12 +138,12 @@
 
 - name: Get kubelet service status
   ansible.builtin.shell: systemctl status kubelet --no-pager || true
-  register: kubelet_status
+  register: kubernetes_kubelet_status
   changed_when: false
 
 - name: Display kubelet service status
   ansible.builtin.debug:
-    msg: "{{ kubelet_status.stdout_lines }}"
+    msg: "{{ kubernetes_kubelet_status.stdout_lines }}"
 
 - name: Get installed versions
   ansible.builtin.shell: |
@@ -155,12 +155,12 @@
     echo ""
     echo "kubectl version:"
     kubectl version --client -o yaml
-  register: k8s_versions
+  register: kubernetes_k8s_versions
   changed_when: false
 
 - name: Display installed Kubernetes versions
   ansible.builtin.debug:
-    msg: "{{ k8s_versions.stdout_lines }}"
+    msg: "{{ kubernetes_k8s_versions.stdout_lines }}"
 
 - name: Display installation summary
   ansible.builtin.debug:

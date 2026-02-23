@@ -41,13 +41,13 @@
         password: "{{ hetzner_robot_api_password }}"
         force_basic_auth: true
         return_content: true
-      register: hetzner_keys_response
+      register: provision_hetzner_keys_response
       delegate_to: localhost
 
     - name: Build SSH key fingerprint mapping
       ansible.builtin.set_fact:
         provision_key_fingerprints: "{{ provision_key_fingerprints | default([]) + [item.key.fingerprint] }}"
-      loop: "{{ hetzner_keys_response.json }}"
+      loop: "{{ provision_hetzner_keys_response.json }}"
       when:
         - item.key.name | lower in provision_hetzner_ssh_keys or
           (item.key.name | lower).split() | intersect(provision_hetzner_ssh_keys) | length > 0
@@ -79,7 +79,7 @@
           os: linux
           arch: 64
         return_content: true
-      register: rescue_response
+      register: provision_rescue_response
       delegate_to: localhost
 
     - name: Display rescue mode activation
@@ -97,7 +97,7 @@
         body:
           type: hw
         status_code: [200, 201]
-      register: reset_response
+      register: provision_reset_response
       delegate_to: localhost
 
     - name: Wait for server to boot into rescue mode
@@ -114,10 +114,10 @@
         ssh -i /home/vscode/.ssh/hetzner-ansible-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 \
           root@{{ provision_server_ip }} \
           "test -f /root/.oldroot/nfs/install/installimage && echo 'rescue_ready'"
-      register: rescue_check
+      register: provision_rescue_check
       retries: 12
       delay: 5
-      until: rescue_check.stdout == 'rescue_ready'
+      until: provision_rescue_check.stdout == 'rescue_ready'
       changed_when: false
       delegate_to: localhost
 
@@ -145,7 +145,7 @@
           "curl -fsSL https://raw.githubusercontent.com/{{ provision_github_repository }}/main/scripts/install-ubuntu.sh | \
           MACHINE_HOSTNAME='{{ inventory_hostname }}' \
           DRIVE_TO_USE='{{ provision_drive_to_use }}' bash"
-      register: install_output
+      register: provision_install_output
       failed_when: false
       changed_when: true
       delegate_to: localhost
@@ -153,7 +153,7 @@
     - name: Check installation success
       ansible.builtin.fail:
         msg: "Installation failed - INSTALLATION COMPLETE marker not found"
-      when: "'INSTALLATION COMPLETE' not in install_output.stdout"
+      when: "'INSTALLATION COMPLETE' not in provision_install_output.stdout"
 
     - name: Reboot server into Ubuntu
       ansible.builtin.shell: |
@@ -176,10 +176,10 @@
         ssh -i /home/vscode/.ssh/hetzner-ansible-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 \
           root@{{ provision_server_ip }} \
           "cat /etc/os-release | grep Ubuntu"
-      register: ubuntu_check
+      register: provision_ubuntu_check
       retries: 24
       delay: 5
-      until: ubuntu_check.rc == 0
+      until: provision_ubuntu_check.rc == 0
       delegate_to: localhost
       changed_when: false
 
