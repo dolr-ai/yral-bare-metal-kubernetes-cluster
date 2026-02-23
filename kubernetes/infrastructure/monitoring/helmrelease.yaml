@@ -1,0 +1,84 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kube-prometheus-stack
+  namespace: monitoring
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: kube-prometheus-stack
+      version: "82.2.1"
+      sourceRef:
+        kind: HelmRepository
+        name: prometheus-community
+        namespace: monitoring
+  timeout: 10m
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    grafana:
+      # Auth proxy: oauth2-proxy handles authentication.
+      # Grafana trusts X-Auth-Request-Email header forwarded by oauth2-proxy.
+      # The login form and basic auth are disabled — no admin password needed.
+      grafana.ini:
+        auth.proxy:
+          enabled: true
+          header_name: X-Auth-Request-Email
+          header_property: email
+          auto_sign_up: true
+        auth:
+          disable_login_form: true
+        auth.basic:
+          enabled: false
+
+      # Disable default admin secret — login is disabled anyway.
+      admin:
+        existingSecret: ""
+        userKey: ""
+        passwordKey: ""
+
+      # No persistent storage — dashboards and datasources come from ConfigMaps.
+      persistence:
+        enabled: false
+
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+
+    prometheus:
+      prometheusSpec:
+        # 15-day retention, matches default; adjust as needed.
+        retention: 15d
+
+        # Store metrics on a PVC (btrfs subvolume on the node).
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: 50Gi
+
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+
+    alertmanager:
+      alertmanagerSpec:
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi

@@ -1,0 +1,32 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: metrics-server
+  namespace: metrics-server
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: metrics-server
+      version: "3.13.0"
+      sourceRef:
+        kind: HelmRepository
+        name: metrics-server
+        namespace: metrics-server
+  timeout: 5m
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    # Bare-metal nodes use self-signed kubelet certs — skip TLS verification.
+    # Alternative: configure kubelet serving certs via cert-manager (cluster-wide).
+    extraArgs:
+      - --kubelet-insecure-tls
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi

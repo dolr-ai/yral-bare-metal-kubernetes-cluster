@@ -15,4 +15,6 @@ resources:
   - infrastructure-oauth2-proxy.yaml
   - infrastructure-velero.yaml
   - infrastructure-flux-receiver.yaml
+  - infrastructure-metrics-server.yaml
+  - infrastructure-monitoring.yaml
   - networking.yaml
