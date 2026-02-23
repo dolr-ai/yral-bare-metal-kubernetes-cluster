@@ -1,0 +1,22 @@
+# Apply with: kubectl apply -f kubernetes/infrastructure/coredns/coredns-service-topology.yaml
+#
+# This file is NOT managed by Flux — kube-dns Service is a kubeadm-owned resource and
+# cannot be reconciled via a Flux Kustomization without risking ownership conflicts.
+# It is committed here so the repository reflects the actual cluster state.
+#
+# Purpose: Enable topology-aware routing on the kube-dns ClusterIP Service.
+#
+# Why: With topology-mode: Auto, Cilium's EndpointSlice controller sets topology hints
+# so that DNS clients are routed to a CoreDNS endpoint in their own zone. This ensures
+# pod DNS queries never leave the local Hetzner datacenter as UDP over VXLAN.
+#
+# Prerequisite: CoreDNS must have >= 1 ready replica per zone (achieved via
+# coredns-deployment-topology.yaml). Without enough endpoints, Kubernetes falls back
+# to routing across zones, which is correct behaviour.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-dns
+  namespace: kube-system
+  annotations:
+    service.kubernetes.io/topology-mode: "Auto"

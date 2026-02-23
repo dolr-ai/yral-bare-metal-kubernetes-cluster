@@ -1,0 +1,32 @@
+# Apply with: kubectl apply -f kubernetes/infrastructure/coredns/coredns-deployment-topology.yaml
+#
+# This file is NOT managed by Flux — CoreDNS is a kubeadm-owned resource and
+# cannot be reconciled via a Flux Kustomization without risking ownership conflicts.
+# It is committed here so the repository reflects the actual cluster state.
+#
+# Purpose: Scale CoreDNS to 3 replicas and spread them across topology zones.
+#
+# Why: Both default replicas were scheduled on control-plane-1 (HEL1-DC2) while
+# source-controller and worker pods live in FSN1-DC1 / FSN1-DC8. DNS queries cross
+# Hetzner datacenters as UDP over Cilium VXLAN — UDP is unreliable cross-DC (no
+# retransmission), causing intermittent i/o timeouts for all external DNS lookups.
+#
+# Fix: 3 replicas + topologySpreadConstraints by zone → one CoreDNS pod per zone.
+# Combined with topology-mode: Auto on kube-dns Service (see coredns-service-topology.yaml),
+# DNS queries are served by the same-zone CoreDNS instance, eliminating cross-DC UDP.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coredns
+  namespace: kube-system
+spec:
+  replicas: 3
+  template:
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              k8s-app: kube-dns

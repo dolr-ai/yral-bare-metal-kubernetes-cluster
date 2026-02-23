@@ -577,6 +577,7 @@ kubectl apply -k kubernetes/networking
 - ❌ Mutations (installs, config changes, reboots, kubeadm operations): must live in a role task and be executed via a playbook.
 - ❌ Direct `helm` CLI mutations from the terminal: strictly prohibited — no `helm upgrade`, `helm install`, `helm uninstall`, or `helm repo add` as standalone terminal mutations. Helm operations that change cluster state must be embedded in a role (the role runs `helm` on the target node via Ansible) and invoked through a playbook. The only exception is read-only Helm commands like `helm list` or `helm status`.
 - ❌ `kubectl apply` / `kubectl delete` for Flux-managed resources: strictly prohibited once Flux is bootstrapped. Commit the desired state to git and let Flux reconcile. For urgent rollbacks, remove the resource from git (Flux prunes it); do not delete it imperatively.
+- ⚠️ `kubectl apply -f <file>` for **non-Flux-managed** resources (e.g., kubeadm-owned objects like the CoreDNS Deployment or kube-dns Service that Flux cannot own): acceptable **only** when Flux reconciliation is structurally impossible. Always commit the manifest file to git first so the repo reflects cluster state, then run `kubectl apply -f <path>`. Never run `kubectl apply` with inline flags or heredocs — always from a committed file. Prefer Flux as the primary mechanism; fall back to `kubectl apply -f` only when necessary.
 
 This ensures every change is:
   - **Idempotent**: re-running the playbook reaches the same end state
