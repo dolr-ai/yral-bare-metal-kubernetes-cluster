@@ -20,7 +20,9 @@ spec:
   values:
     # Bare-metal nodes use self-signed kubelet certs — skip TLS verification.
     # Alternative: configure kubelet serving certs via cert-manager (cluster-wide).
-    extraArgs:
+    # Note: chart v3.x uses `.Values.args` (not `.Values.extraArgs`) to append
+    # to the container's default args list.
+    args:
       - --kubelet-insecure-tls
 
     resources:
