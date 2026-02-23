@@ -1,6 +1,0 @@
----
-# Hetzner Robot Firewall role defaults.
-#
-# Cloudflare IPv4 CIDRs are no longer used as per-CIDR input rules —
-# the full cluster inventory already consumes ~30 of Hetzner's 50-rule limit,
-# so ports 80/443 are opened to all sources instead.
