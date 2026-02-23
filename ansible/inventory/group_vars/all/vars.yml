@@ -22,3 +22,9 @@ github_flux_token: "{{ vault_github_flux_token }}"  # Indirection to vault
 # Flux uses this key to decrypt *.sops.yaml files from git (e.g. cloudflare-api-token).
 # To generate: age-keygen -o /tmp/age.key  (then store contents as vault_age_private_key)
 age_private_key: "{{ vault_age_private_key }}"  # Indirection to vault
+
+# Cloudflare DNS management for kubernetes-api round-robin A records
+# Used by node-remove and control-plane-join roles to update DNS on CP add/remove
+cloudflare_api_token: "{{ vault_cloudflare_api_token }}"  # Indirection to vault
+cloudflare_zone_id: "f0e13310b0b3c66709f0debd5e3bbb10"
+kubernetes_api_hostname: "kubernetes-api.yral.com"

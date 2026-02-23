@@ -40,3 +40,28 @@
         dest: /root/.kube/config
         remote_src: true
         mode: "0600"
+
+- name: Add CP A record to Cloudflare DNS after successful join
+  ansible.builtin.uri:
+    url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ cloudflare_api_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      type: "A"
+      name: "{{ kubernetes_api_hostname }}"
+      content: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
+      ttl: 1
+      proxied: false
+    status_code: 200
+  delegate_to: localhost
+  register: control_plane_join_cf_result
+  changed_when: control_plane_join_cf_result.status == 200
+
+- name: Display Cloudflare DNS registration result
+  ansible.builtin.debug:
+    msg: >-
+      Added A record: {{ kubernetes_api_hostname }} → {{ hostvars[inventory_hostname]['ansible_host'] }}
+      (record id: {{ control_plane_join_cf_result.json.result.id }})

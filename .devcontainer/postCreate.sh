@@ -144,6 +144,27 @@ else
     echo "⚠ Vault password file not found — sops-age setup skipped"
 fi
 
+# Extract Cloudflare API token for DNS management (node-remove/control-plane-join roles)
+echo ""
+echo "Setting up Cloudflare API token..."
+if [ -f "$ANSIBLE_DIR/.vault_pass" ]; then
+    CF_TOKEN=$(ansible-vault view "$ANSIBLE_DIR/inventory/group_vars/all/vault.yml" 2>/dev/null | \
+        python3 -c "
+import sys, yaml
+d = yaml.safe_load(sys.stdin)
+print(d.get('vault_cloudflare_api_token', ''))
+")
+    if [ -n "$CF_TOKEN" ]; then
+        printf '%s' "$CF_TOKEN" > /tmp/.cf
+        chmod 600 /tmp/.cf
+        echo "✓ Cloudflare API token written to /tmp/.cf"
+    else
+        echo "⚠ vault_cloudflare_api_token not found in vault"
+    fi
+else
+    echo "⚠ Vault password file not found — Cloudflare token setup skipped"
+fi
+
 # Configure GitHub CLI to use SSH
 echo ""
 echo "Configuring GitHub CLI..."
