@@ -1,0 +1,16 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: infrastructure-coredns
+  namespace: flux-system
+spec:
+  interval: 1h
+  path: ./kubernetes/infrastructure/coredns
+  prune: false
+  # prune: false — this ConfigMap is also managed by kubeadm during cluster upgrades.
+  # Disabling prune prevents Flux from deleting it if this Kustomization is ever removed.
+  wait: true
+  timeout: 2m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

@@ -9,6 +9,7 @@ kind: Kustomization
 #   cert-manager-issuers  → dependsOn: cert-manager
 #   networking     → dependsOn: cilium, cert-manager-issuers
 resources:
+  - infrastructure-coredns.yaml
   - infrastructure-cilium.yaml
   - infrastructure-cert-manager.yaml
   - infrastructure-cert-manager-issuers.yaml
