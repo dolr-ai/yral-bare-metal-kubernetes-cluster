@@ -127,7 +127,7 @@ To add capabilities to the cluster (new CNI features, monitoring updates, etc.),
 ## Cluster Features
 
 ### High Availability
-- **Control Plane HA**: DNS round-robin (kubernetes-api.yral.com → 5 A records, TTL=60)
+- **Control Plane HA**: DNS round-robin (kubernetes-api.yral.com → 5 A records, TTL=Auto, DNS-only at Cloudflare)
 - **Multi-datacenter workers**: Geographic distribution for resilience
 - **Automated backups**: Daily etcd snapshots + Velero cluster backups
 

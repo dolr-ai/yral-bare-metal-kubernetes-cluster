@@ -440,13 +440,14 @@ print(d.get('vault_my_secret', ''))
 - Stacked etcd for HA control planes
 - Odd number of control planes required (1, 3, 5...)
 - 5 control planes in HEL1-DC2 (Helsinki)
-- **Control plane HA**: DNS round-robin (`kubernetes-api.yral.com` → 5 A records, TTL=60, DNS-only at Cloudflare)
+- **Control plane HA**: DNS round-robin (`kubernetes-api.yral.com` → 5 A records, TTL=Auto, DNS-only at Cloudflare)
+- **Cloudflare DNS lifecycle**: `node-remove` role deletes the outgoing CP's A record from Cloudflare **before** running `kubeadm reset`. `control-plane-join` role adds the new CP's A record after a successful join. This prevents worker kubelets from resolving to a decommissioned API server IP during the removal window. Config: `cloudflare_zone_id` and `cloudflare_api_token` in `vars.yml`/`vault.yml`.
 - Cilium v1.19.1 CNI with WireGuard encryption
 - Serial: 1 for node operations (one node at a time)
 
 **Deployment order:**
 1. `init-control-plane.yml` — bootstrap CP-1 (includes Cilium CNI install at end)
-2. `add-control-plane.yml -e target_host=control-plane-N` — for CP-2 through CP-5 (one at a time; Cilium DaemonSet auto-deploys)
+2. `add-control-plane.yml -e target_host=control-plane-N` — for CP-2 through CP-5 (one at a time; Cilium DaemonSet auto-deploys; DNS A record registered automatically)
 3. `add-worker.yml -e target_host=worker-N` — add worker nodes (Cilium DaemonSet auto-deploys)
 
 ### Inventory Structure
