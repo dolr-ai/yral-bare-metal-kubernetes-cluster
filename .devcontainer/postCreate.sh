@@ -165,6 +165,45 @@ else
     echo "⚠ Vault password file not found — Cloudflare token setup skipped"
 fi
 
+# Configure AWS CLI for Hetzner S3 (Velero backup bucket)
+# Credentials come from the SOPS-encrypted velero secret (age key already extracted above).
+echo ""
+echo "Setting up AWS CLI for Hetzner S3..."
+VELERO_SECRET="/workspaces/yral-bare-metal-kubernetes-cluster/kubernetes/infrastructure/velero/secret.sops.yaml"
+if [ -f "$HOME/.config/sops/age/keys.txt" ] && [ -f "$VELERO_SECRET" ]; then
+    CLOUD_CREDS=$(sops --decrypt "$VELERO_SECRET" 2>/dev/null | \
+        python3 -c "
+import sys, yaml
+d = yaml.safe_load(sys.stdin)
+sd = d.get('stringData') or {}
+print(sd.get('cloud', ''))
+")
+    if [ -n "$CLOUD_CREDS" ]; then
+        mkdir -p ~/.aws
+        printf '%s\n' "$CLOUD_CREDS" > ~/.aws/credentials
+        chmod 600 ~/.aws/credentials
+        cat > ~/.aws/config << 'AWSCFG'
+[default]
+region = hel1
+output = json
+
+[services hetzner-s3]
+s3 =
+  endpoint_url = https://hel1.your-objectstorage.com
+s3api =
+  endpoint_url = https://hel1.your-objectstorage.com
+
+[profile default]
+services = hetzner-s3
+AWSCFG
+        echo "✓ AWS CLI configured for Hetzner S3 (profile: default)"
+    else
+        echo "⚠ Could not extract cloud credentials from velero SOPS secret"
+    fi
+else
+    echo "⚠ Age key or velero secret not available — AWS CLI setup skipped"
+fi
+
 # Configure GitHub CLI to use SSH
 echo ""
 echo "Configuring GitHub CLI..."
