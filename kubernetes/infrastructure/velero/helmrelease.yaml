@@ -74,3 +74,9 @@ spec:
       limits:
         cpu: 500m
         memory: 512Mi
+
+    # Override kubectl image tag — chart defaults to cluster k8s version (1.35)
+    # but bitnamilegacy/kubectl:1.35 does not exist yet. Pin to latest available.
+    kubectl:
+      image:
+        tag: "1.32"
