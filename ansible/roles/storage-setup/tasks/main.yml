@@ -183,8 +183,14 @@
               ansible.builtin.debug:
                 msg: "{{ btrfs_before.stdout_lines }}"
 
-            - name: Start btrfs balance (full)
-              ansible.builtin.command: btrfs balance start / --full-balance
+            - name: Convert btrfs data to RAID0 and start balance
+              # -dconvert=raid0  : stripe data chunks across both NVMe drives for max
+              #                    throughput and full combined capacity (no redundancy).
+              # -mconvert=dup    : keep metadata mirrored on both drives so a single
+              #                    bad metadata chunk does not corrupt the filesystem.
+              # Node-level redundancy (RAID0) is acceptable here because Longhorn
+              # provides cross-node replica redundancy (defaultReplicaCount: 2).
+              ansible.builtin.command: btrfs balance start -dconvert=raid0 -mconvert=dup /
               async: 3600
               poll: 30
 
@@ -217,4 +223,4 @@
 
             - name: Success message
               ansible.builtin.debug:
-                msg: "✅ Successfully expanded btrfs filesystem to /dev/{{ second_drive }}"
+                msg: "✅ Successfully expanded btrfs filesystem to /dev/{{ second_drive }} with RAID0 data striping"

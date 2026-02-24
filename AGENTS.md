@@ -527,7 +527,13 @@ lsattr -d /var/lib/longhorn
 
 **btrfs data profile:**
 
-`btrfs filesystem df /` shows `Data, single` on both workers — data is allocated to one device at a time (JBOD-style span), not RAID0-striped. The `storage-setup` role runs `btrfs balance start / --full-balance` without a profile flag, so the default `single` is preserved. Longhorn is not affected by the btrfs allocation profile — it only sees a directory path.
+The `storage-setup` role runs `btrfs balance start -dconvert=raid0 -mconvert=dup /` after adding the second drive:
+- `Data, RAID0` — chunks are striped across both NVMe drives for maximum sequential throughput and full combined capacity. No local redundancy, but Longhorn's `defaultReplicaCount: 2` provides cross-node redundancy.
+- `Metadata, DUP` — metadata is mirrored on both drives; a single bad metadata chunk does not corrupt the filesystem.
+
+**Note: existing workers (worker-1, worker-2) are still on `Data, single`** — they were provisioned before this change. They need reprovisioning to get RAID0 striping.
+
+**Why not mdadm RAID0 + ext4?** Hetzner's `installimage` script supports configuring mdadm RAID0 before OS installation, which would give ext4-on-RAID0 with no CoW at all (Longhorn's preferred filesystem). The tradeoff: mdadm must be configured *in the installimage step* (the OS boots on the array), requiring a change to the `provision` role's installimage config. The current btrfs approach is post-install (OS is already on nvme0, storage-setup adds nvme1 to the pool), which is simpler. If all nodes are reprovisioned at the same time in the future, switching to mdadm RAID0 + ext4 + mounting `/var/lib/longhorn` on the array would eliminate the `nodatacow` workaround entirely and give marginally better raw I/O.
 
 **Longhorn replica count:**
 
