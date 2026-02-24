@@ -363,7 +363,54 @@
     msg: "{{ etcd_health.stdout_lines }}"
   when: is_control_plane
 
-- name: Success message for worker
+- name: Find NotReady worker nodes after CP removal
+  # After etcd leader re-election (~30-60s outage), worker kubelet processes that were
+  # mid-connection enter exponential backoff and do not self-recover. A kubelet restart
+  # is non-destructive (pods keep running via the container runtime) and forces a clean
+  # reconnect to the surviving API servers.
+  ansible.builtin.shell: |
+    kubectl get nodes --no-headers \
+      -l '!node-role.kubernetes.io/control-plane' \
+      | awk '$2=="NotReady" {print $1}'
+  delegate_to: "{{ kubectl_delegate }}"
+  register: notready_workers
+  changed_when: false
+  when: is_control_plane
+  run_once: true
+
+- name: Restart kubelet on NotReady workers
+  ansible.builtin.systemd:
+    name: kubelet
+    state: restarted
+  delegate_to: "{{ item }}"
+  become: true
+  loop: "{{ notready_workers.stdout_lines | default([]) }}"
+  when:
+    - is_control_plane
+    - notready_workers.stdout_lines | default([]) | length > 0
+
+- name: Wait for restarted workers to become Ready
+  ansible.builtin.shell: |
+    kubectl get node {{ item }} --no-headers | awk '{print $2}'
+  delegate_to: "{{ kubectl_delegate }}"
+  register: worker_ready_check
+  changed_when: false
+  retries: 12
+  delay: 10
+  until: worker_ready_check.stdout | trim == "Ready"
+  loop: "{{ notready_workers.stdout_lines | default([]) }}"
+  when:
+    - is_control_plane
+    - notready_workers.stdout_lines | default([]) | length > 0
+
+- name: Report worker recovery
+  ansible.builtin.debug:
+    msg: "Restarted kubelet on NotReady workers: {{ notready_workers.stdout_lines }}"
+  when:
+    - is_control_plane
+    - notready_workers.stdout_lines | default([]) | length > 0
+
+
   ansible.builtin.debug:
     msg: |
       ============================================================
