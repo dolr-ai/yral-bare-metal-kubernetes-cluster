@@ -635,6 +635,21 @@ ingress:
 
 The correct enforcement point for access control in this cluster is an in-cluster auth proxy (oauth2-proxy) or application-level authentication, not pod-level network policy IP rules.
 
+**Service DNS round-robin — all nodes as entry points:**
+
+All public-facing service hostnames (e.g. `grafana.yral.com`, `hubble.yral.com`, future app domains) use **DNS round-robin across every node IP in the cluster** — both workers and control planes. This is the preferred exposure mechanism.
+
+Rationale: Cilium runs a full WireGuard-encrypted mesh across all nodes. Traffic arriving at *any* node — worker or control plane — is correctly routed by Cilium to the pod running the service, regardless of which node it lands on. There is no need to restrict DNS entries to a subset of nodes.
+
+**Pattern for adding a new service hostname in Cloudflare:**
+- Add one A record per node (all 5 CPs + all workers) pointing to each node's public IP
+- TTL: Auto (Cloudflare-managed), Proxy status: DNS-only (not proxied — TLS is terminated inside the cluster at Cilium Gateway)
+- This gives natural load distribution and fault tolerance: if a node is down, DNS clients retry other IPs
+
+**When adding or removing a node**, update the Cloudflare DNS records for all service hostnames accordingly:
+- `node-remove` role already handles `kubernetes-api.yral.com` A record removal; service hostname records must be managed manually in Cloudflare at this time.
+- `control-plane-join` and `worker-join` roles do not auto-register service hostname A records; add them manually after the node joins.
+
 **Exposure model — all services go via the Cilium Gateway:**
 
 All services are exposed through the Cilium Gateway API. Auth is layered in front of services that lack their own:
