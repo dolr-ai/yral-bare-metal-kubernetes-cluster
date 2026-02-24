@@ -118,9 +118,7 @@
 
 - name: Query Cloudflare for CP A record (control plane only)
   ansible.builtin.uri:
-    url: >-
-      https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records
-      ?type=A&name={{ kubernetes_api_hostname }}&content={{ node_remove_target_ip }}
+    url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=A&name={{ kubernetes_api_hostname }}&content={{ node_remove_target_ip }}"
     method: GET
     headers:
       Authorization: "Bearer {{ cloudflare_api_token }}"
@@ -168,9 +166,7 @@
 
 - name: Query Cloudflare for app wildcard A record (all nodes)
   ansible.builtin.uri:
-    url: >-
-      https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records
-      ?type=A&name={{ cloudflare_app_wildcard_hostname }}&content={{ node_remove_target_ip }}
+    url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=A&name={{ cloudflare_app_wildcard_hostname }}&content={{ node_remove_target_ip }}"
     method: GET
     headers:
       Authorization: "Bearer {{ cloudflare_api_token }}"
