@@ -1,0 +1,24 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: longhorn
+  namespace: longhorn-system
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: longhorn
+      version: "1.10.2"
+      sourceRef:
+        kind: HelmRepository
+        name: longhorn
+        namespace: longhorn-system
+  timeout: 10m
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    defaultSettings:
+      # 2 replicas matches the 2 worker nodes; data survives 1 node failure.
+      # Increase to 3 if control-plane nodes are added to Longhorn storage pool.
+      defaultReplicaCount: 2

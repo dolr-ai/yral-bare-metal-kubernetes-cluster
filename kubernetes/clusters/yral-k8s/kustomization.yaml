@@ -17,5 +17,6 @@ resources:
   - infrastructure-velero.yaml
   - infrastructure-flux-receiver.yaml
   - infrastructure-metrics-server.yaml
+  - infrastructure-longhorn.yaml
   - infrastructure-monitoring.yaml
   - networking.yaml
