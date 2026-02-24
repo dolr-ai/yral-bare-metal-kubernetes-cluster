@@ -701,6 +701,16 @@ ansible-playbook ... -v 2>&1 | tee /tmp/some.log &
 
 Rationale: background execution causes output buffer overflows, silent truncation, and read timeouts. Foreground execution streams output directly, blocks until the play finishes, and makes failures immediately visible. Long playbooks (30–60 min) are fine to run foreground — the terminal stays open for the duration.
 
+**Multi-node operations are always serial — never parallel:**
+
+When a task requires touching multiple nodes (e.g., removing old-CP-3 then old-CP-2, or adding worker-3/4/5 one after another), **each node must be fully completed before the next begins**. Never run two `ansible-playbook` invocations for different nodes simultaneously. This is true for all cluster operations:
+
+- CP redistribution: remove one old node → verify cluster healthy → add new node → verify → then move to next pair
+- Worker provisioning: `add-worker.yml -e target_host=worker-3` → wait for completion + verify Ready → then worker-4, etc.
+- Node upgrades: one node drained, upgraded, rejoined, and verified before touching the next
+
+Rationale: etcd quorum, Longhorn replica rebuilds, and DNS round-robin all require cluster stability between operations. Running nodes in parallel risks quorum loss, data loss, or cascading failures.
+
 **When a deployment step fails:**
 1. Investigate with read-only terminal commands to diagnose.
 2. Fix the role/task that corresponds to the failing step.
@@ -718,6 +728,7 @@ When in doubt:
 6. Is this a mutation? → If yes, it must be in a role run via a playbook, never via SSH or terminal.
 7. Am I about to create a new playbook? → Stop. Can this fit into an existing playbook via a new role? If yes, do that. If no, ask the user first.
 8. Am I about to SSH into a node and run a command that changes state? → Stop. Implement it in a role and run the full playbook instead.
+9. Am I about to run playbooks for multiple nodes at the same time? → Stop. Operations on cluster nodes are always serial — complete one node fully (playbook done + verified Ready/healthy) before starting the next.
 
 ## Active Deployment Handoff
 

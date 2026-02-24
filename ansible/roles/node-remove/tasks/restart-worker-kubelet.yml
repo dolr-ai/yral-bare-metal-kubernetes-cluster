@@ -1,0 +1,21 @@
+---
+# Called with variable: worker_node (inventory name)
+# Restarts kubelet on one NotReady worker and waits for it to become Ready
+# before moving on to the next worker.
+
+- name: Restart kubelet on NotReady worker {{ worker_node }}
+  ansible.builtin.systemd:
+    name: kubelet
+    state: restarted
+  delegate_to: "{{ worker_node }}"
+  become: true
+
+- name: Wait for worker {{ worker_node }} to become Ready
+  ansible.builtin.shell: |
+    kubectl get node {{ worker_node }} --no-headers | awk '{print $2}'
+  delegate_to: "{{ kubectl_delegate }}"
+  register: worker_ready_check
+  changed_when: false
+  retries: 12
+  delay: 10
+  until: worker_ready_check.stdout | trim == "Ready"

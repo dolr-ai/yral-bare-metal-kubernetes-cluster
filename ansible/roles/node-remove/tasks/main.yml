@@ -378,27 +378,14 @@
   when: is_control_plane
   run_once: true
 
-- name: Restart kubelet on NotReady workers
-  ansible.builtin.systemd:
-    name: kubelet
-    state: restarted
-  delegate_to: "{{ item }}"
-  become: true
+- name: Restart kubelet and wait for Ready — one worker at a time (serial)
+  # include_tasks loops are serial: restart worker-N, wait until Ready, then worker-N+1.
+  # This prevents simultaneously restarting all NotReady workers and triggering further
+  # etcd/Longhorn disruption before the previous worker is confirmed healthy.
+  ansible.builtin.include_tasks: restart-worker-kubelet.yml
   loop: "{{ notready_workers.stdout_lines | default([]) }}"
-  when:
-    - is_control_plane
-    - notready_workers.stdout_lines | default([]) | length > 0
-
-- name: Wait for restarted workers to become Ready
-  ansible.builtin.shell: |
-    kubectl get node {{ item }} --no-headers | awk '{print $2}'
-  delegate_to: "{{ kubectl_delegate }}"
-  register: worker_ready_check
-  changed_when: false
-  retries: 12
-  delay: 10
-  until: worker_ready_check.stdout | trim == "Ready"
-  loop: "{{ notready_workers.stdout_lines | default([]) }}"
+  loop_control:
+    loop_var: worker_node
   when:
     - is_control_plane
     - notready_workers.stdout_lines | default([]) | length > 0
