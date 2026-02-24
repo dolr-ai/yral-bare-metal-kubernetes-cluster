@@ -29,7 +29,9 @@ spec:
           root_url: https://grafana.yral.com
         auth.proxy:
           enabled: true
-          header_name: X-Auth-Request-Email
+          # oauth2-proxy --pass-user-headers=true forwards X-Forwarded-Email to the upstream.
+          # (--set-xauthrequest only sets X-Auth-Request-* on the response, not the upstream request)
+          header_name: X-Forwarded-Email
           header_property: email
           auto_sign_up: true
         auth:
