@@ -73,7 +73,9 @@
       YOU ARE REMOVING A CONTROL PLANE NODE!
       Type 'yes-remove-control-plane' to confirm
   register: control_plane_confirm
-  when: is_control_plane
+  when:
+    - is_control_plane
+    - confirm_node_remove | default('') != 'yes'
   run_once: true
 
 - name: Validate control plane confirmation
@@ -81,13 +83,16 @@
     msg: "Control plane removal cancelled - confirmation not provided"
   when:
     - is_control_plane
-    - control_plane_confirm.user_input != 'yes-remove-control-plane'
+    - confirm_node_remove | default('') != 'yes'
+    - control_plane_confirm.user_input | default('') != 'yes-remove-control-plane'
   run_once: true
 
 - name: Pause for worker confirmation
   ansible.builtin.pause:
     prompt: "Press ENTER to continue or Ctrl+C to abort"
-  when: not is_control_plane
+  when:
+    - not is_control_plane
+    - confirm_node_remove | default('') != 'yes'
   run_once: true
 
 - name: Set target host IP fact
