@@ -397,7 +397,7 @@
     - is_control_plane
     - notready_workers.stdout_lines | default([]) | length > 0
 
-
+- name: Success message for worker
   ansible.builtin.debug:
     msg: |
       ============================================================
