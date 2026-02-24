@@ -504,6 +504,37 @@ Whenever a worker is added in a **new Hetzner zone** (e.g., NBG1, a new FSN1 DC,
 
 **Rule:** `replicas` in `coredns-deployment-topology.yaml` must always be `>=` the number of distinct `topology.kubernetes.io/zone` values across all cluster nodes.
 
+### Cilium BPF Service Table Staleness After Worker Reprovision
+
+**Symptom:** Kubernetes admission webhooks return `context deadline exceeded` intermittently — typically after a worker node is removed and reprovisioned. Only some API requests fail (those routed to affected control planes), making the root cause non-obvious.
+
+**Root cause:** Cilium maintains per-node BPF service maps that translate ClusterIP → pod endpoint IPs. When a worker is reprovisioned, its pods get new IPs. In normal operation, Cilium on all nodes syncs from EndpointSlice events. Occasionally, one or more Cilium pods on control planes fail to reconcile, leaving stale pod IPs in their BPF maps. Requests routed through those API servers hit the dead pod IP → TCP timeout → webhook failure.
+
+**Diagnosis:**
+```bash
+# 1. Check the webhook's EndpointSlice for current pod IPs
+kubectl get endpointslices -n longhorn-system -l kubernetes.io/service-name=longhorn-admission-webhook
+
+# 2. Inspect the Cilium service table on each control plane for the webhook's ClusterIP
+# Get ClusterIP first:
+kubectl get svc -n longhorn-system longhorn-admission-webhook -o jsonpath='{.spec.clusterIP}'
+
+# On each CP, check the Cilium pod:
+CILIUM_POD=$(kubectl get pod -n kube-system -o wide --no-headers | grep <cp-node> | grep ^cilium | awk '{print $1}')
+kubectl exec -n kube-system $CILIUM_POD -- cilium service list | grep <ClusterIP>
+# Then inspect that service ID:
+kubectl exec -n kube-system $CILIUM_POD -- cilium service get <ID> --verbose
+# Look for backends — any IP not in the current EndpointSlice is stale
+```
+
+**Fix:** Restart the Cilium pod on each affected control plane to force a BPF map re-sync from EndpointSlices:
+```bash
+kubectl delete pod -n kube-system <cilium-pod-on-affected-cp>
+# Wait for it to become Running again, then verify backends are updated
+```
+
+**Key insight:** Cilium on worker nodes (where the workload pods live) is not the issue — the staleness is on the *control plane* Cilium pods that receive API traffic destinated for webhooks. Always check all CPs, not just the workers.
+
 ### Longhorn CSI and btrfs Storage
 
 Longhorn is the cluster's default CSI provider (`storageClassName: longhorn`). All PVCs that don't request a specific StorageClass will be provisioned by Longhorn. Prometheus persistent storage uses it; all future stateful workloads should too.
@@ -528,21 +559,21 @@ lsattr -d /var/lib/longhorn
 # Expected: ---------------C-- /var/lib/longhorn
 ```
 
-**Existing workers (worker-1, worker-2):** Were provisioned before this fix was added. Their `/var/lib/longhorn` directories do **not** have nodatacow set. Per the immutability principle, the correct fix is to reprovision these nodes (drain Longhorn volumes, run `remove-node.yml`, then `add-worker.yml`). Until then, they are running with suboptimal btrfs CoW behaviour.
+**Existing workers:** worker-2 was reprovisioned after this fix was added and has nodatacow correctly set. worker-1 was provisioned before this fix and its `/var/lib/longhorn` directory does **not** have nodatacow set. Per the immutability principle, the correct fix is to reprovision worker-1 (drain Longhorn volumes, run `remove-node.yml`, then `add-worker.yml`). Until then, it runs with suboptimal btrfs CoW behaviour.
 
 **btrfs data profile:**
 
 The `storage-setup` role runs `btrfs balance start -dconvert=raid0 -mconvert=dup /` after adding the second drive:
-- `Data, RAID0` — chunks are striped across both NVMe drives for maximum sequential throughput and full combined capacity. No local redundancy, but Longhorn's `defaultReplicaCount: 2` provides cross-node redundancy.
+- `Data, RAID0` — chunks are striped across both NVMe drives for maximum sequential throughput and full combined capacity. No local redundancy, but Longhorn's `defaultReplicaCount: 3` provides cross-node redundancy.
 - `Metadata, DUP` — metadata is mirrored on both drives; a single bad metadata chunk does not corrupt the filesystem.
 
-**Note: existing workers (worker-1, worker-2) are still on `Data, single`** — they were provisioned before this change. They need reprovisioning to get RAID0 striping.
+**Note: worker-1 is still on `Data, single`** — it was provisioned before this change and needs reprovisioning to get RAID0 striping. worker-2 was reprovisioned after this change and is on RAID0.
 
 **Why not mdadm RAID0 + ext4?** Hetzner's `installimage` script supports configuring mdadm RAID0 before OS installation, which would give ext4-on-RAID0 with no CoW at all (Longhorn's preferred filesystem). The tradeoff: mdadm must be configured *in the installimage step* (the OS boots on the array), requiring a change to the `provision` role's installimage config. The current btrfs approach is post-install (OS is already on nvme0, storage-setup adds nvme1 to the pool), which is simpler. If all nodes are reprovisioned at the same time in the future, switching to mdadm RAID0 + ext4 + mounting `/var/lib/longhorn` on the array would eliminate the `nodatacow` workaround entirely and give marginally better raw I/O.
 
 **Longhorn replica count:**
 
-`defaultReplicaCount: 2` in `kubernetes/infrastructure/longhorn/helmrelease.yaml` — matches the 2 worker nodes. Each Longhorn volume stores 2 replicas across the 2 workers, surviving a single-node failure. Increase this value if more worker nodes are added.
+`defaultReplicaCount: 3` in `kubernetes/infrastructure/longhorn/helmrelease.yaml` — with 5 worker nodes, each Longhorn volume stores 3 replicas, surviving a 2-node simultaneous failure. Adjust this value as worker node count changes (keep it at a minority of total workers to allow maintenance).
 
 **NFS / RWX volumes:**
 
