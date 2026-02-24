@@ -41,9 +41,7 @@ spec:
         auth:
           disable_login_form: true
         auth.basic:
-          # Temporarily enabled to allow admin API calls for user role setup.
-          # Will be disabled again after promotion is complete.
-          enabled: true
+          enabled: false
 
       # Disable default admin secret — login is disabled anyway.
       admin:
