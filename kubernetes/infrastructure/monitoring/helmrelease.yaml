@@ -23,6 +23,10 @@ spec:
       # Grafana trusts X-Auth-Request-Email header forwarded by oauth2-proxy.
       # The login form and basic auth are disabled — no admin password needed.
       grafana.ini:
+        server:
+          # Required: Grafana uses root_url for post-login redirects.
+          # Without this, auth.proxy sign-in redirects to a blank domain and loops back to /login.
+          root_url: https://grafana.yral.com
         auth.proxy:
           enabled: true
           header_name: X-Auth-Request-Email
