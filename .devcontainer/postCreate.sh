@@ -8,6 +8,12 @@ echo "========================================="
 echo "DevContainer Post-Create Setup"
 echo "========================================="
 
+# Install system packages
+echo ""
+echo "Installing system packages..."
+sudo apt-get update -qq && sudo apt-get install -y -qq dnsutils
+echo "✓ Installed dnsutils (dig, nslookup, host)"
+
 # Install Python packages
 echo ""
 echo "Installing Python packages..."
