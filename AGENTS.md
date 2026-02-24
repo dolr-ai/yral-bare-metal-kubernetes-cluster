@@ -499,6 +499,44 @@ Whenever a worker is added in a **new Hetzner zone** (e.g., NBG1, a new FSN1 DC,
 
 **Rule:** `replicas` in `coredns-deployment-topology.yaml` must always be `>=` the number of distinct `topology.kubernetes.io/zone` values across all cluster nodes.
 
+### Longhorn CSI and btrfs Storage
+
+Longhorn is the cluster's default CSI provider (`storageClassName: longhorn`). All PVCs that don't request a specific StorageClass will be provisioned by Longhorn. Prometheus persistent storage uses it; all future stateful workloads should too.
+
+**btrfs CoW conflict — critical:**
+
+Every Hetzner node uses btrfs as the root filesystem (expanded to two drives via `storage-setup`). btrfs applies Copy-on-Write (CoW) to all files by default. Longhorn implements its own CoW replication model. Running both simultaneously causes **double-CoW**:
+- Every Longhorn write triggers a btrfs CoW as well
+- Significant write amplification and I/O overhead
+- btrfs metadata fragmentation grows rapidly under Longhorn workloads
+- Apparent "out of space" errors even when free capacity exists (btrfs metadata exhaustion)
+
+**The fix: `nodatacow` on `/var/lib/longhorn`**
+
+The `chattr +C` attribute disables btrfs CoW for a directory tree. It must be set on `/var/lib/longhorn` while the directory is **empty** — before Longhorn's DaemonSet ever writes data there. Once set, all files created inside inherit nodatacow.
+
+This is applied in the `storage-setup` role, which runs during `add-worker.yml` and `init-control-plane.yml` — before the node joins the cluster and before Longhorn's DaemonSet schedules on it.
+
+**Verify on any node:**
+```bash
+lsattr -d /var/lib/longhorn
+# Expected: ---------------C-- /var/lib/longhorn
+```
+
+**Existing workers (worker-1, worker-2):** Were provisioned before this fix was added. Their `/var/lib/longhorn` directories do **not** have nodatacow set. Per the immutability principle, the correct fix is to reprovision these nodes (drain Longhorn volumes, run `remove-node.yml`, then `add-worker.yml`). Until then, they are running with suboptimal btrfs CoW behaviour.
+
+**btrfs data profile:**
+
+`btrfs filesystem df /` shows `Data, single` on both workers — data is allocated to one device at a time (JBOD-style span), not RAID0-striped. The `storage-setup` role runs `btrfs balance start / --full-balance` without a profile flag, so the default `single` is preserved. Longhorn is not affected by the btrfs allocation profile — it only sees a directory path.
+
+**Longhorn replica count:**
+
+`defaultReplicaCount: 2` in `kubernetes/infrastructure/longhorn/helmrelease.yaml` — matches the 2 worker nodes. Each Longhorn volume stores 2 replicas across the 2 workers, surviving a single-node failure. Increase this value if more worker nodes are added.
+
+**NFS / RWX volumes:**
+
+`nfs-common` is not installed on nodes. RWX (ReadWriteMany) via Longhorn's NFS share feature requires it. For RWO (ReadWriteOnce) storage — the common case for databases and Prometheus — `nfs-common` is not needed. Install it via the `base-system` role if RWX support is required.
+
 ### Inventory Structure
 - `control_plane` group: control plane hosts
 - `worker_nodes` group: worker hosts

@@ -1,6 +1,50 @@
 ---
-# Storage Setup - Expand btrfs filesystem to second drive
-# This role detects if multiple drives exist and expands btrfs if applicable
+# Storage Setup - Expand btrfs filesystem to second drive, and prepare Longhorn data path
+# This role detects if multiple drives exist and expands btrfs if applicable.
+#
+# btrfs + Longhorn CoW conflict:
+# btrfs uses Copy-on-Write (CoW) for all files by default. Longhorn also implements its
+# own CoW replication model. The combination causes double-CoW: every Longhorn write
+# triggers a btrfs CoW as well, producing write amplification, metadata fragmentation,
+# and apparent out-of-space conditions even when free capacity exists.
+#
+# Fix: set the `nodatacow` attribute (chattr +C) on /var/lib/longhorn BEFORE Longhorn's
+# DaemonSet ever writes to that path. This disables btrfs CoW for that directory tree
+# while leaving the rest of the filesystem unaffected.
+#
+# This must run during node provisioning (before worker-join / control-plane-join),
+# since Longhorn's DaemonSet only schedules after the node joins the cluster.
+
+- name: Create Longhorn data directory
+  ansible.builtin.file:
+    path: /var/lib/longhorn
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Disable btrfs Copy-on-Write for Longhorn data directory
+  ansible.builtin.command: chattr +C /var/lib/longhorn
+  # nodatacow can only be set on an empty directory on btrfs; the attribute is then
+  # inherited by all files created inside it. Verify with: lsattr -d /var/lib/longhorn
+  # Expected output: ---------------C-- /var/lib/longhorn
+  register: chattr_result
+  changed_when: chattr_result.rc == 0
+  failed_when: chattr_result.rc != 0
+
+- name: Verify nodatacow is set on Longhorn data directory
+  ansible.builtin.command: lsattr -d /var/lib/longhorn
+  register: lsattr_result
+  changed_when: false
+
+- name: Assert nodatacow flag is present
+  ansible.builtin.assert:
+    that: "'C' in lsattr_result.stdout"
+    fail_msg: "nodatacow (chattr +C) was not set on /var/lib/longhorn — Longhorn volumes will suffer double-CoW performance degradation on btrfs"
+    success_msg: "nodatacow confirmed on /var/lib/longhorn: {{ lsattr_result.stdout }}"
+
+# ---------------------------------------------------------------------------
+# Expand btrfs filesystem to second drive (if present)
 
 - name: Get list of all disk devices
   ansible.builtin.shell: lsblk -d -o NAME,TYPE | grep disk | awk '{print $1}'
