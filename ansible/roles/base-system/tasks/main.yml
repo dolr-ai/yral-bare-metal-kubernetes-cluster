@@ -15,9 +15,16 @@
     autoclean: true
   register: upgrade_result
 
-- name: Install unattended-upgrades package
+- name: Install base system packages
   ansible.builtin.apt:
-    name: unattended-upgrades
+    name:
+      - unattended-upgrades
+      # Required by Longhorn CSI for RWX (ReadWriteMany) volume support.
+      # Longhorn creates a share-manager pod running an in-cluster NFS server;
+      # the kubelet on each node needs nfs-common to mount that NFS export.
+      # Safe to install on all nodes (workers AND control planes) — zero conflict
+      # with RWO (ReadWriteOnce) volumes or any other cluster component.
+      - nfs-common
     state: present
 
 - name: Configure unattended-upgrades

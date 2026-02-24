@@ -541,7 +541,7 @@ The `storage-setup` role runs `btrfs balance start -dconvert=raid0 -mconvert=dup
 
 **NFS / RWX volumes:**
 
-`nfs-common` is not installed on nodes. RWX (ReadWriteMany) via Longhorn's NFS share feature requires it. For RWO (ReadWriteOnce) storage — the common case for databases and Prometheus — `nfs-common` is not needed. Install it via the `base-system` role if RWX support is required.
+`nfs-common` is installed on all nodes via the `base-system` role. Longhorn RWX (ReadWriteMany) volumes work by creating a `longhorn-share-manager` pod that runs an in-cluster NFS server; the kubelet uses `nfs-common` userspace tools to mount that NFS export into pods. No conflicts with Cilium + WireGuard — pod-to-pod NFS traffic (port 2049) travels inside the encrypted Cilium mesh. The `storage-network-for-rwx-volume-enabled: false` Longhorn setting correctly routes RWX traffic over the standard pod network.
 
 ### Inventory Structure
 - `control_plane` group: control plane hosts
