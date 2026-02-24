@@ -450,6 +450,55 @@ print(d.get('vault_my_secret', ''))
 2. `add-control-plane.yml -e target_host=control-plane-N` — for CP-2 through CP-5 (one at a time; Cilium DaemonSet auto-deploys; DNS A record registered automatically)
 3. `add-worker.yml -e target_host=worker-N` — add worker nodes (Cilium DaemonSet auto-deploys)
 
+### CoreDNS Topology and Cross-DC VXLAN DNS Issue
+
+**The problem — cross-datacenter UDP over VXLAN is unreliable:**
+
+Hetzner nodes span multiple datacenters (HEL1-DC2 for control planes, FSN1-DC1 and FSN1-DC8 for workers). Cilium's overlay uses VXLAN encapsulation. DNS queries are UDP, and UDP over VXLAN has **no retransmission mechanism** — cross-DC packet loss produces intermittent DNS `i/o timeout` errors visible in all pods whose node is in a different datacenter zone from the CoreDNS replica they hit.
+
+**Symptom:** Pods on worker nodes see sporadic DNS failures for any lookup — both internal (`svc.cluster.local`) and external. The failures are transient and hard to reproduce locally but frequent enough to cause real application errors.
+
+**Root cause identified:** kubeadm's default CoreDNS Deployment has 2 replicas with no scheduling constraints. Both defaulted to control-plane-1 (HEL1-DC2). Worker nodes in FSN1 routed all DNS over VXLAN cross-DC. Cilium's `topology-mode: Auto` was not set on the `kube-dns` Service so no zone-local routing was applied.
+
+**Fix already applied (must be maintained):**
+
+Two manifest files are committed to `kubernetes/infrastructure/coredns/` and applied with `kubectl apply -f` (not Flux-managed — kubeadm owns these resources):
+
+- `coredns-deployment-topology.yaml` — scales CoreDNS to **3 replicas** and adds `topologySpreadConstraints` by `topology.kubernetes.io/zone` (`whenUnsatisfiable: ScheduleAnyway`), ensuring one CoreDNS pod per zone.
+- `coredns-service-topology.yaml` — adds `service.kubernetes.io/topology-mode: "Auto"` to the `kube-dns` Service so Cilium's EndpointSlice controller sets topology hints, routing pods to a same-zone CoreDNS endpoint.
+
+To re-apply after any cluster change:
+```bash
+kubectl apply -f kubernetes/infrastructure/coredns/coredns-deployment-topology.yaml
+kubectl apply -f kubernetes/infrastructure/coredns/coredns-service-topology.yaml
+```
+
+**Why not Flux-managed:** The CoreDNS Deployment and kube-dns Service are owned by kubeadm. Reconciling them via a Flux Kustomization risks ownership conflicts during `kubeadm upgrade`. The manifests are committed to git for auditability but applied imperatively.
+
+**When adding a new worker node in a new zone:**
+
+Whenever a worker is added in a **new Hetzner zone** (e.g., NBG1, a new FSN1 DC, etc.) that has no CoreDNS replica yet:
+
+1. Verify zone coverage after the node joins:
+   ```bash
+   kubectl get pods -n kube-system -l k8s-app=kube-dns -o wide
+   # Check the NODE column — there must be a CoreDNS pod in each zone that has worker nodes
+   ```
+
+2. If a zone is uncovered, increase `spec.replicas` in `coredns-deployment-topology.yaml` to match the total number of zones with worker nodes, then:
+   ```bash
+   # Commit the change to git first
+   git add kubernetes/infrastructure/coredns/coredns-deployment-topology.yaml
+   git commit -m "fix: increase CoreDNS replicas for new zone coverage"
+   git push
+   # Then apply
+   kubectl apply -f kubernetes/infrastructure/coredns/coredns-deployment-topology.yaml
+   ```
+
+3. `topology-mode: Auto` has a **fallback**: if any zone has zero ready CoreDNS endpoints, Kubernetes automatically falls back to cross-zone routing for pods in that zone. This is safe but reintroduces the intermittent DNS timeout problem. The fix is always to restore per-zone CoreDNS coverage.
+
+**Rule:** `replicas` in `coredns-deployment-topology.yaml` must always be `>=` the number of distinct `topology.kubernetes.io/zone` values across all cluster nodes.
+
 ### Inventory Structure
 - `control_plane` group: control plane hosts
 - `worker_nodes` group: worker hosts
