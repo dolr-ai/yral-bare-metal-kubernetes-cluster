@@ -95,6 +95,22 @@
     node_remove_target_ip: "{{ hostvars[target_host]['ansible_host'] }}"
   run_once: true
 
+- name: Resolve Kubernetes node name
+  # Allows inventory name (target_host) to differ from the K8s node name.
+  # Set k8s_node_name in host_vars when the hostname registered in the cluster
+  # differs from the Ansible inventory name (e.g. old-control-plane-2 → control-plane-2).
+  ansible.builtin.set_fact:
+    node_remove_k8s_name: "{{ hostvars[target_host]['k8s_node_name'] | default(target_host) }}"
+  run_once: true
+
+- name: Select kubectl delegate host
+  # Use the first control plane that is NOT the target being removed.
+  # Without this, when removing old-control-plane-2 (which is groups['control_plane'][0]),
+  # all kubectl commands would delegate to the node being destroyed.
+  ansible.builtin.set_fact:
+    kubectl_delegate: "{{ (groups['control_plane'] | reject('equalto', target_host) | list)[0] }}"
+  run_once: true
+
 - name: Query Cloudflare for CP A record (control plane only)
   ansible.builtin.uri:
     url: >-
@@ -189,26 +205,26 @@
   run_once: true
 
 - name: Check if node exists in cluster
-  ansible.builtin.command: kubectl get node {{ target_host }}
-  delegate_to: "{{ groups['control_plane'][0] }}"
+  ansible.builtin.command: kubectl get node {{ node_remove_k8s_name }}
+  delegate_to: "{{ kubectl_delegate }}"
   register: node_check
   failed_when: false
   changed_when: false
 
 - name: Skip drain if node not in cluster
   ansible.builtin.debug:
-    msg: "Node {{ target_host }} not found in cluster, skipping drain"
+    msg: "Node {{ node_remove_k8s_name }} not found in cluster, skipping drain"
   when: node_check.rc != 0
 
 - name: Drain the node
   ansible.builtin.command: >
-    kubectl drain {{ target_host }}
+    kubectl drain {{ node_remove_k8s_name }}
     --ignore-daemonsets
     --delete-emptydir-data
     --force
     --grace-period=120
     --timeout=600s
-  delegate_to: "{{ groups['control_plane'][0] }}"
+  delegate_to: "{{ kubectl_delegate }}"
   when: node_check.rc == 0
   register: drain_result
 
@@ -219,16 +235,16 @@
 
 - name: Get etcd member ID
   ansible.builtin.shell: |
-    kubectl -n kube-system exec etcd-{{ groups['control_plane'][0] }} -- \
+    kubectl -n kube-system exec etcd-{{ kubectl_delegate }} -- \
       etcdctl member list \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
       --cert=/etc/kubernetes/pki/etcd/server.crt \
       --key=/etc/kubernetes/pki/etcd/server.key \
-      | grep {{ target_host }} | cut -d',' -f1
+      | grep {{ node_remove_k8s_name }} | cut -d',' -f1
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
-  delegate_to: "{{ groups['control_plane'][0] }}"
+  delegate_to: "{{ kubectl_delegate }}"
   register: etcd_member_id
   when: is_control_plane
   failed_when: false
@@ -240,7 +256,7 @@
 
 - name: Remove etcd member
   ansible.builtin.shell: |
-    kubectl -n kube-system exec etcd-{{ groups['control_plane'][0] }} -- \
+    kubectl -n kube-system exec etcd-{{ kubectl_delegate }} -- \
       etcdctl member remove {{ etcd_member_id.stdout | trim }} \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
@@ -248,7 +264,7 @@
       --key=/etc/kubernetes/pki/etcd/server.key
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
-  delegate_to: "{{ groups['control_plane'][0] }}"
+  delegate_to: "{{ kubectl_delegate }}"
   when:
     - is_control_plane
     - etcd_member_id.stdout | trim != ""
@@ -262,8 +278,8 @@
     - etcd_member_id.stdout | trim != ""
 
 - name: Delete node from Kubernetes
-  ansible.builtin.command: kubectl delete node {{ target_host }}
-  delegate_to: "{{ groups['control_plane'][0] }}"
+  ansible.builtin.command: kubectl delete node {{ node_remove_k8s_name }}
+  delegate_to: "{{ kubectl_delegate }}"
   register: delete_result
   failed_when: false
 
@@ -302,7 +318,7 @@
 
 - name: List remaining nodes
   ansible.builtin.command: kubectl get nodes
-  delegate_to: "{{ groups['control_plane'][0] }}"
+  delegate_to: "{{ kubectl_delegate }}"
   register: nodes_list
   changed_when: false
 
@@ -312,7 +328,7 @@
 
 - name: Verify etcd cluster health (control plane only)
   ansible.builtin.shell: |
-    kubectl -n kube-system exec etcd-{{ groups['control_plane'][0] }} -- \
+    kubectl -n kube-system exec etcd-{{ kubectl_delegate }} -- \
       etcdctl endpoint health \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
@@ -321,7 +337,7 @@
       --cluster
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
-  delegate_to: "{{ groups['control_plane'][0] }}"
+  delegate_to: "{{ kubectl_delegate }}"
   register: etcd_health
   when: is_control_plane
   changed_when: false
