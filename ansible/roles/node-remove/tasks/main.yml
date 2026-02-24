@@ -116,6 +116,13 @@
     kubectl_delegate: "{{ (groups['control_plane'] | reject('equalto', target_host) | list)[0] }}"
   run_once: true
 
+- name: Resolve kubectl delegate K8s node name
+  # etcd pod names follow the pattern etcd-<k8s-node-name>. The delegate may have a
+  # k8s_node_name that differs from its inventory name (same transitional scenario).
+  ansible.builtin.set_fact:
+    kubectl_delegate_k8s_name: "{{ hostvars[kubectl_delegate]['k8s_node_name'] | default(kubectl_delegate) }}"
+  run_once: true
+
 - name: Query Cloudflare for CP A record (control plane only)
   ansible.builtin.uri:
     url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=A&name={{ kubernetes_api_hostname }}&content={{ node_remove_target_ip }}"
@@ -236,7 +243,7 @@
 
 - name: Get etcd member ID
   ansible.builtin.shell: |
-    kubectl -n kube-system exec etcd-{{ kubectl_delegate }} -- \
+    kubectl -n kube-system exec etcd-{{ kubectl_delegate_k8s_name }} -- \
       etcdctl member list \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
@@ -257,7 +264,7 @@
 
 - name: Remove etcd member
   ansible.builtin.shell: |
-    kubectl -n kube-system exec etcd-{{ kubectl_delegate }} -- \
+    kubectl -n kube-system exec etcd-{{ kubectl_delegate_k8s_name }} -- \
       etcdctl member remove {{ etcd_member_id.stdout | trim }} \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
@@ -329,7 +336,7 @@
 
 - name: Verify etcd cluster health (control plane only)
   ansible.builtin.shell: |
-    kubectl -n kube-system exec etcd-{{ kubectl_delegate }} -- \
+    kubectl -n kube-system exec etcd-{{ kubectl_delegate_k8s_name }} -- \
       etcdctl endpoint health \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
