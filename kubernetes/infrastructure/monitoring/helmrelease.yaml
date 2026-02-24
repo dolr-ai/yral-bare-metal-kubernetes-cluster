@@ -27,6 +27,10 @@ spec:
           # Required: Grafana uses root_url for post-login redirects.
           # Without this, auth.proxy sign-in redirects to a blank domain and loops back to /login.
           root_url: https://grafana.yral.com
+        users:
+          # All users who reach Grafana are already gated by the developer-admin Google group
+          # via oauth2-proxy, so auto-assigning Admin is appropriate.
+          auto_assign_org_role: Admin
         auth.proxy:
           enabled: true
           # oauth2-proxy --pass-user-headers=true forwards X-Forwarded-Email to the upstream.
@@ -37,7 +41,9 @@ spec:
         auth:
           disable_login_form: true
         auth.basic:
-          enabled: false
+          # Temporarily enabled to allow admin API calls for user role setup.
+          # Will be disabled again after promotion is complete.
+          enabled: true
 
       # Disable default admin secret — login is disabled anyway.
       admin:
