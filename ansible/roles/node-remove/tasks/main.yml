@@ -340,7 +340,7 @@
 
 - name: Verify etcd cluster health (control plane only)
   ansible.builtin.shell: |
-    kubectl -n kube-system exec etcd-{{ kubectl_delegate_k8s_name }} -- \
+    timeout 60 kubectl -n kube-system exec etcd-{{ kubectl_delegate_k8s_name }} -- \
       etcdctl endpoint health \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
