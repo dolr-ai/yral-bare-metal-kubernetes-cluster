@@ -329,6 +329,10 @@
   delegate_to: "{{ kubectl_delegate }}"
   register: nodes_list
   changed_when: false
+  # API server may be briefly unavailable while etcd reconfigures after member removal.
+  retries: 10
+  delay: 15
+  until: nodes_list.rc == 0
 
 - name: Display nodes
   ansible.builtin.debug:
