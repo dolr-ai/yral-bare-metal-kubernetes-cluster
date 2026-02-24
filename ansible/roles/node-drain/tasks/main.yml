@@ -43,7 +43,7 @@
 - name: Cordon the node
   ansible.builtin.command: >
     kubectl cordon {{ target_host }}
-  delegate_to: "{{ groups['control_plane'][0] }}"
+  delegate_to: "localhost"
   register: cordon_result
   changed_when: "'cordoned' in cordon_result.stdout"
 
@@ -54,7 +54,7 @@
 - name: Get pod count on node before drain
   ansible.builtin.shell: >
     kubectl get pods -A --field-selector spec.nodeName={{ target_host }} --no-headers | wc -l
-  delegate_to: "{{ groups['control_plane'][0] }}"
+  delegate_to: "localhost"
   register: pod_count_before
   changed_when: false
 
@@ -70,7 +70,7 @@
     --force
     --grace-period=300
     --timeout=600s
-  delegate_to: "{{ groups['control_plane'][0] }}"
+  delegate_to: "localhost"
   register: drain_result
   failed_when: false
 
@@ -83,11 +83,19 @@
     msg: "Drain operation failed: {{ drain_result.stderr }}"
   when: drain_result.rc != 0
 
-- name: Wait for pods to terminate
+- name: Wait for non-DaemonSet pods to terminate
   ansible.builtin.shell: >
-    kubectl get pods -A --field-selector spec.nodeName={{ target_host }} --no-headers 2>/dev/null |
-    grep -v -E '(kube-system.*kube-proxy|kube-system.*cilium)' | wc -l
-  delegate_to: "{{ groups['control_plane'][0] }}"
+    kubectl get pods -A --field-selector spec.nodeName={{ target_host }} -o json 2>/dev/null |
+    python3 -c "
+    import sys, json
+    items = json.load(sys.stdin)['items']
+    non_ds = [p for p in items if not any(
+        r.get('kind') == 'DaemonSet'
+        for r in p.get('metadata', {}).get('ownerReferences', [])
+    )]
+    print(len(non_ds))
+    "
+  delegate_to: "localhost"
   register: remaining_pods
   until: remaining_pods.stdout | int == 0
   retries: 60
@@ -96,7 +104,7 @@
 
 - name: Get node status
   ansible.builtin.command: kubectl get node {{ target_host }}
-  delegate_to: "{{ groups['control_plane'][0] }}"
+  delegate_to: "localhost"
   register: node_status
   changed_when: false
 
@@ -107,7 +115,7 @@
 - name: Get remaining pods
   ansible.builtin.shell: >
     kubectl get pods -A --field-selector spec.nodeName={{ target_host }} -o wide
-  delegate_to: "{{ groups['control_plane'][0] }}"
+  delegate_to: "localhost"
   register: remaining_pods_list
   changed_when: false
 

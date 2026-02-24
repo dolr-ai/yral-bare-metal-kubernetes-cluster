@@ -65,9 +65,11 @@
     apt-get update
 
     echo "Upgrading packages..."
-    DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
+    DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y
 
     echo "Upgrade completed successfully"
+  args:
+    executable: /bin/bash
   register: upgrade_result
   changed_when: true
   delegate_to: "{{ node_target }}"
@@ -227,6 +229,8 @@
                 DISCOVERY_HASH=$(openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //')
                 ENDPOINT="{{ control_plane_endpoint }}:6443"
                 echo "kubeadm join $ENDPOINT --token $TOKEN --discovery-token-ca-cert-hash sha256:$DISCOVERY_HASH"
+              args:
+                executable: /bin/bash
               environment:
                 KUBECONFIG: /etc/kubernetes/admin.conf
               register: worker_join_cmd
@@ -244,6 +248,8 @@
               ansible.builtin.shell: |
                 set -euo pipefail
                 kubeadm init phase upload-certs --upload-certs 2>/dev/null | tail -1
+              args:
+                executable: /bin/bash
               environment:
                 KUBECONFIG: /etc/kubernetes/admin.conf
               register: cert_key
@@ -258,6 +264,8 @@
                 ENDPOINT="{{ control_plane_endpoint }}:6443"
                 CERT_KEY="{{ cert_key.stdout }}"
                 echo "kubeadm join $ENDPOINT --token $TOKEN --discovery-token-ca-cert-hash sha256:$DISCOVERY_HASH --control-plane --certificate-key $CERT_KEY --apiserver-advertise-address={{ hostvars[node_target].ansible_host }}"
+              args:
+                executable: /bin/bash
               register: cp_join_cmd
               changed_when: false
               delegate_to: "{{ groups['control_plane'][0] }}"
@@ -269,6 +277,8 @@
                   mkdir -p /etc/kubernetes/pki/etcd
                   scp -o StrictHostKeyChecking=no /etc/kubernetes/pki/$cert root@{{ hostvars[node_target].ansible_host }}:/etc/kubernetes/pki/$cert 2>/dev/null || true
                 done
+              args:
+                executable: /bin/bash
               environment:
                 KUBECONFIG: /etc/kubernetes/admin.conf
               delegate_to: "{{ groups['control_plane'][0] }}"

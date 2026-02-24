@@ -52,7 +52,9 @@
   ansible.builtin.shell: |
     set -euo pipefail
     apt-get update -qq
-    DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
+    DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y
+  args:
+    executable: /bin/bash
   changed_when: true
 
 - name: Check if reboot is required
@@ -162,6 +164,8 @@
         echo "kubeadm join {{ control_plane_endpoint }}:6443 \
           --token ${TOKEN} \
           --discovery-token-ca-cert-hash sha256:${HASH}"
+      args:
+        executable: /bin/bash
       register: worker_join_cmd
       changed_when: false
       delegate_to: "{{ kubectl_delegate }}"

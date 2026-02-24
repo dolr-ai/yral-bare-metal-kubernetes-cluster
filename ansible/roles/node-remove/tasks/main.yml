@@ -229,9 +229,10 @@
     kubectl drain {{ node_remove_k8s_name }}
     --ignore-daemonsets
     --delete-emptydir-data
+    --disable-eviction
     --force
-    --grace-period=120
-    --timeout=600s
+    --grace-period=30
+    --timeout=120s
   delegate_to: "{{ kubectl_delegate }}"
   when: node_check.rc == 0
   register: drain_result
