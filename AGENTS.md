@@ -703,13 +703,17 @@ Rationale: background execution causes output buffer overflows, silent truncatio
 
 **Multi-node operations are always serial — never parallel:**
 
-When a task requires touching multiple nodes (e.g., removing old-CP-3 then old-CP-2, or adding worker-3/4/5 one after another), **each node must be fully completed before the next begins**. Never run two `ansible-playbook` invocations for different nodes simultaneously. This is true for all cluster operations:
+Any operation that touches more than one cluster node must complete fully on each node before starting the next. This applies at every level — playbook invocations, role loops, and individual task loops within roles. Never run two operations against different nodes simultaneously.
 
+Examples:
 - CP redistribution: remove one old node → verify cluster healthy → add new node → verify → then move to next pair
 - Worker provisioning: `add-worker.yml -e target_host=worker-3` → wait for completion + verify Ready → then worker-4, etc.
 - Node upgrades: one node drained, upgraded, rejoined, and verified before touching the next
+- Kubelet restarts after CP removal: restart worker-N, wait until Ready, then restart worker-N+1 (implemented via serial `include_tasks` loop in `node-remove`)
 
-Rationale: etcd quorum, Longhorn replica rebuilds, and DNS round-robin all require cluster stability between operations. Running nodes in parallel risks quorum loss, data loss, or cascading failures.
+At the role level, whenever a loop touches multiple nodes (e.g., restarting kubelets on several workers), use `include_tasks` rather than a plain `loop:` on a single task — `include_tasks` loops are inherently serial: each iteration completes before the next begins.
+
+Rationale: etcd quorum, Longhorn replica rebuilds, and DNS round-robin all require cluster stability between per-node operations. Running nodes in parallel risks quorum loss, data loss, or cascading failures.
 
 **When a deployment step fails:**
 1. Investigate with read-only terminal commands to diagnose.
@@ -728,7 +732,7 @@ When in doubt:
 6. Is this a mutation? → If yes, it must be in a role run via a playbook, never via SSH or terminal.
 7. Am I about to create a new playbook? → Stop. Can this fit into an existing playbook via a new role? If yes, do that. If no, ask the user first.
 8. Am I about to SSH into a node and run a command that changes state? → Stop. Implement it in a role and run the full playbook instead.
-9. Am I about to run playbooks for multiple nodes at the same time? → Stop. Operations on cluster nodes are always serial — complete one node fully (playbook done + verified Ready/healthy) before starting the next.
+9. Am I about to run operations against multiple nodes at the same time? → Stop. Any operation touching multiple nodes is always serial — complete each node fully (playbook done + verified Ready/healthy, or task loop iteration complete) before moving to the next. This applies at every level: playbook invocations, role loops, and task loops within roles.
 
 ## Active Deployment Handoff
 
