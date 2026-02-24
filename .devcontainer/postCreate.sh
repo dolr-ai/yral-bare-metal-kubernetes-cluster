@@ -21,9 +21,11 @@ pip install --user -r requirements.txt
 echo "✓ Installed Python packages from requirements.txt"
 
 # Install required Ansible collections
+# Install into ansible/collections/ (workspace bind mount) so they survive container rebuilds.
+# ansible.cfg has collections_paths pointing here first.
 echo ""
 echo "Installing Ansible collections..."
-ansible-galaxy collection install -r ansible/requirements.yml
+ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections
 echo "✓ Installed Ansible collections from requirements.yml"
 
 # Extract SSH key from Ansible vault for Hetzner server access

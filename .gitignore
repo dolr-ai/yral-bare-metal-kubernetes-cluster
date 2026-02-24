@@ -3,6 +3,8 @@
 .vault_pass
 ansible/.vault_pass
 ansible/group_vars/all/.vault_pass
+# Collections installed into workspace path - generated, do not commit
+ansible/collections/
 
 # Python
 __pycache__/
