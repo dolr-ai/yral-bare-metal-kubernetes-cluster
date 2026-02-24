@@ -439,7 +439,12 @@ print(d.get('vault_my_secret', ''))
 - v1.35 with kubeadm
 - Stacked etcd for HA control planes
 - Odd number of control planes required (1, 3, 5...)
-- 5 control planes in HEL1-DC2 (Helsinki)
+- 5 control planes, 1 per Helsinki building for blast-radius isolation:
+  - control-plane-1: HEL1-DC2 (running)
+  - control-plane-2: HEL1-DC3
+  - control-plane-3: HEL1-DC4
+  - control-plane-4: HEL1-DC6
+  - control-plane-5: HEL1-DC7
 - **Control plane HA**: DNS round-robin (`kubernetes-api.yral.com` → 5 A records, TTL=Auto, DNS-only at Cloudflare)
 - **Cloudflare DNS lifecycle**: `node-remove` role deletes the outgoing CP's A record from Cloudflare **before** running `kubeadm reset`. `control-plane-join` role adds the new CP's A record after a successful join. This prevents worker kubelets from resolving to a decommissioned API server IP during the removal window. Config: `cloudflare_zone_id` and `cloudflare_api_token` in `vars.yml`/`vault.yml`.
 - Cilium v1.19.1 CNI with WireGuard encryption
@@ -454,7 +459,7 @@ print(d.get('vault_my_secret', ''))
 
 **The problem — cross-datacenter UDP over VXLAN is unreliable:**
 
-Hetzner nodes span multiple datacenters (HEL1-DC2 for control planes, FSN1-DC1 and FSN1-DC8 for workers). Cilium's overlay uses VXLAN encapsulation. DNS queries are UDP, and UDP over VXLAN has **no retransmission mechanism** — cross-DC packet loss produces intermittent DNS `i/o timeout` errors visible in all pods whose node is in a different datacenter zone from the CoreDNS replica they hit.
+Hetzner nodes span multiple datacenters (5 Helsinki buildings for control planes, 13 distinct zones across Helsinki + Falkenstein for workers). Cilium's overlay uses VXLAN encapsulation. DNS queries are UDP, and UDP over VXLAN has **no retransmission mechanism** — cross-DC packet loss produces intermittent DNS `i/o timeout` errors visible in all pods whose node is in a different datacenter zone from the CoreDNS replica they hit.
 
 **Symptom:** Pods on worker nodes see sporadic DNS failures for any lookup — both internal (`svc.cluster.local`) and external. The failures are transient and hard to reproduce locally but frequent enough to cause real application errors.
 

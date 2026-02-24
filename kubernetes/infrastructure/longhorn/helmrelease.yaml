@@ -19,6 +19,13 @@ spec:
       retries: 3
   values:
     defaultSettings:
-      # 2 replicas matches the 2 worker nodes; data survives 1 node failure.
-      # Increase to 3 if control-plane nodes are added to Longhorn storage pool.
+      # 2 replicas matches the current 2 worker nodes; data survives 1 node failure.
+      # Increase to 3 once 3+ workers are running.
       defaultReplicaCount: 2
+
+      # Prevent cross-region replica placement. The default (true) pushes replicas to
+      # different topology zones — with HEL1+FSN1 workers that means one replica in
+      # Helsinki and one in Falkenstein, requiring every write to cross WAN synchronously.
+      # With false, Longhorn schedules by available disk capacity, which naturally stays
+      # within the same region when replicas are set to 2 or 3.
+      replicaZoneSoftAntiAffinity: false
