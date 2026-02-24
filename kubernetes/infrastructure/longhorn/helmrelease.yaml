@@ -19,9 +19,8 @@ spec:
       retries: 3
   values:
     defaultSettings:
-      # 2 replicas matches the current 2 worker nodes; data survives 1 node failure.
-      # Increase to 3 once 3+ workers are running.
-      defaultReplicaCount: 2
+      # 3 replicas across 5 worker nodes; data survives 2 simultaneous node failures.
+      defaultReplicaCount: 3
 
       # Prevent cross-region replica placement. The default (true) pushes replicas to
       # different topology zones — with HEL1+FSN1 workers that means one replica in
