@@ -4,6 +4,18 @@ This document defines architectural patterns and constraints specific to this re
 
 ## Core Architecture Principles
 
+### 0. Kubernetes-Native First
+
+When choosing between tools or approaches, always prefer the option that is more Kubernetes-native:
+
+- **Built-in > ecosystem > third-party**: Prefer Kubernetes built-in primitives (HPA, VPA, NetworkPolicy, Gateway API) over ecosystem projects, and ecosystem projects over proprietary third-party tools.
+- **Declarative GitOps**: Flux over Argo CD — Flux is a CNCF project that extends Kubernetes API primitives directly; Argo CD introduces its own abstractions on top.
+- **CRD-native operators over agents**: Prefer operators that extend the Kubernetes API via CRDs over tools that require a separate control plane or proprietary agents.
+- **Standard APIs over custom ones**: Use Gateway API over Ingress, use standard Kubernetes Secrets over external secret stores where the security trade-off allows.
+- **Upstream Kubernetes projects first**: If the feature exists in the `kubernetes/` or `kubernetes-sigs/` GitHub orgs, prefer it over third-party alternatives (e.g., VPA from `kubernetes/autoscaler` over custom resource recommenders).
+
+**Decision rule**: When evaluating a new component, ask "does Kubernetes or the CNCF ecosystem already provide this?" before reaching for a third-party tool. Document the rationale when a non-native choice is made.
+
 ### 1. Immutable Infrastructure
 - All operations must be additive or subtractive, never mutating existing nodes
 - Adding/removing/upgrading nodes doesn't modify any other nodes
