@@ -579,6 +579,40 @@ The `storage-setup` role runs `btrfs balance start -dconvert=raid0 -mconvert=dup
 
 `nfs-common` is installed on all nodes via the `base-system` role. Longhorn RWX (ReadWriteMany) volumes work by creating a `longhorn-share-manager` pod that runs an in-cluster NFS server; the kubelet uses `nfs-common` userspace tools to mount that NFS export into pods. No conflicts with Cilium + WireGuard — pod-to-pod NFS traffic (port 2049) travels inside the encrypted Cilium mesh. The `storage-network-for-rwx-volume-enabled: false` Longhorn setting correctly routes RWX traffic over the standard pod network.
 
+### Backup Strategy
+
+Two complementary backup mechanisms run in parallel — use both, they are not redundant:
+
+| System | Scope | Storage path | Retention | Best for |
+|--------|-------|-------------|-----------|----------|
+| **Velero** | All k8s resource manifests + PV filesystem data (kopia) | `velero/backups/` | 720h TTL (30d) + bucket lifecycle | Full cluster DR — restore entire namespace or cluster state |
+| **Longhorn native** | Incremental block-level volume snapshots | `longhorn/` | Bucket lifecycle (30d) | Per-volume point-in-time restores, faster than Velero for single-volume recovery |
+
+**S3 bucket:** `yral-bare-metal-kubernetes-cluster-control-plane-backup` on `hel1.your-objectstorage.com`
+
+**Bucket layout — named prefix per system:**
+```
+yral-bare-metal-kubernetes-cluster-control-plane-backup/
+├── velero/      ← Velero (BSL prefix: velero)
+└── longhorn/    ← Longhorn native backup target suffix
+```
+
+Each backup system uses its own named prefix in the bucket to prevent any possibility of collision. When adding a new backup system, always assign it a dedicated prefix.
+
+**30-day retention — two-layer enforcement:**
+- Velero: `schedule.ttl: 720h` in the HelmRelease schedules block (Velero deletes its own backup objects)
+- Longhorn: no built-in schedule TTL — retention is enforced exclusively by the bucket lifecycle policy
+- Bucket lifecycle policy: hard-expires all objects under `velero/` and `longhorn/` after 30 days (set via `aws s3api put-bucket-lifecycle-configuration`). This is the safety net for both, and the only TTL mechanism for Longhorn.
+
+To verify the lifecycle policy is in place:
+```bash
+export S3_SECRET=$(ansible-vault view ansible/inventory/group_vars/all/vault.yml | python3 -c "import sys,yaml; print(yaml.safe_load(sys.stdin)['vault_hetzner_s3_secret_key'])")
+AWS_ACCESS_KEY_ID=XO5X9A1W8AMHY3DSTKMS AWS_SECRET_ACCESS_KEY="$S3_SECRET" \
+  aws s3api get-bucket-lifecycle-configuration \
+  --bucket yral-bare-metal-kubernetes-cluster-control-plane-backup \
+  --endpoint-url https://hel1.your-objectstorage.com
+```
+
 ### Inventory Structure
 - `control_plane` group: control plane hosts
 - `worker_nodes` group: worker hosts
@@ -683,6 +717,16 @@ flux bootstrap github \
   --branch=main \
   --path=./kubernetes/clusters/yral-k8s
 ```
+
+**Flux reconciliation — GitHub webhook (not polling):**
+
+Flux is configured with a GitHub webhook receiver (`kubernetes/infrastructure/flux-receiver/`). When a commit is pushed to `main`, GitHub immediately POSTs to the receiver, triggering reconciliation within seconds rather than waiting for the default 1h poll interval. This means: **a `git push` to main is sufficient to deploy a change** — no need to run `flux reconcile` manually under normal circumstances.
+
+The receiver endpoint is exposed via an HTTPRoute on `flux-receiver.yral.com`. The webhook secret is SOPS-encrypted in `kubernetes/infrastructure/flux-receiver/`. If reconciliation does not trigger within ~30s of a push, check the receiver pod logs:
+```bash
+kubectl logs -n flux-system -l app=notification-controller --tail=50
+```
+
 Flux reconciliation order is enforced via `dependsOn` in `kubernetes/clusters/yral-k8s/`:
 - `infrastructure-cilium` (no deps)
 - `infrastructure-cert-manager` (no deps)
