@@ -27,11 +27,15 @@ spec:
           operator: Exists
           effect: NoSchedule
 
-    alloy:
-      mounts:
-        # Mount /var/log from the host to access /var/log/pods/<uid>/<container>/*.log
-        varlog: true
+    # Add pods/log to the default ClusterRole so loki.source.kubernetes can
+    # call the Kubernetes API log endpoint for each pod
+    rbac:
+      extraRules:
+        - apiGroups: [""]
+          resources: ["pods/log"]
+          verbs: ["get"]
 
+    alloy:
       resources:
         requests:
           cpu: 50m
@@ -47,23 +51,15 @@ spec:
             role = "pod"
           }
 
-          // Relabel pod metadata: build log file paths and extract useful Loki labels
+          // Relabel pod metadata into useful Loki stream labels
           discovery.relabel "pod_logs" {
             targets = discovery.kubernetes.pods.targets
 
-            // Only tail logs from running or pending pods
+            // Only collect logs from running or pending pods
             rule {
               source_labels = ["__meta_kubernetes_pod_phase"]
               regex         = "Pending|Running"
               action        = "keep"
-            }
-
-            // /var/log/pods/<uid>/<container>/*.log
-            rule {
-              source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
-              separator     = "/"
-              target_label  = "__path__"
-              replacement   = "/var/log/pods/*$1/*.log"
             }
 
             rule {
@@ -93,8 +89,10 @@ spec:
             }
           }
 
-          // Tail discovered log files and forward to the Loki write component
-          loki.source.file "pod_logs" {
+          // Use the Kubernetes API log endpoint — avoids filesystem glob issues
+          // that occur when a DaemonSet pod tries to read log files for pods
+          // running on other nodes via /var/log/pods/*.
+          loki.source.kubernetes "pods" {
             targets    = discovery.relabel.pod_logs.output
             forward_to = [loki.write.loki.receiver]
           }
