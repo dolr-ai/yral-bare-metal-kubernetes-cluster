@@ -1,0 +1,113 @@
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": [
+        "config:recommended"
+    ],
+    "timezone": "UTC",
+    "schedule": [
+        "on sunday"
+    ],
+    "prConcurrentLimit": 20,
+    "prHourlyLimit": 0,
+    "automerge": false,
+    "rebaseWhen": "behind-base-branch",
+    "labels": [
+        "dependencies"
+    ],
+    "prFooter": "⚠️ **Per [AGENTS.md](../blob/main/AGENTS.md#component-versioning-policy): do not merge until the upgrade procedure has been reviewed and the version explicitly confirmed.** For Kubernetes infrastructure changes, follow the upgrade order: CPs one at a time → workers one at a time → add-ons individually.",
+    "flux": {
+        "fileMatch": [
+            "kubernetes/.+\\.yaml$"
+        ]
+    },
+    "kubernetes": {
+        "fileMatch": [
+            "kubernetes/.+\\.yaml$"
+        ]
+    },
+    "customManagers": [
+        {
+            "description": "cert-manager release URL in kustomization resources list",
+            "customType": "regex",
+            "fileMatch": [
+                "kubernetes/infrastructure/cert-manager/kustomization\\.yaml"
+            ],
+            "matchStrings": [
+                "github\\.com/cert-manager/cert-manager/releases/download/(?<currentValue>v[\\d.]+)/cert-manager\\.yaml"
+            ],
+            "depNameTemplate": "cert-manager/cert-manager",
+            "datasourceTemplate": "github-releases"
+        },
+        {
+            "description": "cert-manager acmesolver image arg (must stay in sync with release URL above)",
+            "customType": "regex",
+            "fileMatch": [
+                "kubernetes/infrastructure/cert-manager/kustomization\\.yaml"
+            ],
+            "matchStrings": [
+                "acme-http01-solver-image=quay\\.io/jetstack/cert-manager-acmesolver:(?<currentValue>v[\\d.]+)"
+            ],
+            "depNameTemplate": "cert-manager/cert-manager",
+            "datasourceTemplate": "github-releases"
+        },
+        {
+            "description": "Cilium version pin in Ansible role defaults",
+            "customType": "regex",
+            "fileMatch": [
+                "ansible/roles/cilium/defaults/main\\.yml"
+            ],
+            "matchStrings": [
+                "cilium_version:\\s*\"(?<currentValue>[^\"]+)\""
+            ],
+            "depNameTemplate": "cilium/cilium",
+            "datasourceTemplate": "github-releases"
+        },
+        {
+            "description": "Gateway API CRDs version pin in Ansible role defaults",
+            "customType": "regex",
+            "fileMatch": [
+                "ansible/roles/gateway-api-crds/defaults/main\\.yml"
+            ],
+            "matchStrings": [
+                "gateway_api_version:\\s*\"(?<currentValue>[^\"]+)\""
+            ],
+            "depNameTemplate": "kubernetes-sigs/gateway-api",
+            "datasourceTemplate": "github-releases"
+        },
+        {
+            "description": "Helm CLI version pin in Ansible role defaults",
+            "customType": "regex",
+            "fileMatch": [
+                "ansible/roles/helm/defaults/main\\.yml"
+            ],
+            "matchStrings": [
+                "helm_version:\\s*\"(?<currentValue>[^\"]+)\""
+            ],
+            "depNameTemplate": "helm/helm",
+            "datasourceTemplate": "github-releases"
+        }
+    ],
+    "packageRules": [
+        {
+            "description": "Group the two cert-manager version references (URL + acmesolver image) into one PR",
+            "matchFileNames": [
+                "kubernetes/infrastructure/cert-manager/kustomization.yaml"
+            ],
+            "groupName": "cert-manager"
+        },
+        {
+            "description": "Group oauth2-proxy image across all Deployment files into one PR",
+            "matchDepNames": [
+                "quay.io/oauth2-proxy/oauth2-proxy"
+            ],
+            "groupName": "oauth2-proxy"
+        },
+        {
+            "description": "Group all GitHub Actions step version bumps into one PR",
+            "matchManagers": [
+                "github-actions"
+            ],
+            "groupName": "github-actions"
+        }
+    ]
+}
