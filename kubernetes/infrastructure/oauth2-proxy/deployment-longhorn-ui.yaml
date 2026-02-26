@@ -1,17 +1,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: oauth2-proxy-grafana
+  name: oauth2-proxy-longhorn-ui
   namespace: oauth2-proxy
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: oauth2-proxy-grafana
+      app: oauth2-proxy-longhorn-ui
   template:
     metadata:
       labels:
-        app: oauth2-proxy-grafana
+        app: oauth2-proxy-longhorn-ui
     spec:
       containers:
         - name: oauth2-proxy
@@ -22,18 +22,12 @@ spec:
             - --google-group=developer-admin@gobazzinga.io
             - --google-admin-email=s@gobazzinga.io
             - --google-service-account-json=/etc/oauth2-proxy/service-account.json
-            - --upstream=http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local:80
+            - --upstream=http://longhorn-frontend.longhorn-system.svc.cluster.local:80
             - --http-address=0.0.0.0:4180
             - --cookie-secure=true
-            - --cookie-name=_oauth2_proxy_grafana
-            - --redirect-url=https://grafana.yral.com/oauth2/callback
+            - --cookie-name=_oauth2_proxy_longhorn_ui
+            - --redirect-url=https://longhorn-ui.yral.com/oauth2/callback
             - --skip-provider-button=true
-            # Pass X-Forwarded-Email header to Grafana upstream so auth.proxy can identify the user.
-            # --pass-user-headers forwards X-Forwarded-User and X-Forwarded-Email to the upstream
-            # request. --set-xauthrequest only sets X-Auth-Request-* on the response back to the
-            # browser (for nginx auth_request mode) — it does NOT inject headers into the upstream
-            # proxied request, so Grafana never sees it without --pass-user-headers.
-            - --pass-user-headers=true
           env:
             - name: OAUTH2_PROXY_CLIENT_ID
               valueFrom:

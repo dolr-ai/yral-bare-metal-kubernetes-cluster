@@ -1,9 +1,5 @@
-- Provision all of the remaining worker nodes and add them to the cluster
-- Was the inventory list updated with all the nodes marked as kubernetes-cluster-1. They all need to be added. Apart from the 5 that we have as control plane nodes, every remaining one should be marked as worker nodes. Even the ones in helsinki that were removed from the control plane assignment. Let me know if any were not present in that list but had the name as kubernetes-cluster-1 in hetzner
-- Confirm the total count from our inventory, from hetzner with kubernetes-cluster-1 and from Clouldflare DNS records to ensure the counts match and we have all nodes accounted for.
 - Re-evaluate the deployed services and see if they need more replicas as suggested in their default deployment guides and adjust accordingly.
 - Evaluate if we should setup affinity rules or taints to have latency sensitive workloads run on nodes in the same data centers
 - Version bumps for all components
-- Longhorn UI: expose via HTTPRoute + oauth2-proxy (same pattern as Hubble UI / Grafana)
 - Longhorn S3 backups: configure backup target in HelmRelease values. Is Velero already doing this?
 - Github workflow for weekly system updates and reboot if required. Playbooks already exist. It should only do 1 system at a time. Serially. After running the system update, should check if it the node needs a reboot. If yes, then remove node from DNS load balancer, drain, update, reboot, uncordon, add back to DNS load balancer.

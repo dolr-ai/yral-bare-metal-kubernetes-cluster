@@ -7,4 +7,6 @@ resources:
   - service-hubble-ui.yaml
   - deployment-grafana.yaml
   - service-grafana.yaml
+  - deployment-longhorn-ui.yaml
+  - service-longhorn-ui.yaml
   - reference-grant.yaml

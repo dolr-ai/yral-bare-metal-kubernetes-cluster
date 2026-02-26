@@ -46,6 +46,13 @@ spec:
                   key: cookie-secret
           ports:
             - containerPort: 4180
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
           volumeMounts:
             - name: service-account
               mountPath: /etc/oauth2-proxy
