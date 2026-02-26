@@ -11,6 +11,9 @@ metadata:
   labels:
     app.kubernetes.io/part-of: flux
     app.kubernetes.io/component: monitoring
+    # Required: Prometheus in kube-prometheus-stack only picks up PodMonitors
+    # that match its podMonitorSelector: {release: kube-prometheus-stack}
+    release: kube-prometheus-stack
 spec:
   namespaceSelector:
     matchNames:
