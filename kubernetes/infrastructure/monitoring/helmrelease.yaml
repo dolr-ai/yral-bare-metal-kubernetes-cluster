@@ -61,6 +61,13 @@ spec:
           cpu: 500m
           memory: 512Mi
 
+      # Loki datasource — populated once the infrastructure-loki Kustomization is ready
+      additionalDataSources:
+        - name: Loki
+          type: loki
+          url: http://loki.loki.svc.cluster.local:3100
+          access: proxy
+
     prometheus:
       prometheusSpec:
         # 15-day retention, matches default; adjust as needed.
@@ -94,9 +101,3 @@ spec:
             cpu: 200m
             memory: 256Mi
 
-    # Loki datasource — populated once the infrastructure-loki Kustomization is ready
-    additionalDataSources:
-      - name: Loki
-        type: loki
-        url: http://loki.loki.svc.cluster.local:3100
-        access: proxy
