@@ -46,11 +46,11 @@ spec:
         size: 20Gi
       resources:
         requests:
-          cpu: 100m
-          memory: 512Mi
+          cpu: 200m
+          memory: 1Gi
         limits:
-          cpu: 1000m
-          memory: 2Gi
+          cpu: 2000m
+          memory: 4Gi
 
     # Disable scale-out components — not needed in SingleBinary mode
     read:
