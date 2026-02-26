@@ -53,6 +53,17 @@ spec:
       persistence:
         enabled: false
 
+      # Stakater Reloader watches this Deployment and rolls it when any referenced
+      # ConfigMap or Secret changes (e.g. the grafana-datasource ConfigMap).
+      # skipReload stops the sidecar from POSTing to Grafana's reload API (which
+      # always 401s because basic auth is disabled); Reloader restarts the pod instead.
+      podAnnotations:
+        reloader.stakater.com/auto: "true"
+
+      sidecar:
+        datasources:
+          skipReload: true
+
       resources:
         requests:
           cpu: 100m

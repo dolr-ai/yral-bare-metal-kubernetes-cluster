@@ -18,6 +18,7 @@ resources:
   - infrastructure-flux-receiver.yaml
   - infrastructure-metrics-server.yaml
   - infrastructure-longhorn.yaml
+  - infrastructure-reloader.yaml
   - infrastructure-monitoring.yaml
   - infrastructure-vpa.yaml
   - infrastructure-goldilocks.yaml
