@@ -37,6 +37,7 @@ spec:
         - name: default
           provider: aws
           bucket: yral-bare-metal-kubernetes-cluster-control-plane-backup
+          prefix: velero
           default: true
           config:
             region: hel1
