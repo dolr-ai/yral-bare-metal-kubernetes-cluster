@@ -24,6 +24,9 @@ spec:
       auth_enabled: false
       commonConfig:
         replication_factor: 1
+      limits_config:
+        # Required for the Grafana Logs Drilldown plugin's log volume histogram
+        volume_enabled: true
       storage:
         type: filesystem
       schemaConfig:
