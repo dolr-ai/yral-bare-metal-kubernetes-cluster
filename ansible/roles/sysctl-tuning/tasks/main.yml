@@ -1,0 +1,21 @@
+---
+# Write and apply kernel sysctl tuning required for Kubernetes nodes.
+# This role is idempotent — re-running it is safe and a no-op if already applied.
+
+- name: Write sysctl tuning config
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-kubernetes-tuning.conf
+    content: |
+      # Increase inotify limits to prevent "too many open files" errors
+      # in kubelet, containerd, and pod workloads on busy nodes.
+      # Default max_user_instances=128 and max_user_watches=65536 are
+      # exhausted quickly on nodes running many pods.
+      fs.inotify.max_user_watches   = 524288
+      fs.inotify.max_user_instances = 512
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Apply sysctl tuning
+  ansible.builtin.command: sysctl -p /etc/sysctl.d/99-kubernetes-tuning.conf
+  changed_when: true

@@ -11,6 +11,7 @@
   roles:
     - role: provision
     - role: base-system
+    - role: sysctl-tuning
     - role: storage-setup
     - role: ssh-hardening
     - role: containerd

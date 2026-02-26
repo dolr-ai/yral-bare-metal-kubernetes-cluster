@@ -13,6 +13,7 @@
     - role: storage-setup
     - role: ssh-hardening
     - role: base-system
+    - role: sysctl-tuning
     - role: containerd
     - role: kubernetes
     - role: control-plane-join
