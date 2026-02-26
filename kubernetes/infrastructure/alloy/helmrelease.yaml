@@ -13,7 +13,7 @@ spec:
         kind: HelmRepository
         name: grafana
         namespace: alloy
-  timeout: 10m
+  timeout: 1h
   upgrade:
     remediation:
       retries: 3
@@ -81,6 +81,18 @@ spec:
             rule {
               source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
               target_label  = "app"
+            }
+
+            // Fall back to the plain "app" pod label when app.kubernetes.io/name is
+            // absent (e.g. Flux controllers, Velero, Longhorn use plain app=<name>).
+            // Joins current "app" and "__meta_kubernetes_pod_label_app" with ";"; the
+            // regex only matches when app is still empty (leading ";").
+            rule {
+              source_labels = ["app", "__meta_kubernetes_pod_label_app"]
+              separator     = ";"
+              regex         = "^;(.+)$"
+              target_label  = "app"
+              replacement   = "$1"
             }
 
             rule {
