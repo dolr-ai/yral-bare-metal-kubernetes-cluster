@@ -6,3 +6,4 @@ resources:
   - helmrelease.yaml
   - flux-cluster-dashboard.yaml
   - flux-control-plane-dashboard.yaml
+  - flux-podmonitor.yaml
