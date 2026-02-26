@@ -4,3 +4,4 @@ resources:
   - hubble-ui.yaml
   - grafana.yaml
   - longhorn-ui.yaml
+  - goldilocks.yaml

@@ -19,4 +19,6 @@ resources:
   - infrastructure-metrics-server.yaml
   - infrastructure-longhorn.yaml
   - infrastructure-monitoring.yaml
+  - infrastructure-vpa.yaml
+  - infrastructure-goldilocks.yaml
   - networking.yaml

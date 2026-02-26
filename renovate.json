@@ -108,6 +108,14 @@
                 "github-actions"
             ],
             "groupName": "github-actions"
+        },
+        {
+            "description": "Group VPA and Goldilocks chart bumps into one PR (they must stay compatible)",
+            "matchFileNames": [
+                "kubernetes/infrastructure/vpa/helmrelease.yaml",
+                "kubernetes/infrastructure/goldilocks/helmrelease.yaml"
+            ],
+            "groupName": "vpa-and-goldilocks"
         }
     ]
 }

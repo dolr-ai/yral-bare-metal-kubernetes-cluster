@@ -419,6 +419,8 @@ Never silently pick "latest" or assume the most recent release — always get ex
 2. Then upgrade worker nodes one at a time
 3. Then upgrade cluster add-ons (Cilium, monitoring) individually
 
+**When adding a new Helm-based component to `kubernetes/`**, also add a `packageRules` entry (or `customManagers` entry) to `renovate.json` so version bumps are tracked automatically. The Flux manager picks up `HelmRelease` chart versions automatically from the `HelmRepository` objects in the same `fileMatch` glob — no `registryAliases` needed for standard HTTP Helm repos. Add a `groupName` rule if the new component has multiple related charts that must be bumped together (e.g. VPA + Goldilocks).
+
 ## Repository-Specific Patterns
 
 ### Hetzner Integration

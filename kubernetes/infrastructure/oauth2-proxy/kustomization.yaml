@@ -9,4 +9,6 @@ resources:
   - service-grafana.yaml
   - deployment-longhorn-ui.yaml
   - service-longhorn-ui.yaml
+  - deployment-goldilocks.yaml
+  - service-goldilocks.yaml
   - reference-grant.yaml

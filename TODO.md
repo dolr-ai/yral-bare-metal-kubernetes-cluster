@@ -1,5 +1,3 @@
-- Re-evaluate the deployed services and see if they need more replicas as suggested in their default deployment guides and adjust accordingly.
-- Evaluate if we should setup affinity rules or taints to have latency sensitive workloads run on nodes in the same data centers
-- Version bumps for all components
-- Longhorn S3 backups: configure backup target in HelmRelease values. Is Velero already doing this?
-- Github workflow for weekly system updates and reboot if required. Playbooks already exist. It should only do 1 system at a time. Serially. After running the system update, should check if it the node needs a reboot. If yes, then remove node from DNS load balancer, drain, update, reboot, uncordon, add back to DNS load balancer.
+- Re-evaluate the deployed services and see if they need more replicas or resizing of their existing replicas as suggested in their default deployment guides and adjust accordingly.
+- Evaluate if we should setup affinity rules or taints to have latency sensitive workloads run on nodes near to each other
+- As an aside, for Kuberentes clusters, what is the best way to monitor the cluster and its workloads to get suggested if resource workloads are nearing capacity and should be resized or scaled up or incresed via more replicas? Is there a tool that can be used to monitor the cluster and its workloads and get suggestions on when to resize or scale up or increase replicas?

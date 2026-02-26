@@ -1,0 +1,48 @@
+# Vertical Pod Autoscaler — recommendation-only mode
+#
+# Deploys upstream VPA images from registry.k8s.io/autoscaling (kubernetes/autoscaler project).
+# The Fairwinds chart is packaging-only; the software is the official upstream VPA.
+#
+# updateMode: Off means:
+#   - recommender runs and populates .status.recommendation on every VPA object
+#   - updater is disabled — no pods are evicted/resized automatically
+#   - admissionController is disabled — no webhook mutations on pod creation
+#
+# Use `kubectl get vpa -A` or the Goldilocks dashboard to view recommendations.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: vpa
+  namespace: vpa
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: vpa
+      version: "4.10.1"
+      sourceRef:
+        kind: HelmRepository
+        name: fairwinds-stable
+        namespace: vpa
+  timeout: 5m
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    recommender:
+      enabled: true
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          cpu: 200m
+          memory: 256Mi
+
+    updater:
+      # Disabled — recommendation-only mode, no pod evictions.
+      enabled: false
+
+    admissionController:
+      # Disabled — recommendation-only mode, no webhook mutations on pod creation.
+      enabled: false
