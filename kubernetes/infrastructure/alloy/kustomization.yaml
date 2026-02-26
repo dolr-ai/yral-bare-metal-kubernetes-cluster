@@ -4,7 +4,3 @@ resources:
   - namespace.yaml
   - helmrepository.yaml
   - helmrelease.yaml
-  - flux-cluster-dashboard.yaml
-  - flux-control-plane-dashboard.yaml
-  - flux-logs-dashboard.yaml
-  - flux-podmonitor.yaml

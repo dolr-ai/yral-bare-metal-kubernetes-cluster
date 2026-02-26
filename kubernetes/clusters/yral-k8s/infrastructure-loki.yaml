@@ -1,0 +1,16 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: infrastructure-loki
+  namespace: flux-system
+spec:
+  interval: 1h
+  path: ./kubernetes/infrastructure/loki
+  prune: true
+  wait: true
+  timeout: 10m
+  dependsOn:
+    - name: infrastructure-longhorn
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
