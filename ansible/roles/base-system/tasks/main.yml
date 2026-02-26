@@ -24,8 +24,14 @@
       # the kubelet on each node needs nfs-common to mount that NFS export.
       # Safe to install on all nodes (workers AND control planes) — zero conflict
       # with RWO (ReadWriteOnce) volumes or any other cluster component.
+      # NOTE: nfs-common pulls in rpcbind as a dependency. rpcbind (portmapper,
+      # port 111) is NOT needed by NFSv4.1 (which Longhorn uses). It is masked
+      # below to prevent it from binding on the public interface.
       - nfs-common
     state: present
+
+- name: Mask rpcbind to prevent portmapper exposure on public interface
+  ansible.builtin.include_tasks: mask-rpcbind.yml
 
 - name: Configure unattended-upgrades
   ansible.builtin.debconf:

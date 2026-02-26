@@ -4,13 +4,13 @@
     - name: Upload control plane certificates on first control plane
       ansible.builtin.shell: |
         kubeadm init phase upload-certs --upload-certs 2>/dev/null | grep -E '^[a-f0-9]{64}$'
-      delegate_to: "{{ groups['control_plane'][0] }}"
+      delegate_to: "{{ (groups['control_plane'] | reject('equalto', inventory_hostname) | list)[0] }}"
       register: certificate_key
 
     - name: Generate control plane join command
       ansible.builtin.shell: |
         kubeadm token create --print-join-command --certificate-key {{ certificate_key.stdout }}
-      delegate_to: "{{ groups['control_plane'][0] }}"
+      delegate_to: "{{ (groups['control_plane'] | reject('equalto', inventory_hostname) | list)[0] }}"
       register: join_command
 
     - name: Build final join command

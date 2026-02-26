@@ -1,0 +1,29 @@
+---
+# Mask rpcbind/portmapper so it cannot be started by any means.
+#
+# rpcbind is pulled in as a dependency of nfs-common (required for Longhorn RWX),
+# but is NOT needed for NFSv4.1 — which is what Longhorn uses exclusively.
+# Leaving it running exposes port 111 tcp/udp on all interfaces, a well-known
+# DDoS reflection/amplification vector (reported by BSI CERT-Bund).
+#
+# This task file is called:
+#   1. From base-system/tasks/main.yml on every fresh node provision.
+#   2. From playbooks/operations/remediate-rpcbind.yml (one-time, temporary)
+#      to apply the fix to nodes that were provisioned before this task existed.
+
+- name: Check if rpcbind is installed
+  ansible.builtin.command: dpkg-query -W -f='${Status}' rpcbind
+  register: rpcbind_pkg_status
+  changed_when: false
+  failed_when: false
+
+- name: Mask rpcbind to prevent portmapper exposure on public interface
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    masked: true
+    state: stopped
+    enabled: false
+  loop:
+    - rpcbind
+    - rpcbind.socket
+  when: rpcbind_pkg_status.stdout is defined and 'install ok installed' in rpcbind_pkg_status.stdout
