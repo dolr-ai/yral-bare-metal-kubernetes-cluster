@@ -585,8 +585,8 @@ Two complementary backup mechanisms run in parallel — use both, they are not r
 
 | System | Scope | Storage path | Retention | Best for |
 |--------|-------|-------------|-----------|----------|
-| **Velero** | All k8s resource manifests + PV filesystem data (kopia) | `velero/backups/` | 720h TTL (30d) + bucket lifecycle | Full cluster DR — restore entire namespace or cluster state |
-| **Longhorn native** | Incremental block-level volume snapshots | `longhorn/` | Bucket lifecycle (30d) | Per-volume point-in-time restores, faster than Velero for single-volume recovery |
+| **Velero** | All k8s resource manifests + PV filesystem data (kopia) | `velero/backups/` | `ttl: 720h` (30d, self-managed) | Full cluster DR — restore entire namespace or cluster state |
+| **Longhorn native** | Incremental block-level volume snapshots | `longhorn/` | RecurringJob TTL (per-volume) | Per-volume point-in-time restores, faster than Velero for single-volume recovery |
 
 **S3 bucket:** `yral-bare-metal-kubernetes-cluster-control-plane-backup` on `hel1.your-objectstorage.com`
 
@@ -599,19 +599,11 @@ yral-bare-metal-kubernetes-cluster-control-plane-backup/
 
 Each backup system uses its own named prefix in the bucket to prevent any possibility of collision. When adding a new backup system, always assign it a dedicated prefix.
 
-**30-day retention — two-layer enforcement:**
-- Velero: `schedule.ttl: 720h` in the HelmRelease schedules block (Velero deletes its own backup objects)
-- Longhorn: no built-in schedule TTL — retention is enforced exclusively by the bucket lifecycle policy
-- Bucket lifecycle policy: hard-expires all objects under `velero/` and `longhorn/` after 30 days (set via `aws s3api put-bucket-lifecycle-configuration`). This is the safety net for both, and the only TTL mechanism for Longhorn.
+**Retention — each system manages its own:**
+- Velero: `schedule.ttl: 720h` (30 days) in the HelmRelease. Velero's GC controller deletes expired Backup objects *and* their S3 data automatically. No bucket lifecycle policy needed.
+- Longhorn: retention is configured per-volume via RecurringJob TTL settings. Longhorn incremental backups share blocks across snapshots — a bucket-level expiry policy would silently corrupt the backup chain by deleting base blocks still referenced by newer incremental backups. **Never set a bucket lifecycle policy on the `longhorn/` prefix.**
 
-To verify the lifecycle policy is in place:
-```bash
-export S3_SECRET=$(ansible-vault view ansible/inventory/group_vars/all/vault.yml | python3 -c "import sys,yaml; print(yaml.safe_load(sys.stdin)['vault_hetzner_s3_secret_key'])")
-AWS_ACCESS_KEY_ID=XO5X9A1W8AMHY3DSTKMS AWS_SECRET_ACCESS_KEY="$S3_SECRET" \
-  aws s3api get-bucket-lifecycle-configuration \
-  --bucket yral-bare-metal-kubernetes-cluster-control-plane-backup \
-  --endpoint-url https://hel1.your-objectstorage.com
-```
+No bucket lifecycle policy is configured on this bucket.
 
 ### Inventory Structure
 - `control_plane` group: control plane hosts
