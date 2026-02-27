@@ -79,8 +79,12 @@ spec:
         enabled: false
         grafanaAgent:
           installOperator: false
-      lokiCanary:
-        enabled: false
+
+    # lokiCanary is a top-level chart value (not under monitoring:).
+    # It was incorrectly nested under monitoring: before, which caused 35 canary
+    # pods (one per worker) to run despite the intent to disable them.
+    lokiCanary:
+      enabled: false
 
     test:
       enabled: false
