@@ -38,11 +38,13 @@ spec:
     alloy:
       resources:
         requests:
-          cpu: 50m
-          memory: 128Mi
-        limits:
-          cpu: 200m
+          # VPA target: 143m CPU / 524Mi — raised from 50m/128Mi
+          cpu: 150m
           memory: 512Mi
+        limits:
+          # VPA upper: 314m / 1.15Gi — previous 512Mi limit was below VPA target (524Mi)
+          cpu: 400m
+          memory: 1536Mi
 
       configMap:
         content: |
