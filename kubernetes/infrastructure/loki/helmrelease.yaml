@@ -24,9 +24,16 @@ spec:
       auth_enabled: false
       commonConfig:
         replication_factor: 1
+      compactor:
+        # Compactor runs as part of SingleBinary; retention_enabled must be
+        # set here to activate deletion of chunks older than retention_period.
+        retention_enabled: true
+        delete_request_store: filesystem
       limits_config:
         # Required for the Grafana Logs Drilldown plugin's log volume histogram
         volume_enabled: true
+        # Retain logs for 30 days; compactor enforces deletion.
+        retention_period: 720h
       storage:
         type: filesystem
       schemaConfig:
@@ -43,7 +50,7 @@ spec:
       replicas: 1
       persistence:
         storageClass: longhorn
-        size: 20Gi
+        size: 200Gi
       resources:
         requests:
           cpu: 200m
