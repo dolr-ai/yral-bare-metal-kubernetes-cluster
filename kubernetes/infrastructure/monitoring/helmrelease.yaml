@@ -63,6 +63,10 @@ spec:
       # always 401s because basic auth is disabled); Reloader restarts the pod instead.
       podAnnotations:
         reloader.stakater.com/auto: "true"
+        # Explicitly list the sidecar-discovered alert ConfigMaps so Reloader restarts
+        # the pod when they change. The alerts sidecar cannot call the reload API
+        # (basic auth is disabled), so pod restart is the correct reload mechanism.
+        configmap.reloader.stakater.com/reload: "grafana-alerting-contact-point,grafana-alerting-notification-policy,grafana-alerting-rules-resource-saturation"
 
       sidecar:
         # Watches ConfigMaps labelled grafana_alert="1" and loads them as Grafana
@@ -71,6 +75,9 @@ spec:
           enabled: true
           label: grafana_alert
           labelValue: "1"
+          # Skip the reload API call (always 401s — basic auth disabled).
+          # Reloader restarts the pod instead when alert ConfigMaps change.
+          skipReload: true
         datasources:
           skipReload: true
 
