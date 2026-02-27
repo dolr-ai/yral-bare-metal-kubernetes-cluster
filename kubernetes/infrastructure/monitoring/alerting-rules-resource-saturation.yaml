@@ -80,7 +80,7 @@ data:
                         type: gt
                   refId: C
             noDataState: OK
-            execErrState: Error
+            execErrState: OK
             for: 5m
             annotations:
               summary: "{{ $labels.namespace }}/{{ $labels.pod }}: memory at {{ printf \"%.0f\" $values.B.Value }}% of limit"
@@ -107,7 +107,7 @@ data:
                     (
                       container_memory_working_set_bytes{container!="", container!="POD", namespace!=""}
                       / on(namespace, pod, container)
-                      kube_pod_container_resource_limits{resource="memory"}
+                      max by(namespace, pod, container) (kube_pod_container_resource_limits{resource="memory"})
                     ) * 100
                   refId: A
               - refId: B
@@ -143,7 +143,7 @@ data:
                         type: gt
                   refId: C
             noDataState: OK
-            execErrState: Error
+            execErrState: OK
             for: 2m
             annotations:
               summary: "{{ $labels.namespace }}/{{ $labels.pod }}: memory at {{ printf \"%.0f\" $values.B.Value }}% of limit — OOM imminent"
@@ -206,7 +206,7 @@ data:
                         type: gt
                   refId: C
             noDataState: OK
-            execErrState: Error
+            execErrState: OK
             for: 0m
             annotations:
               summary: "{{ $labels.namespace }}/{{ $labels.pod }}/{{ $labels.container }} was OOM-killed"
@@ -273,7 +273,7 @@ data:
                         type: gt
                   refId: C
             noDataState: OK
-            execErrState: Error
+            execErrState: OK
             for: 10m
             annotations:
               summary: "{{ $labels.namespace }}/{{ $labels.pod }}/{{ $labels.container }} CPU throttled {{ printf \"%.0f\" $values.B.Value }}%"
@@ -336,7 +336,7 @@ data:
                         type: gt
                   refId: C
             noDataState: OK
-            execErrState: Error
+            execErrState: OK
             for: 5m
             annotations:
               summary: "PVC {{ $labels.persistentvolumeclaim }} in {{ $labels.namespace }} is {{ printf \"%.0f\" $values.B.Value }}% full"
@@ -398,7 +398,7 @@ data:
                         type: gt
                   refId: C
             noDataState: OK
-            execErrState: Error
+            execErrState: OK
             for: 2m
             annotations:
               summary: "PVC {{ $labels.persistentvolumeclaim }} in {{ $labels.namespace }} is {{ printf \"%.0f\" $values.B.Value }}% full — URGENT"
