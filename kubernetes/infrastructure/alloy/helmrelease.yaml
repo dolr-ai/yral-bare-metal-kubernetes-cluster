@@ -21,6 +21,10 @@ spec:
     # Run as a DaemonSet so every node ships its pod logs to Loki
     controller:
       type: daemonset
+      # Roll 4 nodes at a time — cluster has 40 nodes so default maxUnavailable=1 is too slow
+      updateStrategy:
+        rollingUpdate:
+          maxUnavailable: 4
       # Allow scheduling on control-plane nodes to collect their pod logs
       tolerations:
         - key: node-role.kubernetes.io/control-plane
