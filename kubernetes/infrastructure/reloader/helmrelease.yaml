@@ -20,7 +20,7 @@ spec:
   values:
     reloader:
       reloadOnCreate: true
-      reloadStrategy: rollingUpdate
+      reloadStrategy: default
       resources:
         requests:
           cpu: 10m
