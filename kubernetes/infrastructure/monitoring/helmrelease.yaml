@@ -19,6 +19,10 @@ spec:
       retries: 3
   values:
     grafana:
+      # Inject Google Chat webhook URL as an env var so the alerting
+      # provisioning ConfigMap can reference it as $GOOGLE_CHAT_WEBHOOK_URL.
+      envFromSecret: "monitoring-google-chat-secrets"
+
       # Auth proxy: oauth2-proxy handles authentication.
       # Grafana trusts X-Auth-Request-Email header forwarded by oauth2-proxy.
       # The login form and basic auth are disabled — no admin password needed.
@@ -61,6 +65,12 @@ spec:
         reloader.stakater.com/auto: "true"
 
       sidecar:
+        # Watches ConfigMaps labelled grafana_alert="1" and loads them as Grafana
+        # unified alerting provisioning (contact points, notification policies, rules).
+        alerts:
+          enabled: true
+          label: grafana_alert
+          labelValue: "1"
         datasources:
           skipReload: true
 

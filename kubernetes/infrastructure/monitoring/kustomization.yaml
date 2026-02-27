@@ -8,3 +8,8 @@ resources:
   - flux-control-plane-dashboard.yaml
   - flux-logs-dashboard.yaml
   - flux-podmonitor.yaml
+  # Alerting: Google Chat notifications for resource saturation events.
+  - alerting-google-chat-secret.sops.yaml
+  - alerting-contact-point.yaml
+  - alerting-notification-policy.yaml
+  - alerting-rules-resource-saturation.yaml

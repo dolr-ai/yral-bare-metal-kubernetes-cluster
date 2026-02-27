@@ -1,0 +1,350 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-alerting-rules-resource-saturation
+  namespace: monitoring
+  labels:
+    grafana_alert: "1"
+data:
+  resource-saturation.yaml: |
+    apiVersion: 1
+    groups:
+      - orgId: 1
+        name: resource-saturation
+        folder: Infrastructure Alerts
+        interval: 1m
+        rules:
+
+          # ─── Memory ──────────────────────────────────────────────────────────────
+          - uid: container-memory-warning
+            title: Container Memory Near Limit (>80%)
+            condition: B
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 300
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  datasource:
+                    type: prometheus
+                    uid: prometheus
+                  editorMode: code
+                  expr: |
+                    (
+                      container_memory_working_set_bytes{container!="", container!="POD", namespace!=""}
+                      / on(namespace, pod, container)
+                      kube_pod_container_resource_limits{resource="memory"}
+                    ) * 100
+                  instant: true
+                  refId: A
+              - refId: B
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 80
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - A
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  refId: B
+                  type: classic_conditions
+            noDataState: OK
+            execErrState: Error
+            for: 5m
+            annotations:
+              summary: "{{ $labels.namespace }}/{{ $labels.pod }}: memory at {{ $values.A }}% of limit"
+              description: "Container {{ $labels.container }} in pod {{ $labels.pod }} (namespace {{ $labels.namespace }}) is using more than 80% of its memory limit. This is a warning — OOM kill is imminent if usage keeps growing."
+            labels:
+              severity: warning
+            isPaused: false
+
+          - uid: container-memory-critical
+            title: Container Memory Critical (>95%)
+            condition: B
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 300
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  datasource:
+                    type: prometheus
+                    uid: prometheus
+                  editorMode: code
+                  expr: |
+                    (
+                      container_memory_working_set_bytes{container!="", container!="POD", namespace!=""}
+                      / on(namespace, pod, container)
+                      kube_pod_container_resource_limits{resource="memory"}
+                    ) * 100
+                  instant: true
+                  refId: A
+              - refId: B
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 95
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - A
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  refId: B
+                  type: classic_conditions
+            noDataState: OK
+            execErrState: Error
+            for: 2m
+            annotations:
+              summary: "{{ $labels.namespace }}/{{ $labels.pod }}: memory at {{ $values.A }}% of limit — OOM imminent"
+              description: "Container {{ $labels.container }} in pod {{ $labels.pod }} (namespace {{ $labels.namespace }}) is at or above 95% of its memory limit. An OOM kill is likely within minutes. Consider increasing the memory limit."
+            labels:
+              severity: critical
+            isPaused: false
+
+          # ─── OOM Kill ────────────────────────────────────────────────────────────
+          - uid: container-oom-killed
+            title: Container OOMKilled
+            condition: B
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 300
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  datasource:
+                    type: prometheus
+                    uid: prometheus
+                  editorMode: code
+                  expr: |
+                    kube_pod_container_status_last_terminated_reason{
+                      reason="OOMKilled",
+                      namespace!=""
+                    }
+                  instant: true
+                  refId: A
+              - refId: B
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - A
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  refId: B
+                  type: classic_conditions
+            noDataState: OK
+            execErrState: Error
+            for: 0m
+            annotations:
+              summary: "{{ $labels.namespace }}/{{ $labels.pod }}/{{ $labels.container }} was OOM-killed"
+              description: "Container {{ $labels.container }} in pod {{ $labels.pod }} (namespace {{ $labels.namespace }}) was terminated due to an out-of-memory condition. The memory limit needs to be increased."
+            labels:
+              severity: critical
+            isPaused: false
+
+          # ─── CPU Throttling ──────────────────────────────────────────────────────
+          - uid: container-cpu-throttled
+            title: Container CPU Heavily Throttled (>50%)
+            condition: B
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 600
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  datasource:
+                    type: prometheus
+                    uid: prometheus
+                  editorMode: code
+                  expr: |
+                    (
+                      sum by (namespace, pod, container) (
+                        rate(container_cpu_throttled_seconds_total{container!="", namespace!=""}[5m])
+                      )
+                      / sum by (namespace, pod, container) (
+                        rate(container_cpu_cfs_periods_total{container!="", namespace!=""}[5m])
+                      )
+                    ) * 100
+                  instant: true
+                  refId: A
+              - refId: B
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 50
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - A
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  refId: B
+                  type: classic_conditions
+            noDataState: OK
+            execErrState: Error
+            for: 10m
+            annotations:
+              summary: "{{ $labels.namespace }}/{{ $labels.pod }}/{{ $labels.container }} CPU throttled {{ $values.A }}%"
+              description: "Container {{ $labels.container }} in pod {{ $labels.pod }} (namespace {{ $labels.namespace }}) is being CPU-throttled more than 50% of the time over the last 5 minutes. This causes latency. Consider increasing the CPU limit or investigating a runaway process."
+            labels:
+              severity: warning
+            isPaused: false
+
+          # ─── PVC Storage ─────────────────────────────────────────────────────────
+          - uid: pvc-space-near-full
+            title: PVC Space Nearly Full (>80%)
+            condition: B
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 300
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  datasource:
+                    type: prometheus
+                    uid: prometheus
+                  editorMode: code
+                  expr: |
+                    (
+                      kubelet_volume_stats_used_bytes{namespace!=""}
+                      / kubelet_volume_stats_capacity_bytes{namespace!=""}
+                    ) * 100
+                  instant: true
+                  refId: A
+              - refId: B
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 80
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - A
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  refId: B
+                  type: classic_conditions
+            noDataState: OK
+            execErrState: Error
+            for: 5m
+            annotations:
+              summary: "PVC {{ $labels.persistentvolumeclaim }} in {{ $labels.namespace }} is {{ $values.A }}% full"
+              description: "PersistentVolumeClaim {{ $labels.persistentvolumeclaim }} in namespace {{ $labels.namespace }} has used more than 80% of its capacity. If the workload is Loki, Prometheus, or another append-only store, it will crash when the volume fills. Expand the PVC or reduce retention."
+            labels:
+              severity: warning
+            isPaused: false
+
+          - uid: pvc-space-critical
+            title: PVC Space Critical (>90%)
+            condition: B
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 300
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  datasource:
+                    type: prometheus
+                    uid: prometheus
+                  editorMode: code
+                  expr: |
+                    (
+                      kubelet_volume_stats_used_bytes{namespace!=""}
+                      / kubelet_volume_stats_capacity_bytes{namespace!=""}
+                    ) * 100
+                  instant: true
+                  refId: A
+              - refId: B
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 90
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - A
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  refId: B
+                  type: classic_conditions
+            noDataState: OK
+            execErrState: Error
+            for: 2m
+            annotations:
+              summary: "PVC {{ $labels.persistentvolumeclaim }} in {{ $labels.namespace }} is {{ $values.A }}% full — URGENT"
+              description: "PersistentVolumeClaim {{ $labels.persistentvolumeclaim }} in namespace {{ $labels.namespace }} has exceeded 90% capacity and will fill very soon. Immediate action required: expand the PVC or delete data."
+            labels:
+              severity: critical
+            isPaused: false
