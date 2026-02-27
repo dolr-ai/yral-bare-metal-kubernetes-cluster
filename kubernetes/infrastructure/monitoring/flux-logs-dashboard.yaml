@@ -139,7 +139,7 @@ data:
           "targets": [
             {
               "datasource": "${DS_LOKI}",
-              "expr": "sum(count_over_time({namespace=~\"$namespace\", stream=~\"$stream\", app =~\"$controller\"} | json | __error__!=\"JSONParserErr\" | level=~\"$level\" |= \"$query\" [$__interval]))",
+              "expr": "sum(count_over_time({namespace=~\"$namespace\", app=~\"$controller\"} | detected_level=~\"$level\" |= \"$query\" [$__interval]))",
               "instant": false,
               "legendFormat": "Log count",
               "range": true,
@@ -171,7 +171,7 @@ data:
           "targets": [
             {
               "datasource": "${DS_LOKI}",
-              "expr": "{namespace=~\"$namespace\", stream=~\"$stream\", app =~\"$controller\"} | json | __error__!=\"JSONParserErr\" | level=~\"$level\" |= \"$query\"",
+              "expr": "{namespace=~\"$namespace\", app=~\"$controller\"} | detected_level=~\"$level\" |= \"$query\"",
               "refId": "A"
             }
           ],
@@ -208,7 +208,7 @@ data:
             "type": "textbox"
           },
           {
-            "allValue": "info|error",
+            "allValue": ".*",
             "current": {
               "selected": false,
               "text": "All",
@@ -226,8 +226,23 @@ data:
               },
               {
                 "selected": false,
+                "text": "unknown",
+                "value": "unknown"
+              },
+              {
+                "selected": false,
+                "text": "debug",
+                "value": "debug"
+              },
+              {
+                "selected": false,
                 "text": "info",
                 "value": "info"
+              },
+              {
+                "selected": false,
+                "text": "warn",
+                "value": "warn"
               },
               {
                 "selected": false,
@@ -235,7 +250,7 @@ data:
                 "value": "error"
               }
             ],
-            "query": "info,error",
+            "query": "unknown,debug,info,warn,error",
             "queryValue": "",
             "skipUrlSync": false,
             "type": "custom"
@@ -284,27 +299,6 @@ data:
             "name": "namespace",
             "options": [],
             "query": "label_values(namespace)",
-            "refresh": 1,
-            "regex": "",
-            "skipUrlSync": false,
-            "sort": 0,
-            "type": "query"
-          },
-          {
-            "allValue": ".+",
-            "current": {
-              "selected": false,
-              "text": "All",
-              "value": "$__all"
-            },
-            "datasource": "${DS_LOKI}",
-            "definition": "label_values(stream)",
-            "hide": 0,
-            "includeAll": true,
-            "multi": true,
-            "name": "stream",
-            "options": [],
-            "query": "label_values(stream)",
             "refresh": 1,
             "regex": "",
             "skipUrlSync": false,
