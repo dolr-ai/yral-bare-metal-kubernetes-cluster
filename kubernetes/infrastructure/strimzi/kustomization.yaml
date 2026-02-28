@@ -4,3 +4,7 @@ resources:
   - namespace.yaml
   - helmrepository.yaml
   - helmrelease.yaml
+  # Strimzi Helm creates RoleBindings in watched namespaces during install,
+  # so kafka and kafka-connect namespaces must exist before the HelmRelease runs.
+  - ../kafka/namespace.yaml
+  - ../kafka-connect/namespace.yaml
