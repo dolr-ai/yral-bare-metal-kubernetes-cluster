@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - collector-config.yaml
+  - iglu-resolver-config.yaml
   - enrich-config.yaml
   - collector-deployment.yaml
   - collector-service.yaml

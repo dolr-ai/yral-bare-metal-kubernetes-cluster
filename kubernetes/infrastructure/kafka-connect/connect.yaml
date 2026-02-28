@@ -54,26 +54,6 @@ spec:
     # Allow connector tasks to be distributed across both workers
     offset.flush.interval.ms: 60000
 
-  externalConfiguration:
-    env:
-      # Full JAAS string for kafka-connect user SCRAM-SHA-512 auth
-      - name: KAFKA_CONNECT_JAAS_CONFIG
-        valueFrom:
-          secretKeyRef:
-            name: connect-credentials
-            key: kafka-connect-jaas-config
-      # Hetzner S3 credentials for the S3 Sink connector
-      - name: AWS_ACCESS_KEY_ID
-        valueFrom:
-          secretKeyRef:
-            name: connect-credentials
-            key: aws-access-key-id
-      - name: AWS_SECRET_ACCESS_KEY
-        valueFrom:
-          secretKeyRef:
-            name: connect-credentials
-            key: aws-secret-access-key
-
   template:
     pod:
       affinity:
@@ -93,6 +73,25 @@ spec:
                   matchLabels:
                     strimzi.io/cluster: connect-cluster
                 topologyKey: kubernetes.io/hostname
+    connectContainer:
+      env:
+        # Full JAAS string for kafka-connect user SCRAM-SHA-512 auth
+        - name: KAFKA_CONNECT_JAAS_CONFIG
+          valueFrom:
+            secretKeyRef:
+              name: connect-credentials
+              key: kafka-connect-jaas-config
+        # Hetzner S3 credentials for the S3 Sink connector
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: connect-credentials
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: connect-credentials
+              key: aws-secret-access-key
 
   resources:
     requests:

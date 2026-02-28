@@ -1,0 +1,35 @@
+# Iglu resolver configuration for Snowplow Enrich.
+#
+# The Iglu resolver tells Enrich how to look up JSON schemas used to validate
+# and enrich raw Snowplow events. This minimal config points at Iglu Central
+# (Snowplow's public open-source schema registry) — sufficient to run
+# standard Snowplow enrichments without a private schema registry.
+#
+# If custom schemas are needed in the future, add a second repository entry
+# pointing at a self-hosted Iglu server.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: iglu-resolver-config
+  namespace: snowplow
+data:
+  resolver.json: |
+    {
+      "schema": "iglu:com.snowplowanalytics.iglu/resolver-config/jsonschema/1-0-1",
+      "data": {
+        "cacheSize": 500,
+        "repositories": [
+          {
+            "name": "Iglu Central",
+            "priority": 10,
+            "vendorPrefixes": [],
+            "connection": {
+              "http": {
+                "uri": "http://iglucentral.com"
+              }
+            }
+          }
+        ]
+      }
+    }

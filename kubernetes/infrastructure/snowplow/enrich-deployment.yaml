@@ -53,6 +53,8 @@ spec:
           args:
             - --config
             - /snowplow/config/application.conf
+            - --iglu-config
+            - /snowplow/iglu/resolver.json
             # Disable telemetry (no outbound calls to Snowplow)
             - --disable-telemetry
           env:
@@ -72,7 +74,13 @@ spec:
             - name: config
               mountPath: /snowplow/config
               readOnly: true
+            - name: iglu
+              mountPath: /snowplow/iglu
+              readOnly: true
       volumes:
         - name: config
           configMap:
             name: enrich-config
+        - name: iglu
+          configMap:
+            name: iglu-resolver-config

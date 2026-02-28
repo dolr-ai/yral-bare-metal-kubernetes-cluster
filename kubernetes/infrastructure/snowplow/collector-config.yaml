@@ -71,7 +71,11 @@ data:
         good = "snowplow-raw"
         bad  = "snowplow-bad"
 
-        sink = "kafka"
+        # In collector 3.x, sink type is baked into the Kafka-variant image.
+        # The sink block requires maxBytes (max event payload size in bytes).
+        sink {
+          maxBytes = 1000000
+        }
 
         kafka {
           brokers = "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
