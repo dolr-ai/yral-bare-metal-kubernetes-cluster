@@ -17,6 +17,11 @@ metadata:
 data:
   application.conf: |
     collector {
+      # License acceptance required in 3.x
+      license {
+        accept = true
+      }
+
       interface = "0.0.0.0"
       port = 9090
 
@@ -44,7 +49,6 @@ data:
         expiration = "365 days"
         name = "sp"
         domains = []
-        fallbackDomain = ""
         secure = false
         httpOnly = false
         sameSite = "None"
@@ -64,24 +68,17 @@ data:
       }
 
       cors {
-        allowedOrigins = ["*"]
+        accessControlMaxAge = 60 minutes
       }
 
+      # In 3.7.0, streams.good and streams.bad are objects containing name, brokers,
+      # maxBytes, producerConf, and buffer directly (no separate sink/kafka blocks).
       streams {
-        good = "snowplow-raw"
-        bad  = "snowplow-bad"
-
-        # In collector 3.x, sink type is baked into the Kafka-variant image.
-        # The sink block requires maxBytes (max event payload size in bytes).
-        sink {
-          maxBytes = 1000000
-        }
-
-        kafka {
+        good {
+          name    = "snowplow-raw"
           brokers = "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
-          retries = 10
+          maxBytes = 1000000
 
-          # Producer configuration.
           # sasl.jaas.config is injected from the KAFKA_COLLECTOR_JAAS_CONFIG env var
           # at pod startup — the full JAAS string is stored in the kafka-credentials Secret.
           producerConf {
@@ -91,12 +88,32 @@ data:
             "sasl.mechanism"      = SCRAM-SHA-512
             "sasl.jaas.config"    = ${KAFKA_COLLECTOR_JAAS_CONFIG}
           }
+
+          buffer {
+            byteLimit   = 3145728
+            recordLimit = 500
+            timeLimit   = 5000
+          }
         }
 
-        buffer {
-          byteLimit   = 3145728  # 3 MiB — flush before hitting Kafka max.message.bytes
-          recordLimit = 500
-          timeLimit   = 5000     # 5 s — maximum latency before a partial buffer is sent
+        bad {
+          name    = "snowplow-bad"
+          brokers = "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+          maxBytes = 1000000
+
+          producerConf {
+            acks                  = all
+            retries               = 10
+            "security.protocol"   = SASL_PLAINTEXT
+            "sasl.mechanism"      = SCRAM-SHA-512
+            "sasl.jaas.config"    = ${KAFKA_COLLECTOR_JAAS_CONFIG}
+          }
+
+          buffer {
+            byteLimit   = 3145728
+            recordLimit = 500
+            timeLimit   = 5000
+          }
         }
       }
     }
