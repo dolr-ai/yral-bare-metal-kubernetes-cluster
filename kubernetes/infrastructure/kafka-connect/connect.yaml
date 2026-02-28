@@ -4,9 +4,10 @@
 # Confluent S3 connector JAR. Built by GitHub Actions workflow on changes to
 # docker/kafka-connect-plugins/Dockerfile.
 #
-# Authentication: SASL_PLAINTEXT SCRAM-SHA-512, consistent with the Kafka cluster
-# listener. The full JAAS config string is injected via externalConfiguration.env
-# from the connect-credentials Secret.
+# Authentication: SASL_PLAINTEXT SCRAM-SHA-512 via spec.authentication — Strimzi
+# injects security.protocol, sasl.mechanism, and sasl.jaas.config automatically
+# for both the worker bootstrap connection and the default consumer/producer config.
+# Do NOT set those in spec.config; the substitution does not work at bootstrap time.
 #
 # EnvVarConfigProvider: uses the Apache Kafka native provider
 # (org.apache.kafka.common.config.provider.EnvVarConfigProvider) so that
@@ -38,20 +39,24 @@ spec:
   offsetStorageTopic: connect-offsets
   statusStorageTopic: connect-status
 
+  # Strimzi injects security.protocol, sasl.mechanism, and sasl.jaas.config
+  # automatically from this block — do NOT set them in spec.config.
+  authentication:
+    type: scram-sha-512
+    username: kafka-connect
+    passwordSecret:
+      secretName: connect-credentials
+      password: kafka-connect-password
+
   config:
-    # SASL/SCRAM authentication for Kafka cluster access
-    security.protocol: SASL_PLAINTEXT
-    sasl.mechanism: SCRAM-SHA-512
-    # sasl.jaas.config is resolved at runtime via EnvVarConfigProvider
-    sasl.jaas.config: "${env:KAFKA_CONNECT_JAAS_CONFIG}"
-    # Apache Kafka native EnvVarConfigProvider (replaces removed Strimzi provider)
+    # Apache Kafka native EnvVarConfigProvider — allows connector configs to
+    # reference ${env:VAR_NAME} (e.g. S3 credentials in the S3 sink connector).
     config.providers: env
     config.providers.env.class: org.apache.kafka.common.config.provider.EnvVarConfigProvider
     # Replication for Connect internal topics
     config.storage.replication.factor: 3
     offset.storage.replication.factor: 3
     status.storage.replication.factor: 3
-    # Allow connector tasks to be distributed across both workers
     offset.flush.interval.ms: 60000
 
   template:
@@ -75,12 +80,6 @@ spec:
                 topologyKey: kubernetes.io/hostname
     connectContainer:
       env:
-        # Full JAAS string for kafka-connect user SCRAM-SHA-512 auth
-        - name: KAFKA_CONNECT_JAAS_CONFIG
-          valueFrom:
-            secretKeyRef:
-              name: connect-credentials
-              key: kafka-connect-jaas-config
         # Hetzner S3 credentials for the S3 Sink connector
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
