@@ -1,19 +1,15 @@
-# Snowplow Enrich Kafka configuration (HOCON format)
+# Snowplow Enrich Kafka configuration (HOCON format) for 6.8.0
 # Mounted at /snowplow/config/application.conf inside the enrich container.
 #
+# 6.8.0 uses JSON-style HOCON with quoted keys and colon separators.
+# Key structural changes from 5.x:
+#   - input.topicName (singular) replaces input.topics (array)
+#   - output now has 3 streams: good, failed, bad
+#   - license.accept = true is required
+#   - telemetry.disable = true disables heartbeat events
+#
 # SASL credentials are injected at runtime via KAFKA_ENRICH_JAAS_CONFIG env var.
-#
-# Enrichments:
-#   The `enrichments` array below enables a minimal, high-value set.
-#   All enrichment configs are inline JSON strings (Snowplow Enrich expects this).
-#
-#   Enabled by default (no config required):
-#     - CampaignAttributionEnrichment
-#     - AnonIpEnrichment (disabled — no need to anonymize)
-#     - RefererParserEnrichment
-#     - UserAgentUtilsEnrichment
-#
-#   To add or disable enrichments, edit this ConfigMap and let Reloader restart pods.
+# Enrichments are loaded from the --enrichments directory (see enrichments-config.yaml).
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -22,57 +18,79 @@ metadata:
   namespace: snowplow
 data:
   application.conf: |
-    input {
-      topics             = ["snowplow-raw"]
-      bootstrapServers   = "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
-      consumerConf {
-        "group.id"             = "snowplow-enrich"
-        "auto.offset.reset"    = earliest
-        "security.protocol"    = SASL_PLAINTEXT
-        "sasl.mechanism"       = SCRAM-SHA-512
-        "sasl.jaas.config"     = ${KAFKA_ENRICH_JAAS_CONFIG}
+    {
+      "license": {
+        "accept": true
       }
-    }
 
-    output {
-      good {
-        topic            = "snowplow-enriched"
-        bootstrapServers = "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
-        producerConf {
-          acks                  = all
-          retries               = 10
-          "security.protocol"   = SASL_PLAINTEXT
-          "sasl.mechanism"      = SCRAM-SHA-512
-          "sasl.jaas.config"    = ${KAFKA_ENRICH_JAAS_CONFIG}
+      "input": {
+        "topicName": "snowplow-raw"
+        "bootstrapServers": "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+        "consumerConf": {
+          "group.id": "snowplow-enrich"
+          "auto.offset.reset": "earliest"
+          "enable.auto.commit": "false"
+          "allow.auto.create.topics": "false"
+          "security.protocol": "SASL_PLAINTEXT"
+          "sasl.mechanism": "SCRAM-SHA-512"
+          "sasl.jaas.config": ${KAFKA_ENRICH_JAAS_CONFIG}
         }
       }
 
-      bad {
-        topic            = "snowplow-bad"
-        bootstrapServers = "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
-        producerConf {
-          acks                  = all
-          retries               = 10
-          "security.protocol"   = SASL_PLAINTEXT
-          "sasl.mechanism"      = SCRAM-SHA-512
-          "sasl.jaas.config"    = ${KAFKA_ENRICH_JAAS_CONFIG}
+      "output": {
+        "good": {
+          "topicName": "snowplow-enriched"
+          "bootstrapServers": "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+          "producerConf": {
+            "client.id": "snowplow-enrich"
+            "acks": "all"
+            "security.protocol": "SASL_PLAINTEXT"
+            "sasl.mechanism": "SCRAM-SHA-512"
+            "sasl.jaas.config": ${KAFKA_ENRICH_JAAS_CONFIG}
+          }
+        }
+
+        # failed: events that could not be validated/enriched (TSV format)
+        # Routed to snowplow-bad — we don't distinguish failed vs bad at this stage.
+        "failed": {
+          "topicName": "snowplow-bad"
+          "bootstrapServers": "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+          "producerConf": {
+            "client.id": "snowplow-enrich"
+            "acks": "all"
+            "security.protocol": "SASL_PLAINTEXT"
+            "sasl.mechanism": "SCRAM-SHA-512"
+            "sasl.jaas.config": ${KAFKA_ENRICH_JAAS_CONFIG}
+          }
+        }
+
+        # bad: bad rows (JSON format — schema violations, etc.)
+        "bad": {
+          "topicName": "snowplow-bad"
+          "bootstrapServers": "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+          "producerConf": {
+            "client.id": "snowplow-enrich"
+            "acks": "all"
+            "security.protocol": "SASL_PLAINTEXT"
+            "sasl.mechanism": "SCRAM-SHA-512"
+            "sasl.jaas.config": ${KAFKA_ENRICH_JAAS_CONFIG}
+          }
         }
       }
-    }
 
-    # Enrichments — built-in enrichments need no config; leave array empty to
-    # run only the built-ins (timestamps, platform, event fingerprint, etc.).
-    enrichments = []
-
-    # Assemble events into TSV format (Snowplow canonical enriched event format)
-    monitoring {
-      metrics {
-        statsd {
-          enabled = false
+      "monitoring": {
+        "metrics": {
+          "statsd": {
+            "hostname": "localhost"
+            "port": 8125
+            "period": "1 minute"
+            "prefix": "snowplow.enrich"
+            "enabled": false
+          }
         }
       }
-    }
 
-    telemetry {
-      disable = true
+      "telemetry": {
+        "disable": true
+      }
     }
