@@ -55,8 +55,7 @@ spec:
             - /snowplow/config/application.conf
             - --iglu-config
             - /snowplow/iglu/resolver.json
-            # Disable telemetry (no outbound calls to Snowplow)
-            - --disable-telemetry
+            # --enrichments is optional; omit to use built-in defaults only
           env:
             - name: KAFKA_ENRICH_JAAS_CONFIG
               valueFrom:
