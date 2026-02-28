@@ -55,7 +55,9 @@ spec:
             - /snowplow/config/application.conf
             - --iglu-config
             - /snowplow/iglu/resolver.json
-            # --enrichments is optional; omit to use built-in defaults only
+            # --enrichments is required in 6.8.0; empty dir = no optional enrichments
+            - --enrichments
+            - /snowplow/enrichments
           env:
             - name: KAFKA_ENRICH_JAAS_CONFIG
               valueFrom:
@@ -76,6 +78,9 @@ spec:
             - name: iglu
               mountPath: /snowplow/iglu
               readOnly: true
+            - name: enrichments
+              mountPath: /snowplow/enrichments
+              readOnly: true
       volumes:
         - name: config
           configMap:
@@ -83,3 +88,6 @@ spec:
         - name: iglu
           configMap:
             name: iglu-resolver-config
+        - name: enrichments
+          configMap:
+            name: enrichments-config

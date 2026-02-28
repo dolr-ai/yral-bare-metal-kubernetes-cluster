@@ -6,6 +6,7 @@ resources:
   - collector-config.yaml
   - iglu-resolver-config.yaml
   - enrich-config.yaml
+  - enrichments-config.yaml
   - collector-deployment.yaml
   - collector-service.yaml
   - enrich-deployment.yaml

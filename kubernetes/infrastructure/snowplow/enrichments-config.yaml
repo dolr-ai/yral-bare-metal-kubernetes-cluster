@@ -1,0 +1,12 @@
+# Empty enrichments ConfigMap.
+# snowplow-enrich-kafka 6.8.0 requires --enrichments <path> pointing to a directory
+# of JSON enrichment configs. An empty directory disables all optional enrichments
+# (Snowplow still applies built-in mandatory enrichments regardless of this directory).
+# Add JSON enrichment configs here as additional data keys when needed.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: enrichments-config
+  namespace: snowplow
+data: {}
