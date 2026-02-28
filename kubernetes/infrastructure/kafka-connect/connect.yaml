@@ -1,0 +1,103 @@
+# Kafka Connect cluster for event pipeline sinks
+#
+# Image: custom-built from quay.io/strimzi/kafka:0.50.1-kafka-4.1.1 +
+# Confluent S3 connector JAR. Built by GitHub Actions workflow on changes to
+# docker/kafka-connect-plugins/Dockerfile.
+#
+# Authentication: SASL_PLAINTEXT SCRAM-SHA-512, consistent with the Kafka cluster
+# listener. The full JAAS config string is injected via externalConfiguration.env
+# from the connect-credentials Secret.
+#
+# EnvVarConfigProvider: uses the Apache Kafka native provider
+# (org.apache.kafka.common.config.provider.EnvVarConfigProvider) so that
+# KafkaConnector configs can reference ${env:VAR_NAME} for S3 credentials.
+# Strimzi's own EnvVarConfigProvider was removed in 0.46.0.
+#
+# 2 replicas for connector task distribution. Pinned to falkenstein nodes
+# (required, not preferred) to colocate with Kafka and the FSN1 S3 bucket.
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaConnect
+metadata:
+  name: connect-cluster
+  namespace: kafka-connect
+  annotations:
+    # Allow KafkaConnector CRs in this namespace to manage connectors.
+    strimzi.io/use-connector-resources: "true"
+    secret.reloader.stakater.com/reload: "connect-credentials"
+spec:
+  replicas: 2
+  # Built by .github/workflows/build-kafka-connect-plugins.yml
+  # Base: quay.io/strimzi/kafka:0.50.1-kafka-4.1.1 + Confluent S3 connector JAR
+  image: ghcr.io/dolr-ai/kafka-connect-plugins:latest
+  bootstrapServers: kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+
+  # v1 API top-level fields (replacing deprecated spec.config equivalents)
+  groupId: connect-cluster
+  configStorageTopic: connect-configs
+  offsetStorageTopic: connect-offsets
+  statusStorageTopic: connect-status
+
+  config:
+    # SASL/SCRAM authentication for Kafka cluster access
+    security.protocol: SASL_PLAINTEXT
+    sasl.mechanism: SCRAM-SHA-512
+    # sasl.jaas.config is resolved at runtime via EnvVarConfigProvider
+    sasl.jaas.config: "${env:KAFKA_CONNECT_JAAS_CONFIG}"
+    # Apache Kafka native EnvVarConfigProvider (replaces removed Strimzi provider)
+    config.providers: env
+    config.providers.env.class: org.apache.kafka.common.config.provider.EnvVarConfigProvider
+    # Replication for Connect internal topics
+    config.storage.replication.factor: 3
+    offset.storage.replication.factor: 3
+    status.storage.replication.factor: 3
+    # Allow connector tasks to be distributed across both workers
+    offset.flush.interval.ms: 60000
+
+  externalConfiguration:
+    env:
+      # Full JAAS string for kafka-connect user SCRAM-SHA-512 auth
+      - name: KAFKA_CONNECT_JAAS_CONFIG
+        valueFrom:
+          secretKeyRef:
+            name: connect-credentials
+            key: kafka-connect-jaas-config
+      # Hetzner S3 credentials for the S3 Sink connector
+      - name: AWS_ACCESS_KEY_ID
+        valueFrom:
+          secretKeyRef:
+            name: connect-credentials
+            key: aws-access-key-id
+      - name: AWS_SECRET_ACCESS_KEY
+        valueFrom:
+          secretKeyRef:
+            name: connect-credentials
+            key: aws-secret-access-key
+
+  template:
+    pod:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: topology.kubernetes.io/region
+                    operator: In
+                    values:
+                      - falkenstein
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    strimzi.io/cluster: connect-cluster
+                topologyKey: kubernetes.io/hostname
+
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2000m
+      memory: 2Gi

@@ -24,4 +24,8 @@ resources:
   - infrastructure-goldilocks.yaml
   - infrastructure-loki.yaml
   - infrastructure-alloy.yaml
+  - infrastructure-strimzi.yaml
+  - infrastructure-kafka.yaml
+  - infrastructure-snowplow.yaml
+  - infrastructure-kafka-connect.yaml
   - networking.yaml

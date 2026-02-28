@@ -1,0 +1,155 @@
+# Kafka users for the Snowplow event pipeline
+#
+# Passwords are provisioned from the `kafka-user-passwords` Secret (SOPS-encrypted).
+# Strimzi UserOperator registers the SCRAM credentials with Kafka, so passwords are
+# set at user creation time rather than generated randomly.
+#
+# ACL design:
+#   snowplow-collector  — producer to snowplow-raw + snowplow-bad
+#   snowplow-enrich     — consumer from snowplow-raw, producer to snowplow-enriched + snowplow-bad
+#   kafka-connect       — consumer from snowplow-enriched, plus Kafka Connect internal topics
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: snowplow-collector
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  authentication:
+    type: scram-sha-512
+    password:
+      valueFrom:
+        secretKeyRef:
+          name: kafka-user-passwords
+          key: snowplow-collector-password
+  authorization:
+    type: simple
+    acls:
+      # Produce to snowplow-raw
+      - resource:
+          type: topic
+          name: snowplow-raw
+          patternType: literal
+        operations:
+          - Write
+          - Describe
+      # Produce bad rows
+      - resource:
+          type: topic
+          name: snowplow-bad
+          patternType: literal
+        operations:
+          - Write
+          - Describe
+      # Required for producer idempotency
+      - resource:
+          type: transactionalId
+          name: snowplow-collector
+          patternType: literal
+        operations:
+          - Write
+          - Describe
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: snowplow-enrich
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  authentication:
+    type: scram-sha-512
+    password:
+      valueFrom:
+        secretKeyRef:
+          name: kafka-user-passwords
+          key: snowplow-enrich-password
+  authorization:
+    type: simple
+    acls:
+      # Consume from snowplow-raw
+      - resource:
+          type: topic
+          name: snowplow-raw
+          patternType: literal
+        operations:
+          - Read
+          - Describe
+      - resource:
+          type: group
+          name: snowplow-enrich
+          patternType: prefix
+        operations:
+          - Read
+      # Produce enriched events
+      - resource:
+          type: topic
+          name: snowplow-enriched
+          patternType: literal
+        operations:
+          - Write
+          - Describe
+      # Produce bad rows
+      - resource:
+          type: topic
+          name: snowplow-bad
+          patternType: literal
+        operations:
+          - Write
+          - Describe
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: kafka-connect
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  authentication:
+    type: scram-sha-512
+    password:
+      valueFrom:
+        secretKeyRef:
+          name: kafka-user-passwords
+          key: kafka-connect-password
+  authorization:
+    type: simple
+    acls:
+      # Consume from snowplow-enriched (S3 Sink source)
+      - resource:
+          type: topic
+          name: snowplow-enriched
+          patternType: literal
+        operations:
+          - Read
+          - Describe
+      - resource:
+          type: group
+          name: connect-
+          patternType: prefix
+        operations:
+          - Read
+      # Kafka Connect internal topics (connect-offsets, connect-configs, connect-status)
+      - resource:
+          type: topic
+          name: connect-
+          patternType: prefix
+        operations:
+          - Read
+          - Write
+          - Create
+          - Describe
+          - DescribeConfigs
+          - AlterConfigs
+      # Allow Connect workers to describe cluster (needed for metadata fetches)
+      - resource:
+          type: cluster
+          name: kafka-cluster
+          patternType: literal
+        operations:
+          - Describe
+          - DescribeConfigs

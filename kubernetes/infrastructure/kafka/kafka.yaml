@@ -1,0 +1,105 @@
+# KafkaNodePool — 3 combined broker+controller nodes (KRaft mode)
+#
+# All brokers pinned to falkenstein nodes (topology.kubernetes.io/region=falkenstein)
+# to colocate with the FSN1 S3 data lake bucket (fsn1.your-objectstorage.com).
+#
+# Pod anti-affinity spreads brokers across different FSN1 datacenter zones
+# so a single DC failure never loses quorum.
+#
+# Storage: 250Gi Longhorn PVC per node
+#   200Gi  — data headroom for snowplow-enriched topic (200GiB cap spread across 12 partitions)
+#    50Gi  — Kafka index files, __consumer_offsets, Connect internal topics, overhead
+#
+# nodatacow note: Longhorn data already has nodatacow set on /var/lib/longhorn (storage-setup role)
+# so Longhorn manages its own CoW without btrfs interference.
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: combined
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  replicas: 3
+  roles:
+    - controller
+    - broker
+  storage:
+    type: persistent-claim
+    size: 250Gi
+    class: longhorn
+    deleteClaim: false
+  template:
+    pod:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: topology.kubernetes.io/region
+                    operator: In
+                    values:
+                      - falkenstein
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    strimzi.io/cluster: kafka-cluster
+                topologyKey: topology.kubernetes.io/zone
+---
+# Kafka CR — KRaft mode (no ZooKeeper)
+#
+# SASL_PLAINTEXT listener on port 9092 for internal cluster traffic.
+# All communication inside the Cilium WireGuard mesh is already encrypted
+# at the network layer, so TLS at the Kafka layer is not required.
+#
+# Retention policy:
+#   log.retention.ms=-1   — disables time-based global retention
+#   log.retention.bytes   — set per-topic on snowplow-enriched KafkaTopic CR
+#   log.retention.ms      — set per-topic on snowplow-raw KafkaTopic CR
+#
+# Replication:
+#   default.replication.factor=3   — every topic replicated to all 3 brokers
+#   min.insync.replicas=2          — producer acks=all requires 2/3 in-sync
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: kafka-cluster
+  namespace: kafka
+  # strimzi.io/node-pools and strimzi.io/kraft annotations removed — both are
+  # enabled by default from Strimzi 0.48.0 onwards and no longer need to be set.
+spec:
+  kafka:
+    # Verify latest Kafka version supported by Strimzi 0.50.1 at:
+    # https://github.com/strimzi/strimzi-kafka-operator/releases/tag/0.50.1
+    version: 4.1.1
+    metadataVersion: "4.1-IV1"
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+        authentication:
+          type: scram-sha-512
+    authorization:
+      type: simple
+    config:
+      # Replication and durability
+      offsets.topic.replication.factor: 3
+      transaction.state.log.replication.factor: 3
+      transaction.state.log.min.isr: 2
+      default.replication.factor: 3
+      min.insync.replicas: 2
+      # Retention: disable global time-based retention; individual topics
+      # configure their own via KafkaTopic CR overrides.
+      log.retention.ms: -1
+      log.retention.check.interval.ms: 300000
+      # Performance
+      num.partitions: 12
+      log.flush.interval.messages: 10000
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}

@@ -1,0 +1,63 @@
+name: Build Kafka Connect Plugins Image
+
+# Triggers on changes to the Dockerfile or this workflow file.
+# Uses GITHUB_TOKEN for GHCR authentication — no additional PAT required.
+# The GITHUB_TOKEN is automatically granted packages:write for the repository's
+# owner org (dolr-ai) and does not need configuration.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - docker/kafka-connect-plugins/Dockerfile
+      - .github/workflows/build-kafka-connect-plugins.yml
+  # Allow manual triggering for version bumps or forced rebuilds
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: dolr-ai/kafka-connect-plugins
+
+jobs:
+  build-and-push:
+    name: Build and push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # Always tag latest on pushes to main
+            type=raw,value=latest,enable={{is_default_branch}}
+            # Tag with the short git SHA for rollback ability
+            type=sha,prefix=sha-,format=short
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker/kafka-connect-plugins
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Cache layers in the GitHub Actions cache to speed up rebuilds
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

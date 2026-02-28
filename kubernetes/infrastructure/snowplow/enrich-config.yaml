@@ -1,0 +1,78 @@
+# Snowplow Enrich Kafka configuration (HOCON format)
+# Mounted at /snowplow/config/application.conf inside the enrich container.
+#
+# SASL credentials are injected at runtime via KAFKA_ENRICH_JAAS_CONFIG env var.
+#
+# Enrichments:
+#   The `enrichments` array below enables a minimal, high-value set.
+#   All enrichment configs are inline JSON strings (Snowplow Enrich expects this).
+#
+#   Enabled by default (no config required):
+#     - CampaignAttributionEnrichment
+#     - AnonIpEnrichment (disabled — no need to anonymize)
+#     - RefererParserEnrichment
+#     - UserAgentUtilsEnrichment
+#
+#   To add or disable enrichments, edit this ConfigMap and let Reloader restart pods.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: enrich-config
+  namespace: snowplow
+data:
+  application.conf: |
+    input {
+      topics             = ["snowplow-raw"]
+      bootstrapServers   = "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+      consumerConf {
+        "group.id"             = "snowplow-enrich"
+        "auto.offset.reset"    = earliest
+        "security.protocol"    = SASL_PLAINTEXT
+        "sasl.mechanism"       = SCRAM-SHA-512
+        "sasl.jaas.config"     = ${KAFKA_ENRICH_JAAS_CONFIG}
+      }
+    }
+
+    output {
+      good {
+        topic            = "snowplow-enriched"
+        bootstrapServers = "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+        producerConf {
+          acks                  = all
+          retries               = 10
+          "security.protocol"   = SASL_PLAINTEXT
+          "sasl.mechanism"      = SCRAM-SHA-512
+          "sasl.jaas.config"    = ${KAFKA_ENRICH_JAAS_CONFIG}
+        }
+      }
+
+      bad {
+        topic            = "snowplow-bad"
+        bootstrapServers = "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+        producerConf {
+          acks                  = all
+          retries               = 10
+          "security.protocol"   = SASL_PLAINTEXT
+          "sasl.mechanism"      = SCRAM-SHA-512
+          "sasl.jaas.config"    = ${KAFKA_ENRICH_JAAS_CONFIG}
+        }
+      }
+    }
+
+    # Enrichments — built-in enrichments need no config; leave array empty to
+    # run only the built-ins (timestamps, platform, event fingerprint, etc.).
+    enrichments = []
+
+    # Assemble events into TSV format (Snowplow canonical enriched event format)
+    monitoring {
+      metrics {
+        statsd {
+          enabled = false
+        }
+      }
+    }
+
+    telemetry {
+      disable = true
+    }

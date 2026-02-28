@@ -1,0 +1,59 @@
+# Kafka topics for the Snowplow event pipeline
+#
+# snowplow-raw:       raw collector payloads → Enrich input
+#                     48-hour time retention (Enrich should process within hours)
+# snowplow-enriched:  validated+enriched events → S3 Sink input
+#                     Storage-based retention only: 200 GiB ÷ 12 partitions = ~16.6 GiB per partition
+#                     18253611008 = 200 * 1024^3 / 12  (rounded down to nearest byte)
+# snowplow-bad:       failed events (collector bad rows, enrichment failures)
+#                     7-day time retention for investigation
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: snowplow-raw
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    # 48-hour time-based retention — raw payloads are transient:
+    # Enrich consumers must keep up; 48h is generous headroom for restarts.
+    retention.ms: "172800000"
+    # Override cluster default (-1) to enable time-based retention on this topic
+    min.insync.replicas: "2"
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: snowplow-enriched
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    # Storage-based retention: ~16.6 GiB per partition × 12 partitions = 200 GiB total cap.
+    # 18253611008 = floor(200 × 1024^3 / 12)
+    retention.bytes: "18253611008"
+    # Explicitly disable time-based retention on this topic (cluster default is already -1)
+    retention.ms: "-1"
+    min.insync.replicas: "2"
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: snowplow-bad
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    # 7-day retention for bad-row investigation and reprocessing
+    retention.ms: "604800000"
+    min.insync.replicas: "2"

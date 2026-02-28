@@ -1,0 +1,21 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: infrastructure-kafka
+  namespace: flux-system
+spec:
+  interval: 1h
+  path: ./kubernetes/infrastructure/kafka
+  prune: true
+  wait: true
+  # Kafka brokers can take a few minutes to form a quorum and elect leaders
+  timeout: 15m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-age
+  dependsOn:
+    - name: infrastructure-strimzi

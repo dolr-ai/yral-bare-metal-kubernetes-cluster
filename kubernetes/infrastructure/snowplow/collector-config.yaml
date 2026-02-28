@@ -1,0 +1,98 @@
+# Snowplow Scala Stream Collector configuration (HOCON format)
+# Mounted at /snowplow/config/application.conf inside the collector container.
+#
+# SASL credentials are NOT embedded here — they are injected at runtime via the
+# KAFKA_COLLECTOR_JAAS_CONFIG environment variable, which is referenced with
+# ${?KAFKA_COLLECTOR_JAAS_CONFIG} (HOCON optional substitution — Kafka client
+# picks it up from the system property + HOCON merge, or via producerConf below).
+#
+# The collector listens on :9090 (HTTP only — TLS is terminated at the Cilium
+# Gateway; traffic between Gateway and collector is encrypted by WireGuard mesh).
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: collector-config
+  namespace: snowplow
+data:
+  application.conf: |
+    collector {
+      interface = "0.0.0.0"
+      port = 9090
+
+      ssl {
+        enable = false
+        redirect = false
+        port = 9091
+      }
+
+      paths {}
+
+      p3p {
+        policyRef = "/w3c/p3p.xml"
+        CP = "NOI DSP COR NID PSA OUR IND COM NAV STA"
+      }
+
+      crossDomain {
+        enabled = false
+        domains = ["*"]
+        secure = false
+      }
+
+      cookie {
+        enabled = true
+        expiration = "365 days"
+        name = "sp"
+        domains = []
+        fallbackDomain = ""
+        secure = false
+        httpOnly = false
+        sameSite = "None"
+      }
+
+      cookieBounce {
+        enabled = false
+      }
+
+      redirectMacro {
+        enabled = false
+      }
+
+      rootResponse {
+        enabled = false
+        statusCode = 200
+      }
+
+      cors {
+        allowedOrigins = ["*"]
+      }
+
+      streams {
+        good = "snowplow-raw"
+        bad  = "snowplow-bad"
+
+        sink = "kafka"
+
+        kafka {
+          brokers = "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+          retries = 10
+
+          # Producer configuration.
+          # sasl.jaas.config is injected from the KAFKA_COLLECTOR_JAAS_CONFIG env var
+          # at pod startup — the full JAAS string is stored in the kafka-credentials Secret.
+          producerConf {
+            acks                  = all
+            retries               = 10
+            "security.protocol"   = SASL_PLAINTEXT
+            "sasl.mechanism"      = SCRAM-SHA-512
+            "sasl.jaas.config"    = ${KAFKA_COLLECTOR_JAAS_CONFIG}
+          }
+        }
+
+        buffer {
+          byteLimit   = 3145728  # 3 MiB — flush before hitting Kafka max.message.bytes
+          recordLimit = 500
+          timeLimit   = 5000     # 5 s — maximum latency before a partial buffer is sent
+        }
+      }
+    }

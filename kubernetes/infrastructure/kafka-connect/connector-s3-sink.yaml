@@ -1,0 +1,80 @@
+# S3 Sink connector — streams snowplow-enriched to the data lake.
+#
+# Snowplow Enrich writes enriched events to the snowplow-enriched Kafka topic in
+# TSV format (Snowplow canonical event format, 130+ tab-separated fields).
+# ByteArrayFormat preserves this raw TSV structure.
+#
+# Partitioning strategy: WallClock time-based, giving Hive-compatible prefixes:
+#   events/enriched/year=2025/month=01/day=15/hour=12/
+# This is the simplest robust choice — no field extraction required, works
+# regardless of Kafka message schema or serialisation. Flush size 10 000 records
+# OR 5-minute rotate interval, whichever comes first.
+#
+# S3 credentials (${env:AWS_ACCESS_KEY_ID} / ${env:AWS_SECRET_ACCESS_KEY}) are
+# injected via the KafkaConnect spec.externalConfiguration.env from the
+# connect-credentials Secret. Reading these env vars in the connector config
+# requires EnvVarConfigProvider, which is configured in the KafkaConnect CR.
+#
+# The connector's consumer inherits SASL auth from the Connect worker config.
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaConnector
+metadata:
+  name: s3-sink-snowplow-enriched
+  namespace: kafka-connect
+  labels:
+    # Must match the KafkaConnect CR name
+    strimzi.io/cluster: connect-cluster
+spec:
+  class: io.confluent.connect.s3.S3SinkConnector
+  # Matched to Kafka topic partition count (snowplow-enriched has 12 partitions)
+  tasksMax: 12
+  config:
+    # ── Source topic ────────────────────────────────────────────────────────
+    topics: snowplow-enriched
+
+    # ── S3 destination ──────────────────────────────────────────────────────
+    # Hetzner FSN1 object storage endpoint
+    store.url: https://fsn1.your-objectstorage.com
+    # Region tag Hetzner reports; some AWS SDK paths require a non-empty value
+    s3.region: eu-central-1
+    s3.bucket.name: yral-events-data-lake
+    # Use environment variables injected via externalConfiguration.env
+    s3.credentials.provider.class: com.amazonaws.auth.EnvironmentVariableCredentialsProvider
+    s3.credentials.provider.envvar.access.key.id: AWS_ACCESS_KEY_ID
+    s3.credentials.provider.envvar.secret.key: AWS_SECRET_ACCESS_KEY
+    # Path-style addressing required for non-AWS S3-compatible providers
+    s3.path.style.access: "true"
+
+    # ── Storage / serialisation ─────────────────────────────────────────────
+    storage.class: io.confluent.connect.s3.storage.S3Storage
+    # ByteArray preserves the raw TSV produced by Snowplow Enrich
+    format.class: io.confluent.connect.s3.format.bytearray.ByteArrayFormat
+    value.converter: org.apache.kafka.connect.converters.ByteArrayConverter
+    key.converter: org.apache.kafka.connect.converters.ByteArrayConverter
+    # Newline delimiter between events within each S3 object
+    bytearray.extension: .txt
+    bytearray.separator: "\n"
+
+    # ── Partitioning ────────────────────────────────────────────────────────
+    partitioner.class: io.confluent.connect.storage.partitioner.TimeBasedPartitioner
+    # Hive-compatible partition paths: events/enriched/year=2025/month=01/day=15/hour=12
+    path.format: "'events/enriched/year='YYYY/'month='MM/'day='dd/'hour='HH"
+    locale: en_US
+    timezone: UTC
+    # WallClock: uses processing time; simpler than RecordField and works with
+    # any serialisation format. Lag is at most flush.size records or rotate.interval.ms.
+    timestamp.extractor: WallClock
+
+    # ── Flush / rotation ────────────────────────────────────────────────────
+    # Rotate after 10 000 records or 5 minutes, whichever comes first
+    flush.size: "10000"
+    rotate.interval.ms: "300000"
+    # Ensure in-flight S3 part uploads are aborted if the task fails
+    s3.part.retries: "3"
+    s3.retry.backoff.ms: "200"
+
+    # ── Error handling ───────────────────────────────────────────────────────
+    errors.tolerance: none
+    errors.log.enable: "true"
+    errors.log.include.messages: "true"

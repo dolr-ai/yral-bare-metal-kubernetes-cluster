@@ -1,0 +1,94 @@
+# Snowplow Scala Stream Collector
+#
+# Image: snowplow/scala-stream-collector-kafka
+# Check latest tags: https://hub.docker.com/r/snowplow/scala-stream-collector-kafka/tags
+#
+# 3 replicas — stateless; spread across falkenstein nodes (preferred, not required,
+# because the collector is not storage-bound and can tolerate landing in Helsinki in
+# a degraded-falkenstein scenario).
+#
+# The collector config is mounted from the collector-config ConfigMap.
+# SASL credentials are injected as a single env var containing the full JAAS string.
+# Reloader watches both the ConfigMap and the Secret for changes.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: snowplow-collector
+  namespace: snowplow
+  annotations:
+    # Reloader: restart pods when config or credentials change
+    configmap.reloader.stakater.com/reload: "collector-config"
+    secret.reloader.stakater.com/reload: "kafka-credentials"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: snowplow-collector
+  template:
+    metadata:
+      labels:
+        app: snowplow-collector
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 80
+              preference:
+                matchExpressions:
+                  - key: topology.kubernetes.io/region
+                    operator: In
+                    values:
+                      - falkenstein
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: snowplow-collector
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: collector
+          # Pin to a specific digest tag in production.
+          # Check https://hub.docker.com/r/snowplow/scala-stream-collector-kafka/tags
+          image: snowplow/scala-stream-collector-kafka:3.7.0
+          args:
+            - --config
+            - /snowplow/config/application.conf
+          env:
+            - name: KAFKA_COLLECTOR_JAAS_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-credentials
+                  key: collector-jaas-config
+          ports:
+            - containerPort: 9090
+              name: http
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9090
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9090
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          volumeMounts:
+            - name: config
+              mountPath: /snowplow/config
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: collector-config
