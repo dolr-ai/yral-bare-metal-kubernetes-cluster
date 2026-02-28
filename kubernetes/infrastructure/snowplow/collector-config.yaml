@@ -73,19 +73,26 @@ data:
 
       # In 3.7.0, streams.good and streams.bad are objects containing name, brokers,
       # maxBytes, producerConf, and buffer directly (no separate sink/kafka blocks).
+      # startupCheckInterval and retryInterval are required FiniteDuration fields in
+      # KafkaSinkConfig — omitting them causes the newDecoder to fall back to the legacy
+      # string decoder which then fails ("expecting string").
+      # producerConf decodes as Map[String, String] so all values must be quoted strings
+      # (integers like retries would fail to decode as String).
       streams {
         good {
           name    = "snowplow-raw"
           brokers = "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
           maxBytes = 1000000
+          startupCheckInterval = 10 seconds
+          retryInterval        = 10 seconds
 
           # sasl.jaas.config is injected from the KAFKA_COLLECTOR_JAAS_CONFIG env var
           # at pod startup — the full JAAS string is stored in the kafka-credentials Secret.
           producerConf {
-            acks                  = all
-            retries               = 10
-            "security.protocol"   = SASL_PLAINTEXT
-            "sasl.mechanism"      = SCRAM-SHA-512
+            acks                  = "all"
+            retries               = "10"
+            "security.protocol"   = "SASL_PLAINTEXT"
+            "sasl.mechanism"      = "SCRAM-SHA-512"
             "sasl.jaas.config"    = ${KAFKA_COLLECTOR_JAAS_CONFIG}
           }
 
@@ -100,12 +107,14 @@ data:
           name    = "snowplow-bad"
           brokers = "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
           maxBytes = 1000000
+          startupCheckInterval = 10 seconds
+          retryInterval        = 10 seconds
 
           producerConf {
-            acks                  = all
-            retries               = 10
-            "security.protocol"   = SASL_PLAINTEXT
-            "sasl.mechanism"      = SCRAM-SHA-512
+            acks                  = "all"
+            retries               = "10"
+            "security.protocol"   = "SASL_PLAINTEXT"
+            "sasl.mechanism"      = "SCRAM-SHA-512"
             "sasl.jaas.config"    = ${KAFKA_COLLECTOR_JAAS_CONFIG}
           }
 
