@@ -10,10 +10,11 @@
 # regardless of Kafka message schema or serialisation. Flush size 10 000 records
 # OR 5-minute rotate interval, whichever comes first.
 #
-# S3 credentials (${env:AWS_ACCESS_KEY_ID} / ${env:AWS_SECRET_ACCESS_KEY}) are
-# injected via the KafkaConnect spec.externalConfiguration.env from the
-# connect-credentials Secret. Reading these env vars in the connector config
-# requires EnvVarConfigProvider, which is configured in the KafkaConnect CR.
+# S3 credentials (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY) are injected as
+# environment variables into the Connect worker pods from the connect-credentials
+# Secret (via spec.template.connectContainer.env in the KafkaConnect CR).
+# The AWS SDK v2 DefaultCredentialsProvider chain reads them automatically —
+# no s3.credentials.provider.class configuration is required.
 #
 # The connector's consumer inherits SASL auth from the Connect worker config.
 ---
@@ -39,10 +40,9 @@ spec:
     # Region tag Hetzner reports; some AWS SDK paths require a non-empty value
     s3.region: eu-central-1
     s3.bucket.name: yral-events-data-lake
-    # Use environment variables injected via externalConfiguration.env
-    s3.credentials.provider.class: com.amazonaws.auth.EnvironmentVariableCredentialsProvider
-    s3.credentials.provider.envvar.access.key.id: AWS_ACCESS_KEY_ID
-    s3.credentials.provider.envvar.secret.key: AWS_SECRET_ACCESS_KEY
+    # AWS SDK v2 DefaultCredentialsProvider chain automatically reads
+    # AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY from the environment.
+    # No s3.credentials.provider.class needed.
     # Path-style addressing required for non-AWS S3-compatible providers
     s3.path.style.access: "true"
 
