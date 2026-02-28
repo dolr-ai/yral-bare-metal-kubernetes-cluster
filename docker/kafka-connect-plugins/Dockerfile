@@ -6,10 +6,7 @@
 # Plugin discovery: Kafka Connect scans /opt/kafka/plugins/ for connector JARs.
 # Each connector lives in its own subdirectory (the plugin.path isolation requirement).
 #
-# The connector ZIP is downloaded by the GitHub Actions workflow on the runner
-# (not inside Docker BuildKit) and placed at plugins/kafka-connect-s3.zip in
-# the build context before `docker build` runs. This avoids DNS resolution
-# issues inside the BuildKit network and keeps the image build fully hermetic.
+# Download URL sourced from: https://api.hub.confluent.io/api/plugins/confluentinc/kafka-connect-s3/versions/12.1.0
 #
 # Built by GitHub Actions (.github/workflows/build-kafka-connect-plugins.yml)
 # and pushed to ghcr.io/dolr-ai/kafka-connect-plugins:latest
@@ -20,11 +17,11 @@ ARG CONNECTOR_VERSION=12.1.0
 # Switch to root to install the connector
 USER root
 
-# The ZIP is downloaded by the GHA workflow and passed in via the build context
-COPY plugins/kafka-connect-s3.zip /tmp/kafka-connect-s3.zip
-
 RUN set -eux; \
     mkdir -p /opt/kafka/plugins/kafka-connect-s3; \
+    curl --fail --silent --show-error --location \
+         "https://hub-downloads.confluent.io/api/plugins/confluentinc/kafka-connect-s3/versions/${CONNECTOR_VERSION}/confluentinc-kafka-connect-s3-${CONNECTOR_VERSION}.zip" \
+         -o /tmp/kafka-connect-s3.zip; \
     unzip -q /tmp/kafka-connect-s3.zip -d /tmp/kafka-connect-s3-unzip; \
     cp /tmp/kafka-connect-s3-unzip/confluentinc-kafka-connect-s3-${CONNECTOR_VERSION}/lib/*.jar \
        /opt/kafka/plugins/kafka-connect-s3/; \

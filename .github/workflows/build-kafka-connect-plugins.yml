@@ -48,13 +48,6 @@ jobs:
             # Tag with the short git SHA for rollback ability
             type=sha,prefix=sha-,format=short
 
-      - name: Download Confluent S3 Sink Connector
-        run: |
-          mkdir -p docker/kafka-connect-plugins/plugins
-          curl --fail --silent --show-error --location \
-            "https://d1i4a15mxbxib1.cloudfront.net/api/plugins/confluentinc/kafka-connect-s3/versions/12.1.0/confluentinc-kafka-connect-s3-12.1.0.zip" \
-            -o docker/kafka-connect-plugins/plugins/kafka-connect-s3.zip
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
