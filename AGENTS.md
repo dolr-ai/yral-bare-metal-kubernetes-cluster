@@ -673,20 +673,17 @@ ingress:
 
 The correct enforcement point for access control in this cluster is an in-cluster auth proxy (oauth2-proxy) or application-level authentication, not pod-level network policy IP rules.
 
-**Service DNS round-robin — all nodes as entry points:**
+**Service DNS — wildcard covers all `*.yral.com` hostnames automatically:**
 
-All public-facing service hostnames (e.g. `grafana.yral.com`, `hubble.yral.com`, future app domains) use **DNS round-robin across every node IP in the cluster** — both workers and control planes. This is the preferred exposure mechanism.
+A single Cloudflare wildcard A record (`*.yral.com`) points to every node's public IP (all 5 CPs + all workers), DNS-only (not proxied — TLS is terminated inside the cluster at Cilium Gateway). This means **adding a new HTTPRoute for any `<name>.yral.com` hostname requires no DNS changes** — the wildcard resolves it immediately to all node IPs.
 
-Rationale: Cilium runs a full WireGuard-encrypted mesh across all nodes. Traffic arriving at *any* node — worker or control plane — is correctly routed by Cilium to the pod running the service, regardless of which node it lands on. There is no need to restrict DNS entries to a subset of nodes.
+Rationale: Cilium runs a full WireGuard-encrypted mesh across all nodes. Traffic arriving at *any* node — worker or control plane — is correctly routed by Cilium's envoy to the pod running the service, regardless of which node it lands on. The wildcard + all-node IPs gives natural load distribution and fault tolerance: if a node is down, DNS clients retry other IPs.
 
-**Pattern for adding a new service hostname in Cloudflare:**
-- Add one A record per node (all 5 CPs + all workers) pointing to each node's public IP
-- TTL: Auto (Cloudflare-managed), Proxy status: DNS-only (not proxied — TLS is terminated inside the cluster at Cilium Gateway)
-- This gives natural load distribution and fault tolerance: if a node is down, DNS clients retry other IPs
+**To expose a new service: just commit the HTTPRoute.** No Cloudflare DNS step required. Flux reconciles the route and it is immediately reachable at `https://<name>.yral.com`.
 
-**When adding or removing a node**, update the Cloudflare DNS records for all service hostnames accordingly:
-- `node-remove` role already handles `kubernetes-api.yral.com` A record removal; service hostname records must be managed manually in Cloudflare at this time.
-- `control-plane-join` and `worker-join` roles do not auto-register service hostname A records; add them manually after the node joins.
+**The only hostname that is NOT covered by the wildcard** is `kubernetes-api.yral.com`, which uses explicit per-CP A records managed by the `node-remove` and `control-plane-join` roles. Do not add it to the wildcard — its records must track exactly which CP nodes are live.
+
+**When adding or removing a node**, no service hostname DNS updates are needed (the wildcard covers all nodes automatically). Only `kubernetes-api.yral.com` requires role-managed A record updates, which the existing roles already handle.
 
 **Exposure model — all services go via the Cilium Gateway:**
 
@@ -707,9 +704,9 @@ All services are exposed through the Cilium Gateway API. Auth is layered in fron
 **Adding a new internally-protected service:**
 1. Add a new `deployment-<appname>.yaml` and `service-<appname>.yaml` in `kubernetes/infrastructure/oauth2-proxy/` (copy existing pattern, change `--upstream` and `--redirect-url` and `--cookie-name`)
 2. Add both to `kubernetes/infrastructure/oauth2-proxy/kustomization.yaml`
-3. Update the app's HTTPRoute to point to the new oauth2-proxy Service (add a `ReferenceGrant` if the HTTPRoute and Service are in different namespaces)
+3. Add an HTTPRoute in `kubernetes/networking/routes/` pointing to the oauth2-proxy Service (add a `ReferenceGrant` if the HTTPRoute and Service are in different namespaces)
 4. Add the new `https://<hostname>/oauth2/callback` to the authorized redirect URIs in the Google Cloud OAuth app
-5. Commit and push — Flux reconciles
+5. Commit and push — Flux reconciles and the hostname is live immediately (wildcard DNS requires no Cloudflare changes)
 
 **The shared `oauth2-proxy-secrets` Secret** contains `client-id`, `client-secret`, and `cookie-secret`. All oauth2-proxy Deployments reference this same Secret via env vars. It lives in the `oauth2-proxy` namespace.
 
