@@ -31,8 +31,8 @@ spec:
     # This bypasses the token prompt in the UI entirely; oauth2-proxy handles auth.
     config:
       inCluster: false
-    extraArgs:
-      - "--kubeconfig=/headlamp-kubeconfig/config"
+      extraArgs:
+        - "-kubeconfig=/headlamp-kubeconfig/config"
     extraVolumes:
       - name: kubeconfig
         configMap:
