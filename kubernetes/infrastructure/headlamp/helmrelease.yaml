@@ -24,6 +24,27 @@ spec:
   upgrade:
     remediation:
       retries: 3
+  # Patch the Helm-generated Deployment to mount the kubeconfig ConfigMap.
+  # The chart has no extraVolumes support, so we inject it via postRenderers.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: Deployment
+              name: headlamp
+            patch: |
+              - op: add
+                path: /spec/template/spec/volumes/-
+                value:
+                  name: kubeconfig
+                  configMap:
+                    name: headlamp-kubeconfig
+              - op: add
+                path: /spec/template/spec/containers/0/volumeMounts/-
+                value:
+                  name: kubeconfig
+                  mountPath: /headlamp-kubeconfig
+                  readOnly: true
   values:
     replicaCount: 1
     # Use kubeconfig mode instead of inCluster — Headlamp auto-connects using the
@@ -33,14 +54,6 @@ spec:
       inCluster: false
       extraArgs:
         - "-kubeconfig=/headlamp-kubeconfig/config"
-    extraVolumes:
-      - name: kubeconfig
-        configMap:
-          name: headlamp-kubeconfig
-    extraVolumeMounts:
-      - name: kubeconfig
-        mountPath: /headlamp-kubeconfig
-        readOnly: true
     # Pod must still automount the SA token so tokenFile in the kubeconfig resolves
     automountServiceAccountToken: true
     clusterRoleBinding:
