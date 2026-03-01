@@ -26,6 +26,26 @@ spec:
       retries: 3
   values:
     replicaCount: 1
+    # Use kubeconfig mode instead of inCluster — Headlamp auto-connects using the
+    # pod's own SA token (headlamp SA is bound to cluster-admin by the chart CRB).
+    # This bypasses the token prompt in the UI entirely; oauth2-proxy handles auth.
+    config:
+      inCluster: false
+    extraArgs:
+      - "--kubeconfig=/headlamp-kubeconfig/config"
+    extraVolumes:
+      - name: kubeconfig
+        configMap:
+          name: headlamp-kubeconfig
+    extraVolumeMounts:
+      - name: kubeconfig
+        mountPath: /headlamp-kubeconfig
+        readOnly: true
+    # Pod must still automount the SA token so tokenFile in the kubeconfig resolves
+    automountServiceAccountToken: true
+    clusterRoleBinding:
+      create: true
+      clusterRoleName: cluster-admin
     resources:
       requests:
         cpu: 50m
