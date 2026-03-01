@@ -1,0 +1,58 @@
+---
+# Remove redundant Hetzner IPv6 nameservers from netplan.
+#
+# On Ubuntu with systemd-resolved, kubeadm sets kubelet --resolv-conf to
+# /run/systemd/resolve/resolv.conf (the full upstream nameserver list, not
+# the stub). Hetzner nodes ship with 4 nameservers in netplan (2x IPv4 +
+# 2x IPv6). kubelet prepends CoreDNS ClusterIP → 5 total. Linux/glibc
+# truncates to 3 silently, emitting DNSConfigForming warnings on every pod.
+#
+# Fix: remove the two Hetzner IPv6 nameservers from netplan. After
+# netplan apply + systemd-resolved restart, /run/systemd/resolve/resolv.conf
+# will have 2 entries. kubelet builds [CoreDNS, IPv4-ns1, IPv4-ns2] = 3.
+#
+# This same fix is baked into base-system for all future node provisions.
+# Reference: https://kubernetes.io/docs/tasks/administer-cluster/dns-debugging-resolution/#known-issues
+
+- name: Find Hetzner netplan configuration files
+  ansible.builtin.find:
+    paths: /etc/netplan
+    patterns: "*.yaml,*.yml"
+  register: netplan_files
+
+- name: Remove Hetzner IPv6 nameserver 2a01:4ff:ff00::add:1 from netplan
+  ansible.builtin.lineinfile:
+    path: "{{ item.path }}"
+    regexp: '^\s+-\s+2a01:4ff:ff00::add:1\s*$'
+    state: absent
+  loop: "{{ netplan_files.files }}"
+  register: remove_ns1
+
+- name: Remove Hetzner IPv6 nameserver 2a01:4ff:ff00::add:2 from netplan
+  ansible.builtin.lineinfile:
+    path: "{{ item.path }}"
+    regexp: '^\s+-\s+2a01:4ff:ff00::add:2\s*$'
+    state: absent
+  loop: "{{ netplan_files.files }}"
+  register: remove_ns2
+
+- name: Apply netplan and restart systemd-resolved
+  when: remove_ns1.changed or remove_ns2.changed
+  block:
+    - name: Apply netplan configuration
+      ansible.builtin.command: netplan apply
+      changed_when: true
+
+    - name: Restart systemd-resolved to regenerate resolv.conf
+      ansible.builtin.systemd:
+        name: systemd-resolved
+        state: restarted
+
+- name: Verify upstream nameservers in systemd-resolved
+  ansible.builtin.command: grep nameserver /run/systemd/resolve/resolv.conf
+  register: resolv_result
+  changed_when: false
+
+- name: Display upstream nameservers (expect exactly 2 IPv4 entries)
+  ansible.builtin.debug:
+    msg: "{{ resolv_result.stdout_lines }}"

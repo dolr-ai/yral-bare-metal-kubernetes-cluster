@@ -50,17 +50,6 @@
     autoremove: true
     purge: true
 
-- name: Remove IPv6 nameservers from /etc/resolv.conf
-  # Linux limits /etc/resolv.conf to 3 nameservers. Hetzner nodes ship with 2 IPv4
-  # + 1 IPv6 nameserver = 3. When kubelet prepends the CoreDNS ClusterIP for pod
-  # DNS, the total becomes 4 and Linux silently drops one, emitting DNSConfigForming
-  # warnings on every pod. Removing the IPv6 entry leaves room for CoreDNS, keeping
-  # the total at 3 (CoreDNS + 2x Hetzner IPv4) with no warnings and no DNS loss.
-  ansible.builtin.lineinfile:
-    path: /etc/resolv.conf
-    regexp: '^nameserver\s+[0-9a-fA-F]*:[0-9a-fA-F:]+.*$'
-    state: absent
-
 - name: Verify hostname
   ansible.builtin.debug:
     msg: "Current hostname: {{ ansible_facts['hostname'] }}"
