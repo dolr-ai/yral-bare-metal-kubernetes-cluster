@@ -22,6 +22,7 @@ resources:
   - infrastructure-monitoring.yaml
   - infrastructure-vpa.yaml
   - infrastructure-goldilocks.yaml
+  - infrastructure-headlamp.yaml
   - infrastructure-loki.yaml
   - infrastructure-alloy.yaml
   - infrastructure-strimzi.yaml
