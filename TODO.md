@@ -1,4 +1,4 @@
-- add kubernetes ui
 - add capacitor ui for flux
 - remove goldilocks, not useful
 - fix weekly system update failing
+- integrate snowplow sdk into yral-mobile to send events to the snowplow collector
