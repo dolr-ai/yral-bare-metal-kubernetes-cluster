@@ -2,3 +2,4 @@
 - remove goldilocks, not useful
 - fix weekly system update failing
 - integrate snowplow sdk into yral-mobile to send events to the snowplow collector
+- ui for kafka
