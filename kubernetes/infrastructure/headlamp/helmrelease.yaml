@@ -33,18 +33,23 @@ spec:
               kind: Deployment
               name: headlamp
             patch: |
-              - op: add
-                path: /spec/template/spec/volumes/-
-                value:
-                  name: kubeconfig
-                  configMap:
-                    name: headlamp-kubeconfig
-              - op: add
-                path: /spec/template/spec/containers/0/volumeMounts/-
-                value:
-                  name: kubeconfig
-                  mountPath: /headlamp-kubeconfig
-                  readOnly: true
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: headlamp
+              spec:
+                template:
+                  spec:
+                    volumes:
+                      - name: kubeconfig
+                        configMap:
+                          name: headlamp-kubeconfig
+                    containers:
+                      - name: headlamp
+                        volumeMounts:
+                          - name: kubeconfig
+                            mountPath: /headlamp-kubeconfig
+                            readOnly: true
   values:
     replicaCount: 1
     # Use kubeconfig mode instead of inCluster — Headlamp auto-connects using the
