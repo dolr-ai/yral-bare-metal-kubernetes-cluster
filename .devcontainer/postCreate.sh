@@ -172,6 +172,40 @@ else
     echo "⚠ Vault password file not found — Cloudflare token setup skipped"
 fi
 
+# Extract Hetzner S3 credentials for AWS CLI (used to inspect the events data lake)
+echo ""
+echo "Setting up Hetzner S3 credentials for AWS CLI..."
+if [ -f "$ANSIBLE_DIR/.vault_pass" ]; then
+    S3_SECRET_KEY=$(ansible-vault view "$ANSIBLE_DIR/inventory/group_vars/all/vault.yml" 2>/dev/null | \
+        python3 -c "
+import sys, yaml
+d = yaml.safe_load(sys.stdin)
+print(d.get('vault_hetzner_s3_secret_key', ''))
+")
+    if [ -n "$S3_SECRET_KEY" ]; then
+        mkdir -p ~/.aws
+        # Credentials file
+        cat > ~/.aws/credentials << EOF
+[default]
+aws_access_key_id = XO5X9A1W8AMHY3DSTKMS
+aws_secret_access_key = ${S3_SECRET_KEY}
+EOF
+        chmod 600 ~/.aws/credentials
+        # Config file — point default profile at Hetzner FSN1 object storage
+        cat > ~/.aws/config << EOF
+[default]
+endpoint_url = https://fsn1.your-objectstorage.com
+region = fsn1
+EOF
+        chmod 600 ~/.aws/config
+        echo "✓ Hetzner S3 credentials written to ~/.aws/credentials + ~/.aws/config"
+    else
+        echo "⚠ vault_hetzner_s3_secret_key not found in vault"
+    fi
+else
+    echo "⚠ Vault password file not found — S3 credentials setup skipped"
+fi
+
 # Configure GitHub CLI to use SSH
 echo ""
 echo "Configuring GitHub CLI..."
