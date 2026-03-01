@@ -1,3 +1,4 @@
 - add kubernetes ui
 - add capacitor ui for flux
 - remove goldilocks, not useful
+- fix weekly system update failing
