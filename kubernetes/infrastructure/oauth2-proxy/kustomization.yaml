@@ -11,4 +11,6 @@ resources:
   - service-longhorn-ui.yaml
   - deployment-goldilocks.yaml
   - service-goldilocks.yaml
+  - deployment-headlamp.yaml
+  - service-headlamp.yaml
   - reference-grant.yaml

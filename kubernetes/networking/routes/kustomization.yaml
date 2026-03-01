@@ -5,4 +5,5 @@ resources:
   - grafana.yaml
   - longhorn-ui.yaml
   - goldilocks.yaml
+  - headlamp.yaml
   - snowplow-collector.yaml
