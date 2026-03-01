@@ -33,3 +33,10 @@ spec:
     # Do not generate a clusterrole for watching all namespaces;
     # operator is scoped to the two namespaces above.
     generateNetworkPolicy: false
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 512Mi
