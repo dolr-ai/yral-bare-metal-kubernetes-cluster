@@ -3,3 +3,4 @@
 - fix weekly system update failing
 - integrate snowplow sdk into yral-mobile to send events to the snowplow collector
 - ui for kafka
+- figure out a way to run devcontainers on the kubernetes cluster, so we can have a single environment for development and deployment
