@@ -10,7 +10,7 @@
   delegate_to: "{{ worker_node }}"
   become: true
 
-- name: Wait for worker {{ worker_node }} to become Ready
+- name: Wait for worker to become Ready - {{ worker_node }}
   ansible.builtin.shell: |
     kubectl get node {{ worker_node }} --no-headers | awk '{print $2}'
   delegate_to: "{{ kubectl_delegate }}"

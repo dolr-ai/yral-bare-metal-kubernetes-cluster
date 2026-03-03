@@ -93,7 +93,7 @@ Used for cluster Day-2 operations. Each operation is a single play calling one r
 1. `init-control-plane.yml` - Bootstrap first control plane (hardcoded to control-plane-1, chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → cluster-init → node-labels → helm → gateway-api-crds → cilium)
 2. `add-control-plane.yml` - Add control plane for HA (chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → control-plane-join → node-labels). Cilium DaemonSet deploys automatically via the existing installation.
 3. `add-worker.yml` - Add worker node (chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → worker-join → node-labels)
-4. `remove-node.yml` - Remove node from cluster (calls: `node-remove` role)
+4. `remove-node.yml` - Remove node from cluster (chains: `longhorn-evict` → `node-remove`). `longhorn-evict` sets `evictionRequested=true` on all Longhorn disks and waits up to 30 min for all replicas to migrate off before `node-remove` drains and deletes the node. **Not applied in `upgrade-worker.yml`** — the delete→reboot→rejoin cycle is brief (~5-10 min) and Longhorn recognises disk UUIDs on rejoin; proactively setting `evictionRequested` and then not resetting it if no reboot was needed would leave continuous eviction pressure on a healthy node.
 5. `upgrade-control-plane.yml` - Upgrade control plane node(s): cordon → drain → kubeadm reset → reboot → rejoin → verify. Accepts `-e target_host=<node>` for single node or runs all serially.
 6. `upgrade-worker.yml` - Upgrade worker node(s): cordon → drain → delete → reboot → rejoin → verify. Accepts `-e target_host=<node>` for single node or runs all serially.
 
@@ -571,7 +571,7 @@ lsattr -d /var/lib/longhorn
 # Expected: ---------------C-- /var/lib/longhorn
 ```
 
-**Existing workers:** worker-2 was reprovisioned after this fix was added and has nodatacow correctly set. worker-1 was provisioned before this fix and its `/var/lib/longhorn` directory does **not** have nodatacow set. Per the immutability principle, the correct fix is to reprovision worker-1 (drain Longhorn volumes, run `remove-node.yml`, then `add-worker.yml`). Until then, it runs with suboptimal btrfs CoW behaviour.
+**Existing workers:** worker-2 was reprovisioned after this fix was added and has nodatacow correctly set. worker-1 was provisioned before this fix — it is being reprovisioned via `remove-node.yml` → `add-worker.yml` to apply nodatacow, RAID0, and the correct Longhorn storage reservation.
 
 **btrfs data profile:**
 
@@ -579,13 +579,17 @@ The `storage-setup` role runs `btrfs balance start -dconvert=raid0 -mconvert=dup
 - `Data, RAID0` — chunks are striped across both NVMe drives for maximum sequential throughput and full combined capacity. No local redundancy, but Longhorn's `defaultReplicaCount: 3` provides cross-node redundancy.
 - `Metadata, DUP` — metadata is mirrored on both drives; a single bad metadata chunk does not corrupt the filesystem.
 
-**Note: worker-1 is still on `Data, single`** — it was provisioned before this change and needs reprovisioning to get RAID0 striping. worker-2 was reprovisioned after this change and is on RAID0.
+worker-2 and all subsequently provisioned nodes are on RAID0. worker-1 is being reprovisioned to correct this.
 
 **Why not mdadm RAID0 + ext4?** Hetzner's `installimage` script supports configuring mdadm RAID0 before OS installation, which would give ext4-on-RAID0 with no CoW at all (Longhorn's preferred filesystem). The tradeoff: mdadm must be configured *in the installimage step* (the OS boots on the array), requiring a change to the `provision` role's installimage config. The current btrfs approach is post-install (OS is already on nvme0, storage-setup adds nvme1 to the pool), which is simpler. If all nodes are reprovisioned at the same time in the future, switching to mdadm RAID0 + ext4 + mounting `/var/lib/longhorn` on the array would eliminate the `nodatacow` workaround entirely and give marginally better raw I/O.
 
 **Longhorn replica count:**
 
 `defaultReplicaCount: 3` in `kubernetes/infrastructure/longhorn/helmrelease.yaml` — with 5 worker nodes, each Longhorn volume stores 3 replicas, surviving a 2-node simultaneous failure. Adjust this value as worker node count changes (keep it at a minority of total workers to allow maintenance).
+
+**Storage reservation:**
+
+`storageReservedPercentageForDefaultDisk: 5` (5% of each disk, ~48 Gi on 954 Gi nodes). This is the headroom Longhorn leaves for the OS, kubelet, and containerd image cache. Kubelet's default image GC (`imageGCHighThresholdPercent: 85`) automatically evicts unused container images before the disk fills, making a 2% reservation safe in practice. 5% is a conservative buffer on top of that. The Longhorn global setting applies to newly-registered disks; existing nodes had their `storageReserved` field already written at registration time and are not retroactively updated — only reprovisioned nodes pick up the new default.
 
 **NFS / RWX volumes:**
 

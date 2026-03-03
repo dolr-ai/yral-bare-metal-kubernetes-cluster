@@ -22,6 +22,12 @@ spec:
       # 3 replicas across 5 worker nodes; data survives 2 simultaneous node failures.
       defaultReplicaCount: 3
 
+      # Reserve 5% of each disk for the OS, kubelet, and containerd image cache.
+      # Kubelet's default imageGCHighThresholdPercent (85%) automatically evicts
+      # unused images before the disk fills — 5% (~48 Gi on 954 Gi disks) is
+      # sufficient headroom alongside automatic GC. Default was 30% (~286 Gi).
+      storageReservedPercentageForDefaultDisk: 5
+
       # Prevent cross-region replica placement. The default (true) pushes replicas to
       # different topology zones — with HEL1+FSN1 workers that means one replica in
       # Helsinki and one in Falkenstein, requiring every write to cross WAN synchronously.
