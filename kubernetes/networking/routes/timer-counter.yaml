@@ -1,6 +1,6 @@
 # timer-counter HTTPRoute
 #
-# Exposes timer-counter at https://timer-counter.saikat.yral.com via oauth2-proxy (Google Workspace SSO).
+# Exposes timer-counter at https://timer-counter.yral.com via oauth2-proxy (Google Workspace SSO).
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -13,7 +13,7 @@ spec:
       namespace: kube-system
       sectionName: http
   hostnames:
-    - timer-counter.saikat.yral.com
+    - timer-counter.yral.com
   rules:
     - filters:
         - type: RequestRedirect
@@ -30,9 +30,9 @@ spec:
   parentRefs:
     - name: web-gateway
       namespace: kube-system
-      sectionName: saikat-https
+      sectionName: https
   hostnames:
-    - timer-counter.saikat.yral.com
+    - timer-counter.yral.com
   rules:
     - backendRefs:
         - name: oauth2-proxy-timer-counter

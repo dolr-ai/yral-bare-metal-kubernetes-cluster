@@ -48,4 +48,4 @@ git submodule update --init --recursive
 
 | Submodule | Source repo | Deployed at |
 |-----------|-------------|-------------|
-| `apps/timer-counter` | https://github.com/saikatdas0790/timer-counter | https://timer-counter.saikat.yral.com |
+| `apps/timer-counter` | https://github.com/saikatdas0790/timer-counter | https://timer-counter.yral.com |

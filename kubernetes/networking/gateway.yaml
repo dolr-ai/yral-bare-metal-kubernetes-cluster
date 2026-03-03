@@ -10,15 +10,13 @@
 #   → TLS terminated with Let's Encrypt wildcard cert (*.yral.com)
 #   → backend pod
 #
-# TLS certificates:
+# TLS certificate:
 #   Managed by cert-manager via DNS-01 challenge against Cloudflare API.
-#   *.yral.com           — listener: https          — covers all *.yral.com hostnames
-#   *.saikat.yral.com    — listener: saikat-https   — covers all *.saikat.yral.com hostnames
-#   Wildcards only cover one subdomain level; add a new listener + cert for each new
-#   second-level subdomain zone (e.g. *.name.yral.com).
+#   *.yral.com wildcard covers all *.yral.com hostnames; no per-service cert changes needed.
+#   Wildcards only cover one subdomain level. If a service needs a deeper hostname
+#   (e.g. foo.name.yral.com), either move it to *.yral.com or add a dedicated listener.
 #
-# Adding a new service under *.yral.com: create an HTTPRoute, no Gateway changes needed.
-# Adding a service under a new zone (e.g. *.alice.yral.com): add a listener here.
+# Adding a new service: create an HTTPRoute — no Gateway changes needed.
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
@@ -44,18 +42,6 @@ spec:
         mode: Terminate
         certificateRefs:
           - name: wildcard-yral-com-tls
-            kind: Secret
-      allowedRoutes:
-        namespaces:
-          from: All
-    - name: saikat-https
-      port: 443
-      protocol: HTTPS
-      hostname: "*.saikat.yral.com"
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - name: wildcard-saikat-yral-com-tls
             kind: Secret
       allowedRoutes:
         namespaces:
