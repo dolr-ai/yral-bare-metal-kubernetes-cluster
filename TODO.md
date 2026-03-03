@@ -1,11 +1,13 @@
 - remove goldilocks, not useful
 - fix weekly system update failing
-- integrate snowplow sdk into yral-mobile to send events to the snowplow collector
-- ui for kafka
-- figure out a way to run devcontainers on the kubernetes cluster, so we can have a single environment for development and deployment
-- check why no notifications yet from renovate bot
-- deal with github
-- set a long expiry for the oauth2-proxy cookie so users don't get logged out of the different internal apps as frequently. Also, is that shared between all the apps, or does each app have its own cookie? If shared, that means logging into one app logs you into all of them, which is still acceptable
 - fix longhorn backups automatically not being taken on a schedule
-- How come Longhorn is creating 3 replicas. Could we default to 2? Should we? We are already taking full backups to S3
+- How come Longhorn is creating 3 replicas. Could we default to 2? Should we? We are already taking full backups to S3. We should also make it that volumes are replicated across the same region, not across regions, to avoid cross-region latency
+- check why no notifications yet from renovate bot
+- deal with github notifications
+- set a long expiry for the oauth2-proxy cookie so users don't get logged out of the different internal apps as frequently. Also, is that shared between all the apps, or does each app have its own cookie? If shared, that means logging into one app logs you into all of them, which is still acceptable
+- ui for kafka
+- integrate snowplow sdk into yral-mobile to send events to the snowplow collector
+- figure out a way to run devcontainers on the kubernetes cluster, so we can have a single environment for development and deployment
 - github tasks assigned
+- timer counter remove II auth and use oauth2-proxy to get the logged in user
+- use realtime capabilities of spacetimedb to build a realtime persistence layer
