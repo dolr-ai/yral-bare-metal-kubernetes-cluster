@@ -30,7 +30,7 @@ spec:
   parentRefs:
     - name: web-gateway
       namespace: kube-system
-      sectionName: https
+      sectionName: saikat-https
   hostnames:
     - timer-counter.saikat.yral.com
   rules:
