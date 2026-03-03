@@ -447,6 +447,26 @@ print(d.get('vault_my_secret', ''))
 
 **If the SSH key or any other secret is missing after a container rebuild, fix `postCreate.sh` — never extract secrets manually in the terminal.** The postCreate.sh script is the contract that makes the devcontainer self-contained; workarounds defeat that contract and will silently break for future agents.
 
+### `become: true` + devcontainer user mismatch
+
+`postCreate.sh` runs as the **`vscode`** user (HOME=/home/vscode). `ansible.cfg` sets `become = True` globally, so every Ansible task that runs on `localhost` executes as **`root`** (HOME=/root). These are two different home directories.
+
+**The fix: `postCreate.sh` creates root symlinks for every user-owned file that Ansible needs.**
+
+After writing each file, `postCreate.sh` immediately symlinks it under `/root/` so that `become: true` Ansible tasks find the same content:
+
+| File | vscode path | root path (symlink) |
+|---|---|---|
+| kubeconfig | `/home/vscode/.kube/config` | `/root/.kube/config` → same file |
+| SSH key | `/home/vscode/.ssh/hetzner-ansible-key` | `/root/.ssh/hetzner-ansible-key` → same file |
+| `/tmp/.cf` (Cloudflare token) | owned by vscode, mode 600 | readable by root — no action needed |
+
+This means roles never need `become: false` just to call kubectl or read the SSH key — the global `become: true` default works without per-task overrides.
+
+**If a new file is added to `postCreate.sh` that Ansible localhost roles will need, add a matching `sudo ln -sf` immediately after writing it.** Do not scatter `become: false` workarounds across roles.
+
+**This was the root cause of the `longhorn-evict` failure during worker-1 removal.** kubectl on localhost ran as root → no kubeconfig at `/root/.kube/config` → fell back to `localhost:8080` → connection refused. Fixed by adding the root symlink in `postCreate.sh`.
+
 ### Kubernetes Cluster
 - v1.35 with kubeadm
 - Stacked etcd for HA control planes

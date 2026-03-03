@@ -46,6 +46,11 @@ print(d.get('vault_github_actions_ssh_private_key', ''))
         printf '%s\n' "$SSH_KEY" > "$SSH_KEY_FILE"
         chmod 600 "$SSH_KEY_FILE"
         echo "✓ SSH key extracted from vault to $SSH_KEY_FILE"
+        # Symlink for root so Ansible tasks with become=True can find the SSH key.
+        sudo mkdir -p /root/.ssh
+        sudo ln -sf "$SSH_KEY_FILE" /root/.ssh/hetzner-ansible-key
+        sudo chmod 700 /root/.ssh
+        echo "✓ /root/.ssh/hetzner-ansible-key → $SSH_KEY_FILE (for Ansible become=True tasks)"
         if [ -n "$SSH_AUTH_SOCK" ]; then
             ssh-add "$SSH_KEY_FILE" 2>/dev/null && echo "✓ SSH key added to agent" || echo "⚠ Could not add key to agent (may already be added)"
         fi
@@ -88,6 +93,12 @@ if kubeconfig:
     if [ -s ~/.kube/config ]; then
         chmod 600 ~/.kube/config
         echo "✓ Cluster kubeconfig written to ~/.kube/config"
+        # Symlink for root so Ansible tasks with become=True can also use kubectl.
+        # ansible.cfg sets become=True globally; without this, root (HOME=/root) has no
+        # kubeconfig and kubectl falls back to localhost:8080 (connection refused).
+        sudo mkdir -p /root/.kube
+        sudo ln -sf "$HOME/.kube/config" /root/.kube/config
+        echo "✓ /root/.kube/config → $HOME/.kube/config (for Ansible become=True tasks)"
     else
         rm -f ~/.kube/config
         echo "⚠ Kubeconfig not found in vault (cluster may not be initialized yet)"

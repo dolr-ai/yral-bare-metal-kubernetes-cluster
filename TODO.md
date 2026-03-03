@@ -6,3 +6,4 @@
 - check why no notifications yet from renovate bot
 - deal with github
 - github tasks assigned
+- reclaim old yral-auth server
