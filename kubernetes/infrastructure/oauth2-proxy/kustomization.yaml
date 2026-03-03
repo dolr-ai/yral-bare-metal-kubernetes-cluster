@@ -15,4 +15,6 @@ resources:
   - service-headlamp.yaml
   - deployment-timer-counter.yaml
   - service-timer-counter.yaml
+  - deployment-dashboard.yaml
+  - service-dashboard.yaml
   - reference-grant.yaml

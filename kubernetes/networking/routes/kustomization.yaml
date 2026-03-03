@@ -8,3 +8,4 @@ resources:
   - headlamp.yaml
   - snowplow-collector.yaml
   - timer-counter.yaml
+  - dashboard.yaml

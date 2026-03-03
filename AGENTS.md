@@ -721,7 +721,11 @@ All services are exposed through the Cilium Gateway API. Auth is layered in fron
 2. Add both to `kubernetes/infrastructure/oauth2-proxy/kustomization.yaml`
 3. Add an HTTPRoute in `kubernetes/networking/routes/` pointing to the oauth2-proxy Service (add a `ReferenceGrant` if the HTTPRoute and Service are in different namespaces)
 4. Add the new `https://<hostname>/oauth2/callback` to the authorized redirect URIs in the Google Cloud OAuth app
-5. Commit and push — Flux reconciles and the hostname is live immediately (wildcard DNS requires no Cloudflare changes)
+5. **Add a card for the new URL in `kubernetes/apps/dashboard/configmap.yaml`** — the dashboard at `dashboard.yral.com` is the canonical list of all hosted services; every new visitable URL must appear there
+6. Commit and push — Flux reconciles and the hostname is live immediately (wildcard DNS requires no Cloudflare changes)
+
+**Dashboard — `dashboard.yral.com`:**
+A dark-mode internal homepage listing every hosted UI on the cluster. It lives in `kubernetes/apps/dashboard/configmap.yaml` as a static HTML ConfigMap served by nginx. **Every time a new visitable URL is added to the cluster (or removed), update the dashboard ConfigMap in the same commit.**
 
 **The shared `oauth2-proxy-secrets` Secret** contains `client-id`, `client-secret`, and `cookie-secret`. All oauth2-proxy Deployments reference this same Secret via env vars. It lives in the `oauth2-proxy` namespace.
 

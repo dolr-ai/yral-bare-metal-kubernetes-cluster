@@ -1,0 +1,186 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-html
+  namespace: dashboard
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>yral.com — Internal Dashboard</title>
+      <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+          --bg:       #0d1117;
+          --surface:  #161b22;
+          --border:   #30363d;
+          --text:     #e6edf3;
+          --muted:    #8b949e;
+          --accent:   #58a6ff;
+          --accent-hover: #79c0ff;
+          --tag-bg:   #1f2937;
+          --tag-text: #94a3b8;
+        }
+
+        html, body {
+          min-height: 100vh;
+          background: var(--bg);
+          color: var(--text);
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+          font-size: 15px;
+          line-height: 1.5;
+        }
+
+        header {
+          padding: 2.5rem 2rem 1.5rem;
+          border-bottom: 1px solid var(--border);
+          max-width: 960px;
+          margin: 0 auto;
+        }
+
+        header h1 {
+          font-size: 1.4rem;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+          color: var(--text);
+        }
+
+        header p {
+          margin-top: 0.35rem;
+          color: var(--muted);
+          font-size: 0.9rem;
+        }
+
+        main {
+          max-width: 960px;
+          margin: 0 auto;
+          padding: 2rem;
+        }
+
+        .section-title {
+          font-size: 0.75rem;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--muted);
+          margin-bottom: 0.75rem;
+          margin-top: 2rem;
+        }
+
+        .section-title:first-child { margin-top: 0; }
+
+        .grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+          gap: 0.75rem;
+        }
+
+        a.card {
+          display: flex;
+          flex-direction: column;
+          gap: 0.4rem;
+          padding: 1rem 1.1rem;
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          text-decoration: none;
+          transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        a.card:hover {
+          border-color: var(--accent);
+          box-shadow: 0 0 0 1px var(--accent);
+        }
+
+        .card-name {
+          font-weight: 600;
+          font-size: 0.95rem;
+          color: var(--accent);
+        }
+
+        a.card:hover .card-name { color: var(--accent-hover); }
+
+        .card-desc {
+          font-size: 0.83rem;
+          color: var(--muted);
+        }
+
+        .card-url {
+          font-size: 0.75rem;
+          color: var(--tag-text);
+          background: var(--tag-bg);
+          border-radius: 4px;
+          padding: 0.1rem 0.4rem;
+          align-self: flex-start;
+          margin-top: 0.2rem;
+          font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+        }
+
+        footer {
+          max-width: 960px;
+          margin: 3rem auto 2rem;
+          padding: 0 2rem;
+          font-size: 0.8rem;
+          color: var(--muted);
+          border-top: 1px solid var(--border);
+          padding-top: 1.5rem;
+        }
+      </style>
+    </head>
+    <body>
+      <header>
+        <h1>yral.com — Internal Dashboard</h1>
+        <p>All internal tools and apps hosted on the cluster.</p>
+      </header>
+
+      <main>
+        <div class="section-title">Infrastructure</div>
+        <div class="grid">
+
+          <a class="card" href="https://headlamp.yral.com" target="_blank" rel="noopener">
+            <span class="card-name">Headlamp</span>
+            <span class="card-desc">Kubernetes cluster UI — workloads, namespaces, events</span>
+            <span class="card-url">headlamp.yral.com</span>
+          </a>
+
+          <a class="card" href="https://grafana.yral.com" target="_blank" rel="noopener">
+            <span class="card-name">Grafana</span>
+            <span class="card-desc">Metrics and monitoring dashboards</span>
+            <span class="card-url">grafana.yral.com</span>
+          </a>
+
+          <a class="card" href="https://hubble-ui.yral.com" target="_blank" rel="noopener">
+            <span class="card-name">Hubble UI</span>
+            <span class="card-desc">Cilium network observability and flow visualization</span>
+            <span class="card-url">hubble-ui.yral.com</span>
+          </a>
+
+          <a class="card" href="https://longhorn-ui.yral.com" target="_blank" rel="noopener">
+            <span class="card-name">Longhorn</span>
+            <span class="card-desc">Persistent storage management and volume health</span>
+            <span class="card-url">longhorn-ui.yral.com</span>
+          </a>
+
+        </div>
+
+        <div class="section-title">Apps</div>
+        <div class="grid">
+
+          <a class="card" href="https://timer-counter.yral.com" target="_blank" rel="noopener">
+            <span class="card-name">Timer Counter</span>
+            <span class="card-desc">Svelte PWA — timer and counter app</span>
+            <span class="card-url">timer-counter.yral.com</span>
+          </a>
+
+        </div>
+      </main>
+
+      <footer>
+        yral bare-metal Kubernetes cluster &middot; To add a service, update <code>kubernetes/apps/dashboard/configmap.yaml</code>
+      </footer>
+    </body>
+    </html>
