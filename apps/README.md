@@ -46,4 +46,6 @@ git submodule update --init --recursive
 
 ## Current submodules
 
-_None yet — submodules are added on demand._
+| Submodule | Source repo | Deployed at |
+|-----------|-------------|-------------|
+| `apps/timer-counter` | https://github.com/saikatdas0790/timer-counter | https://timer-counter.saikat.yral.com |

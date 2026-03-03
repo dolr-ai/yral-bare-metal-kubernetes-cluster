@@ -7,3 +7,4 @@ resources:
   - goldilocks.yaml
   - headlamp.yaml
   - snowplow-collector.yaml
+  - timer-counter.yaml

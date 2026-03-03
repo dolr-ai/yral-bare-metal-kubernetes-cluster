@@ -13,4 +13,6 @@ resources:
   - service-goldilocks.yaml
   - deployment-headlamp.yaml
   - service-headlamp.yaml
+  - deployment-timer-counter.yaml
+  - service-timer-counter.yaml
   - reference-grant.yaml
