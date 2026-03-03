@@ -648,6 +648,21 @@ Ansible manages infrastructure *below* the Kubernetes API: OS provisioning, kube
 | Gateway / HTTPRoute | `kubernetes/networking/` | All services — internal tools go via oauth2-proxy backend, user-facing services directly |
 | Application workloads | `kubernetes/apps/` | Pure K8s objects |
 
+**Application source code — `apps/` git submodules:**
+
+Application source repositories live as git submodules under `apps/`. Deployment manifests for those apps live under `kubernetes/apps/`. The two are intentionally decoupled — Flux reconciles manifests from `kubernetes/apps/` independently of whether the submodule is checked out.
+
+**Submodule operations must always be performed via `git submodule add` in the terminal — never via MCP tools or by creating/pushing files into the upstream repo.** Using MCP to mirror what `git submodule` does natively defeats the purpose of submodules and breaks standard git tooling.
+
+```bash
+# Correct: add a submodule using git directly
+git submodule add https://github.com/<org>/<repo>.git apps/<repo>
+git add apps/<repo> .gitmodules
+git commit -m "feat: add <repo> submodule"
+```
+
+The same principle applies to all git submodule lifecycle operations (updating, removing, initialising): **use git CLI in the terminal**.
+
 **NetworkPolicy and the cilium-envoy proxy — source IP constraint:**
 
 The Cilium Gateway API implementation uses a `cilium-envoy` DaemonSet that runs with `hostNetwork: true`. External traffic flows:

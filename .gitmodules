@@ -1,0 +1,3 @@
+[submodule "apps/timer-counter"]
+	path = apps/timer-counter
+	url = https://github.com/saikatdas0790/timer-counter.git
