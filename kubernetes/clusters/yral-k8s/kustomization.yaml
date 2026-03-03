@@ -30,3 +30,4 @@ resources:
   - infrastructure-snowplow.yaml
   - infrastructure-kafka-connect.yaml
   - networking.yaml
+  - apps.yaml
