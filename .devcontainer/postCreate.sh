@@ -24,7 +24,7 @@ echo "✓ Installed Python packages from requirements.txt"
 # Installed to ~/.ansible/collections — Ansible's default search path, always detected without restarts.
 echo ""
 echo "Installing Ansible collections..."
-ansible-galaxy collection install -r ansible/requirements.yml -p ~/.ansible/collections
+ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections
 echo "✓ Installed Ansible collections from requirements.yml"
 
 # Extract SSH key from Ansible vault for Hetzner server access
