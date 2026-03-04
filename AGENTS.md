@@ -799,6 +799,21 @@ kubectl apply -k kubernetes/networking
 
 **`kubectl apply` is only valid before Flux is bootstrapped.** Once Flux is running (i.e., the Flux Kustomizations exist and are reconciling), all changes to `kubernetes/` must go through git — commit, push, and let Flux reconcile. Never use `kubectl apply` or `kubectl delete` to imperatively push changes that belong to the Flux-managed state. Flux's `prune: true` will delete resources removed from git; there is no need to `kubectl delete` them manually.
 
+**Removing a Flux Kustomization — always suspend first:**
+
+Flux sets a `finalizers.fluxcd.io` finalizer on every Kustomization it manages. When a Kustomization is deleted, the kustomize-controller processes the finalizer to clean up all managed resources before the object disappears. If the Kustomization is currently in an error loop (e.g. `path not found`), the controller cannot build a resource inventory and the finalizer handler fails too — leaving the object stuck with `DeletionTimestamp` set but never completing.
+
+**The correct procedure for removing a Kustomization from the cluster:**
+```bash
+# 1. Suspend it — stops reconciliation so the controller releases the finalizer cleanly
+flux suspend kustomization <name> -n flux-system
+
+# 2. Remove it from git (delete the file + its entry in kustomization.yaml) and push
+# Flux prunes it on the next flux-system reconcile — no imperative delete needed
+```
+
+**Never `kubectl delete kustomization` directly.** Even with `prune: true` on the parent, a stuck child Kustomization in an error loop will not self-prune — the controller cannot process the finalizer without a valid path. Bypassing this with `kubectl delete` strips the finalizer forcibly, which can corrupt the flux-system namespace if the controller is simultaneously restarting (e.g. after a `flux bootstrap` push). This is exactly what caused the `flux-system` namespace to go Terminating in March 2026: an imperative `kubectl delete kustomization infrastructure-goldilocks` was run while the kustomize-controller was restarting after a bootstrap push, creating a finalizer deadlock that brought down the entire `flux-system` namespace and required a full re-bootstrap.
+
 ## Deployment Execution Principle
 
 **All mutations to cluster nodes must go through Ansible roles — never via ad-hoc terminal commands or SSH.**
@@ -808,7 +823,7 @@ kubectl apply -k kubernetes/networking
 - ❌ Mutations via `kubectl exec`: strictly prohibited for making changes to node state.
 - ❌ Mutations (installs, config changes, reboots, kubeadm operations): must live in a role task and be executed via a playbook.
 - ❌ Direct `helm` CLI mutations from the terminal: strictly prohibited — no `helm upgrade`, `helm install`, `helm uninstall`, or `helm repo add` as standalone terminal mutations. Helm operations that change cluster state must be embedded in a role (the role runs `helm` on the target node via Ansible) and invoked through a playbook. The only exception is read-only Helm commands like `helm list` or `helm status`.
-- ❌ `kubectl apply` / `kubectl delete` for Flux-managed resources: strictly prohibited once Flux is bootstrapped. Commit the desired state to git and let Flux reconcile. For urgent rollbacks, remove the resource from git (Flux prunes it); do not delete it imperatively.
+- ❌ `kubectl apply` / `kubectl delete` for Flux-managed resources: strictly prohibited once Flux is bootstrapped. Commit the desired state to git and let Flux reconcile. For urgent rollbacks, remove the resource from git (Flux prunes it); do not delete it imperatively. For removing a Flux **Kustomization** specifically: suspend it first (`flux suspend kustomization <name>`), then remove from git — see the "Removing a Flux Kustomization" section above.
 - ⚠️ `kubectl apply -f <file>` for **non-Flux-managed** resources (e.g., kubeadm-owned objects like the CoreDNS Deployment or kube-dns Service that Flux cannot own): acceptable **only** when Flux reconciliation is structurally impossible. Always commit the manifest file to git first so the repo reflects cluster state, then run `kubectl apply -f <path>`. Never run `kubectl apply` with inline flags or heredocs — always from a committed file. Prefer Flux as the primary mechanism; fall back to `kubectl apply -f` only when necessary.
 
 This ensures every change is:
@@ -867,6 +882,8 @@ When in doubt:
 7. Am I about to create a new playbook? → Stop. Can this fit into an existing playbook via a new role? If yes, do that. If no, ask the user first.
 8. Am I about to SSH into a node and run a command that changes state? → Stop. Implement it in a role and run the full playbook instead.
 9. Am I about to run operations against multiple nodes at the same time? → Stop. Any operation touching multiple nodes is always serial — complete each node fully (playbook done + verified Ready/healthy, or task loop iteration complete) before moving to the next. This applies at every level: playbook invocations, role loops, and task loops within roles.
+10. Am I about to `kubectl delete` a Flux Kustomization? → Stop. Suspend it first (`flux suspend kustomization <name>`), then remove it from git. Never delete it imperatively — the finalizer deadlock this creates can bring down the entire `flux-system` namespace.
+11. Am I about to `kubectl delete` or `kubectl apply` any Flux-managed resource? → Stop. Make the change in git and push. Flux reconciles it. Imperative API changes are either a no-op (Flux reverts them) or destructive (if the resource disappears from git inventory).
 
 ## Active Deployment Handoff
 
