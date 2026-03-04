@@ -33,9 +33,19 @@
 # ========== PRE-FLIGHT ==========
 
 - name: Get Ready node count
-  ansible.builtin.command: >
-    kubectl get nodes
-    -o jsonpath='{.items[?(@.status.conditions[?(@.type=="Ready")].status=="True")].metadata.name}'
+  ansible.builtin.shell: |
+    kubectl get nodes -o json | python3 -c "
+    import sys, json
+    nodes = json.load(sys.stdin)['items']
+    ready = [
+        n['metadata']['name'] for n in nodes
+        if any(
+            c['type'] == 'Ready' and c['status'] == 'True'
+            for c in n.get('status', {}).get('conditions', [])
+        )
+    ]
+    print(' '.join(ready))
+    "
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   register: ready_nodes
