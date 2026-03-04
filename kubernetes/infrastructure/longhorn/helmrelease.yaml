@@ -37,6 +37,18 @@ spec:
       # within the same region when replicas are set to 2 or 3.
       replicaZoneSoftAntiAffinity: false
 
+      # Allow Longhorn to rebalance replica placement over time. best-effort tries to
+      # spread replicas evenly across nodes and zones, and evicts replicas from disks
+      # under storage pressure. This is required for Longhorn to remove excess replicas
+      # when spec.numberOfReplicas is reduced on an attached volume — without it,
+      # cleanupAutoBalancedReplicas returns immediately and extra replicas are never
+      # removed. With 35 workers, 13 zones, and replicaZoneSoftAntiAffinity: false,
+      # best-effort is largely a no-op for healthy volumes: new replicas are already
+      # spread by the scheduler; rebalancing only triggers when imbalance or disk
+      # pressure is detected. This setting is also the prerequisite for the
+      # replicaAutoBalance: best-effort pass planned during the 1.11.x upgrade.
+      replicaAutoBalance: best-effort
+
       # S3 backup target on Hetzner Object Storage.
       # A /longhorn prefix separates these backups from Velero's in the same bucket.
       # Credential secret keys: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_ENDPOINTS,

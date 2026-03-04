@@ -633,7 +633,7 @@ Two StorageClass settings are needed together:
 
 With these two settings combined: the first replica lands on the pod's node (data locality), and all replicas are constrained to the pod's region (regional locality). The second replica lands on a different node in the same region — `replicaZoneSoftAntiAffinity: false` (already set) prevents active cross-zone spreading within the region.
 
-**Current state (1.10.2):** `dataLocality: best-effort` is available now but not yet enabled on the default StorageClass. `allowedTopologies` support requires 1.11.x. As an interim, `replicaZoneSoftAntiAffinity: false` (already set) prevents active cross-zone spreading, but does not guarantee same-region placement.
+**Current state (1.10.2):** `dataLocality: best-effort` is available now but not yet enabled on the default StorageClass. `allowedTopologies` support requires 1.11.x. As an interim, `replicaZoneSoftAntiAffinity: false` (already set) prevents active cross-zone spreading, but does not guarantee same-region placement. `replicaAutoBalance: best-effort` is **permanently enabled** — this is required for Longhorn to remove excess replicas when `spec.numberOfReplicas` is reduced on an attached volume (without it, `cleanupAutoBalancedReplicas` returns immediately and extra replicas are never removed). With 35 workers and `replicaZoneSoftAntiAffinity: false`, it is largely a no-op for healthy volumes but also handles disk-pressure evictions proactively.
 
 **When upgrading to 1.11.x:** Update the default Longhorn StorageClass in `helmrelease.yaml` (`persistence:` section):
 ```yaml
@@ -642,7 +642,7 @@ persistence:
   volumeBindingMode: "WaitForFirstConsumer"
   # allowedTopologies: leave unset to allow dynamic inference from pod's node at provision time
 ```
-Existing cross-region replicas on the 4 affected volumes will need rebalancing after upgrade. Set `replicaAutoBalance: best-effort` in the HelmRelease `defaultSettings:` — Longhorn's auto-balance controller will evict out-of-region replicas and rebuild them within the correct region. Once all volumes show healthy same-region replicas, revert `replicaAutoBalance` back to `disabled` (or leave it enabled if ongoing rebalancing is desired).
+Existing cross-region replicas on the affected volumes will need rebalancing after upgrade. `replicaAutoBalance: best-effort` is already set in `defaultSettings:` — the auto-balance controller will evict out-of-region replicas and rebuild them within the correct region automatically. No additional step required.
 
 ### Backup Strategy
 
