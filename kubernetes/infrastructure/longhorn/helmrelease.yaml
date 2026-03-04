@@ -43,3 +43,10 @@ spec:
       # VIRTUAL_HOSTED_STYLE (false = path-style addressing required by Hetzner).
       backupTarget: "s3://yral-bare-metal-kubernetes-cluster-control-plane-backup@hel1/longhorn"
       backupTargetCredentialSecret: "longhorn-s3-backup-credentials"
+
+    persistence:
+      # Must match defaultSettings.defaultReplicaCount — controls the numberOfReplicas
+      # parameter on the default Longhorn StorageClass, which is what Kubernetes uses
+      # when provisioning PVCs. If only defaultSettings is set, the StorageClass retains
+      # the Helm chart default of 3.
+      defaultClassReplicaCount: 2
