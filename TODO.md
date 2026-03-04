@@ -1,4 +1,4 @@
-- fix weekly system update failing
+- Run the control plane upgrade and the worker upgrade locally to verify all good
 - fix longhorn backups automatically not being taken on a schedule
 - How come Longhorn is creating 3 replicas. Could we default to 2? Should we? We are already taking full backups to S3. We should also make it that volumes are replicated across the same region, not across regions, to avoid cross-region latency
 - check why no notifications yet from renovate bot
