@@ -596,7 +596,7 @@ lsattr -d /var/lib/longhorn
 **btrfs data profile:**
 
 The `storage-setup` role runs `btrfs balance start -dconvert=raid0 -mconvert=dup /` after adding the second drive:
-- `Data, RAID0` — chunks are striped across both NVMe drives for maximum sequential throughput and full combined capacity. No local redundancy, but Longhorn's `defaultReplicaCount: 3` provides cross-node redundancy.
+- `Data, RAID0` — chunks are striped across both NVMe drives for maximum sequential throughput and full combined capacity. No local redundancy, but Longhorn's `defaultReplicaCount: 2` provides cross-node redundancy.
 - `Metadata, DUP` — metadata is mirrored on both drives; a single bad metadata chunk does not corrupt the filesystem.
 
 worker-2 and all subsequently provisioned nodes are on RAID0. worker-1 is being reprovisioned to correct this.
@@ -605,7 +605,7 @@ worker-2 and all subsequently provisioned nodes are on RAID0. worker-1 is being 
 
 **Longhorn replica count:**
 
-`defaultReplicaCount: 3` in `kubernetes/infrastructure/longhorn/helmrelease.yaml` — with 5 worker nodes, each Longhorn volume stores 3 replicas, surviving a 2-node simultaneous failure. Adjust this value as worker node count changes (keep it at a minority of total workers to allow maintenance).
+`defaultReplicaCount: 2` in `kubernetes/infrastructure/longhorn/helmrelease.yaml` — with 35 worker nodes, each Longhorn volume stores 2 replicas, surviving a 1-node simultaneous failure. Weekly S3 backups are the DR path for catastrophic (2+ node) failures. Adjust this value as worker node count changes (keep it at a minority of total workers to allow maintenance).
 
 **Storage reservation:**
 
@@ -614,6 +614,35 @@ worker-2 and all subsequently provisioned nodes are on RAID0. worker-1 is being 
 **NFS / RWX volumes:**
 
 `nfs-common` is installed on all nodes via the `base-system` role. Longhorn RWX (ReadWriteMany) volumes work by creating a `longhorn-share-manager` pod that runs an in-cluster NFS server; the kubelet uses `nfs-common` userspace tools to mount that NFS export into pods. No conflicts with Cilium + WireGuard — pod-to-pod NFS traffic (port 2049) travels inside the encrypted Cilium mesh. The `storage-network-for-rwx-volume-enabled: false` Longhorn setting correctly routes RWX traffic over the standard pod network.
+
+**Longhorn version and upgrade plan:**
+
+Current version: `1.10.2`. Longhorn does not have a `replica-region-soft-anti-affinity` setting in any current release. The closest equivalent is added in **v1.11.0** via `StorageClass allowedTopologies` support (issue [#12261](https://github.com/longhorn/longhorn/issues/12261)), which lets you restrict replica provisioning to nodes matching specific Kubernetes topology labels (e.g. `topology.kubernetes.io/region=falkenstein`).
+
+v1.11.0 released with two regressions requiring hotfix images (`v1.11.0-hotfix-1` for both `longhorn-manager` and `longhorn-instance-manager`). **Wait for a clean v1.11.1 or v1.11.x patch release before upgrading.**
+
+**Desired placement model for stateful workloads:**
+
+The goal is: one replica on the **same node as the workload pod** (local I/O, no network hop), and the second replica on **another node in the same region** (same-region redundancy, no cross-WAN synchronous writes). This follows the workload — Helsinki pods get Helsinki replicas, Falkenstein pods get Falkenstein replicas.
+
+Two StorageClass settings are needed together:
+
+1. **`dataLocality: best-effort`** — Longhorn schedules one replica on whichever node the pod is running on. The volume follows the pod's placement, not a hard-coded region.
+
+2. **`volumeBindingMode: WaitForFirstConsumer`** + **`allowedTopologies`** — defers PV binding until a pod is scheduled, then the CSI provisioner uses the pod's node topology to constrain the remaining replicas to nodes in the same region. With `WaitForFirstConsumer`, `allowedTopologies` is inferred dynamically from the pod's scheduled node, not hard-coded.
+
+With these two settings combined: the first replica lands on the pod's node (data locality), and all replicas are constrained to the pod's region (regional locality). The second replica lands on a different node in the same region — `replicaZoneSoftAntiAffinity: false` (already set) prevents active cross-zone spreading within the region.
+
+**Current state (1.10.2):** `dataLocality: best-effort` is available now but not yet enabled on the default StorageClass. `allowedTopologies` support requires 1.11.x. As an interim, `replicaZoneSoftAntiAffinity: false` (already set) prevents active cross-zone spreading, but does not guarantee same-region placement.
+
+**When upgrading to 1.11.x:** Update the default Longhorn StorageClass in `helmrelease.yaml` (`persistence:` section):
+```yaml
+persistence:
+  defaultDataLocality: best-effort
+  volumeBindingMode: "WaitForFirstConsumer"
+  # allowedTopologies: leave unset to allow dynamic inference from pod's node at provision time
+```
+Existing cross-region replicas on the 4 affected volumes will need rebalancing after upgrade. Set `replicaAutoBalance: best-effort` in the HelmRelease `defaultSettings:` — Longhorn's auto-balance controller will evict out-of-region replicas and rebuild them within the correct region. Once all volumes show healthy same-region replicas, revert `replicaAutoBalance` back to `disabled` (or leave it enabled if ongoing rebalancing is desired).
 
 ### Backup Strategy
 

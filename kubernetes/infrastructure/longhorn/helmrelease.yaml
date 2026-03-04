@@ -19,8 +19,10 @@ spec:
       retries: 3
   values:
     defaultSettings:
-      # 3 replicas across 5 worker nodes; data survives 2 simultaneous node failures.
-      defaultReplicaCount: 3
+      # 2 replicas across 35 worker nodes; data survives 1 simultaneous node failure.
+      # With weekly S3 backups, S3 is the DR path for catastrophic (2+ node) failures.
+      # Using 2 replicas saves ~33% Longhorn storage vs 3 replicas.
+      defaultReplicaCount: 2
 
       # Reserve 5% of each disk for the OS, kubelet, and containerd image cache.
       # Kubelet's default imageGCHighThresholdPercent (85%) automatically evicts

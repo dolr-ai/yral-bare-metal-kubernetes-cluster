@@ -1,5 +1,3 @@
-- Run the control plane upgrade and the worker upgrade locally to verify all good
-- fix longhorn backups automatically not being taken on a schedule
 - How come Longhorn is creating 3 replicas. Could we default to 2? Should we? We are already taking full backups to S3. We should also make it that volumes are replicated across the same region, not across regions, to avoid cross-region latency
 - check why no notifications yet from renovate bot
 - deal with github notifications
@@ -10,3 +8,6 @@
 - github tasks assigned
 - timer counter remove II auth and use oauth2-proxy to get the logged in user
 - use realtime capabilities of spacetimedb to build a realtime persistence layer
+- Verify that Longhorn backups are being taken
+- We should make it so that Longhorn volumes are replicated across the same region, not across regions, to avoid cross-region latency
+    - What v1.11.0 does add for topology control: StorageClass allowedTopologies support (#12261) — you can restrict replica provisioning to nodes matching specific Kubernetes topology labels (e.g. topology.kubernetes.io/region=falkenstein). This is the closest thing to region confinement available.
