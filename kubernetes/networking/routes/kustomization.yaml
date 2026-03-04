@@ -4,7 +4,6 @@ resources:
   - hubble-ui.yaml
   - grafana.yaml
   - longhorn-ui.yaml
-  - goldilocks.yaml
   - headlamp.yaml
   - snowplow-collector.yaml
   - timer-counter.yaml

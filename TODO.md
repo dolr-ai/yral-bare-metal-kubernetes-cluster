@@ -1,4 +1,3 @@
-- remove goldilocks, not useful
 - fix weekly system update failing
 - fix longhorn backups automatically not being taken on a schedule
 - How come Longhorn is creating 3 replicas. Could we default to 2? Should we? We are already taking full backups to S3. We should also make it that volumes are replicated across the same region, not across regions, to avoid cross-region latency
