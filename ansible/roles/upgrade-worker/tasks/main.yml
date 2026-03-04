@@ -200,6 +200,55 @@
       delegate_to: "{{ kubectl_delegate }}"
       changed_when: true
 
+    # ----- Longhorn post-rejoin health check -----
+    # Longhorn recognises disk UUIDs on rejoin so replicas resume rather than
+    # rebuild from scratch. However, the longhorn-manager DaemonSet pod takes
+    # a moment to start and re-register the disk. We must wait here before
+    # moving to the next worker (serial: 1) — if we don't, the next worker
+    # starts draining while this node's replicas are still 'stopped', leaving
+    # some volumes with only 1 active replica.
+
+    - name: Wait for Longhorn disk to re-register as schedulable
+      ansible.builtin.shell: |
+        kubectl get node.longhorn.io {{ inventory_hostname }} -n longhorn-system \
+          -o json 2>/dev/null | python3 -c "
+        import sys, json
+        d = json.load(sys.stdin)
+        disks = d.get('status', {}).get('diskStatus', {})
+        not_ready = [k for k, v in disks.items() if v.get('diskState') != 'schedulable']
+        print(len(not_ready))
+        " 2>/dev/null || echo 1
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: longhorn_disk_state
+      until: longhorn_disk_state.stdout | trim | int == 0
+      retries: 60
+      delay: 10
+      changed_when: false
+      failed_when: false
+      delegate_to: "{{ kubectl_delegate }}"
+
+    - name: Wait for all Longhorn volumes to return to healthy state
+      ansible.builtin.shell: |
+        kubectl get volumes.longhorn.io -n longhorn-system -o json | python3 -c "
+        import sys, json
+        d = json.load(sys.stdin)
+        degraded = [
+            v['metadata']['name'] for v in d['items']
+            if v.get('status', {}).get('state') == 'attached'
+            and v.get('status', {}).get('robustness') not in ('healthy', 'unknown')
+        ]
+        print(len(degraded))
+        "
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: degraded_volumes
+      until: degraded_volumes.stdout | trim | int == 0
+      retries: 60
+      delay: 10
+      changed_when: false
+      delegate_to: "{{ kubectl_delegate }}"
+
 # ========== VERIFICATION ==========
 
 - name: Wait for node to be Ready
