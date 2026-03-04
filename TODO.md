@@ -1,4 +1,3 @@
-- How come Longhorn is creating 3 replicas. Could we default to 2? Should we? We are already taking full backups to S3.
 - check why no notifications yet from renovate bot
 - deal with github notifications
 - set a long expiry for the oauth2-proxy cookie so users don't get logged out of the different internal apps as frequently. Also, is that shared between all the apps, or does each app have its own cookie? If shared, that means logging into one app logs you into all of them, which is still acceptable
