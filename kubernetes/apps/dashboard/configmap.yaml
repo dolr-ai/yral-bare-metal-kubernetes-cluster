@@ -167,16 +167,6 @@ data:
 
         </div>
 
-        <div class="section-title">Apps</div>
-        <div class="grid">
-
-          <a class="card" href="https://timer-counter.yral.com" target="_blank" rel="noopener">
-            <span class="card-name">Timer Counter</span>
-            <span class="card-desc">Svelte PWA — timer and counter app</span>
-            <span class="card-url">timer-counter.yral.com</span>
-          </a>
-
-        </div>
       </main>
 
       <footer>

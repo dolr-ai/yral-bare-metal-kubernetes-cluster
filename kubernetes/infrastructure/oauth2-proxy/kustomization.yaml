@@ -11,8 +11,6 @@ resources:
   - service-longhorn-ui.yaml
   - deployment-headlamp.yaml
   - service-headlamp.yaml
-  - deployment-timer-counter.yaml
-  - service-timer-counter.yaml
   - deployment-dashboard.yaml
   - service-dashboard.yaml
   - reference-grant.yaml
