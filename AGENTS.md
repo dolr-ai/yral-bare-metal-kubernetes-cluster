@@ -788,8 +788,16 @@ flux bootstrap github \
   --owner=dolr-ai \
   --repository=yral-bare-metal-kubernetes-cluster \
   --branch=main \
-  --path=./kubernetes/clusters/yral-k8s
+  --path=./kubernetes/clusters/yral-k8s \
+  --components-extra=image-reflector-controller,image-automation-controller \
+  --token-auth
 ```
+
+**`--token-auth` is mandatory.** Without it, `flux bootstrap` defaults to SSH and rewrites `gotk-sync.yaml` with an `ssh://` URL. The `flux-system` Secret holds username/password credentials from the fine-grained PAT — SSH auth requires an identity key which that secret does not contain, causing the GitRepository to fail with `invalid 'ssh' auth option: 'identity' is required`. Always pass `--token-auth` to keep the URL as HTTPS and match the existing secret.
+
+**`--components-extra=image-reflector-controller,image-automation-controller` is required** to support Flux image automation (auto-updating image tags in `deployment.yaml` when a new image is pushed to GHCR).
+
+**`flux bootstrap` is the canonical — and only correct — way to update `gotk-components.yaml`.** It generates the manifest, commits it to git first, then applies it. This means it is git-driven under the hood (not purely imperative), and avoids the chicken-and-egg problem of controllers that don't exist yet being unable to self-reconcile a git change that adds them. Do not hand-edit `gotk-components.yaml`; re-run `flux bootstrap` instead.
 
 **Flux reconciliation — GitHub webhook (not polling):**
 
