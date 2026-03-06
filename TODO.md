@@ -1,4 +1,3 @@
-- check why no notifications yet from renovate bot
 - deal with github notifications
 - set a long expiry for the oauth2-proxy cookie so users don't get logged out of the different internal apps as frequently. Also, is that shared between all the apps, or does each app have its own cookie? If shared, that means logging into one app logs you into all of them, which is still acceptable
 - ui for kafka
@@ -12,3 +11,8 @@
     - What v1.11.0 does add for topology control: StorageClass allowedTopologies support (#12261) — you can restrict replica provisioning to nodes matching specific Kubernetes topology labels (e.g. topology.kubernetes.io/region=falkenstein). This is the closest thing to region confinement available.
     - What we want is for stateful workloads to have their volumes in the same region. Ideally, if a stateful workload is provisioned, it uses a volume where one copy of the volume is on the same node where the workload is running (like a database, for example). The second copy of that volume should be in the same region. We don't specifically want FSN, but if the stateful workload is in HSN, then the volumes should also be there, and one of them on the same node
 - Look at monthly copilot spend and upgrade to pro+ if makes sense
+- Look at domains and see if still required
+- Remove github org members who are no longer active
+- Add new github members to the report script
+- Remove cloudflare pages and workers projects on personal account
+- Move personal website to github pages and remove from cloudflare
