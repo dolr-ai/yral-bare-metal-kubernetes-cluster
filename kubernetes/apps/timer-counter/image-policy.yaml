@@ -7,7 +7,7 @@ spec:
   imageRepositoryRef:
     name: timer-counter
   filterTags:
-    pattern: '^[0-9]{14}-[a-f0-9]+'
+    pattern: '^(ts-[0-9]{14}-[a-f0-9]+|sha-[a-f0-9]+)$'
     extract: '$0'
   policy:
     alphabetical:
