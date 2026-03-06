@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: timer-counter
-          image: ghcr.io/saikatdas0790/timer-counter:latest
+          image: ghcr.io/saikatdas0790/timer-counter:latest # {"$imagepolicy": "flux-system:timer-counter"}
           ports:
             - containerPort: 80
           resources:
