@@ -16,7 +16,7 @@ spec:
       author:
         name: fluxcd-bot
         email: fluxcd-bot@users.noreply.github.com
-      messageTemplate: 'chore: update timer-counter image to {{range .Updated.Images}}{{println .}}{{end}}'
+      messageTemplate: 'chore: update timer-counter image to {{range .Changed.Changes}}{{println .}}{{end}}'
     push:
       branch: main
   update:
