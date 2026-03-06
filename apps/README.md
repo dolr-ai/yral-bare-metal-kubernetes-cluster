@@ -16,26 +16,10 @@ Source code and deployment manifests are intentionally separated. The submodule 
 ## Adding a new application
 
 ```bash
-# 1. Add the submodule (use SSH remote for write access)
-git submodule add git@github.com:dolr-ai/<repo-name>.git apps/<repo-name>
-
-# 2. Commit the submodule pointer
+# 1. Add the submodule
+git submodule add https://github.com/<org>/<repo-name>.git apps/<repo-name>
 git add apps/<repo-name> .gitmodules
 git commit -m "feat: add <repo-name> submodule"
-
-# 3. Create Kubernetes deployment manifests
-mkdir -p kubernetes/apps/<repo-name>
-# Add Namespace, Deployment, Service, HTTPRoute, etc.
-
-# 4. Add a kustomization.yaml in kubernetes/apps/<repo-name>/
-
-# 5. Register the app in kubernetes/apps/kustomization.yaml
-#    Add: - <repo-name>  under resources:
-
-# 6. Push — Flux deploys automatically via the apps Kustomization
-git add kubernetes/apps/
-git commit -m "feat: deploy <repo-name>"
-git push
 ```
 
 ## Populating submodules after a fresh clone
@@ -48,4 +32,4 @@ git submodule update --init --recursive
 
 | Submodule | Source repo | Deployed at |
 |-----------|-------------|-------------|
-| `apps/timer-counter` | https://github.com/saikatdas0790/timer-counter | https://timer-counter.yral.com |
+| _(none)_ | — | — |
