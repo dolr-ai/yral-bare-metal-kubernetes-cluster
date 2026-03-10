@@ -7,6 +7,7 @@ spec:
   interval: 10m
   path: ./kubernetes/apps/storj-migration
   prune: true
+  force: true
   wait: false
   timeout: 10m
   sourceRef:
