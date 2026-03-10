@@ -58,8 +58,7 @@ spec:
             - "storj-src:disk"
             - "storj-crypt:"
             # Number of simultaneous file transfers per pod.
-            # 35 pods × 8 transfers = up to 280 simultaneous uploads.
-            - --transfers=8
+            - --transfers=2
             # Simultaneous existence/checksum checks.
             - --checkers=16
             # Log a stats summary every 60 s (compatible with kubectl logs).
