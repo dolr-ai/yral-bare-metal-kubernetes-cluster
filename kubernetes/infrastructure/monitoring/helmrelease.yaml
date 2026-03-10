@@ -100,6 +100,9 @@ spec:
       prometheusSpec:
         # 15-day retention, matches default; adjust as needed.
         retention: 15d
+        # Hard size cap: discard oldest blocks before hitting the filesystem
+        # limit. Set to ~90% of PVC to leave headroom for in-progress blocks.
+        retentionSize: 90GB
 
         # Store metrics on a PVC (btrfs subvolume on the node).
         storageSpec:
@@ -109,7 +112,7 @@ spec:
               accessModes: ["ReadWriteOnce"]
               resources:
                 requests:
-                  storage: 50Gi
+                  storage: 100Gi
 
         resources:
           requests:
