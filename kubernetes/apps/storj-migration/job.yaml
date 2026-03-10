@@ -26,8 +26,8 @@ metadata:
   namespace: storj-migration
 spec:
   # 10 pods — scaled up from 4, one per worker node.
-  parallelism: 10
-  completions: 10
+  parallelism: 8
+  completions: 8
   # Retry each failed pod up to 6 times before marking the Job failed.
   backoffLimit: 6
   # Auto-clean the Job object 24 h after completion (success or failure).
