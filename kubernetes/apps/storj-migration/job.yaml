@@ -55,8 +55,8 @@ spec:
           command:
             - rclone
             - copy
-            - storj-src:PLACEHOLDER_SRC_BUCKET_NAME   # replace with actual source bucket name
-            - storj-crypt:
+            - "storj-src:disk"
+            - "storj-crypt:"
             # Number of simultaneous file transfers per pod.
             # 35 pods × 8 transfers = up to 280 simultaneous uploads.
             - --transfers=8
