@@ -2,4 +2,4 @@
 # Gateway API CRD version. Must match or precede the version supported by Cilium.
 # Cilium 1.19+ supports Gateway API v1.4.x (standard channel).
 # Versioning policy: stay current with the latest stable release.
-gateway_api_version: "v1.4.1"
+gateway_api_version: "v1.5.0"
