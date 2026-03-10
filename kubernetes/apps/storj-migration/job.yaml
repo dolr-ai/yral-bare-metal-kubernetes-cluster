@@ -1,0 +1,88 @@
+# One-shot migration job: copies all data from an unencrypted Storj bucket to a
+# rclone-crypt-encrypted Storj bucket using 35 parallel pods — one per worker node.
+#
+# Each pod runs the same full 'rclone copy'. rclone's server-side listing means
+# files already present at the destination are skipped by all pods, so pods
+# naturally distribute the remaining work without double-copying.
+#
+# Prerequisites:
+#   kubectl apply -k kubernetes/apps/storj-migration/
+#
+# Monitor:
+#   kubectl -n storj-migration get pods -w
+#   kubectl -n storj-migration logs -f job/storj-migration --max-log-requests=35
+#
+# Check overall progress:
+#   kubectl -n storj-migration get job storj-migration
+#
+# Tear down after completion:
+#   kubectl delete -k kubernetes/apps/storj-migration/
+#
+# Replace PLACEHOLDER_SRC_BUCKET_NAME below with the actual source bucket name.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: storj-migration
+  namespace: storj-migration
+spec:
+  # 35 pods — one per worker node. Each runs a full sync pass.
+  parallelism: 35
+  completions: 35
+  # Retry each failed pod up to 6 times before marking the Job failed.
+  backoffLimit: 6
+  # Auto-clean the Job object 24 h after completion (success or failure).
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: storj-migration
+    spec:
+      restartPolicy: OnFailure
+
+      # Spread exactly one pod per node. Combined with control-plane NoSchedule
+      # taints this ensures all 35 pods land on the 35 worker nodes.
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: storj-migration
+              topologyKey: kubernetes.io/hostname
+
+      containers:
+        - name: rclone
+          image: rclone/rclone:latest
+          command:
+            - rclone
+            - copy
+            - storj-src:PLACEHOLDER_SRC_BUCKET_NAME   # replace with actual source bucket name
+            - storj-crypt:
+            # Number of simultaneous file transfers per pod.
+            # 35 pods × 8 transfers = up to 280 simultaneous uploads.
+            - --transfers=8
+            # Simultaneous existence/checksum checks.
+            - --checkers=16
+            # Log a stats summary every 60 s (compatible with kubectl logs).
+            - --stats=60s
+            - --log-level=INFO
+            # Retry each file up to 10 times on transient errors.
+            - --retries=10
+            - --retries-sleep=10s
+            # Retry low-level errors (network blips) up to 10 times.
+            - --low-level-retries=10
+          volumeMounts:
+            - name: rclone-config
+              mountPath: /config/rclone
+              readOnly: true
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+
+      volumes:
+        - name: rclone-config
+          secret:
+            secretName: rclone-config
