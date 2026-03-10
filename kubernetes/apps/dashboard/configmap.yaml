@@ -165,6 +165,12 @@ data:
             <span class="card-url">longhorn-ui.yral.com</span>
           </a>
 
+          <a class="card" href="https://kafka-console.yral.com" target="_blank" rel="noopener">
+            <span class="card-name">Kafka Console</span>
+            <span class="card-desc">Redpanda Console — topic browser, consumer group lag, message inspection</span>
+            <span class="card-url">kafka-console.yral.com</span>
+          </a>
+
         </div>
 
       </main>

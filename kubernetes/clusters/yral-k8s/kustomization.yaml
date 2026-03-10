@@ -28,6 +28,7 @@ resources:
   - infrastructure-kafka.yaml
   - infrastructure-snowplow.yaml
   - infrastructure-kafka-connect.yaml
+  - infrastructure-kafka-console.yaml
   - networking.yaml
   - apps.yaml
   - apps-storj-migration.yaml

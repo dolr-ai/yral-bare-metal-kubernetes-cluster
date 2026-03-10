@@ -13,4 +13,6 @@ resources:
   - service-headlamp.yaml
   - deployment-dashboard.yaml
   - service-dashboard.yaml
+  - deployment-kafka-console.yaml
+  - service-kafka-console.yaml
   - reference-grant.yaml
