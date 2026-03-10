@@ -24,6 +24,19 @@ spec:
       kafka:
         brokers:
           - kafka-cluster-kafka-bootstrap.kafka.svc:9092
+        sasl:
+          enabled: true
+          mechanism: SCRAM-SHA-512
+          username: kafka-console
+          # Password injected via KAFKA_SASL_PASSWORD env var from sasl-secret.sops.yaml
+
+    # Kafka SASL password from SOPS-encrypted secret
+    extraEnv:
+      - name: KAFKA_SASL_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: kafka-console-sasl
+            key: password
 
     # No ingress — exposed via oauth2-proxy + Cilium Gateway
     ingress:

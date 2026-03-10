@@ -101,6 +101,51 @@ spec:
           - Write
           - Describe
 ---
+# kafka-console: read-only admin user for Redpanda Console UI
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: kafka-console
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  authentication:
+    type: scram-sha-512
+    password:
+      valueFrom:
+        secretKeyRef:
+          name: kafka-user-passwords
+          key: kafka-console-password
+  authorization:
+    type: simple
+    acls:
+      # Read + describe all topics (wildcard)
+      - resource:
+          type: topic
+          name: "*"
+          patternType: literal
+        operations:
+          - Read
+          - Describe
+          - DescribeConfigs
+      # Read all consumer groups (for lag display)
+      - resource:
+          type: group
+          name: "*"
+          patternType: literal
+        operations:
+          - Read
+          - Describe
+      # Describe cluster (broker metadata)
+      - resource:
+          type: cluster
+          name: kafka-cluster
+          patternType: literal
+        operations:
+          - Describe
+          - DescribeConfigs
+---
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaUser
 metadata:
