@@ -1,6 +1,3 @@
-- deal with github notifications
-- set a long expiry for the oauth2-proxy cookie so users don't get logged out of the different internal apps as frequently. Also, is that shared between all the apps, or does each app have its own cookie? If shared, that means logging into one app logs you into all of them, which is still acceptable
-- ui for kafka
 - integrate snowplow sdk into yral-mobile to send events to the snowplow collector
 - figure out a way to run devcontainers on the kubernetes cluster, so we can have a single environment for development and deployment
 - github tasks assigned
@@ -16,3 +13,4 @@
 - Add new github members to the report script
 - Remove cloudflare pages and workers projects on personal account
 - Move personal website to github pages and remove from cloudflare
+- kafka native schema validation via schema registry and redpanda console
