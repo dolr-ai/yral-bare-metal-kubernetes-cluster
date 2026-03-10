@@ -85,6 +85,18 @@
             ],
             "depNameTemplate": "helm/helm",
             "datasourceTemplate": "github-releases"
+        },
+        {
+            "description": "Kubernetes version pin in Ansible role defaults",
+            "customType": "regex",
+            "fileMatch": [
+                "ansible/roles/kubernetes/defaults/main\\.yml"
+            ],
+            "matchStrings": [
+                "kubernetes_version:\\s*\"(?<currentValue>[^\"]+)\""
+            ],
+            "depNameTemplate": "kubernetes/kubernetes",
+            "datasourceTemplate": "github-releases"
         }
     ],
     "packageRules": [

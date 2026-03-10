@@ -1,11 +1,11 @@
 ---
 # Install Kubernetes (kubeadm, kubelet, kubectl)
-# This role installs Kubernetes v1.35 components and configures the system
+# Kubernetes version is pinned in defaults/main.yml (kubernetes_version).
 
 - name: Display target host information
   ansible.builtin.debug:
     msg:
-      - "Installing Kubernetes v1.35 on: {{ ansible_facts['hostname'] }}"
+      - "Installing Kubernetes v{{ kubernetes_version }} on: {{ ansible_facts['hostname'] }}"
       - "IP: {{ ansible_host }}"
       - "Node type: {{ node_type }}"
 
@@ -80,13 +80,13 @@
     mode: "0755"
 
 - name: Download Kubernetes GPG key
-  ansible.builtin.shell: curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  ansible.builtin.shell: curl -fsSL https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version.split('.')[:2] | join('.') }}/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
   args:
     creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 
 - name: Add Kubernetes apt repository
   ansible.builtin.apt_repository:
-    repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.35/deb/ /"
+    repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version.split('.')[:2] | join('.') }}/deb/ /"
     state: present
     filename: kubernetes
 
@@ -165,7 +165,7 @@
 - name: Display installation summary
   ansible.builtin.debug:
     msg:
-      - "✅ Kubernetes v1.35 installation completed successfully"
+      - "✅ Kubernetes v{{ kubernetes_version }} installation completed successfully"
       - "✅ Swap disabled and removed from /etc/fstab"
       - "✅ kubeadm, kubelet, and kubectl packages pinned (held)"
       - "✅ kubelet service enabled"
