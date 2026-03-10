@@ -26,6 +26,7 @@ spec:
             - --http-address=0.0.0.0:4180
             - --cookie-secure=true
             - --cookie-name=_oauth2_proxy_grafana
+            - --cookie-expire=720h
             - --redirect-url=https://grafana.yral.com/oauth2/callback
             - --skip-provider-button=true
             # Pass X-Forwarded-Email header to Grafana upstream so auth.proxy can identify the user.
