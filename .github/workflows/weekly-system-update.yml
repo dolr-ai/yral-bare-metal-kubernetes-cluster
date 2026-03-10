@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # devcontainer.json bind-mounts ~/.ssh/agent.sock from the host so
       # developers can forward their SSH agent into the container. In CI
