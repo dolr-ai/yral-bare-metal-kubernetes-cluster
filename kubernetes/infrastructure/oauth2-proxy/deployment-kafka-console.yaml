@@ -22,7 +22,7 @@ spec:
             - --google-group=developer-admin@gobazzinga.io
             - --google-admin-email=s@gobazzinga.io
             - --google-service-account-json=/etc/oauth2-proxy/service-account.json
-            - --upstream=http://redpanda-console.kafka-console.svc.cluster.local:8080
+            - --upstream=http://redpanda-console-console.kafka-console.svc.cluster.local:8080
             - --http-address=0.0.0.0:4180
             - --cookie-secure=true
             - --cookie-name=_oauth2_proxy_kafka_console
