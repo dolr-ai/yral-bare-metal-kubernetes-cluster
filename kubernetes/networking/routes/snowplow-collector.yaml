@@ -1,8 +1,8 @@
 # Snowplow Collector HTTPRoute
 #
-# Exposes the Snowplow Scala Stream Collector at events.yral.com — a public
-# endpoint that receives raw events from trackers and forwards them directly to
-# the Kafka snowplow-raw topic.
+# Exposes the Snowplow Scala Stream Collector at snowplow-collector.yral.com — a
+# public endpoint that receives raw events from trackers and forwards them
+# directly to the Kafka snowplow-raw topic.
 #
 # No oauth2-proxy in front: this is intentionally a public unauthenticated
 # endpoint. The collector returns a 200 + cookie and writes each event payload
@@ -10,7 +10,7 @@
 # is not a browser-origin-authenticated flow, so SSO would break all trackers.
 #
 # TLS is terminated by the Cilium Gateway (web-gateway in kube-system) using
-# a cert-manager-issued certificate for events.yral.com.
+# the wildcard *.yral.com certificate — no cert changes needed for the rename.
 # The ReferenceGrant in the snowplow namespace allows this HTTPRoute to
 # reference snowplow/snowplow-collector:9090 as a backend.
 ---
@@ -25,7 +25,7 @@ spec:
       namespace: kube-system
       sectionName: http
   hostnames:
-    - events.yral.com
+    - snowplow-collector.yral.com
   rules:
     - filters:
         - type: RequestRedirect
@@ -44,7 +44,7 @@ spec:
       namespace: kube-system
       sectionName: https
   hostnames:
-    - events.yral.com
+    - snowplow-collector.yral.com
   rules:
     - backendRefs:
         - name: snowplow-collector
