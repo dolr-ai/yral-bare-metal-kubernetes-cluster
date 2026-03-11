@@ -1,0 +1,3 @@
+[submodule "apps/yral-mobile"]
+	path = apps/yral-mobile
+	url = https://github.com/dolr-ai/yral-mobile
