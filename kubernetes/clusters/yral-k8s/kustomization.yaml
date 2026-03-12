@@ -31,4 +31,4 @@ resources:
   - infrastructure-kafka-console.yaml
   - networking.yaml
   - apps.yaml
-  - apps-storj-migration.yaml
+
