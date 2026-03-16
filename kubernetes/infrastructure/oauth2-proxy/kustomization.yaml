@@ -15,4 +15,8 @@ resources:
   - service-dashboard.yaml
   - deployment-kafka-console.yaml
   - service-kafka-console.yaml
+  - deployment-trino.yaml
+  - service-trino.yaml
+  - deployment-metabase.yaml
+  - service-metabase.yaml
   - reference-grant.yaml

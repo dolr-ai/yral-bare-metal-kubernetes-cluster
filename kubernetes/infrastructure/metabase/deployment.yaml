@@ -1,0 +1,83 @@
+# Metabase v0.59.2.6 — BI and data exploration UI.
+#
+# Database: H2 embedded, stored on metabase-data PVC at /metabase-data/metabase.db.
+# Auth: Metabase own account system (first-run setup wizard on initial access).
+#       oauth2-proxy is layered in front for SSO gating. Users authenticate with
+#       Google first, then complete Metabase's own login.
+#
+# Initial setup:
+#   1. Visit https://metabase.yral.com — Metabase shows its setup wizard.
+#   2. Create an admin account.
+#   3. Add Trino database connection:
+#        Type: Trino
+#        Display name: Snowplow Events
+#        Host: trino.trino.svc.cluster.local
+#        Port: 8080
+#        Catalog: snowplow
+#        Schema: events
+#        (No username/password — Trino runs without auth by default)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metabase
+  namespace: metabase
+  annotations:
+    secret.reloader.stakater.com/reload: "metabase-data"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metabase
+  template:
+    metadata:
+      labels:
+        app: metabase
+    spec:
+      securityContext:
+        fsGroup: 2000
+      containers:
+        - name: metabase
+          image: metabase/metabase:v0.59.2.6
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            # H2 database path — must be on the persistent volume.
+            - name: MB_DB_TYPE
+              value: h2
+            - name: MB_DB_FILE
+              value: /metabase-data/metabase.db
+            # Bind to all interfaces inside the pod.
+            - name: MB_JETTY_HOST
+              value: "0.0.0.0"
+            - name: JAVA_OPTS
+              value: "-Xmx1500m -Xms512m"
+          volumeMounts:
+            - name: metabase-data
+              mountPath: /metabase-data
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 10
+          resources:
+            requests:
+              cpu: 200m
+              memory: 768Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+      volumes:
+        - name: metabase-data
+          persistentVolumeClaim:
+            claimName: metabase-data

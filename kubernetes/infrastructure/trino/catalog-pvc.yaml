@@ -1,0 +1,17 @@
+---
+# Stores Trino file-metastore table definitions (JSON) for the snowplow catalog.
+# Single RWO volume — matched to coordinator-only mode (server.workers: 0).
+# When scaling to workers > 0, recreate this PVC with accessModes: [ReadWriteMany]
+# so all worker pods can read the shared table definitions.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: trino-catalog-storage
+  namespace: trino
+spec:
+  storageClassName: longhorn
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
