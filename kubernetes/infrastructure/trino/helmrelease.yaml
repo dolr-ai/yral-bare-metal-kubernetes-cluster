@@ -115,6 +115,13 @@ spec:
           maxMemory: "4GB"
           maxTotalMemory: "6GB"
 
+    # fsGroup=1000 ensures Kubernetes chowns PVC mounts to the trino group on attach,
+    # allowing the file metastore to write schema/table definitions to /catalog.
+    securityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+
     # Accept X-Forwarded-* headers set by oauth2-proxy (otherwise Trino returns 406).
     additionalConfigProperties:
       - "http-server.process-forwarded=true"
@@ -144,10 +151,7 @@ spec:
         nodeScheduler:
           includeCoordinator: true
 
-      # fsGroup=1000 makes Kubernetes chown the catalog PVC to the trino group
-      # on mount, so the file metastore can write schema/table definitions to it.
-      securityContext:
-        fsGroup: 1000
+
 
       # Recreate strategy required: coordinator uses a RWO PVC (catalog-storage).
       # RollingUpdate deadlocks — new pod can't attach while old pod holds the PVC.
