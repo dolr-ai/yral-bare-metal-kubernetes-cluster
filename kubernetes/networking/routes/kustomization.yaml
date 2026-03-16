@@ -8,5 +8,4 @@ resources:
   - snowplow-collector.yaml
   - dashboard.yaml
   - kafka-console.yaml
-  - trino.yaml
   - metabase.yaml

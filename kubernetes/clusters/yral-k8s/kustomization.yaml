@@ -29,7 +29,6 @@ resources:
   - infrastructure-snowplow.yaml
   - infrastructure-kafka-connect.yaml
   - infrastructure-kafka-console.yaml
-  - infrastructure-trino.yaml
   - infrastructure-metabase.yaml
   - networking.yaml
   - apps.yaml

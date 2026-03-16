@@ -178,14 +178,8 @@ data:
 
           <a class="card" href="https://metabase.yral.com" target="_blank" rel="noopener">
             <span class="card-name">Metabase</span>
-            <span class="card-desc">BI dashboards and SQL exploration over the Snowplow S3 data lake (via Trino)</span>
+            <span class="card-desc">BI dashboards and SQL exploration over the Snowplow data lake</span>
             <span class="card-url">metabase.yral.com</span>
-          </a>
-
-          <a class="card" href="https://trino.yral.com" target="_blank" rel="noopener">
-            <span class="card-name">Trino</span>
-            <span class="card-desc">Distributed SQL query engine UI — running queries, worker status, query history</span>
-            <span class="card-url">trino.yral.com</span>
           </a>
 
         </div>
