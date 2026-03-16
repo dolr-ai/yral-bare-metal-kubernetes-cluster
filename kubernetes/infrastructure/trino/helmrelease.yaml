@@ -80,7 +80,7 @@ metadata:
   namespace: trino
   annotations:
     # Force reconciliation and exit Stalled state after remediation strategy change.
-    reconcile.fluxcd.io/requestedAt: "2026-03-16T16:30:00Z"
+    reconcile.fluxcd.io/requestedAt: "2026-03-16T16:40:00Z"
 spec:
   interval: 1h
   chart:
@@ -188,4 +188,4 @@ spec:
         s3.aws-access-key=${ENV:AWS_ACCESS_KEY_ID}
         s3.aws-secret-key=${ENV:AWS_SECRET_ACCESS_KEY}
         s3.region=auto
-        s3.ssl.enabled=true
+        # TLS is implied by https:// in s3.endpoint — s3.ssl.enabled does not exist
