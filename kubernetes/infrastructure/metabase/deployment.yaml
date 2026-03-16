@@ -8,14 +8,15 @@
 # Initial setup:
 #   1. Visit https://metabase.yral.com — Metabase shows its setup wizard.
 #   2. Create an admin account.
-#   3. Add Trino database connection:
-#        Type: Trino
+#   3. Add ClickHouse database connection (built-in driver, no plugin needed):
+#        Type: ClickHouse
 #        Display name: Snowplow Events
-#        Host: trino.trino.svc.cluster.local
-#        Port: 8080
-#        Catalog: snowplow
-#        Schema: events
-#        (No username/password — Trino runs without auth by default)
+#        Host: chi-analytics-events.clickhouse.svc.cluster.local
+#        Port: 8123
+#        Database: snowplow
+#        Username: default
+#        Password: (leave empty)
+#        SSL: off (internal cluster traffic)
 ---
 apiVersion: apps/v1
 kind: Deployment
