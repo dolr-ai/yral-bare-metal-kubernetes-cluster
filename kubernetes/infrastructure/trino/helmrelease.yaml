@@ -80,7 +80,7 @@ metadata:
   namespace: trino
   annotations:
     # Force reconciliation and exit Stalled state after remediation strategy change.
-    reconcile.fluxcd.io/requestedAt: "2026-03-16T16:10:00Z"
+    reconcile.fluxcd.io/requestedAt: "2026-03-16T16:30:00Z"
 spec:
   interval: 1h
   chart:
@@ -179,11 +179,13 @@ spec:
         connector.name=hive
         hive.metastore=file
         hive.metastore.catalog.dir=file:///catalog
-        hive.s3.endpoint=https://fsn1.your-objectstorage.com
-        hive.s3.path-style-access=true
-        hive.s3.aws-access-key=${ENV:AWS_ACCESS_KEY_ID}
-        hive.s3.aws-secret-key=${ENV:AWS_SECRET_ACCESS_KEY}
-        hive.s3.ssl.enabled=true
-        # Read-only — events are written by Kafka Connect, not Trino
-        hive.non-managed-table-writes-enabled=false
-        hive.allow-drop-table=false
+        # Native S3 filesystem (hive.s3.* properties were removed in Trino 435+).
+        # fs.native-s3.enabled=true activates the non-Hadoop S3 client; credentials
+        # are then configured with plain s3.* keys instead of hive.s3.* keys.
+        fs.native-s3.enabled=true
+        s3.endpoint=https://fsn1.your-objectstorage.com
+        s3.path-style-access=true
+        s3.aws-access-key=${ENV:AWS_ACCESS_KEY_ID}
+        s3.aws-secret-key=${ENV:AWS_SECRET_ACCESS_KEY}
+        s3.region=auto
+        s3.ssl.enabled=true
