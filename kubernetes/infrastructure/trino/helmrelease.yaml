@@ -126,10 +126,13 @@ spec:
         maxHeapSize: "4G"
 
       # Recreate strategy required: coordinator uses a RWO PVC (catalog-storage).
-      # RollingUpdate would deadlock — new pod can't attach while old pod holds the PVC.
+      # RollingUpdate deadlocks — new pod can't attach while old pod holds the PVC.
+      # rollingUpdate must be explicitly nulled to satisfy the Kubernetes validation
+      # that forbids rollingUpdate fields when type=Recreate.
       deployment:
         strategy:
           type: Recreate
+          rollingUpdate: null
 
       # Shared catalog PVC — stores file metastore table definitions as JSON.
       additionalVolumes:
