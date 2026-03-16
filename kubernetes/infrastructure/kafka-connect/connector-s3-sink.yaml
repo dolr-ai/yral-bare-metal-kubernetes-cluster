@@ -65,6 +65,9 @@ spec:
     # WallClock: uses processing time; simpler than RecordField and works with
     # any serialisation format. Lag is at most flush.size records or rotate.interval.ms.
     timestamp.extractor: WallClock
+    # Duration of each time-based partition (must match the finest granularity in
+    # path.format — hourly here). Without this, the default is -1 and the task fails.
+    partition.duration.ms: "3600000"
 
     # ── Flush / rotation ────────────────────────────────────────────────────
     # Rotate after 10 000 records or 5 minutes, whichever comes first
