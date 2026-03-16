@@ -153,8 +153,9 @@ spec:
 
 
 
-      # Recreate strategy required: coordinator uses a RWO PVC (catalog-storage).
-      # RollingUpdate deadlocks — new pod can't attach while old pod holds the PVC.
+      # Recreate strategy required for single-coordinator deployments to avoid
+      # RollingUpdate deadlocks during upgrades (only one pod at a time can hold
+      # the coordinator role; Recreate terminates old before starting new).
       # rollingUpdate must be explicitly nulled to satisfy the Kubernetes validation
       # that forbids rollingUpdate fields when type=Recreate.
       deployment:
@@ -162,14 +163,6 @@ spec:
           type: Recreate
           rollingUpdate: null
 
-      # Shared catalog PVC — stores file metastore table definitions as JSON.
-      additionalVolumes:
-        - name: catalog-storage
-          persistentVolumeClaim:
-            claimName: trino-catalog-storage
-      additionalVolumeMounts:
-        - name: catalog-storage
-          mountPath: /catalog
 
       # Pinned to falkenstein nodes — same region as the FSN1 S3 bucket.
       affinity:
@@ -197,14 +190,18 @@ spec:
       snowplow: |
         connector.name=hive
         hive.metastore=file
-        hive.metastore.catalog.dir=file:///catalog
+        # Store the file metastore (schema/table JSON definitions) in S3 under a
+        # dedicated prefix. This avoids the local file:// vs native-S3 filesystem
+        # conflict: when fs.native-s3.enabled=true the native S3 factory handles all
+        # URIs for this catalog, so the metastore dir must also be an s3:// URI.
+        # Bonus: schema/table definitions survive pod restarts without a PVC.
+        hive.metastore.catalog.dir=s3://yral-events-data-lake/trino-metastore/
         # Native S3 filesystem (hive.s3.* properties were removed in Trino 435+).
-        # fs.native-s3.enabled=true activates the non-Hadoop S3 client; credentials
-        # are then configured with plain s3.* keys instead of hive.s3.* keys.
+        # fs.native-s3.enabled=true activates the non-Hadoop S3 client.
         fs.native-s3.enabled=true
         s3.endpoint=https://fsn1.your-objectstorage.com
         s3.path-style-access=true
         s3.aws-access-key=${ENV:AWS_ACCESS_KEY_ID}
         s3.aws-secret-key=${ENV:AWS_SECRET_ACCESS_KEY}
         s3.region=auto
-        # TLS is implied by https:// in s3.endpoint — s3.ssl.enabled does not exist
+        # TLS is implied by https:// in s3.endpoint

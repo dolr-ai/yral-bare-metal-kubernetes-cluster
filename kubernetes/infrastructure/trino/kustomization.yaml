@@ -4,5 +4,4 @@ resources:
   - namespace.yaml
   - helmrepository.yaml
   - helmrelease.yaml
-  - catalog-pvc.yaml
   - s3-credentials.sops.yaml
