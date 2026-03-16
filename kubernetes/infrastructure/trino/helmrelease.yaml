@@ -115,6 +115,10 @@ spec:
           maxMemory: "4GB"
           maxTotalMemory: "6GB"
 
+    # Accept X-Forwarded-* headers set by oauth2-proxy (otherwise Trino returns 406).
+    additionalConfigProperties:
+      - "http-server.process-forwarded=true"
+
     # S3 credentials injected as env vars so catalog properties can reference
     # them as ${ENV:AWS_ACCESS_KEY_ID} and ${ENV:AWS_SECRET_ACCESS_KEY}.
     # Note: top-level `env` is the correct chart key (coordinator.env is not supported).
