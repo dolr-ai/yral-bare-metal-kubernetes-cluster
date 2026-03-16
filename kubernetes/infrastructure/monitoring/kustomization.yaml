@@ -8,6 +8,9 @@ resources:
   - flux-control-plane-dashboard.yaml
   - flux-logs-dashboard.yaml
   - flux-podmonitor.yaml
+  - kafka-connect-podmonitor.yaml
+  - kafka-exporter-servicemonitor.yaml
+  - kafka-pipeline-dashboard.yaml
   # Alerting: Google Chat notifications for resource saturation events.
   - alerting-google-chat-secret.sops.yaml
   - alerting-contact-point.yaml

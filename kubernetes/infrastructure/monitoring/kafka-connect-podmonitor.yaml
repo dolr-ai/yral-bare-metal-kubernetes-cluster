@@ -1,0 +1,25 @@
+---
+# Scrapes the JMX Prometheus exporter sidecar on each Kafka Connect worker pod.
+# Port "prometheus" (9404) is opened automatically by Strimzi when metricsConfig
+# is present in the KafkaConnect CR.
+#
+# Placed in monitoring/ (same pattern as flux-podmonitor.yaml) so Prometheus
+# discovers it via podMonitorNamespaceSelector: {} (all namespaces).
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: kafka-connect
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - kafka-connect
+  selector:
+    matchLabels:
+      strimzi.io/cluster: connect-cluster
+  podMetricsEndpoints:
+    - port: prometheus
+      interval: 30s
+      path: /metrics

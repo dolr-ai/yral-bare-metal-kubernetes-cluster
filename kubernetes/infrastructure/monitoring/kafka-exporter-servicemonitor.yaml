@@ -1,0 +1,25 @@
+---
+# Scrapes the kafka_exporter sidecar deployed by Strimzi when kafkaExporter:
+# is present in the Kafka CR. Exposes consumer group lag and topic offset metrics.
+#
+# Strimzi creates: Service kafka-cluster-kafka-exporter in the kafka namespace,
+# port 9404 (named "tcp-prometheus").
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kafka-exporter
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - kafka
+  selector:
+    matchLabels:
+      strimzi.io/cluster: kafka-cluster
+      strimzi.io/kind: Kafka
+  endpoints:
+    - port: tcp-prometheus
+      interval: 30s
+      path: /metrics

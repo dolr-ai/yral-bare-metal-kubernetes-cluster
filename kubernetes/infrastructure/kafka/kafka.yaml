@@ -103,3 +103,15 @@ spec:
   entityOperator:
     topicOperator: {}
     userOperator: {}
+  kafkaExporter:
+    # Exposes consumer group lag and topic offset metrics for Prometheus.
+    # Strimzi deploys a kafka-cluster-kafka-exporter Deployment + Service (port 9404).
+    topicRegex: "snowplow.*"
+    groupRegex: ".*"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi

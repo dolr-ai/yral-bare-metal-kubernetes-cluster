@@ -92,6 +92,15 @@ spec:
               name: connect-credentials
               key: aws-secret-access-key
 
+  metricsConfig:
+    # JMX Prometheus exporter — Strimzi opens port 9404 (named "prometheus") on
+    # each Connect worker pod so Prometheus can scrape connector/task metrics.
+    type: jmxPrometheusExporter
+    valueFrom:
+      configMapKeyRef:
+        name: kafka-connect-metrics-config
+        key: connect-metrics-config.yml
+
   resources:
     requests:
       cpu: 500m

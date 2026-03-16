@@ -1,0 +1,87 @@
+---
+# JMX Prometheus exporter config for Kafka Connect worker pods.
+# Referenced by spec.metricsConfig in the KafkaConnect CR (connect.yaml).
+# Strimzi mounts this at /opt/kafka/custom-config/connect-metrics-config.yml
+# and starts the JMX exporter agent on port 9404 (named "prometheus").
+#
+# Metrics exposed:
+#   kafka_connect_connector_running_tasks   — healthy task count per connector
+#   kafka_connect_connector_failed_tasks    — alert on >0
+#   kafka_connect_connector_paused_tasks    — informational
+#   kafka_connect_connector_total_tasks     — total configured tasks
+#   kafka_connect_task_running_ratio        — per-task liveness (1.0 = running)
+#   kafka_connect_task_pause_ratio          — per-task paused fraction
+#   kafka_connect_sink_record_read_rate     — records/sec read from Kafka
+#   kafka_connect_sink_record_send_rate     — records/sec delivered to S3
+#   kafka_connect_sink_record_read_total    — cumulative records read
+#   kafka_connect_sink_record_send_total    — cumulative records delivered
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-connect-metrics-config
+  namespace: kafka-connect
+data:
+  connect-metrics-config.yml: |
+    startDelaySeconds: 60
+    rules:
+      # ── Connector-level task counts ─────────────────────────────────────
+      - pattern: 'kafka.connect<type=connector-metrics, connector=(.+)><>connector-running-task-count'
+        name: kafka_connect_connector_running_tasks
+        labels:
+          connector: "$1"
+        type: GAUGE
+      - pattern: 'kafka.connect<type=connector-metrics, connector=(.+)><>connector-failed-task-count'
+        name: kafka_connect_connector_failed_tasks
+        labels:
+          connector: "$1"
+        type: GAUGE
+      - pattern: 'kafka.connect<type=connector-metrics, connector=(.+)><>connector-paused-task-count'
+        name: kafka_connect_connector_paused_tasks
+        labels:
+          connector: "$1"
+        type: GAUGE
+      - pattern: 'kafka.connect<type=connector-metrics, connector=(.+)><>connector-total-task-count'
+        name: kafka_connect_connector_total_tasks
+        labels:
+          connector: "$1"
+        type: GAUGE
+
+      # ── Per-task liveness ───────────────────────────────────────────────
+      - pattern: 'kafka.connect<type=connector-task-metrics, connector=(.+), task=(.+)><>running-ratio'
+        name: kafka_connect_task_running_ratio
+        labels:
+          connector: "$1"
+          task: "$2"
+        type: GAUGE
+      - pattern: 'kafka.connect<type=connector-task-metrics, connector=(.+), task=(.+)><>pause-ratio'
+        name: kafka_connect_task_pause_ratio
+        labels:
+          connector: "$1"
+          task: "$2"
+        type: GAUGE
+
+      # ── Sink task throughput ────────────────────────────────────────────
+      - pattern: 'kafka.connect<type=sink-task-metrics, connector=(.+), task=(.+)><>sink-record-read-rate'
+        name: kafka_connect_sink_record_read_rate
+        labels:
+          connector: "$1"
+          task: "$2"
+        type: GAUGE
+      - pattern: 'kafka.connect<type=sink-task-metrics, connector=(.+), task=(.+)><>sink-record-send-rate'
+        name: kafka_connect_sink_record_send_rate
+        labels:
+          connector: "$1"
+          task: "$2"
+        type: GAUGE
+      - pattern: 'kafka.connect<type=sink-task-metrics, connector=(.+), task=(.+)><>sink-record-read-total'
+        name: kafka_connect_sink_record_read_total
+        labels:
+          connector: "$1"
+          task: "$2"
+        type: COUNTER
+      - pattern: 'kafka.connect<type=sink-task-metrics, connector=(.+), task=(.+)><>sink-record-send-total'
+        name: kafka_connect_sink_record_send_total
+        labels:
+          connector: "$1"
+          task: "$2"
+        type: COUNTER

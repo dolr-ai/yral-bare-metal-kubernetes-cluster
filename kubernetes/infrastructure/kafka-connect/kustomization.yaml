@@ -6,3 +6,4 @@ resources:
   - connect.yaml
   - connector-s3-sink.yaml
   - connect-credentials.sops.yaml
+  - kafka-connect-metrics-config.yaml
