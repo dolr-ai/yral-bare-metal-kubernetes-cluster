@@ -106,23 +106,24 @@ spec:
           maxMemory: "4GB"
           maxTotalMemory: "6GB"
 
+    # S3 credentials injected as env vars so catalog properties can reference
+    # them as ${ENV:AWS_ACCESS_KEY_ID} and ${ENV:AWS_SECRET_ACCESS_KEY}.
+    # Note: top-level `env` is the correct chart key (coordinator.env is not supported).
+    env:
+      - name: AWS_ACCESS_KEY_ID
+        valueFrom:
+          secretKeyRef:
+            name: trino-s3-credentials
+            key: aws-access-key-id
+      - name: AWS_SECRET_ACCESS_KEY
+        valueFrom:
+          secretKeyRef:
+            name: trino-s3-credentials
+            key: aws-secret-access-key
+
     coordinator:
       jvm:
         maxHeapSize: "4G"
-
-      # S3 credentials injected as env vars so catalog properties can reference
-      # them as ${ENV:AWS_ACCESS_KEY_ID} and ${ENV:AWS_SECRET_ACCESS_KEY}.
-      env:
-        - name: AWS_ACCESS_KEY_ID
-          valueFrom:
-            secretKeyRef:
-              name: trino-s3-credentials
-              key: aws-access-key-id
-        - name: AWS_SECRET_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              name: trino-s3-credentials
-              key: aws-secret-access-key
 
       # Shared catalog PVC — stores file metastore table definitions as JSON.
       additionalVolumes:
