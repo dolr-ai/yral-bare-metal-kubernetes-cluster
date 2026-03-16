@@ -78,6 +78,9 @@ kind: HelmRelease
 metadata:
   name: trino
   namespace: trino
+  annotations:
+    # Force reconciliation and exit Stalled state after remediation strategy change.
+    reconcile.fluxcd.io/requestedAt: "2026-03-16T16:10:00Z"
 spec:
   interval: 1h
   chart:
@@ -90,8 +93,14 @@ spec:
         namespace: trino
   timeout: 10m
   upgrade:
+    cleanupOnFail: true
     remediation:
       retries: 3
+      # 'uninstall' strategy: on upgrade failure, Helm uninstalls the release and
+      # Flux reinstalls fresh. This avoids "missing target release for rollback"
+      # errors that occur when there is no prior successful release to roll back to
+      # (e.g. during first-time installs where the initial install also failed).
+      strategy: uninstall
   values:
     server:
       # Coordinator-only mode — no separate worker pods.
