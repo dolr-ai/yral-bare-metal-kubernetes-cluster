@@ -114,6 +114,11 @@ spec:
         query:
           maxMemory: "4GB"
           maxTotalMemory: "6GB"
+        # Required in coordinator-only mode: allows the coordinator to also
+        # schedule and execute query work on itself (otherwise WAITING_FOR_RESOURCES
+        # forever since there are no separate worker nodes).
+        nodeScheduler:
+          includeCoordinator: true
 
     # Accept X-Forwarded-* headers set by oauth2-proxy (otherwise Trino returns 406).
     additionalConfigProperties:
