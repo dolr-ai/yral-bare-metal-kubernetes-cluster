@@ -144,6 +144,11 @@ spec:
         nodeScheduler:
           includeCoordinator: true
 
+      # fsGroup=1000 makes Kubernetes chown the catalog PVC to the trino group
+      # on mount, so the file metastore can write schema/table definitions to it.
+      securityContext:
+        fsGroup: 1000
+
       # Recreate strategy required: coordinator uses a RWO PVC (catalog-storage).
       # RollingUpdate deadlocks — new pod can't attach while old pod holds the PVC.
       # rollingUpdate must be explicitly nulled to satisfy the Kubernetes validation
