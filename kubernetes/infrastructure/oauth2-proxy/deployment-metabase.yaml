@@ -19,7 +19,7 @@ spec:
           args:
             - --provider=google
             - --email-domain=gobazzinga.io
-            - --google-group=developer-admin@gobazzinga.io
+            - --google-group=internal-dashboard-user@gobazzinga.io
             - --google-admin-email=s@gobazzinga.io
             - --google-service-account-json=/etc/oauth2-proxy/service-account.json
             - --upstream=http://metabase.metabase.svc.cluster.local:3000
