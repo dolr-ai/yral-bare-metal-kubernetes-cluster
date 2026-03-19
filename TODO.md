@@ -14,3 +14,4 @@
 - Remove cloudflare pages and workers projects on personal account
 - Move personal website to github pages and remove from cloudflare
 - kafka native schema validation via schema registry and redpanda console
+- confirm receiving renovate notifications for kubernetes version changes
