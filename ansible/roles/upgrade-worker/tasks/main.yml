@@ -201,14 +201,23 @@
       failed_when: false
       delegate_to: "{{ kubectl_delegate }}"
 
-    - name: Wait for all Longhorn volumes to return to healthy state
+    - name: Wait for Longhorn volumes with replicas on this node to return to healthy state
       ansible.builtin.shell: |
+        node_vols=$(kubectl get replicas.longhorn.io -n longhorn-system -o json | python3 -c "
+        import sys, json
+        d = json.load(sys.stdin)
+        vols = set(r['spec']['volumeName'] for r in d['items'] if r['spec'].get('nodeID') == '{{ inventory_hostname }}')
+        print('\n'.join(vols))
+        ")
+        if [ -z "$node_vols" ]; then echo 0; exit 0; fi
         kubectl get volumes.longhorn.io -n longhorn-system -o json | python3 -c "
         import sys, json
+        node_vols = set('''$node_vols'''.split())
         d = json.load(sys.stdin)
         degraded = [
             v['metadata']['name'] for v in d['items']
-            if v.get('status', {}).get('state') == 'attached'
+            if v['metadata']['name'] in node_vols
+            and v.get('status', {}).get('state') == 'attached'
             and v.get('status', {}).get('robustness') not in ('healthy', 'unknown')
         ]
         print(len(degraded))
@@ -217,7 +226,7 @@
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: degraded_volumes
       until: degraded_volumes.stdout | trim | int == 0
-      retries: 60
+      retries: 120
       delay: 15
       changed_when: false
       delegate_to: "{{ kubectl_delegate }}"
