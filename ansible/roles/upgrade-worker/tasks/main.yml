@@ -150,15 +150,14 @@
       delegate_to: localhost
 
     - name: Confirm SSH is responsive
-      ansible.builtin.command: >
-        ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no
-        root@{{ hostvars[inventory_hostname].ansible_host }} "echo ok"
-      register: ssh_ready
-      until: ssh_ready.rc == 0
-      retries: 30
-      delay: 5
-      changed_when: false
-      delegate_to: localhost
+      # wait_for_connection uses Ansible's own SSH mechanism (private_key_file
+      # from ansible.cfg), which is correct in all environments including CI
+      # where there is no SSH agent. A bare `ssh` command without -i fails
+      # with "Permission denied (publickey)" because it cannot find the key.
+      ansible.builtin.wait_for_connection:
+        timeout: 300
+        sleep: 5
+        delay: 5
 
     # ----- Rejoin as worker -----
 
