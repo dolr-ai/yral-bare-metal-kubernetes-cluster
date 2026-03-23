@@ -96,6 +96,12 @@
 
 # ========== UPGRADE PHASE ==========
 
+- name: Unhold Kubernetes packages so dist-upgrade can update them
+  ansible.builtin.shell: apt-mark unhold kubeadm kubelet kubectl
+  args:
+    executable: /bin/bash
+  changed_when: true
+
 - name: Upgrade system packages
   ansible.builtin.shell: |
     set -euo pipefail

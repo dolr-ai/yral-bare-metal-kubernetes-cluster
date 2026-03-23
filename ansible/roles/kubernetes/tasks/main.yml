@@ -106,30 +106,6 @@
   ansible.builtin.debug:
     msg: "✅ kubelet, kubeadm, and kubectl installed successfully"
 
-- name: Pin kubelet package version
-  ansible.builtin.dpkg_selections:
-    name: kubelet
-    selection: hold
-
-- name: Pin kubeadm package version
-  ansible.builtin.dpkg_selections:
-    name: kubeadm
-    selection: hold
-
-- name: Pin kubectl package version
-  ansible.builtin.dpkg_selections:
-    name: kubectl
-    selection: hold
-
-- name: Verify packages are held
-  ansible.builtin.shell: apt-mark showhold
-  register: kubernetes_held_packages
-  changed_when: false
-
-- name: Display held packages
-  ansible.builtin.debug:
-    msg: "{{ kubernetes_held_packages.stdout_lines }}"
-
 - name: Enable kubelet service
   ansible.builtin.systemd:
     name: kubelet
