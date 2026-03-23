@@ -4,10 +4,10 @@
 #
 # Usage:
 #   All control planes (one at a time):
-#     ansible-playbook playbooks/operations/upgrade-control-plane.yml
+#     ansible-playbook ansible/playbooks/operations/upgrade-control-plane.yml
 #
 #   Single control plane:
-#     ansible-playbook playbooks/operations/upgrade-control-plane.yml \
+#     ansible-playbook ansible/playbooks/operations/upgrade-control-plane.yml \
 #       -e target_host=control-plane-2
 
 - name: Upgrade control plane node(s)
