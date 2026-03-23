@@ -15,3 +15,5 @@
 - Move personal website to github pages and remove from cloudflare
 - kafka native schema validation via schema registry and redpanda console
 - confirm receiving renovate notifications for kubernetes version changes
+- metabase not working. Fix
+- are loki logs being cleaned up properly? Check retention policies and storage usage
