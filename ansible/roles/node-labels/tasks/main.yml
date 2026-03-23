@@ -76,7 +76,7 @@
 
 - name: Get nodes by topology
   ansible.builtin.command: >
-    kubectl get nodes 
+    kubectl get nodes
     -L topology.kubernetes.io/zone,topology.kubernetes.io/region,node.yral.com/disk-type,node.yral.com/workload-preference
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf

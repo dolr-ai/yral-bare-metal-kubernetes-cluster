@@ -6,12 +6,16 @@
 #   2. Upgrade system packages
 #   3. If reboot required:
 #      a. Cordon + drain (evict workloads to other nodes)
-#      b. kubectl delete node  → removes node object
-#      c. Reboot
-#      d. Wait for SSH + kubelet
-#      e. kubeadm join  → worker rejoins cluster
-#      f. Uncordon and verify Ready
-#   4. Post-flight: verify node Ready and services healthy
+#      b. Reboot
+#      c. Wait for SSH + kubelet to come back
+#      d. Uncordon and verify Ready
+#   4. Post-flight: verify node Ready
+#
+# NOTE: We deliberately do NOT run `kubectl delete node`. Deleting the node
+# object causes Longhorn to destroy replica.longhorn.io objects for that node,
+# forcing a full volume rebuild on rejoin. By keeping the node object alive
+# through the reboot, Longhorn simply resumes stopped replicas — no transfer,
+# no rebuild. This is the standard rolling-upgrade pattern used by GKE/EKS.
 #
 # serial: 1 in the playbook ensures only one worker is upgraded at a time,
 # keeping cluster capacity stable throughout a rolling upgrade.
@@ -110,28 +114,11 @@
       delegate_to: "{{ kubectl_delegate }}"
       changed_when: true
 
-    # ----- Remove node object -----
-
-    - name: Delete node from cluster
-      ansible.builtin.command: kubectl delete node {{ inventory_hostname }}
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      delegate_to: "{{ kubectl_delegate }}"
-      changed_when: true
-
-    - name: Wait for node object to be gone
-      ansible.builtin.command: kubectl get node {{ inventory_hostname }}
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      delegate_to: "{{ kubectl_delegate }}"
-      register: node_gone_check
-      until: node_gone_check.rc != 0
-      retries: 30
-      delay: 5
-      changed_when: false
-      failed_when: false
-
     # ----- Reboot -----
+    # We do NOT run `kubectl delete node`. Deleting the node causes Longhorn
+    # to destroy replica.longhorn.io objects, forcing a full volume rebuild on
+    # rejoin. Keeping the node object alive through the reboot lets Longhorn
+    # resume stopped replicas without any data transfer.
 
     - name: Initiate reboot
       ansible.builtin.shell: sleep 3 && /usr/sbin/shutdown -r now
@@ -159,40 +146,6 @@
         sleep: 5
         delay: 5
 
-# ========== REJOIN (if node is missing from cluster) ==========
-# This block is intentionally separate from the reboot block so it also runs
-# when a previous playbook invocation completed the reboot but failed before
-# the rejoin step (e.g. interrupted mid-run). On re-run, reboot_required is
-# gone (file disappears after reboot) so the drain/reboot block is skipped,
-# but the node is still absent from the cluster — this block catches that.
-
-- name: Check if node is currently registered in cluster
-  ansible.builtin.command: kubectl get node {{ inventory_hostname }}
-  environment:
-    KUBECONFIG: /etc/kubernetes/admin.conf
-  delegate_to: "{{ kubectl_delegate }}"
-  register: node_in_cluster_check
-  failed_when: false
-  changed_when: false
-
-- name: Rejoin cluster if node is missing
-  when: node_in_cluster_check.rc != 0
-  block:
-
-    - name: Wait for SSH to be available
-      # Safety net: if a previous run was interrupted mid-reboot, the node may
-      # still be coming up. wait_for_connection is a no-op if already up.
-      ansible.builtin.wait_for_connection:
-        timeout: 300
-        sleep: 5
-        delay: 0
-
-    # ----- Wait for kubelet to re-register -----
-    # No kubeadm join needed. The kubelet's signed client certificate
-    # (system:node:<name>) in kubelet.conf survives the reboot and is still
-    # valid — kubectl delete node only removes the API object, not the cert.
-    # On startup, kubelet detects the node object is gone and re-creates it.
-
     - name: Wait for kubelet to be active
       ansible.builtin.command: systemctl is-active kubelet
       register: kubelet_status
@@ -201,15 +154,12 @@
       delay: 5
       changed_when: false
 
-    - name: Wait for node object to appear in cluster
-      ansible.builtin.command: kubectl get node {{ inventory_hostname }}
+    - name: Wait for node object to be Ready
+      ansible.builtin.command: >
+        kubectl wait --for=condition=Ready node/{{ inventory_hostname }} --timeout=300s
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       delegate_to: "{{ kubectl_delegate }}"
-      register: node_exists
-      until: node_exists.rc == 0
-      retries: 30
-      delay: 5
       changed_when: false
 
     - name: Uncordon node (restore schedulability)
@@ -219,13 +169,10 @@
       delegate_to: "{{ kubectl_delegate }}"
       changed_when: true
 
-    # ----- Longhorn post-rejoin health check -----
-    # Longhorn recognises disk UUIDs on rejoin so replicas resume rather than
-    # rebuild from scratch. However, the longhorn-manager DaemonSet pod takes
-    # a moment to start and re-register the disk. We must wait here before
-    # moving to the next worker (serial: 1) — if we don't, the next worker
-    # starts draining while this node's replicas are still 'stopped', leaving
-    # some volumes with only 1 active replica.
+    # ----- Longhorn post-reboot health check -----
+    # Longhorn resumes stopped replicas on the rebooted node — no rebuild needed
+    # because the node object was never deleted and replica metadata is intact.
+    # Wait for disks to become schedulable and all volumes to return to healthy.
 
     - name: Wait for Longhorn disk to re-register as schedulable
       ansible.builtin.shell: |
@@ -234,9 +181,6 @@
         import sys, json
         d = json.load(sys.stdin)
         disks = d.get('status', {}).get('diskStatus', {})
-        # Skip orphaned/stale disk entries (storageMaximum==0 means Longhorn
-        # has no usable storage behind the entry — UUID mismatch or removed disk).
-        # Status is in a conditions list: check for Schedulable condition == True.
         not_ready = [
             k for k, v in disks.items()
             if v.get('storageMaximum', 0) > 0
@@ -273,10 +217,8 @@
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: degraded_volumes
       until: degraded_volumes.stdout | trim | int == 0
-      # 120 retries × 30s = 60 min. Large volumes (250 GB+) take time for
-      # Longhorn to re-associate replicas after a worker delete+rejoin cycle.
-      retries: 120
-      delay: 30
+      retries: 60
+      delay: 15
       changed_when: false
       delegate_to: "{{ kubectl_delegate }}"
 

@@ -1,6 +1,8 @@
 ---
 # Upgrade worker node(s) - system packages, reboot if required,
-# drain → delete → reboot → rejoin → verify for each node.
+# cordon → drain → reboot → uncordon → verify for each node.
+# Re-applies topology labels on every pass so workers provisioned before
+# the node-labels role existed get their region/zone labels on first upgrade.
 #
 # Usage:
 #   All workers (one at a time):
@@ -18,3 +20,4 @@
 
   roles:
     - role: upgrade-worker
+    - role: node-labels
