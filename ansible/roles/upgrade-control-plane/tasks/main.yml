@@ -185,19 +185,10 @@
     # ----- Reboot -----
 
     - name: Initiate reboot
-      ansible.builtin.shell: sleep 3 && /usr/sbin/shutdown -r now
+      ansible.builtin.shell: sleep 5 && /usr/sbin/shutdown -r now
       async: 1
       poll: 0
       changed_when: true
-
-    - name: Wait for node to go offline
-      ansible.builtin.wait_for:
-        host: "{{ hostvars[inventory_hostname].ansible_host }}"
-        port: 22
-        state: stopped
-        timeout: 120
-        sleep: 5
-      delegate_to: localhost
 
     - name: Wait for node to come back online
       ansible.builtin.wait_for:
@@ -205,6 +196,7 @@
         port: 22
         state: started
         timeout: 300
+        delay: 30
         sleep: 10
       delegate_to: localhost
 
