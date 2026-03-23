@@ -84,3 +84,15 @@ spec:
       # the PV is provisioned immediately with no node context, so csiAllowedTopologyKeys
       # has nothing to infer from and region constraint is not applied.
       volumeBindingMode: "WaitForFirstConsumer"
+
+      # Enable the revision counter so Longhorn can determine which blocks changed
+      # while a replica was offline (e.g. during a node reboot). With this enabled,
+      # a rejoining replica only syncs the delta written while it was down — not the
+      # full volume. With disableRevisionCounter: "true" (the Longhorn chart default),
+      # Longhorn cannot distinguish dirty from clean blocks, so it forces a full
+      # rebuild of the entire volume every time a replica's instance-manager restarts
+      # (i.e. on every node reboot). On 250 Gi volumes that is a 250 Gi network
+      # transfer that accomplishes nothing — the data was intact on disk.
+      # The cost of enabling the counter is one extra fsync per write per replica for
+      # the revision.counter file — negligible on NVMe.
+      disableRevisionCounter: "false"
