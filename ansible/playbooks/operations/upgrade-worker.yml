@@ -4,10 +4,10 @@
 #
 # Usage:
 #   All workers (one at a time):
-#     ansible-playbook playbooks/operations/upgrade-worker.yml
+#     ansible-playbook ansible/playbooks/operations/upgrade-worker.yml
 #
 #   Single worker:
-#     ansible-playbook playbooks/operations/upgrade-worker.yml \
+#     ansible-playbook ansible/playbooks/operations/upgrade-worker.yml \
 #       -e target_host=worker-1
 
 - name: Upgrade worker node(s)
