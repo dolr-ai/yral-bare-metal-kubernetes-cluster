@@ -187,34 +187,11 @@
         sleep: 5
         delay: 0
 
-    # ----- Rejoin as worker -----
-
-    - name: Reset kubeadm state before rejoin
-      # After reboot, kubelet restarts automatically and re-binds port 10250.
-      # kubelet.conf and pki/ca.crt also survive the reboot on disk.
-      # kubeadm join pre-flight fails on all three. Reset clears them cleanly.
-      ansible.builtin.command: kubeadm reset --force
-      changed_when: true
-
-    - name: Generate worker join command
-      ansible.builtin.shell: |
-        set -euo pipefail
-        TOKEN=$(kubeadm token create)
-        HASH=$(openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt \
-          | openssl rsa -pubin -outform der 2>/dev/null \
-          | openssl dgst -sha256 -hex | sed 's/^.* //')
-        echo "kubeadm join {{ control_plane_endpoint }}:6443 \
-          --token ${TOKEN} \
-          --discovery-token-ca-cert-hash sha256:${HASH}"
-      args:
-        executable: /bin/bash
-      register: worker_join_cmd
-      changed_when: false
-      delegate_to: "{{ kubectl_delegate }}"
-
-    - name: Rejoin cluster as worker
-      ansible.builtin.command: "{{ worker_join_cmd.stdout }}"
-      changed_when: true
+    # ----- Wait for kubelet to re-register -----
+    # No kubeadm join needed. The kubelet's signed client certificate
+    # (system:node:<name>) in kubelet.conf survives the reboot and is still
+    # valid — kubectl delete node only removes the API object, not the cert.
+    # On startup, kubelet detects the node object is gone and re-creates it.
 
     - name: Wait for kubelet to be active
       ansible.builtin.command: systemctl is-active kubelet
