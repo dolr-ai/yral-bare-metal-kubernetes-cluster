@@ -615,34 +615,20 @@ worker-2 and all subsequently provisioned nodes are on RAID0. worker-1 is being 
 
 `nfs-common` is installed on all nodes via the `base-system` role. Longhorn RWX (ReadWriteMany) volumes work by creating a `longhorn-share-manager` pod that runs an in-cluster NFS server; the kubelet uses `nfs-common` userspace tools to mount that NFS export into pods. No conflicts with Cilium + WireGuard — pod-to-pod NFS traffic (port 2049) travels inside the encrypted Cilium mesh. The `storage-network-for-rwx-volume-enabled: false` Longhorn setting correctly routes RWX traffic over the standard pod network.
 
-**Longhorn version and upgrade plan:**
+**Longhorn version and placement model:**
 
-Current version: `1.10.2`. Longhorn does not have a `replica-region-soft-anti-affinity` setting in any current release. The closest equivalent is added in **v1.11.0** via `StorageClass allowedTopologies` support (issue [#12261](https://github.com/longhorn/longhorn/issues/12261)), which lets you restrict replica provisioning to nodes matching specific Kubernetes topology labels (e.g. `topology.kubernetes.io/region=falkenstein`).
+Current version: `1.11.1`. The desired placement model for stateful workloads is now fully implemented:
 
-v1.11.0 released with two regressions requiring hotfix images (`v1.11.0-hotfix-1` for both `longhorn-manager` and `longhorn-instance-manager`). **Wait for a clean v1.11.1 or v1.11.x patch release before upgrading.**
+- **replica 1** → pod's node (local I/O, no network hop) — via `persistence.defaultDataLocality: best-effort`
+- **replica 2** → another node in the **same region** (no cross-WAN synchronous writes) — via `defaultSettings.csiAllowedTopologyKeys: "topology.kubernetes.io/region"` + `persistence.volumeBindingMode: WaitForFirstConsumer`
 
-**Desired placement model for stateful workloads:**
+This follows the workload: Helsinki pods get Helsinki replicas, Falkenstein pods get Falkenstein replicas.
 
-The goal is: one replica on the **same node as the workload pod** (local I/O, no network hop), and the second replica on **another node in the same region** (same-region redundancy, no cross-WAN synchronous writes). This follows the workload — Helsinki pods get Helsinki replicas, Falkenstein pods get Falkenstein replicas.
+**How the region constraint works:** `csiAllowedTopologyKeys` tells the Longhorn CSI driver to include `topology.kubernetes.io/region` in `CreateVolumeResponse.AccessibleTopology`. With `WaitForFirstConsumer`, provisioning is deferred until a pod is scheduled — the CSI provisioner then reads the pod's node region and writes a PV `nodeAffinity` restricting all replicas to that region. This is the v1.11.x `StorageClass allowedTopologies` mechanism (issue [#12261](https://github.com/longhorn/longhorn/issues/12261)), backported and stabilised in v1.11.1 (#12689).
 
-Two StorageClass settings are needed together:
+`replicaAutoBalance: best-effort` is **permanently enabled** — this is required for Longhorn to remove excess replicas when `spec.numberOfReplicas` is reduced on an attached volume (without it, `cleanupAutoBalancedReplicas` returns immediately and extra replicas are never removed). It also drives the rebalancing of any pre-upgrade cross-region replicas: the auto-balance controller evicts out-of-region replicas and rebuilds them within the correct region automatically after the upgrade. No manual step required.
 
-1. **`dataLocality: best-effort`** — Longhorn schedules one replica on whichever node the pod is running on. The volume follows the pod's placement, not a hard-coded region.
-
-2. **`volumeBindingMode: WaitForFirstConsumer`** + **`allowedTopologies`** — defers PV binding until a pod is scheduled, then the CSI provisioner uses the pod's node topology to constrain the remaining replicas to nodes in the same region. With `WaitForFirstConsumer`, `allowedTopologies` is inferred dynamically from the pod's scheduled node, not hard-coded.
-
-With these two settings combined: the first replica lands on the pod's node (data locality), and all replicas are constrained to the pod's region (regional locality). The second replica lands on a different node in the same region — `replicaZoneSoftAntiAffinity: false` (already set) prevents active cross-zone spreading within the region.
-
-**Current state (1.10.2):** `dataLocality: best-effort` is available now but not yet enabled on the default StorageClass. `allowedTopologies` support requires 1.11.x. As an interim, `replicaZoneSoftAntiAffinity: false` (already set) prevents active cross-zone spreading, but does not guarantee same-region placement. `replicaAutoBalance: best-effort` is **permanently enabled** — this is required for Longhorn to remove excess replicas when `spec.numberOfReplicas` is reduced on an attached volume (without it, `cleanupAutoBalancedReplicas` returns immediately and extra replicas are never removed). With 35 workers and `replicaZoneSoftAntiAffinity: false`, it is largely a no-op for healthy volumes but also handles disk-pressure evictions proactively.
-
-**When upgrading to 1.11.x:** Update the default Longhorn StorageClass in `helmrelease.yaml` (`persistence:` section):
-```yaml
-persistence:
-  defaultDataLocality: best-effort
-  volumeBindingMode: "WaitForFirstConsumer"
-  # allowedTopologies: leave unset to allow dynamic inference from pod's node at provision time
-```
-Existing cross-region replicas on the affected volumes will need rebalancing after upgrade. `replicaAutoBalance: best-effort` is already set in `defaultSettings:` — the auto-balance controller will evict out-of-region replicas and rebuild them within the correct region automatically. No additional step required.
+`replicaZoneSoftAntiAffinity: false` is kept — with same-region already enforced by topology constraints, zone spreading within a region is not needed and would add unnecessary complexity.
 
 ### Backup Strategy
 

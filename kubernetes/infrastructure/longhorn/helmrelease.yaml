@@ -8,7 +8,7 @@ spec:
   chart:
     spec:
       chart: longhorn
-      version: "1.10.2"
+      version: "1.11.1"
       sourceRef:
         kind: HelmRepository
         name: longhorn
@@ -30,12 +30,23 @@ spec:
       # sufficient headroom alongside automatic GC. Default was 30% (~286 Gi).
       storageReservedPercentageForDefaultDisk: 5
 
-      # Prevent cross-region replica placement. The default (true) pushes replicas to
+      # Prevent cross-zone replica spreading. The default (true) pushes replicas to
       # different topology zones — with HEL1+FSN1 workers that means one replica in
       # Helsinki and one in Falkenstein, requiring every write to cross WAN synchronously.
-      # With false, Longhorn schedules by available disk capacity, which naturally stays
-      # within the same region when replicas are set to 2 or 3.
+      # With csiAllowedTopologyKeys enforcing same-region placement and
+      # dataLocality: best-effort pinning one replica to the pod's node, this setting
+      # prevents secondary replicas from drifting to a different zone within the region.
       replicaZoneSoftAntiAffinity: false
+
+      # Enable region-aware topology scheduling (requires v1.11.1+).
+      # The CSI driver includes topology.kubernetes.io/region in the AccessibleTopology
+      # of CreateVolumeResponse. With volumeBindingMode: WaitForFirstConsumer, the
+      # scheduler pins PV provisioning to the pod's scheduled node's region — so all
+      # replicas land in the same region as the pod (Helsinki or Falkenstein).
+      # Combined with persistence.defaultDataLocality: best-effort, this gives:
+      #   replica 1 → pod's node (local I/O, no network hop)
+      #   replica 2 → another node in the same region (no cross-WAN writes)
+      csiAllowedTopologyKeys: "topology.kubernetes.io/region"
 
       # Allow Longhorn to rebalance replica placement over time. best-effort tries to
       # spread replicas evenly across nodes and zones, and evicts replicas from disks
@@ -62,3 +73,14 @@ spec:
       # when provisioning PVCs. If only defaultSettings is set, the StorageClass retains
       # the Helm chart default of 3.
       defaultClassReplicaCount: 2
+
+      # One replica on the pod's node (local I/O, no network hop). The volume follows
+      # the pod — Helsinki pods get Helsinki replicas, Falkenstein pods get Falkenstein.
+      defaultDataLocality: best-effort
+
+      # Defer PV binding and provisioning until the pod is scheduled. The CSI provisioner
+      # then uses the pod's node topology (region, via csiAllowedTopologyKeys) to
+      # constrain the PV nodeAffinity to the pod's region. Without WaitForFirstConsumer,
+      # the PV is provisioned immediately with no node context, so csiAllowedTopologyKeys
+      # has nothing to infer from and region constraint is not applied.
+      volumeBindingMode: "WaitForFirstConsumer"
