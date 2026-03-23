@@ -617,16 +617,18 @@ worker-2 and all subsequently provisioned nodes are on RAID0. worker-1 is being 
 
 **Longhorn version and placement model:**
 
-Current version: `1.11.1`. The desired placement model for stateful workloads is now fully implemented:
+Current version: `1.11.1`. The desired placement model for stateful workloads is now fully implemented **for all newly created volumes**:
 
 - **replica 1** → pod's node (local I/O, no network hop) — via `persistence.defaultDataLocality: best-effort`
 - **replica 2** → another node in the **same region** (no cross-WAN synchronous writes) — via `defaultSettings.csiAllowedTopologyKeys: "topology.kubernetes.io/region"` + `persistence.volumeBindingMode: WaitForFirstConsumer`
 
-This follows the workload: Helsinki pods get Helsinki replicas, Falkenstein pods get Falkenstein replicas.
+This follows the workload: Helsinki pods get Helsinki replicas, Falkenstein pods get Falkenstein replicas. This placement is **fully automatic and declarative** — no per-PVC configuration needed.
 
-**How the region constraint works:** `csiAllowedTopologyKeys` tells the Longhorn CSI driver to include `topology.kubernetes.io/region` in `CreateVolumeResponse.AccessibleTopology`. With `WaitForFirstConsumer`, provisioning is deferred until a pod is scheduled — the CSI provisioner then reads the pod's node region and writes a PV `nodeAffinity` restricting all replicas to that region. This is the v1.11.x `StorageClass allowedTopologies` mechanism (issue [#12261](https://github.com/longhorn/longhorn/issues/12261)), backported and stabilised in v1.11.1 (#12689).
+**How the region constraint works:** `csiAllowedTopologyKeys` tells the Longhorn CSI driver to include `topology.kubernetes.io/region` in `CreateVolumeResponse.AccessibleTopology`. With `WaitForFirstConsumer`, provisioning is deferred until a pod is scheduled — the CSI provisioner then reads the pod's node region and sets `accessibilityRequirements` on the Longhorn `Volume` CR, which constrains all replica placement to that region. The Kubernetes PV `nodeAffinity` is also written (controlling which nodes can mount the PV), but it is Longhorn's internal `Volume.spec.accessibilityRequirements` that actually drives replica placement — these are orthogonal. This is the v1.11.x `StorageClass allowedTopologies` mechanism (issue [#12261](https://github.com/longhorn/longhorn/issues/12261)), backported and stabilised in v1.11.1 (#12689).
 
-`replicaAutoBalance: best-effort` is **permanently enabled** — this is required for Longhorn to remove excess replicas when `spec.numberOfReplicas` is reduced on an attached volume (without it, `cleanupAutoBalancedReplicas` returns immediately and extra replicas are never removed). It also drives the rebalancing of any pre-upgrade cross-region replicas: the auto-balance controller evicts out-of-region replicas and rebuilds them within the correct region automatically after the upgrade. No manual step required.
+**Pre-existing volumes (created before `csiAllowedTopologyKeys` was enabled):** These volumes have no `accessibilityRequirements` on their Longhorn Volume CR — that field is written once by the CSI driver at creation time and cannot be patched after the fact (the field is unknown/stripped in the v1.11 CRD). `replicaAutoBalance` also cannot help because pre-existing volumes inherit `replicaAutoBalance: ignored`. The only way to bring a pre-existing volume into correct region placement is to delete and recreate the PVC (requires data migration, app downtime). Patching the Kubernetes PV `nodeAffinity` has no effect on replica placement.
+
+`replicaAutoBalance: best-effort` is **permanently enabled** — this is required for Longhorn to remove excess replicas when `spec.numberOfReplicas` is reduced on an attached volume (without it, `cleanupAutoBalancedReplicas` returns immediately and extra replicas are never removed).
 
 `replicaZoneSoftAntiAffinity: false` is kept — with same-region already enforced by topology constraints, zone spreading within a region is not needed and would add unnecessary complexity.
 
