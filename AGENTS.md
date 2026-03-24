@@ -607,9 +607,11 @@ worker-2 and all subsequently provisioned nodes are on RAID0. worker-1 is being 
 
 `defaultReplicaCount: 2` in `kubernetes/infrastructure/longhorn/helmrelease.yaml` — with 35 worker nodes, each Longhorn volume stores 2 replicas, surviving a 1-node simultaneous failure. Weekly S3 backups are the DR path for catastrophic (2+ node) failures. Adjust this value as worker node count changes (keep it at a minority of total workers to allow maintenance).
 
-**Storage reservation:**
+**Storage reservation — two separate knobs:**
 
-`storageReservedPercentageForDefaultDisk: 5` (5% of each disk, ~48 Gi on 954 Gi nodes). This is the headroom Longhorn leaves for the OS, kubelet, and containerd image cache. Kubelet's default image GC (`imageGCHighThresholdPercent: 85`) automatically evicts unused container images before the disk fills, making a 2% reservation safe in practice. 5% is a conservative buffer on top of that. The Longhorn global setting applies to newly-registered disks; existing nodes had their `storageReserved` field already written at registration time and are not retroactively updated — only reprovisioned nodes pick up the new default.
+`storageReservedPercentageForDefaultDisk: 5` (5% of each disk, ~48 Gi on 954 Gi nodes). This is the headroom Longhorn leaves for the OS, kubelet, and containerd image cache. Kubelet's default image GC (`imageGCHighThresholdPercent: 85`) automatically evicts unused container images before the disk fills, making a 2% reservation safe in practice. 5% is a conservative buffer on top of that. The global setting propagates to newly-registered disks; existing nodes have their `storageReserved` field written by the Longhorn node controller and will be updated on the next reconciliation cycle.
+
+`storageMinimalAvailablePercentage: 0` — a completely separate setting controlling the minimum *physical free space* that must remain after a volume expansion (enforced by the `validator.longhorn.io` admission webhook). The default is 25%, which conflicts with the 5% reservation strategy: a disk can have 452 GiB free yet still fail an expansion because 25% of 954 GiB = 238 GiB would remain below the floor. Since `storageReservedPercentageForDefaultDisk` already protects the host, this second guard is redundant and set to 0.
 
 **NFS / RWX volumes:**
 
