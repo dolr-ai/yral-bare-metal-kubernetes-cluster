@@ -95,4 +95,8 @@ spec:
       # transfer that accomplishes nothing — the data was intact on disk.
       # The cost of enabling the counter is one extra fsync per write per replica for
       # the revision.counter file — negligible on NVMe.
-      disableRevisionCounter: "false"
+      # NOTE: Must use the JSON per-engine-type format (Longhorn v1.11+). Using the
+      # plain string "false" is a truthy non-empty string in Go templates → the chart
+      # renders {"v1":"true"} instead. Only boolean false or the explicit JSON form
+      # '{"v1":"false"}' produces the correct ConfigMap entry.
+      disableRevisionCounter: '{"v1":"false"}'
