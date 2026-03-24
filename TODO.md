@@ -19,4 +19,4 @@
 - metabase not working. Fix
 - are loki logs being cleaned up properly? Check retention policies and storage usage
 - rewrite timer counter as a kotlin app to run on android and windows
-- we can remove all the kubernetes packages unholding logic with `apt-mark unhold` since all the packages are now unheld. Confirm once before removing the code that unholds packages
+- we can remove all the kubernetes packages unholding logic with `apt-mark unhold` since all the packages are now unheld. Confirm once before removing the code that unholds packages. Also, we have already removed the code that holds packages, right?
