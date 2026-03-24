@@ -632,6 +632,48 @@ This follows the workload: Helsinki pods get Helsinki replicas, Falkenstein pods
 
 `replicaZoneSoftAntiAffinity: false` is kept — with same-region already enforced by topology constraints, zone spreading within a region is not needed and would add unnecessary complexity.
 
+**`disableRevisionCounter` — critical HelmRelease format requirement (Longhorn v1.11+):**
+
+Longhorn v1.11 changed the `disable-revision-counter` Setting's internal format from a plain boolean string to a per-engine-type JSON object: `{"v1":"true"}` or `{"v1":"false"}`. This change breaks naive HelmRelease values and causes a hard-to-diagnose salvage failure.
+
+**The bug:** Setting `disableRevisionCounter: "false"` (quoted string) in the HelmRelease is a non-empty string, which is *truthy* in Go templates. The chart renders the ConfigMap as `{"v1":"true"}` regardless. The correct value is `disableRevisionCounter: '{"v1":"false"}'` — the explicit JSON form.
+
+**Where each CR gets the flag:**
+- **Engine CR** `spec.revisionCounterDisabled` — written by the volume controller from the **global Setting CR** (`disable-revision-counter`). This is what controls the `--disableRevCounter` flag on the engine process.
+- **Replica** `--disableRevCounter` flag — derived from the **Volume CR** `spec.revisionCounterDisabled`, which is set at PVC creation time from the StorageClass parameter.
+
+**The salvage failure mode:** When a volume is faulted and re-attaches, Longhorn starts the engine with `--salvageRequested`. In salvage mode the engine checks `RevisionCounterDisabled` parity between itself and each replica. If the engine has `--disableRevCounter` (from Setting) but replicas do not (from Volume CR spec), every replica is immediately marked ERR with `"Revision Counter Disabled setting mismatch"` → `"cannot find any replica for salvage"` → both replicas get `failedAt` set → volume stays faulted in a rapid cycle.
+
+**Diagnosis commands:**
+```bash
+# Check global Setting (should be {"v1":"false"})
+kubectl get setting.longhorn.io disable-revision-counter -n longhorn-system -o jsonpath='{.value}'
+
+# Check Engine CRs (all should be False)
+kubectl get engines.longhorn.io -n longhorn-system -o json | \
+  python3 -c "import sys,json; d=json.load(sys.stdin); \
+  bad=[e['metadata']['name'] for e in d['items'] if e['spec'].get('revisionCounterDisabled')!=False]; \
+  print(f'{len(bad)} engines wrong'); [print(' ',n) for n in bad]"
+
+# Check instance-manager logs for the mismatch message
+kubectl logs -n longhorn-system <instance-manager-pod> --since=5m | grep "Revision Counter Disabled"
+```
+
+**After changing the global Setting, Engine CRs do NOT auto-reconcile immediately** — the volume controller reconciles them lazily. After any Setting change, patch all engines that still have the old value:
+```bash
+kubectl get engines.longhorn.io -n longhorn-system -o json | python3 -c "
+import sys, json, subprocess
+d = json.load(sys.stdin)
+to_patch = [e['metadata']['name'] for e in d['items'] if e['spec'].get('revisionCounterDisabled') == True]
+for name in to_patch:
+    subprocess.run(['kubectl','patch','engines.longhorn.io',name,'-n','longhorn-system',
+                    '--type=merge','-p','{\"spec\":{\"revisionCounterDisabled\":false}}'])
+    print(f'patched {name}')
+"
+```
+
+**Recovery if a volume is stuck in the salvage cycle:** See the "Cilium BPF Service Table Staleness" section pattern for diagnosis. Fix order: (1) patch the global Setting CR to `{"v1":"false"}`, (2) restart the longhorn-manager pod on the volume's ownerID node to flush its setting cache, (3) patch the Engine CR `spec.revisionCounterDisabled: false`, (4) clear `failedAt` on both replicas.
+
 ### Backup Strategy
 
 Two complementary backup mechanisms run in parallel — use both, they are not redundant:
