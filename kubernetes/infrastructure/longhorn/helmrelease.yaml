@@ -48,6 +48,23 @@ spec:
       #   replica 2 → another node in the same region (no cross-WAN writes)
       csiAllowedTopologyKeys: "topology.kubernetes.io/region"
 
+      # Enable the revision counter globally. This controls the --disableRevCounter
+      # flag on every engine process. With counter enabled (i.e. disableRevisionCounter
+      # false), a rejoining replica only syncs the delta written while it was down —
+      # not the full volume. The counter tracks which blocks changed; without it,
+      # Longhorn forces a full rebuild of all data every time a replica's instance-
+      # manager restarts (e.g. on every node reboot or upgrade), which on 250 Gi
+      # volumes is a 250 Gi network transfer that accomplishes nothing.
+      # NOTE: Must use the JSON per-engine-type format (Longhorn v1.11+). The string
+      # "false" is a truthy non-empty value in Go templates → the chart would render
+      # {"v1":"true"} (counter disabled). Only the explicit JSON form produces the
+      # correct ConfigMap entry that the Longhorn Setting controller reads.
+      # This is the defaultSettings key — it sets the global Setting CR
+      # (disable-revision-counter) which controls engine process flags. The matching
+      # persistence.disableRevisionCounter below sets the same value on the StorageClass
+      # for new volume creation defaults.
+      disableRevisionCounter: '{"v1":"false"}'
+
       # Allow Longhorn to rebalance replica placement over time. best-effort tries to
       # spread replicas evenly across nodes and zones, and evicts replicas from disks
       # under storage pressure. This is required for Longhorn to remove excess replicas
