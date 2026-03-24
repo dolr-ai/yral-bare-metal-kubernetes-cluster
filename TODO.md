@@ -1,4 +1,3 @@
-- are we not doing system upgrades that require machine reboots correctly? What is the conventional way to do this on kubernetes? Do we cordon the node, drain it, reboot it, and then uncordon it? Or is there a better way to do this? What does the official documentation prescribe for this? How do they suggest handling hosts requiring reboots after updates?
 - integrate snowplow sdk into yral-mobile to send events to the snowplow collector
 - figure out a way to run devcontainers on the kubernetes cluster, so we can have a single environment for development and deployment
 - github tasks assigned

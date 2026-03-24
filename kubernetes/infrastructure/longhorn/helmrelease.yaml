@@ -77,6 +77,15 @@ spec:
       # replicaAutoBalance: best-effort pass planned during the 1.11.x upgrade.
       replicaAutoBalance: best-effort
 
+      # How long (minutes) a replica can be offline before Longhorn marks it stale
+      # and sets failedAt, triggering a full rebuild on rejoin. The default (30 min)
+      # fires during normal rolling upgrades on nodes that host Kafka brokers — the
+      # Kafka PDB (minAvailable: 2) holds the pre-drain wait until the cluster is
+      # healthy, and drain + eviction has exceeded 30 min on multiple workers.
+      # 90 min is 2× our worst observed drain time, still aggressive enough to
+      # distinguish scheduled maintenance from genuine node failures.
+      staleReplicaTimeout: 90
+
       # S3 backup target on Hetzner Object Storage.
       # A /longhorn prefix separates these backups from Velero's in the same bucket.
       # Credential secret keys: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_ENDPOINTS,
