@@ -50,7 +50,7 @@ spec:
       replicas: 1
       persistence:
         storageClass: longhorn
-        size: 20Gi
+        size: 600Gi
       resources:
         requests:
           # VPA target: 1737m CPU / 2.36Gi — raised from 200m/1Gi
