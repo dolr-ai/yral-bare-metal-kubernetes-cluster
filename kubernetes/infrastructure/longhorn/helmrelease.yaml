@@ -30,6 +30,12 @@ spec:
       # sufficient headroom alongside automatic GC. Default was 30% (~286 Gi).
       storageReservedPercentageForDefaultDisk: 5
 
+      # Minimum physical free space that must remain after a volume expansion.
+      # Set to 0 because storageReservedPercentageForDefaultDisk (5%) already
+      # protects the host — this second guard would otherwise block expansions
+      # even when plenty of schedulable space exists. Default was 25%.
+      storageMinimalAvailablePercentage: 0
+
       # Prevent cross-zone replica spreading. The default (true) pushes replicas to
       # different topology zones — with HEL1+FSN1 workers that means one replica in
       # Helsinki and one in Falkenstein, requiring every write to cross WAN synchronously.
