@@ -39,7 +39,7 @@ spec:
         fsGroup: 2000
       containers:
         - name: metabase
-          image: metabase/metabase:v0.59.2.6
+          image: metabase/metabase:v0.59.4.1
           ports:
             - containerPort: 3000
               name: http
