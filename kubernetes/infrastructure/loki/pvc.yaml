@@ -9,7 +9,7 @@ spec:
   # 2 replicas: Loki runs as a single binary with no in-cluster redundancy (RF=1).
   # Switch to the default `longhorn` StorageClass (1 replica) once Loki is migrated
   # to distributed mode with its own write/read HA.
-  storageClassName: longhorn-2replicas
+  storageClassName: longhorn
   resources:
     requests:
       storage: 600Gi

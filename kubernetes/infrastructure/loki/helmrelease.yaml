@@ -50,9 +50,12 @@ spec:
     singleBinary:
       replicas: 1
       persistence:
-        # 2 replicas: Loki runs as a single binary with no in-cluster redundancy.
-        # Switch to the default `longhorn` StorageClass once Loki gains distributed HA.
-        storageClass: longhorn-2replicas
+        # Longhorn volume. StorageClass is longhorn (default, 1-replica) because the PVC
+        # already exists and spec.storageClassName is immutable on a bound PVC. The
+        # 2-replica requirement is enforced by patching the Longhorn Volume CR directly.
+        # Switch to longhorn-2replicas only when the PVC is deleted+recreated (e.g.
+        # when Loki gains distributed HA and migrates to object-store backend).
+        storageClass: longhorn
         size: 600Gi
       resources:
         requests:
