@@ -73,6 +73,22 @@ data:
 
         .section-title:first-child { margin-top: 0; }
 
+        .section-subtitle {
+          font-size: 0.8rem;
+          color: var(--muted);
+          margin-bottom: 0.75rem;
+          margin-top: -0.4rem;
+        }
+
+        .section-subtitle code {
+          font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+          font-size: 0.78rem;
+          background: var(--tag-bg);
+          color: var(--tag-text);
+          border-radius: 3px;
+          padding: 0.05rem 0.3rem;
+        }
+
         .grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -138,7 +154,79 @@ data:
       </header>
 
       <main>
-        <div class="section-title">Infrastructure</div>
+
+        <div class="section-title">Public</div>
+        <div class="section-subtitle">No sign-in required</div>
+        <div class="grid">
+
+          <a class="card" href="https://apm.yral.com" target="_blank" rel="noopener">
+            <span class="card-name">APM</span>
+            <span class="card-desc">Sentry for backend apps</span>
+            <span class="card-url">apm.yral.com</span>
+          </a>
+
+          <a class="card" href="https://sentry.yral.com" target="_blank" rel="noopener">
+            <span class="card-name">Sentry</span>
+            <span class="card-desc">Sentry for mobile app</span>
+            <span class="card-url">sentry.yral.com</span>
+          </a>
+
+          <a class="card" href="https://metabase-chat.yral.com" target="_blank" rel="noopener">
+            <span class="card-name">Metabase Chat</span>
+            <span class="card-desc">Metabase AI chat interface. Hosted and maintained by Ravi</span>
+            <span class="card-url">metabase-chat.yral.com</span>
+          </a>
+
+          <a class="card" href="https://coolify.yral.com" target="_blank" rel="noopener">
+            <span class="card-name">Coolify</span>
+            <span class="card-desc">Used for PR links used by the team. Hosted and maintained by Naitik</span>
+            <span class="card-url">coolify.yral.com</span>
+          </a>
+
+          <a class="card" href="https://vault.yral.com" target="_blank" rel="noopener">
+            <span class="card-name">Vault</span>
+            <span class="card-desc">HashiCorp Vault meant for custodying secrets and consuming them in your repos via Github Actions. Hosted and maintained by Naitik</span>
+            <span class="card-url">vault.yral.com</span>
+          </a>
+
+          <a class="card" href="https://beszel.yral.com" target="_blank" rel="noopener">
+            <span class="card-name">Beszel</span>
+            <span class="card-desc">Server usage monitoring. Alerts on server failure. Also useful for looking at docker container logs. Hosted and maintained by Saikat</span>
+            <span class="card-url">beszel.yral.com</span>
+          </a>
+
+          <a class="card" href="https://status.yral.com/dashboard" target="_blank" rel="noopener">
+            <span class="card-name">Status</span>
+            <span class="card-desc">Services uptime and status page. Alerts on service downtime. Hosted and maintained by Saikat</span>
+            <span class="card-url">status.yral.com/dashboard</span>
+          </a>
+
+        </div>
+
+        <div class="section-title">&#64;gobazzinga.io</div>
+        <div class="section-subtitle">Requires a gobazzinga.io email — sign in with Google</div>
+        <div class="grid">
+        </div>
+
+        <div class="section-title">Product Manager / Marketer</div>
+        <div class="section-subtitle">Requires <code>internal-dashboard-user@gobazzinga.io</code> membership</div>
+        <div class="grid">
+
+          <a class="card" href="https://metabase.yral.com" target="_blank" rel="noopener">
+            <span class="card-name">Metabase</span>
+            <span class="card-desc">BI dashboards and SQL exploration over the Snowplow data lake. Hosted and maintained by Saikat</span>
+            <span class="card-url">metabase.yral.com</span>
+          </a>
+
+        </div>
+
+        <div class="section-title">Developer / Engineer</div>
+        <div class="section-subtitle">Requires <code>developer-engineer@gobazzinga.io</code> membership</div>
+        <div class="grid">
+        </div>
+
+        <div class="section-title">Superadmin / Owner</div>
+        <div class="section-subtitle">Requires <code>developer-admin@gobazzinga.io</code> membership</div>
         <div class="grid">
 
           <a class="card" href="https://headlamp.yral.com" target="_blank" rel="noopener">
@@ -169,17 +257,6 @@ data:
             <span class="card-name">Kafka Console</span>
             <span class="card-desc">Redpanda Console — topic browser, consumer group lag, message inspection</span>
             <span class="card-url">kafka-console.yral.com</span>
-          </a>
-
-        </div>
-
-        <div class="section-title">Analytics</div>
-        <div class="grid">
-
-          <a class="card" href="https://metabase.yral.com" target="_blank" rel="noopener">
-            <span class="card-name">Metabase</span>
-            <span class="card-desc">BI dashboards and SQL exploration over the Snowplow data lake</span>
-            <span class="card-url">metabase.yral.com</span>
           </a>
 
         </div>

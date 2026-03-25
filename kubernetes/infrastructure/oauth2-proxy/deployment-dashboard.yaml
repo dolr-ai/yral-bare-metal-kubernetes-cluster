@@ -19,9 +19,6 @@ spec:
           args:
             - --provider=google
             - --email-domain=gobazzinga.io
-            - --google-group=developer-admin@gobazzinga.io
-            - --google-admin-email=s@gobazzinga.io
-            - --google-service-account-json=/etc/oauth2-proxy/service-account.json
             - --upstream=http://dashboard.dashboard.svc.cluster.local:80
             - --http-address=0.0.0.0:4180
             - --cookie-secure=true
@@ -54,10 +51,6 @@ spec:
             limits:
               cpu: 100m
               memory: 64Mi
-          volumeMounts:
-            - name: service-account
-              mountPath: /etc/oauth2-proxy
-              readOnly: true
           readinessProbe:
             httpGet:
               path: /ping
@@ -70,10 +63,4 @@ spec:
               port: 4180
             initialDelaySeconds: 10
             periodSeconds: 30
-      volumes:
-        - name: service-account
-          secret:
-            secretName: oauth2-proxy-secrets
-            items:
-              - key: service-account-json
-                path: service-account.json
+
