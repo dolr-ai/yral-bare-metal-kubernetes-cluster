@@ -345,7 +345,10 @@ spec:
         spec:
           accessModes:
             - ReadWriteOnce
-          storageClassName: longhorn
+          # 2 replicas: ClickHouse runs as a single shard/replica with no in-cluster HA.
+          # Switch to the default `longhorn` StorageClass once ClickHouse Keeper +
+          # ReplicatedMergeTree with 2 replicas is deployed.
+          storageClassName: longhorn-2replicas
           resources:
             requests:
               storage: 200Gi

@@ -108,7 +108,10 @@ spec:
         storageSpec:
           volumeClaimTemplate:
             spec:
-              storageClassName: longhorn
+              # 2 replicas: Prometheus runs as a single pod with no in-cluster HA.
+              # Switch to the default `longhorn` StorageClass once Prometheus is
+              # mirrored (2 replicas + Thanos sidecar dedup).
+              storageClassName: longhorn-2replicas
               accessModes: ["ReadWriteOnce"]
               resources:
                 requests:

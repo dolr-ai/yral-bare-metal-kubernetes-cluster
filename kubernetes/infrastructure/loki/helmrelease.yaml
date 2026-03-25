@@ -50,7 +50,9 @@ spec:
     singleBinary:
       replicas: 1
       persistence:
-        storageClass: longhorn
+        # 2 replicas: Loki runs as a single binary with no in-cluster redundancy.
+        # Switch to the default `longhorn` StorageClass once Loki gains distributed HA.
+        storageClass: longhorn-2replicas
         size: 600Gi
       resources:
         requests:
