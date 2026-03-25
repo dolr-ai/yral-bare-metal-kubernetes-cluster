@@ -1,3 +1,5 @@
+- Clean up all the test resources you created for the voluume testing. Delete pods, PVCs, and PVs 
+- existing Loki/Prometheus/ClickHouse/Metabase volumes retain their 2 Longhorn replicas (desired outcome; no migration needed). Each app comment in the PVC/HelmRelease now documents exactly what redundancy work is needed before it can drop to 1 replica. Figure out 1 at a time what work is needed to migrate each app to its desired state with 1 replica and then we execute it
 - integrate snowplow sdk into yral-mobile to send events to the snowplow collector
 - figure out a way to run devcontainers on the kubernetes cluster, so we can have a single environment for development and deployment
 - github tasks assigned
@@ -19,5 +21,3 @@
 - rewrite timer counter as a kotlin app to run on android and windows
 - we can remove all the kubernetes packages unholding logic with `apt-mark unhold` since all the packages are now unheld. Confirm once before removing the code that unholds packages. Also, we have already removed the code that holds packages, right?
 - are loki logs being cleaned up properly? Check retention policies and storage usage. What about prometheus and clickhouse? Does prometheus have a retention policy configured? Check storage usage and retention settings. Similarly, check clickhouse for retention policies and storage usage. We are dumping snowplow events into clickhouse via the snowplow stream collector and using clickhouse as the data warehouse for analytics. We should ensure that we have appropriate retention policies in place to manage storage and costs effectively. The snowplow data is also saved long term in object storage, so we can always re-ingest if needed
-- why should we have 2 replicas for longhorn? all the stateless workloads, we have 3 replicas for high availability. for stateful workloads, we should do 2 replicas via the workload specific replication strategy instead of bloating network traffic via longhorn disk replication. Thoughts?
-- Relocate loki 2nd volume to HEL since the pod and volume is in HEL now
