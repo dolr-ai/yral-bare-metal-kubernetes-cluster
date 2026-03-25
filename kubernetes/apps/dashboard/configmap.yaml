@@ -11,7 +11,7 @@ data:
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link href="https://yral.com/img/yral/favicon.ico" rel="shortcut icon">
-      <title>yral.com — Internal Dashboard</title>
+      <title>Yral Internal Dashboard</title>
       <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
