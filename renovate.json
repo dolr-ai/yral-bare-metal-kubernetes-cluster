@@ -16,21 +16,21 @@
     ],
     "prFooter": "⚠️ **Per [AGENTS.md](../blob/main/AGENTS.md#component-versioning-policy): do not merge until the upgrade procedure has been reviewed and the version explicitly confirmed.** For Kubernetes infrastructure changes, follow the upgrade order: CPs one at a time → workers one at a time → add-ons individually.",
     "flux": {
-        "fileMatch": [
-            "kubernetes/.+\\.yaml$"
+        "managerFilePatterns": [
+            "/kubernetes/.+\\.yaml$/"
         ]
     },
     "kubernetes": {
-        "fileMatch": [
-            "kubernetes/.+\\.yaml$"
+        "managerFilePatterns": [
+            "/kubernetes/.+\\.yaml$/"
         ]
     },
     "customManagers": [
         {
             "description": "cert-manager release URL in kustomization resources list",
             "customType": "regex",
-            "fileMatch": [
-                "kubernetes/infrastructure/cert-manager/kustomization\\.yaml"
+            "managerFilePatterns": [
+                "/kubernetes/infrastructure/cert-manager/kustomization\\.yaml/"
             ],
             "matchStrings": [
                 "github\\.com/cert-manager/cert-manager/releases/download/(?<currentValue>v[\\d.]+)/cert-manager\\.yaml"
@@ -41,8 +41,8 @@
         {
             "description": "cert-manager acmesolver image arg (must stay in sync with release URL above)",
             "customType": "regex",
-            "fileMatch": [
-                "kubernetes/infrastructure/cert-manager/kustomization\\.yaml"
+            "managerFilePatterns": [
+                "/kubernetes/infrastructure/cert-manager/kustomization\\.yaml/"
             ],
             "matchStrings": [
                 "acme-http01-solver-image=quay\\.io/jetstack/cert-manager-acmesolver:(?<currentValue>v[\\d.]+)"
@@ -53,8 +53,8 @@
         {
             "description": "Cilium version pin in Ansible role defaults",
             "customType": "regex",
-            "fileMatch": [
-                "ansible/roles/cilium/defaults/main\\.yml"
+            "managerFilePatterns": [
+                "/ansible/roles/cilium/defaults/main\\.yml/"
             ],
             "matchStrings": [
                 "cilium_version:\\s*\"(?<currentValue>[^\"]+)\""
@@ -65,8 +65,8 @@
         {
             "description": "Gateway API CRDs version pin in Ansible role defaults",
             "customType": "regex",
-            "fileMatch": [
-                "ansible/roles/gateway-api-crds/defaults/main\\.yml"
+            "managerFilePatterns": [
+                "/ansible/roles/gateway-api-crds/defaults/main\\.yml/"
             ],
             "matchStrings": [
                 "gateway_api_version:\\s*\"(?<currentValue>[^\"]+)\""
@@ -77,8 +77,8 @@
         {
             "description": "Helm CLI version pin in Ansible role defaults",
             "customType": "regex",
-            "fileMatch": [
-                "ansible/roles/helm/defaults/main\\.yml"
+            "managerFilePatterns": [
+                "/ansible/roles/helm/defaults/main\\.yml/"
             ],
             "matchStrings": [
                 "helm_version:\\s*\"(?<currentValue>[^\"]+)\""
@@ -89,8 +89,8 @@
         {
             "description": "Kubernetes version pin in Ansible role defaults",
             "customType": "regex",
-            "fileMatch": [
-                "ansible/roles/kubernetes/defaults/main\\.yml"
+            "managerFilePatterns": [
+                "/ansible/roles/kubernetes/defaults/main\\.yml/"
             ],
             "matchStrings": [
                 "kubernetes_version:\\s*\"(?<currentValue>[^\"]+)\""
