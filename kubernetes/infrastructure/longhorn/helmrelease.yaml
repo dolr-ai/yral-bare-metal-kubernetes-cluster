@@ -46,27 +46,42 @@ spec:
       # prevents secondary replicas from drifting to a different zone within the region.
       replicaZoneSoftAntiAffinity: false
 
-      # Region-constrained topology scheduling (requires v1.11.1+).
+      # Region-constrained REPLICA PLACEMENT (requires v1.11.1+).
       #
-      # The CSI driver reports topology.kubernetes.io/region in
-      # CreateVolumeResponse.AccessibleTopology. With WaitForFirstConsumer, Kubernetes
-      # writes a requiredDuringSchedulingIgnoredDuringExecution nodeAffinity on the PV
-      # bounding the pod to region=X for all future scheduling decisions.
+      # IMPORTANT: For Longhorn (network-attached storage), csiAllowedTopologyKeys
+      # controls where Longhorn places *replicas*, NOT where pods are scheduled.
+      # Longhorn is accessible from any node in the cluster, so its CSI driver
+      # reports every node as an accessible topology endpoint. The resulting PV
+      # nodeAffinity is OR'd across all nodes/regions — i.e., it is permissive and
+      # does not constrain pod scheduling at all.
       #
-      # Scheduling hierarchy for stateful pods:
-      #   1. Same node (natural kube-scheduler preference + Longhorn local replica) — 99%
-      #   2. Same-region node (PV nodeAffinity: required region=X) — cross-region blocked
-      #   3. Cross-region — impossible; PV nodeAffinity prevents it
+      # What this setting DOES accomplish:
+      #   Longhorn reads the topology keys from the CSI CreateVolume request's
+      #   accessibilityRequirements and uses them to restrict replica placement to
+      #   the same region as the provisioning pod. With WaitForFirstConsumer, the
+      #   provisioner passes the scheduled pod's region → all replicas land in that
+      #   region → no synchronous cross-WAN writes.
       #
-      # Why region-only (not hostname):
-      #   Hard hostname pinning (kubernetes.io/hostname) would make the pod hang
-      #   Pending forever when its node runs out of capacity — a common case during
-      #   rolling upgrades. Region-only is the correct required boundary; same-node
-      #   preference is emergent (scheduler stability + dataLocality: best-effort).
+      # What this setting does NOT do (tested and confirmed):
+      #   Adding kubernetes.io/hostname here produces a PV nodeAffinity that lists
+      #   every single cluster node as a separate OR'd term — useless for scheduling.
+      #   The CSI driver returns all nodes because any node can mount a Longhorn
+      #   volume over the mesh.
       #
-      # NOTE: This only affects NEW volumes. Existing PVs must have their
-      #   spec.nodeAffinity patched manually to add the region constraint.
-      #   Old PVs without any nodeAffinity allow cross-region pod moves.
+      # Pod scheduling constraint for existing stateful PVs:
+      #   The 7 stateful PVs (kafka-0/1/2, loki, prometheus, clickhouse, metabase)
+      #   have been manually patched with a single-term region nodeAffinity
+      #   (topology.kubernetes.io/region = helsinki|falkenstein). This single-term
+      #   patch — bypassing the CSI provisioner — IS a real pod scheduling constraint:
+      #   the pod cannot schedule cross-region. New PVCs do not get this constraint
+      #   automatically; they must also be patched after first provision if required.
+      #
+      # Steady-state placement strategy for stateful pods:
+      #   1. Same-node: emergent — scheduler stability + dataLocality: best-effort
+      #      pulls the local replica back after any intra-region drift
+      #   2. Same-region: enforced by the manual PV nodeAffinity patch on existing PVs
+      #   3. Cross-region: blocked for patched PVs; replica placement constrained for
+      #      new PVs via this setting
       csiAllowedTopologyKeys: "topology.kubernetes.io/region"
 
       # Enable the revision counter globally. This controls the --disableRevCounter
