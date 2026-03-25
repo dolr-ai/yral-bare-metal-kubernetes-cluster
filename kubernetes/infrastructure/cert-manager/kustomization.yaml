@@ -12,7 +12,7 @@ kind: Kustomization
 #   kubectl wait --for=condition=available -n cert-manager deployment/cert-manager-webhook --timeout=120s
 #   kubectl apply -k kubernetes/infrastructure/cert-manager-issuers
 resources:
-  - https://github.com/cert-manager/cert-manager/releases/download/v1.19.4/cert-manager.yaml
+  - https://github.com/cert-manager/cert-manager/releases/download/v1.20.0/cert-manager.yaml
 
 patches:
   - patch: |-
@@ -30,5 +30,5 @@ patches:
                   - --v=2
                   - --cluster-resource-namespace=$(POD_NAMESPACE)
                   - --leader-election-namespace=kube-system
-                  - --acme-http01-solver-image=quay.io/jetstack/cert-manager-acmesolver:v1.19.4
+                  - --acme-http01-solver-image=quay.io/jetstack/cert-manager-acmesolver:v1.20.0
                   - --enable-gateway-api
