@@ -24,7 +24,8 @@ reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
 parameters:
   numberOfReplicas: "2"
-  # Match global Longhorn settings for consistency
+  # Match global best-effort data locality: Longhorn migrates a replica to the
+  # pod's node in the background. Same-node preferred; intra-region fallback is fast.
   dataLocality: "best-effort"
   staleReplicaTimeout: "90"
   # Must use JSON format (Longhorn v1.11+). Plain string "false" is truthy in Go

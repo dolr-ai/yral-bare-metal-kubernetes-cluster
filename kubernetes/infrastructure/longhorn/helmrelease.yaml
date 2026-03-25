@@ -46,14 +46,27 @@ spec:
       # prevents secondary replicas from drifting to a different zone within the region.
       replicaZoneSoftAntiAffinity: false
 
-      # Enable region-aware topology scheduling (requires v1.11.1+).
-      # The CSI driver includes topology.kubernetes.io/region in the AccessibleTopology
-      # of CreateVolumeResponse. With volumeBindingMode: WaitForFirstConsumer, the
-      # scheduler pins PV provisioning to the pod's scheduled node's region — so all
-      # replicas land in the same region as the pod (Helsinki or Falkenstein).
-      # Combined with persistence.defaultDataLocality: best-effort, this gives:
-      #   replica 1 → pod's node (local I/O, no network hop)
-      #   replica 2 → another node in the same region (no cross-WAN writes)
+      # Region-constrained topology scheduling (requires v1.11.1+).
+      #
+      # The CSI driver reports topology.kubernetes.io/region in
+      # CreateVolumeResponse.AccessibleTopology. With WaitForFirstConsumer, Kubernetes
+      # writes a requiredDuringSchedulingIgnoredDuringExecution nodeAffinity on the PV
+      # bounding the pod to region=X for all future scheduling decisions.
+      #
+      # Scheduling hierarchy for stateful pods:
+      #   1. Same node (natural kube-scheduler preference + Longhorn local replica) — 99%
+      #   2. Same-region node (PV nodeAffinity: required region=X) — cross-region blocked
+      #   3. Cross-region — impossible; PV nodeAffinity prevents it
+      #
+      # Why region-only (not hostname):
+      #   Hard hostname pinning (kubernetes.io/hostname) would make the pod hang
+      #   Pending forever when its node runs out of capacity — a common case during
+      #   rolling upgrades. Region-only is the correct required boundary; same-node
+      #   preference is emergent (scheduler stability + dataLocality: best-effort).
+      #
+      # NOTE: This only affects NEW volumes. Existing PVs must have their
+      #   spec.nodeAffinity patched manually to add the region constraint.
+      #   Old PVs without any nodeAffinity allow cross-region pod moves.
       csiAllowedTopologyKeys: "topology.kubernetes.io/region"
 
       # Enable the revision counter globally. This controls the --disableRevCounter
@@ -108,8 +121,13 @@ spec:
       # the Helm chart default of 3.
       defaultClassReplicaCount: 1
 
-      # One replica on the pod's node (local I/O, no network hop). The volume follows
-      # the pod — Helsinki pods get Helsinki replicas, Falkenstein pods get Falkenstein.
+      # One replica on the pod's node (local I/O, no network hop). best-effort means
+      # Longhorn migrates a local replica to the pod's node in the background after
+      # scheduling. If the pod moves to a new node within the region, I/O temporarily
+      # uses the intra-region path until the local rebuild completes (fast — Hetzner
+      # intranet is ~10 Gbps). This is the natural same-node preference mechanism:
+      # the scheduler tends to return pods to the same node (resource stability), and
+      # the local replica being there reinforces that tendency.
       defaultDataLocality: best-effort
 
       # Defer PV binding and provisioning until the pod is scheduled. The CSI provisioner
