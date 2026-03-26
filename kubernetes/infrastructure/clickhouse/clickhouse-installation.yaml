@@ -28,6 +28,7 @@ spec:
             <sasl_mechanism>SCRAM-SHA-512</sasl_mechanism>
             <sasl_username>clickhouse-snowplow</sasl_username>
             <sasl_password><env>KAFKA_SASL_PASSWORD</env></sasl_password>
+            <auto_offset_reset>earliest</auto_offset_reset>
           </kafka>
         </clickhouse>
 
@@ -183,8 +184,7 @@ spec:
                   kafka_group_name = 'clickhouse-snowplow-consumer',
                   kafka_format = 'TSV',
                   kafka_num_consumers = 4,
-                  kafka_skip_broken_messages = 100,
-                  kafka_auto_offset_reset = 'earliest']]></query>
+                  kafka_skip_broken_messages = 100]]></query>
             </scripts>
             <scripts>
               <query><![CDATA[CREATE TABLE IF NOT EXISTS snowplow.events (
