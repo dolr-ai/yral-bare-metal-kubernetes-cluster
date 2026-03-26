@@ -10,6 +10,10 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-age
   # Must wait for the operator to install CRDs before applying ClickHouseInstallation.
   dependsOn:
     - name: infrastructure-clickhouse-operator
