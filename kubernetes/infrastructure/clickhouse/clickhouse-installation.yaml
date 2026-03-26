@@ -27,7 +27,7 @@ spec:
             <security_protocol>SASL_PLAINTEXT</security_protocol>
             <sasl_mechanism>SCRAM-SHA-512</sasl_mechanism>
             <sasl_username>clickhouse-snowplow</sasl_username>
-            <sasl_password><env>KAFKA_SASL_PASSWORD</env></sasl_password>
+            <sasl_password from_env="KAFKA_SASL_PASSWORD"/>
             <auto_offset_reset>earliest</auto_offset_reset>
           </kafka>
         </clickhouse>
