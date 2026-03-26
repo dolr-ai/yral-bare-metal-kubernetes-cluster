@@ -8,7 +8,7 @@ spec:
   path: ./kubernetes/infrastructure/cilium
   prune: true
   wait: true
-  timeout: 5m
+  timeout: 15m
   sourceRef:
     kind: GitRepository
     name: flux-system
