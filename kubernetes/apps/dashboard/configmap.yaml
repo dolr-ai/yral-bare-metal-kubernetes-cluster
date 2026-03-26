@@ -202,6 +202,12 @@ data:
             <span class="card-url">metabase.yral.com</span>
           </a>
 
+          <a class="card" href="https://clickhouse-play.yral.com" target="_blank" rel="noopener">
+            <span class="card-name">ClickHouse Play</span>
+            <span class="card-desc">Ad hoc SQL queries directly against the ClickHouse analytics warehouse</span>
+            <span class="card-url">clickhouse-play.yral.com</span>
+          </a>
+
         </div>
 
         <div class="section-title">Developer / Engineer</div>

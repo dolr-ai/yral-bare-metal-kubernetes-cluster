@@ -17,4 +17,6 @@ resources:
   - service-kafka-console.yaml
   - deployment-metabase.yaml
   - service-metabase.yaml
+  - deployment-clickhouse-play.yaml
+  - service-clickhouse-play.yaml
   - reference-grant.yaml
