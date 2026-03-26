@@ -9,4 +9,34 @@ kind: ConfigMap
 metadata:
   name: enrichments-config
   namespace: snowplow
-data: {}
+data:
+  # IP Lookup: resolve client IP to geo_country, geo_city, geo_latitude, geo_longitude, etc.
+  # Database is served by the geoip-server Deployment (nginx + PVC).
+  # Updated monthly by the geoip-refresh CronJob (8th of each month).
+  ip_lookups.json: |
+    {
+      "schema": "iglu:com.snowplowanalytics.snowplow/ip_lookups/jsonschema/2-0-1",
+      "data": {
+        "name": "ip_lookups",
+        "vendor": "com.snowplowanalytics.snowplow",
+        "enabled": true,
+        "parameters": {
+          "geo": {
+            "database": "GeoLite2-City.mmdb",
+            "uri": "http://geoip-server:8080"
+          }
+        }
+      }
+    }
+  # UA Parser: parse useragent string into os_name, os_family, dvce_type, br_name, etc.
+  # Uses the ua-parser2 library bundled with snowplow-enrich-kafka — no external download needed.
+  ua_parser_config.json: |
+    {
+      "schema": "iglu:com.snowplowanalytics.snowplow/ua_parser_config/jsonschema/1-0-1",
+      "data": {
+        "vendor": "com.snowplowanalytics.snowplow",
+        "name": "ua_parser_config",
+        "enabled": true,
+        "parameters": {}
+      }
+    }

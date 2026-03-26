@@ -1,0 +1,57 @@
+# Monthly rolling restart of snowplow-enrich so the geoipupdate init container
+# re-runs and pulls the freshest GeoLite2-City database.
+#
+# Schedule: 8th of each month at 04:00 UTC — always after the first Tuesday
+# (when MaxMind publishes GeoLite2 updates).
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: geoip-refresh
+  namespace: snowplow
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: geoip-refresh
+  namespace: snowplow
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: geoip-refresh
+  namespace: snowplow
+subjects:
+  - kind: ServiceAccount
+    name: geoip-refresh
+    namespace: snowplow
+roleRef:
+  kind: Role
+  name: geoip-refresh
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: geoip-refresh
+  namespace: snowplow
+spec:
+  schedule: "0 4 8 * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: geoip-refresh
+          containers:
+            - name: kubectl
+              image: bitnami/kubectl:1.32
+              command:
+                - kubectl
+                - rollout
+                - restart
+                - deployment/geoip-server
+          restartPolicy: OnFailure

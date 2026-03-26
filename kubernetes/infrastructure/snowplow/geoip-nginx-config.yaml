@@ -1,0 +1,17 @@
+# Minimal nginx config to serve the GeoLite2-City.mmdb file over HTTP on port 8080.
+# Used by the geoip-server sidecar in the snowplow-enrich deployment so that the
+# Snowplow IP Lookup enrichment can fetch the database via http://localhost:8080.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: geoip-nginx-config
+  namespace: snowplow
+data:
+  default.conf: |
+    server {
+        listen 8080;
+        server_name localhost;
+        location / {
+            root /geoip;
+        }
+    }

@@ -12,3 +12,7 @@ resources:
   - enrich-deployment.yaml
   - reference-grant.yaml
   - kafka-credentials.sops.yaml
+  - maxmind-credentials.sops.yaml
+  - geoip-nginx-config.yaml
+  - geoip-server-deployment.yaml
+  - geoip-refresh-cronjob.yaml

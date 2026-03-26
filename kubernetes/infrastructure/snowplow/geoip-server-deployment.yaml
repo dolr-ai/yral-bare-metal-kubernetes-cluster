@@ -1,0 +1,102 @@
+# geoip-server: single-pod Deployment that keeps GeoLite2-City.mmdb up to date
+# and serves it over HTTP for the Snowplow IP Lookup enrichment.
+#
+# Architecture:
+#   init container  — geoipupdate runs on every pod start.
+#                     The database is stored in a PVC, so geoipupdate sends a
+#                     conditional GET and MaxMind returns 304 Not Modified when
+#                     nothing has changed (no re-download, no rate-limit hit).
+#   main container  — nginx:alpine serves the PVC on port 8080.
+#
+# The monthly geoip-refresh CronJob restarts this Deployment on the 8th of each
+# month (always after the first Tuesday MaxMind publish window).  Enrich replicas
+# are unaffected and keep running with the previous database until the new pod is
+# ready.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: geoip-server
+  namespace: snowplow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: geoip-server
+  template:
+    metadata:
+      labels:
+        app: geoip-server
+    spec:
+      initContainers:
+        - name: geoipupdate
+          image: maxmindinc/geoipupdate:v7.0.1
+          env:
+            - name: GEOIPUPDATE_ACCOUNT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: maxmind-credentials
+                  key: account-id
+            - name: GEOIPUPDATE_LICENSE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: maxmind-credentials
+                  key: license-key
+            - name: GEOIPUPDATE_EDITION_IDS
+              value: GeoLite2-City
+            - name: GEOIPUPDATE_DB_DIR
+              value: /geoip
+          volumeMounts:
+            - name: geoip-db
+              mountPath: /geoip
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: geoip-db
+              mountPath: /geoip
+              readOnly: true
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+      volumes:
+        - name: geoip-db
+          persistentVolumeClaim:
+            claimName: geoip-db
+        - name: nginx-config
+          configMap:
+            name: geoip-nginx-config
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: geoip-db
+  namespace: snowplow
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn-2replicas
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: geoip-server
+  namespace: snowplow
+spec:
+  selector:
+    app: geoip-server
+  ports:
+    - port: 8080
+      targetPort: 8080
