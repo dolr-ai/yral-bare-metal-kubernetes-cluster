@@ -21,11 +21,27 @@ spec:
       default/networks/ip: "::/0"
 
     files:
+      config.d/kafka.xml: |
+        <clickhouse>
+          <kafka>
+            <security_protocol>SASL_PLAINTEXT</security_protocol>
+            <sasl_mechanism>SCRAM-SHA-512</sasl_mechanism>
+            <sasl_username>clickhouse-snowplow</sasl_username>
+            <sasl_password><env>KAFKA_SASL_PASSWORD</env></sasl_password>
+          </kafka>
+        </clickhouse>
+
       config.d/startup-scripts.xml: |
         <clickhouse>
           <startup_scripts>
             <scripts>
               <query><![CDATA[CREATE DATABASE IF NOT EXISTS snowplow]]></query>
+            </scripts>
+            <scripts>
+              <query><![CDATA[DROP TABLE IF EXISTS snowplow.events_mv]]></query>
+            </scripts>
+            <scripts>
+              <query><![CDATA[DROP TABLE IF EXISTS snowplow.events_queue]]></query>
             </scripts>
             <scripts>
               <query><![CDATA[CREATE TABLE IF NOT EXISTS snowplow.events_queue (
@@ -167,7 +183,8 @@ spec:
                   kafka_group_name = 'clickhouse-snowplow-consumer',
                   kafka_format = 'TSV',
                   kafka_num_consumers = 4,
-                  kafka_skip_broken_messages = 100]]></query>
+                  kafka_skip_broken_messages = 100,
+                  kafka_auto_offset_reset = 'earliest']]></query>
             </scripts>
             <scripts>
               <query><![CDATA[CREATE TABLE IF NOT EXISTS snowplow.events (
@@ -332,6 +349,12 @@ spec:
           containers:
             - name: clickhouse
               image: clickhouse/clickhouse-server:26.2.5.45
+              env:
+                - name: KAFKA_SASL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: clickhouse-kafka-credentials
+                      key: kafka-sasl-password
               resources:
                 requests:
                   cpu: "2"

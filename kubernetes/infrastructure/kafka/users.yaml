@@ -101,6 +101,41 @@ spec:
           - Write
           - Describe
 ---
+# clickhouse-snowplow: consumer user for ClickHouse Kafka engine (reads snowplow-enriched → snowplow.events)
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: clickhouse-snowplow
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  authentication:
+    type: scram-sha-512
+    password:
+      valueFrom:
+        secretKeyRef:
+          name: kafka-user-passwords
+          key: clickhouse-snowplow-password
+  authorization:
+    type: simple
+    acls:
+      # Consume from snowplow-enriched
+      - resource:
+          type: topic
+          name: snowplow-enriched
+          patternType: literal
+        operations:
+          - Read
+          - Describe
+      - resource:
+          type: group
+          name: clickhouse-snowplow-consumer
+          patternType: literal
+        operations:
+          - Read
+---
 # kafka-console: read-only admin user for Redpanda Console UI
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaUser
