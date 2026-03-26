@@ -2,6 +2,10 @@
 
 This document defines architectural patterns and constraints specific to this repository. Follow these guidelines to maintain consistency and code quality.
 
+## Working with Claude Code
+
+**Git commits:** Never add a `Co-Authored-By: Claude` trailer to commit messages in this repository.
+
 ## Core Architecture Principles
 
 ### 0. Kubernetes-Native First
@@ -603,9 +607,9 @@ worker-2 and all subsequently provisioned nodes are on RAID0. worker-1 is being 
 
 **Why not mdadm RAID0 + ext4?** Hetzner's `installimage` script supports configuring mdadm RAID0 before OS installation, which would give ext4-on-RAID0 with no CoW at all (Longhorn's preferred filesystem). The tradeoff: mdadm must be configured *in the installimage step* (the OS boots on the array), requiring a change to the `provision` role's installimage config. The current btrfs approach is post-install (OS is already on nvme0, storage-setup adds nvme1 to the pool), which is simpler. If all nodes are reprovisioned at the same time in the future, switching to mdadm RAID0 + ext4 + mounting `/var/lib/longhorn` on the array would eliminate the `nodatacow` workaround entirely and give marginally better raw I/O.
 
-**Longhorn replica count:**
+**Longhorn replica count and StorageClass policy:**
 
-`defaultReplicaCount: 2` in `kubernetes/infrastructure/longhorn/helmrelease.yaml` — with 35 worker nodes, each Longhorn volume stores 2 replicas, surviving a 1-node simultaneous failure. Weekly S3 backups are the DR path for catastrophic (2+ node) failures. Adjust this value as worker node count changes (keep it at a minority of total workers to allow maintenance).
+The default `longhorn` StorageClass uses 1 replica (`defaultReplicaCount: 1`). **Always use `storageClassName: longhorn` (or omit it to use the cluster default) for new PVCs.** Only set `storageClassName: longhorn-2replicas` when a volume explicitly needs 2 Longhorn replicas — document the reason in a comment when you do. The `longhorn-2replicas` StorageClass is reserved for workloads without built-in application-level redundancy that need Longhorn replication as their HA mechanism.
 
 **Storage reservation — two separate knobs:**
 

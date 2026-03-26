@@ -84,7 +84,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: longhorn-2replicas
+  storageClassName: longhorn
   resources:
     requests:
       storage: 1Gi

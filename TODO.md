@@ -1,3 +1,4 @@
+- Backfill the missing geo ip->location mapping for all the existing snowplow events in clickhouse, so that we can use that data for analytics and segmentation
 - We added drop statements to the clickhouse table. Should we remove those?
 - Is the archival to the data lake working? I see an empty bucket
 - Show claude that snowplow bad events are human readable but the enriched events are not. Figure out why and decide if we want to keep it this way
@@ -25,3 +26,4 @@
 - we can remove all the kubernetes packages unholding logic with `apt-mark unhold` since all the packages are now unheld. Confirm once before removing the code that unholds packages. Also, we have already removed the code that holds packages, right?
 - are loki logs being cleaned up properly? Check retention policies and storage usage. What about prometheus and clickhouse? Does prometheus have a retention policy configured? Check storage usage and retention settings. Similarly, check clickhouse for retention policies and storage usage. We are dumping snowplow events into clickhouse via the snowplow stream collector and using clickhouse as the data warehouse for analytics. We should ensure that we have appropriate retention policies in place to manage storage and costs effectively. The snowplow data is also saved long term in object storage, so we can always re-ingest if needed
 - archive all the unused org repos
+- Confirm that all the new volumes being provisioned have 1 replica unless specifically configure to have 2
