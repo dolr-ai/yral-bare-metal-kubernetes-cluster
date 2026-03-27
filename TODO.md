@@ -1,3 +1,4 @@
+- Point everything that consumes the old table to the newly enriched table, and then we can drop the old table once we are sure everything is working fine with the new one
 - Backfill the missing geo ip->location mapping for all the existing snowplow events in clickhouse, so that we can use that data for analytics and segmentation
 - Cleanup backfill jobs once done
 - We added drop statements to the clickhouse table initialization to reinit them. They are run and have fulfilled their purpose. Should we remove those?

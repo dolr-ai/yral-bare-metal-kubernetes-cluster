@@ -113,9 +113,12 @@ data:
         )
 
         # ── Step 1: create events_v2 ──────────────────────────────────────────
-        log.info('Creating snowplow.events_v2 (same schema + TTL as events)...')
+        # Always drop and recreate to guarantee a clean copy.
+        # events_v2 is a staging/versioned table — not live — so this is safe.
+        log.info('Dropping and recreating snowplow.events_v2...')
+        client.command('DROP TABLE IF EXISTS snowplow.events_v2')
         client.command('''
-            CREATE TABLE IF NOT EXISTS snowplow.events_v2 (
+            CREATE TABLE snowplow.events_v2 (
               app_id String, platform String, etl_tstamp String,
               collector_tstamp String, dvce_created_tstamp String,
               event String, event_id String, txn_id String,
@@ -173,26 +176,22 @@ data:
         ''')
 
         # ── Step 2: copy all rows from events → events_v2 ─────────────────────
-        v2_count = client.command('SELECT count() FROM snowplow.events_v2')
         v1_count = client.command('SELECT count() FROM snowplow.events')
-        log.info(f'events has {v1_count} rows, events_v2 currently has {v2_count} rows')
-
-        if v2_count < v1_count:
-            log.info('Copying rows from events → events_v2 (ClickHouse-native INSERT SELECT)...')
-            # SETTINGS max_insert_threads=4 speeds up the copy
-            client.command(
-                'INSERT INTO snowplow.events_v2 SELECT * FROM snowplow.events '
-                'SETTINGS max_insert_threads=4',
-                settings={'send_progress_in_http_headers': False},
-            )
-            v2_count = client.command('SELECT count() FROM snowplow.events_v2')
-            log.info(f'Copy done. events_v2 now has {v2_count} rows')
-        else:
-            log.info('events_v2 already has rows — skipping copy')
+        log.info(f'Copying {v1_count} rows from events → events_v2...')
+        client.command(
+            'INSERT INTO snowplow.events_v2 SELECT * FROM snowplow.events '
+            'SETTINGS max_insert_threads=4',
+            settings={'send_progress_in_http_headers': False},
+        )
+        v2_count = client.command('SELECT count() FROM snowplow.events_v2')
+        log.info(f'Copy done. events_v2 has {v2_count} rows')
 
         # ── Step 3: enrich events_v2 rows ──────────────────────────────────────
+        # Separate conditions: geo needs IP, UA needs useragent string.
         to_enrich = client.command(
-            "SELECT count() FROM snowplow.events_v2 WHERE geo_country = '' AND user_ipaddress != ''"
+            "SELECT count() FROM snowplow.events_v2 "
+            "WHERE (geo_country = '' AND user_ipaddress != '') "
+            "   OR (os_name = '' AND useragent != '')"
         )
         log.info(f'{to_enrich} rows in events_v2 need geo/UA enrichment')
 
@@ -235,7 +234,8 @@ data:
                     rows = client.query(f'''
                         SELECT event_id, user_ipaddress, useragent
                         FROM snowplow.events_v2
-                        WHERE geo_country = '' AND user_ipaddress != ''
+                        WHERE (geo_country = '' AND user_ipaddress != '')
+                           OR (os_name = '' AND useragent != '')
                         ORDER BY collector_tstamp
                         LIMIT {BATCH_SIZE} OFFSET {offset}
                     ''').result_rows
@@ -292,7 +292,8 @@ data:
                     br_name         = joinGet('{JOIN_TABLE}', 'br_name',         event_id),
                     br_family       = joinGet('{JOIN_TABLE}', 'br_family',       event_id),
                     br_version      = joinGet('{JOIN_TABLE}', 'br_version',      event_id)
-                WHERE geo_country = '' AND user_ipaddress != ''
+                WHERE (geo_country = '' AND user_ipaddress != '')
+                   OR (os_name = '' AND useragent != '')
             ''')
 
             log.info('Waiting for mutation to complete...')
@@ -317,23 +318,23 @@ data:
         v2_total = client.command('SELECT count() FROM snowplow.events_v2')
         print(f'Row count  — events: {v1_total:,}   events_v2: {v2_total:,}')
 
-        v1_with_ip = client.command(
-            "SELECT count() FROM snowplow.events WHERE user_ipaddress != ''"
+        v2_with_ip = client.command(
+            "SELECT count() FROM snowplow.events_v2 WHERE user_ipaddress != ''"
         )
         v2_geo_filled = client.command(
             "SELECT count() FROM snowplow.events_v2 WHERE geo_country != ''"
         )
-        geo_rate = v2_geo_filled / v1_with_ip * 100 if v1_with_ip else 0
-        print(f'Geo fill   — rows with IP: {v1_with_ip:,}   geo_country filled in events_v2: {v2_geo_filled:,} ({geo_rate:.1f}%)')
+        geo_rate = v2_geo_filled / v2_with_ip * 100 if v2_with_ip else 0
+        print(f'Geo fill   — rows with IP: {v2_with_ip:,}   geo_country filled: {v2_geo_filled:,} ({geo_rate:.1f}%)')
 
-        v1_with_ua = client.command(
-            "SELECT count() FROM snowplow.events WHERE useragent != ''"
+        v2_with_ua = client.command(
+            "SELECT count() FROM snowplow.events_v2 WHERE useragent != ''"
         )
         v2_ua_filled = client.command(
             "SELECT count() FROM snowplow.events_v2 WHERE os_name != ''"
         )
-        ua_rate = v2_ua_filled / v1_with_ua * 100 if v1_with_ua else 0
-        print(f'UA fill    — rows with UA: {v1_with_ua:,}   os_name filled in events_v2: {v2_ua_filled:,} ({ua_rate:.1f}%)')
+        ua_rate = v2_ua_filled / v2_with_ua * 100 if v2_with_ua else 0
+        print(f'UA fill    — rows with UA: {v2_with_ua:,}   os_name filled: {v2_ua_filled:,} ({ua_rate:.1f}%)')
 
         print('\nSample (5 rows from events_v2 with geo data):')
         sample = client.query('''
@@ -346,7 +347,7 @@ data:
         for row in sample:
             print(f'  {row}')
 
-        passed = (v2_total >= v1_total) and (geo_rate >= 30.0) and (ua_rate >= 30.0)
+        passed = (v2_total >= v1_total) and (geo_rate >= 30.0) and (ua_rate >= 50.0)
 
         print('\n' + ('='*60))
         if passed:
