@@ -1,0 +1,377 @@
+# Python script for one-time backfill of geo + UA enrichment fields.
+# Follows the immutable data operations principle: works on events_v2,
+# never touches the live events table.
+#
+# Remove this file and backfill-job.yaml from kustomization.yaml after the swap.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backfill-enrichments-script
+  namespace: snowplow
+data:
+  backfill.py: |
+    #!/usr/bin/env python3
+    """
+    Backfill geo + UA enrichment fields into snowplow.events_v2.
+
+    Immutable data operations pattern:
+      1. CREATE TABLE events_v2 (identical schema to events)
+      2. INSERT INTO events_v2 SELECT * FROM events  (ClickHouse-native copy, events untouched)
+      3. Read events_v2 rows where geo_country = '' in batches, enrich in Python
+      4. Load enriched values into a Join-engine staging table
+      5. ALTER TABLE events_v2 UPDATE using joinGet()  (events still untouched)
+      6. Drop staging table
+      7. Print validation report — PASS/FAIL
+
+    After reviewing the PASS report:
+      - Update clickhouse-installation.yaml startup_scripts to target events_v2
+      - Commit + push → Flux applies → ClickHouse restart picks up new MV target
+      - Rename events → events_v1 once events_v2 is confirmed stable
+    """
+
+    import os, sys, time, logging, requests
+    import geoip2.database
+    from ua_parser import user_agent_parser as ua_parser
+    import clickhouse_connect
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(message)s',
+        stream=sys.stdout,
+    )
+    log = logging.getLogger(__name__)
+
+    CLICKHOUSE_HOST = os.environ.get('CLICKHOUSE_HOST', 'chi-analytics-events.clickhouse.svc.cluster.local')
+    CLICKHOUSE_PORT = int(os.environ.get('CLICKHOUSE_PORT', '8123'))
+    GEOIP_URL       = os.environ.get('GEOIP_URL', 'http://geoip-server:8080/GeoLite2-City.mmdb')
+    MMDB_PATH       = '/tmp/GeoLite2-City.mmdb'
+    JOIN_TABLE      = 'snowplow.events_backfill_join'
+    BATCH_SIZE      = 5000
+
+
+    def download_mmdb():
+        log.info(f'Downloading GeoLite2-City.mmdb from {GEOIP_URL}')
+        r = requests.get(GEOIP_URL, stream=True, timeout=120)
+        r.raise_for_status()
+        with open(MMDB_PATH, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=65536):
+                f.write(chunk)
+        log.info(f'Downloaded {os.path.getsize(MMDB_PATH)/1024/1024:.1f} MB')
+
+
+    def lookup_geo(reader, ip: str) -> dict:
+        if not ip:
+            return {}
+        try:
+            r = reader.city(ip)
+            sub = r.subdivisions.most_specific
+            return {
+                'geo_country':     r.country.iso_code or '',
+                'geo_region':      sub.iso_code or '',
+                'geo_region_name': sub.name or '',
+                'geo_city':        r.city.name or '',
+                'geo_zipcode':     r.postal.code or '',
+                'geo_latitude':    str(r.location.latitude  or ''),
+                'geo_longitude':   str(r.location.longitude or ''),
+                'geo_timezone':    r.location.time_zone or '',
+            }
+        except Exception:
+            return {}
+
+
+    def parse_ua(ua_string: str) -> dict:
+        if not ua_string:
+            return {}
+        try:
+            r   = ua_parser.ParseString(ua_string)
+            ua  = r.get('user_agent', {})
+            os_ = r.get('os', {})
+            dev = r.get('device', {})
+            br_version = '.'.join(
+                p for p in [ua.get('major'), ua.get('minor'), ua.get('patch')] if p
+            )
+            return {
+                'br_name':         ua.get('family', ''),
+                'br_family':       ua.get('family', ''),
+                'br_version':      br_version,
+                'os_name':         os_.get('family', ''),
+                'os_family':       os_.get('family', ''),
+                'os_manufacturer': dev.get('brand', ''),
+                'dvce_type':       dev.get('family', ''),
+            }
+        except Exception:
+            return {}
+
+
+    def main():
+        download_mmdb()
+
+        log.info(f'Connecting to ClickHouse at {CLICKHOUSE_HOST}:{CLICKHOUSE_PORT}')
+        client = clickhouse_connect.get_client(
+            host=CLICKHOUSE_HOST,
+            port=CLICKHOUSE_PORT,
+        )
+
+        # ── Step 1: create events_v2 ──────────────────────────────────────────
+        log.info('Creating snowplow.events_v2 (same schema + TTL as events)...')
+        client.command('''
+            CREATE TABLE IF NOT EXISTS snowplow.events_v2 (
+              app_id String, platform String, etl_tstamp String,
+              collector_tstamp String, dvce_created_tstamp String,
+              event String, event_id String, txn_id String,
+              name_tracker String, v_tracker String, v_collector String,
+              v_etl String, user_id String, user_ipaddress String,
+              user_fingerprint String, domain_userid String,
+              domain_sessionidx String, network_userid String,
+              geo_country String, geo_region String, geo_city String,
+              geo_zipcode String, geo_latitude String, geo_longitude String,
+              geo_region_name String, ip_isp String, ip_organization String,
+              ip_domain String, ip_netspeed String, page_url String,
+              page_title String, page_referrer String, page_urlscheme String,
+              page_urlhost String, page_urlport String, page_urlpath String,
+              page_urlquery String, page_urlfragment String,
+              refr_urlscheme String, refr_urlhost String, refr_urlport String,
+              refr_urlpath String, refr_urlquery String,
+              refr_urlfragment String, refr_medium String, refr_source String,
+              refr_term String, mkt_medium String, mkt_source String,
+              mkt_term String, mkt_content String, mkt_campaign String,
+              contexts String, se_category String, se_action String,
+              se_label String, se_property String, se_value String,
+              unstruct_event String, tr_orderid String, tr_affiliation String,
+              tr_total String, tr_tax String, tr_shipping String,
+              tr_city String, tr_state String, tr_country String,
+              ti_orderid String, ti_sku String, ti_name String,
+              ti_category String, ti_price String, ti_quantity String,
+              pp_xoffset_min String, pp_xoffset_max String,
+              pp_yoffset_min String, pp_yoffset_max String,
+              useragent String, br_name String, br_family String,
+              br_version String, br_type String, br_renderengine String,
+              br_lang String, br_features_pdf String,
+              br_features_flash String, br_features_java String,
+              br_features_director String, br_features_quicktime String,
+              br_features_realplayer String, br_features_windowsmedia String,
+              br_features_gears String, br_features_silverlight String,
+              br_cookies String, br_colordepth String, br_viewwidth String,
+              br_viewheight String, os_name String, os_family String,
+              os_manufacturer String, os_timezone String, dvce_type String,
+              dvce_ismobile String, dvce_screenwidth String,
+              dvce_screenheight String, doc_charset String, doc_width String,
+              doc_height String, tr_currency String, tr_total_base String,
+              tr_tax_base String, tr_shipping_base String, ti_currency String,
+              ti_price_base String, base_currency String, geo_timezone String,
+              mkt_clickid String, mkt_network String, etl_tags String,
+              dvce_sent_tstamp String, refr_domain_userid String,
+              refr_dvce_tstamp String, derived_contexts String,
+              domain_sessionid String, derived_tstamp String,
+              event_vendor String, event_name String, event_format String,
+              event_version String, event_fingerprint String, true_tstamp String
+            ) ENGINE = MergeTree()
+            PARTITION BY substring(collector_tstamp, 1, 7)
+            ORDER BY (collector_tstamp, event_id)
+            TTL parseDateTimeBestEffort(collector_tstamp) + INTERVAL 3 MONTH
+            SETTINGS ttl_only_drop_parts = 1
+        ''')
+
+        # ── Step 2: copy all rows from events → events_v2 ─────────────────────
+        v2_count = client.command('SELECT count() FROM snowplow.events_v2')
+        v1_count = client.command('SELECT count() FROM snowplow.events')
+        log.info(f'events has {v1_count} rows, events_v2 currently has {v2_count} rows')
+
+        if v2_count < v1_count:
+            log.info('Copying rows from events → events_v2 (ClickHouse-native INSERT SELECT)...')
+            # SETTINGS max_insert_threads=4 speeds up the copy
+            client.command(
+                'INSERT INTO snowplow.events_v2 SELECT * FROM snowplow.events '
+                'SETTINGS max_insert_threads=4',
+                settings={'send_progress_in_http_headers': False},
+            )
+            v2_count = client.command('SELECT count() FROM snowplow.events_v2')
+            log.info(f'Copy done. events_v2 now has {v2_count} rows')
+        else:
+            log.info('events_v2 already has rows — skipping copy')
+
+        # ── Step 3: enrich events_v2 rows ──────────────────────────────────────
+        to_enrich = client.command(
+            "SELECT count() FROM snowplow.events_v2 WHERE geo_country = '' AND user_ipaddress != ''"
+        )
+        log.info(f'{to_enrich} rows in events_v2 need geo/UA enrichment')
+
+        if to_enrich == 0:
+            log.info('No rows need enrichment.')
+        else:
+            client.command(f'DROP TABLE IF EXISTS {JOIN_TABLE}')
+            client.command(f'''
+                CREATE TABLE {JOIN_TABLE} (
+                    event_id        String,
+                    geo_country     String,
+                    geo_region      String,
+                    geo_region_name String,
+                    geo_city        String,
+                    geo_zipcode     String,
+                    geo_latitude    String,
+                    geo_longitude   String,
+                    geo_timezone    String,
+                    os_name         String,
+                    os_family       String,
+                    os_manufacturer String,
+                    dvce_type       String,
+                    br_name         String,
+                    br_family       String,
+                    br_version      String
+                ) ENGINE = Join(ANY, LEFT, event_id)
+            ''')
+
+            COLS = [
+                'event_id','geo_country','geo_region','geo_region_name',
+                'geo_city','geo_zipcode','geo_latitude','geo_longitude','geo_timezone',
+                'os_name','os_family','os_manufacturer','dvce_type',
+                'br_name','br_family','br_version',
+            ]
+
+            with geoip2.database.Reader(MMDB_PATH) as geo_reader:
+                offset = 0
+                done   = 0
+                while True:
+                    rows = client.query(f'''
+                        SELECT event_id, user_ipaddress, useragent
+                        FROM snowplow.events_v2
+                        WHERE geo_country = '' AND user_ipaddress != ''
+                        ORDER BY collector_tstamp
+                        LIMIT {BATCH_SIZE} OFFSET {offset}
+                    ''').result_rows
+
+                    if not rows:
+                        break
+
+                    batch = []
+                    for event_id, ip, ua_string in rows:
+                        geo = lookup_geo(geo_reader, ip)
+                        ua  = parse_ua(ua_string)
+                        batch.append([
+                            event_id,
+                            geo.get('geo_country', ''),
+                            geo.get('geo_region', ''),
+                            geo.get('geo_region_name', ''),
+                            geo.get('geo_city', ''),
+                            geo.get('geo_zipcode', ''),
+                            geo.get('geo_latitude', ''),
+                            geo.get('geo_longitude', ''),
+                            geo.get('geo_timezone', ''),
+                            ua.get('os_name', ''),
+                            ua.get('os_family', ''),
+                            ua.get('os_manufacturer', ''),
+                            ua.get('dvce_type', ''),
+                            ua.get('br_name', ''),
+                            ua.get('br_family', ''),
+                            ua.get('br_version', ''),
+                        ])
+
+                    client.insert(JOIN_TABLE, batch, column_names=COLS)
+                    done   += len(rows)
+                    offset += BATCH_SIZE
+                    log.info(f'Enriched {done}/{to_enrich} rows into staging table')
+
+                    if len(rows) < BATCH_SIZE:
+                        break
+
+            log.info('Staging table populated. Submitting mutation on events_v2...')
+            client.command(f'''
+                ALTER TABLE snowplow.events_v2 UPDATE
+                    geo_country     = joinGet('{JOIN_TABLE}', 'geo_country',     event_id),
+                    geo_region      = joinGet('{JOIN_TABLE}', 'geo_region',      event_id),
+                    geo_region_name = joinGet('{JOIN_TABLE}', 'geo_region_name', event_id),
+                    geo_city        = joinGet('{JOIN_TABLE}', 'geo_city',        event_id),
+                    geo_zipcode     = joinGet('{JOIN_TABLE}', 'geo_zipcode',     event_id),
+                    geo_latitude    = joinGet('{JOIN_TABLE}', 'geo_latitude',    event_id),
+                    geo_longitude   = joinGet('{JOIN_TABLE}', 'geo_longitude',   event_id),
+                    geo_timezone    = joinGet('{JOIN_TABLE}', 'geo_timezone',    event_id),
+                    os_name         = joinGet('{JOIN_TABLE}', 'os_name',         event_id),
+                    os_family       = joinGet('{JOIN_TABLE}', 'os_family',       event_id),
+                    os_manufacturer = joinGet('{JOIN_TABLE}', 'os_manufacturer', event_id),
+                    dvce_type       = joinGet('{JOIN_TABLE}', 'dvce_type',       event_id),
+                    br_name         = joinGet('{JOIN_TABLE}', 'br_name',         event_id),
+                    br_family       = joinGet('{JOIN_TABLE}', 'br_family',       event_id),
+                    br_version      = joinGet('{JOIN_TABLE}', 'br_version',      event_id)
+                WHERE geo_country = '' AND user_ipaddress != ''
+            ''')
+
+            log.info('Waiting for mutation to complete...')
+            while True:
+                pending = client.command(
+                    "SELECT count() FROM system.mutations "
+                    "WHERE table = 'events_v2' AND database = 'snowplow' AND is_done = 0"
+                )
+                if pending == 0:
+                    break
+                log.info(f'{pending} mutation(s) still running...')
+                time.sleep(10)
+
+            client.command(f'DROP TABLE IF EXISTS {JOIN_TABLE}')
+
+        # ── Step 4: validation report ──────────────────────────────────────────
+        print('\n' + '='*60)
+        print('VALIDATION REPORT')
+        print('='*60)
+
+        v1_total = client.command('SELECT count() FROM snowplow.events')
+        v2_total = client.command('SELECT count() FROM snowplow.events_v2')
+        print(f'Row count  — events: {v1_total:,}   events_v2: {v2_total:,}')
+
+        v1_with_ip = client.command(
+            "SELECT count() FROM snowplow.events WHERE user_ipaddress != ''"
+        )
+        v2_geo_filled = client.command(
+            "SELECT count() FROM snowplow.events_v2 WHERE geo_country != ''"
+        )
+        geo_rate = v2_geo_filled / v1_with_ip * 100 if v1_with_ip else 0
+        print(f'Geo fill   — rows with IP: {v1_with_ip:,}   geo_country filled in events_v2: {v2_geo_filled:,} ({geo_rate:.1f}%)')
+
+        v1_with_ua = client.command(
+            "SELECT count() FROM snowplow.events WHERE useragent != ''"
+        )
+        v2_ua_filled = client.command(
+            "SELECT count() FROM snowplow.events_v2 WHERE os_name != ''"
+        )
+        ua_rate = v2_ua_filled / v1_with_ua * 100 if v1_with_ua else 0
+        print(f'UA fill    — rows with UA: {v1_with_ua:,}   os_name filled in events_v2: {v2_ua_filled:,} ({ua_rate:.1f}%)')
+
+        print('\nSample (5 rows from events_v2 with geo data):')
+        sample = client.query('''
+            SELECT event_id, collector_tstamp, user_ipaddress,
+                   geo_country, geo_city, os_name, dvce_type, br_name
+            FROM snowplow.events_v2
+            WHERE geo_country != ''
+            LIMIT 5
+        ''').result_rows
+        for row in sample:
+            print(f'  {row}')
+
+        passed = (v2_total >= v1_total) and (geo_rate >= 30.0) and (ua_rate >= 30.0)
+
+        print('\n' + ('='*60))
+        if passed:
+            print('VALIDATION PASSED')
+            print()
+            print('Next steps to make events_v2 the live table:')
+            print('  1. Update clickhouse-installation.yaml startup_scripts:')
+            print('       - Change events_mv target from events → events_v2')
+            print('       - Add CREATE TABLE IF NOT EXISTS snowplow.events_v2 (same DDL)')
+            print('  2. git commit + push → Flux applies → restart ClickHouse pod')
+            print('  3. Verify new events land in events_v2')
+            print('  4. Rename events → events_v1:')
+            print('       ALTER TABLE snowplow.events RENAME TO snowplow.events_v1')
+        else:
+            print('VALIDATION FAILED')
+            if v2_total < v1_total:
+                print(f'  Row count mismatch: events={v1_total} events_v2={v2_total}')
+            if geo_rate < 30.0:
+                print(f'  Geo fill rate too low: {geo_rate:.1f}% (threshold 30%)')
+            if ua_rate < 30.0:
+                print(f'  UA fill rate too low: {ua_rate:.1f}% (threshold 30%)')
+        print('='*60 + '\n')
+
+        sys.exit(0 if passed else 1)
+
+
+    if __name__ == '__main__':
+        main()

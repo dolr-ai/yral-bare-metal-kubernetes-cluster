@@ -1,4 +1,5 @@
 - Backfill the missing geo ip->location mapping for all the existing snowplow events in clickhouse, so that we can use that data for analytics and segmentation
+- Cleanup backfill jobs once done
 - We added drop statements to the clickhouse table. Should we remove those?
 - Is the archival to the data lake working? I see an empty bucket
 - Show claude that snowplow bad events are human readable but the enriched events are not. Figure out why and decide if we want to keep it this way

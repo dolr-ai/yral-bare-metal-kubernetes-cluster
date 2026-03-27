@@ -20,7 +20,19 @@ When choosing between tools or approaches, always prefer the option that is more
 
 **Decision rule**: When evaluating a new component, ask "does Kubernetes or the CNCF ecosystem already provide this?" before reaching for a third-party tool. Document the rationale when a non-native choice is made.
 
-### 1. Immutable Infrastructure
+### 1. Immutable Data Operations
+
+Never run `UPDATE` or `DELETE` on a live production table. All data migrations, enrichments, and schema changes follow a versioned table pattern:
+
+1. **Create** the new table with an incrementing version suffix (e.g., `snowplow.events_v2`)
+2. **Populate** it with the desired state (copy + transform)
+3. **Validate** the new table — row counts, fill rates, spot checks — before touching anything live
+4. **Swap** references declaratively: update Materialized View targets, application config, etc. via a git commit so the change is reviewed and version-controlled
+5. **Archive** the old table (rename to `_v1` or `_old`) rather than dropping immediately; drop only after the new table has been running in production
+
+This mirrors the Immutable Infrastructure principle: changes are additive, the previous state is preserved until the new state is confirmed correct. A mutation on a brand-new version table (e.g., enriching `events_v2` before swapping) is acceptable; a mutation on the currently-live production table is not.
+
+### 2. Immutable Infrastructure
 - All operations must be additive or subtractive, never mutating existing nodes
 - Adding/removing/upgrading nodes doesn't modify any other nodes
 - Decommissioned nodes are removed and replaced, not repaired in-place
