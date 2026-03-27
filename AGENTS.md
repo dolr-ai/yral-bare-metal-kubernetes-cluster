@@ -22,15 +22,18 @@ When choosing between tools or approaches, always prefer the option that is more
 
 ### 1. Immutable Data Operations
 
-Never run `UPDATE` or `DELETE` on a live production table. All data migrations, enrichments, and schema changes follow a versioned table pattern:
+**Hard requirement.** Never run `UPDATE` or `DELETE` on a live production table, and never make in-place schema changes that lose data. All data migrations, enrichments, and schema changes on any stateful data store (ClickHouse tables, databases, Kafka topics, object storage prefixes) follow this 4-step versioned pattern:
 
-1. **Create** the new table with an incrementing version suffix (e.g., `snowplow.events_v2`)
-2. **Populate** it with the desired state (copy + transform)
-3. **Validate** the new table — row counts, fill rates, spot checks — before touching anything live
-4. **Swap** references declaratively: update Materialized View targets, application config, etc. via a git commit so the change is reviewed and version-controlled
-5. **Archive** the old table (rename to `_v1` or `_old`) rather than dropping immediately; drop only after the new table has been running in production
+1. **Dual-write**: Update the write path (Materialized View, application config, Kafka consumer) to write new incoming data to **both** the existing store **and** the new versioned store (e.g., `events_v2`). Do this before backfilling — it ensures the new table stays current during the migration window.
+2. **Backfill**: Copy and transform historical data from the old store into the new store.
+3. **Validate**: Verify the new store — row counts, fill rates, spot checks on both historical and newly-arrived data — before switching any read path.
+4. **Swap and archive**: Switch read paths (dashboards, application queries) to the new store. Rename the old store to `_v1` or `_old` rather than dropping immediately. Drop only after the new store has been running in production for a confirmed period.
 
-This mirrors the Immutable Infrastructure principle: changes are additive, the previous state is preserved until the new state is confirmed correct. A mutation on a brand-new version table (e.g., enriching `events_v2` before swapping) is acceptable; a mutation on the currently-live production table is not.
+This mirrors the Immutable Infrastructure principle: changes are additive, the previous state is preserved until the new state is confirmed correct.
+
+**When creating a new versioned table** (e.g., `events_v2`): add a second Materialized View targeting `events_v2` in `clickhouse-installation.yaml` and deploy it before the backfill job runs. This is the dual-write step.
+
+**A mutation on a brand-new version table** (e.g., enriching `events_v2` before the swap) is acceptable because the old table is intact. A mutation on the currently-live production table is not.
 
 ### 2. Immutable Infrastructure
 - All operations must be additive or subtractive, never mutating existing nodes
