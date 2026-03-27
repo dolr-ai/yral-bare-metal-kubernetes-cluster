@@ -16,6 +16,4 @@ resources:
   - geoip-nginx-config.yaml
   - geoip-server-deployment.yaml
   - geoip-refresh-cronjob.yaml
-  # One-time backfill — remove these two lines once job/backfill-enrichments completes:
-  - backfill-script-configmap.yaml
-  - backfill-job.yaml
+
