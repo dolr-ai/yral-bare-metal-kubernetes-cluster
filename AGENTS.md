@@ -35,6 +35,39 @@ This mirrors the Immutable Infrastructure principle: changes are additive, the p
 
 **A mutation on a brand-new version table** (e.g., enriching `events_v2` before the swap) is acceptable because the old table is intact. A mutation on the currently-live production table is not.
 
+### 1a. Stateful Object Naming Convention
+
+**Mandatory for all changes to stateful data stores.**
+
+All stateful objects — ClickHouse tables and materialized views, Kafka topics, Kubernetes PVCs, object storage prefixes, database schemas — must follow the pattern:
+
+```
+<name><delimiter><version><delimiter><status>
+```
+
+The delimiter follows each ecosystem's naming convention:
+
+| Ecosystem | Convention | Example |
+|-----------|-----------|---------|
+| SQL / ClickHouse | snake_case | `events_v2_staging` |
+| Kubernetes resources | kebab-case | `events-v2-staging` |
+| Python / Go types | PascalCase | `EventsV2Staging` |
+| Kafka topics | snake_case | `snowplow_events_v1_active` |
+
+**Status values:**
+- `active` — the currently-live production object (primary read/write path)
+- `staging` — migration target being prepared; not yet the primary path
+- `archived` — previous version retained for rollback safety after a swap
+- `temp` — ephemeral; must be dropped after the operation that created it
+
+**Examples for the current events migration:**
+- `snowplow.events_v1_active` — live table (currently bare `events`)
+- `snowplow.events_v2_staging` — migration target (currently bare `events_v2`)
+- `snowplow.events_mv_v1_active` — primary write MV (currently `events_mv`)
+- `snowplow.events_mv_v2_staging` — dual-write MV (currently `events_v2_mv`)
+
+**Enforcement:** Apply this convention to any new stateful objects you create. When touching an existing object as part of a migration (e.g., the swap step), rename it to follow the convention at that time. Do not leave newly-created objects with bare names like `events_v3` or `events_new`.
+
 ### 2. Immutable Infrastructure
 - All operations must be additive or subtractive, never mutating existing nodes
 - Adding/removing/upgrading nodes doesn't modify any other nodes

@@ -29,7 +29,7 @@ data:
       - Rename events → events_v1 once events_v2 is confirmed stable
     """
 
-    import os, sys, time, logging, requests
+    import os, sys, time, logging, re, requests
     import geoip2.database
     from ua_parser import user_agent_parser as uap_module
     import clickhouse_connect
@@ -47,6 +47,14 @@ data:
     MMDB_PATH       = '/tmp/GeoLite2-City.mmdb'
     JOIN_TABLE      = 'snowplow.events_backfill_join'
     BATCH_SIZE      = 5000
+
+    # Snowplow mobile SDK user agents: "snowplow/andr-6.3.1 android/10"
+    # Standard ua-parser regexes don't match these — parse them directly.
+    _SNOWPLOW_UA_RE = re.compile(
+        r'^snowplow/(?P<platform>[a-z]+)-[\d.]+\s+(?P<os>[a-z]+)/(?P<version>[\d.]+)',
+        re.IGNORECASE,
+    )
+    _PLATFORM_OS = {'andr': 'Android', 'android': 'Android', 'ios': 'iOS'}
 
 
     def download_mmdb():
@@ -82,6 +90,21 @@ data:
     def parse_ua(ua_string: str) -> dict:
         if not ua_string:
             return {}
+        # Snowplow mobile SDK UAs (e.g. "snowplow/andr-6.3.1 android/10") are not
+        # recognised by standard ua-parser regexes — handle them first.
+        m = _SNOWPLOW_UA_RE.match(ua_string)
+        if m:
+            platform = m.group('platform').lower()
+            os_name  = _PLATFORM_OS.get(platform, m.group('os').capitalize())
+            return {
+                'br_name':         '',
+                'br_family':       '',
+                'br_version':      '',
+                'os_name':         os_name,
+                'os_family':       os_name,
+                'os_manufacturer': '',
+                'dvce_type':       'Mobile',
+            }
         try:
             r   = uap_module.Parse(ua_string)
             ua  = r.get('user_agent', {})
