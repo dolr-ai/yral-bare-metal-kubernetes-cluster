@@ -1,4 +1,5 @@
 - Point everything that consumes the old table to the newly enriched table, and then we can drop the old table once we are sure everything is working fine with the new one
+- What is the right way to do clickhouse migrations? At what point should we introduce a declarative migration tooling for Clickhouse. I want a completely free and open source solution. Also, I want a mechanism where the current state of the database reflects my current declaration file instead of accruing migration files over time. I want to be able to make changes to the declaration file and have it reflect the current state of the database without having to write new migration files every time. I also want to be able to backfill data if needed as part of the migration process.  
 - Backfill the missing geo ip->location mapping for all the existing snowplow events in clickhouse, so that we can use that data for analytics and segmentation
 - Cleanup backfill jobs once done
 - We added drop statements to the clickhouse table initialization to reinit them. They are run and have fulfilled their purpose. Should we remove those?

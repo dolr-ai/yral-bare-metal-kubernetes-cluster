@@ -3,12 +3,14 @@
 #
 # Schema init via startup_scripts (runs on every pod start, all queries are IF NOT EXISTS):
 #   - snowplow.events_queue   Kafka engine (reads TSV from snowplow-enriched, 4 consumer threads)
-#   - snowplow.events         MergeTree storage (partitioned by YYYY-MM, ordered by time+event_id)
-#   - snowplow.events_mv      Materialized view piping queue -> storage
+#   - snowplow.events         MergeTree storage (archived; to be renamed events_v1 then dropped)
+#   - snowplow.events_v2      MergeTree storage (canonical; enriched with geo+UA data)
+#   - snowplow.events_mv      Materialized view piping queue -> events_v2 (canonical)
 #
 # Metabase connection:
 #   Host: clickhouse-analytics.clickhouse.svc.cluster.local
 #   Port: 8123  Database: snowplow  Username: default  Password: (none)
+#   Query table: snowplow.events_v2 (canonical, enriched)
 apiVersion: "clickhouse.altinity.com/v1"
 kind: ClickHouseInstallation
 metadata:
@@ -40,6 +42,9 @@ spec:
             </scripts>
             <scripts>
               <query><![CDATA[DROP TABLE IF EXISTS snowplow.events_mv]]></query>
+            </scripts>
+            <scripts>
+              <query><![CDATA[DROP TABLE IF EXISTS snowplow.events_v2_mv]]></query>
             </scripts>
             <scripts>
               <query><![CDATA[DROP TABLE IF EXISTS snowplow.events_queue]]></query>
@@ -325,17 +330,13 @@ spec:
               TTL parseDateTimeBestEffort(collector_tstamp) + INTERVAL 3 MONTH
               SETTINGS ttl_only_drop_parts = 1]]></query>
             </scripts>
+            <!-- events_mv now targets events_v2 (canonical enriched table).
+                 events (old) is archived and no longer receives new writes.
+                 Rename events -> events_v1 then drop once confirmed stable. -->
             <scripts>
               <query><![CDATA[CREATE MATERIALIZED VIEW IF NOT EXISTS snowplow.events_mv
-              TO snowplow.events
+              TO snowplow.events_v2
               AS SELECT * FROM snowplow.events_queue]]></query>
-            </scripts>
-            <!-- Dual-write for v2 migration: new events go to both events and events_v2.
-                 Step 1 of the immutable data migration pattern.
-                 Remove events_v2_mv and events_v2 once events_v2 is the canonical table
-                 and events has been renamed to events_v1. -->
-            <scripts>
-              <query><![CDATA[DROP TABLE IF EXISTS snowplow.events_v2_mv]]></query>
             </scripts>
             <scripts>
               <query><![CDATA[CREATE TABLE IF NOT EXISTS snowplow.events_v2 (
@@ -475,11 +476,6 @@ spec:
               ORDER BY (collector_tstamp, event_id)
               TTL parseDateTimeBestEffort(collector_tstamp) + INTERVAL 3 MONTH
               SETTINGS ttl_only_drop_parts = 1]]></query>
-            </scripts>
-            <scripts>
-              <query><![CDATA[CREATE MATERIALIZED VIEW IF NOT EXISTS snowplow.events_v2_mv
-              TO snowplow.events_v2
-              AS SELECT * FROM snowplow.events_queue]]></query>
             </scripts>
           </startup_scripts>
         </clickhouse>

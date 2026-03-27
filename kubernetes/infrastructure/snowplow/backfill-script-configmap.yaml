@@ -23,10 +23,14 @@ data:
       6. Drop staging table
       7. Print validation report — PASS/FAIL
 
-    After reviewing the PASS report:
-      - Update clickhouse-installation.yaml startup_scripts to target events_v2
-      - Commit + push → Flux applies → ClickHouse restart picks up new MV target
-      - Rename events → events_v1 once events_v2 is confirmed stable
+    After reviewing the PASS report (step 4 — swap and archive):
+      a. [DONE] clickhouse-installation.yaml: events_mv now targets events_v2;
+         events_v2_mv dual-write removed; events kept as archived table.
+      b. [DONE] Commit + push → Flux applies → ClickHouse restart picks up new MV target.
+      c. Verify new events land in events_v2 (not events).
+      d. Rename old table: ALTER TABLE snowplow.events RENAME TO snowplow.events_v1
+      e. Update Metabase saved questions/dashboards to use events_v2.
+      f. Drop events_v1 once events_v2 confirmed stable.
     """
 
     import os, sys, time, logging, re, requests
