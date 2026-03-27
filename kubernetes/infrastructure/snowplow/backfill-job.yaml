@@ -42,7 +42,7 @@ spec:
               python /scripts/backfill.py
           env:
             - name: CLICKHOUSE_HOST
-              value: chi-analytics-events.clickhouse.svc.cluster.local
+              value: clickhouse-analytics.clickhouse.svc.cluster.local
             - name: GEOIP_URL
               value: http://geoip-server:8080/GeoLite2-City.mmdb
           resources:

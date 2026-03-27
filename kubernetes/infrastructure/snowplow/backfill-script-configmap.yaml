@@ -41,7 +41,7 @@ data:
     )
     log = logging.getLogger(__name__)
 
-    CLICKHOUSE_HOST = os.environ.get('CLICKHOUSE_HOST', 'chi-analytics-events.clickhouse.svc.cluster.local')
+    CLICKHOUSE_HOST = os.environ.get('CLICKHOUSE_HOST', 'clickhouse-analytics.clickhouse.svc.cluster.local')
     CLICKHOUSE_PORT = int(os.environ.get('CLICKHOUSE_PORT', '8123'))
     GEOIP_URL       = os.environ.get('GEOIP_URL', 'http://geoip-server:8080/GeoLite2-City.mmdb')
     MMDB_PATH       = '/tmp/GeoLite2-City.mmdb'

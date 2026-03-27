@@ -7,7 +7,7 @@
 #   - snowplow.events_mv      Materialized view piping queue -> storage
 #
 # Metabase connection:
-#   Host: chi-analytics-events.clickhouse.svc.cluster.local
+#   Host: clickhouse-analytics.clickhouse.svc.cluster.local
 #   Port: 8123  Database: snowplow  Username: default  Password: (none)
 apiVersion: "clickhouse.altinity.com/v1"
 kind: ClickHouseInstallation
