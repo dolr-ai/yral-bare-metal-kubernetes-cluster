@@ -733,6 +733,16 @@ Each backup system uses its own named prefix in the bucket to prevent any possib
 
 No bucket lifecycle policy is configured on this bucket.
 
+### Analytics Pipeline (Snowplow → Kafka → ClickHouse)
+
+**ClickHouse service hostname — common footgun:**
+
+The Altinity operator creates two services for the `analytics` installation:
+- `clickhouse-analytics.clickhouse.svc.cluster.local` — the load-balancer service, use this for all connections
+- `chi-analytics-events-0-0.clickhouse.svc.cluster.local` — the per-pod headless service, not for general use
+
+**Always use `clickhouse-analytics.clickhouse.svc.cluster.local:8123`** when connecting to ClickHouse from within the cluster (Metabase, backfill jobs, any tooling). `chi-analytics-events.clickhouse.svc.cluster.local` does not exist and will fail DNS resolution.
+
 ### Inventory Structure
 - `control_plane` group: control plane hosts
 - `worker_nodes` group: worker hosts
