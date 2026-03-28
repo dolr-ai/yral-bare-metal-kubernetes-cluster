@@ -56,3 +56,12 @@ spec:
         limits:
           cpu: 1000m
           memory: 1Gi
+      # Co-locate Bytebase with its Postgres in the same region.
+      # requiredDuringScheduling ensures they never split across helsinki/falkenstein.
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: bytebase-postgres
+              topologyKey: topology.kubernetes.io/region

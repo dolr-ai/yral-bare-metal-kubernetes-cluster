@@ -1,6 +1,10 @@
 # PostgreSQL for Bytebase — internal only, no external access.
 # Bytebase v3+ dropped its embedded store and requires an external Postgres.
 # Single replica, no HA needed — Bytebase itself is the single source of truth.
+#
+# Region co-location: Bytebase uses podAffinity to land in the same
+# topology.kubernetes.io/region as this pod (matched via app=bytebase-postgres).
+# Do NOT remove the app label from the pod template — Bytebase's affinity depends on it.
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

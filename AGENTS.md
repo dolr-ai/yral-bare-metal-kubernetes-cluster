@@ -697,6 +697,25 @@ The 7 stateful PVs (kafka-0/1/2, loki, prometheus, clickhouse, metabase) were ma
 
 **`csiAllowedTopologyKeys` applies to new volumes only.** Pre-existing volumes have `accessibilityRequirements` written at creation time and cannot be patched after the fact (field is stripped by the v1.11 CRD). `replicaAutoBalance` cannot help pre-existing volumes because they inherit `replicaAutoBalance: ignored`.
 
+**Co-locating tightly-coupled pods (app + its database):**
+
+When a workload has a dedicated database that it talks to constantly (e.g. Bytebase + its Postgres), both pods must land in the same `topology.kubernetes.io/region` (helsinki or falkenstein). Cross-region pod-to-pod traffic adds ~10ms latency on every DB call, which is unacceptable for synchronous request paths.
+
+Use `podAffinity` with `requiredDuringSchedulingIgnoredDuringExecution` at the `topology.kubernetes.io/region` topologyKey. The database pod schedules first (wherever the scheduler places it); the app pod then follows to the same region.
+
+Pattern — add to the app's pod spec (or HelmRelease `affinity` values key):
+```yaml
+affinity:
+  podAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            app: <database-pod-label>
+        topologyKey: topology.kubernetes.io/region
+```
+
+This is distinct from the manual PV nodeAffinity patches (which constrain pre-existing volumes). For new workloads, podAffinity is the correct mechanism — it constrains pod scheduling directly, and Longhorn's `WaitForFirstConsumer` then binds the PVC to the region the pod landed in.
+
 `replicaAutoBalance: best-effort` is **permanently enabled** — this is required for Longhorn to remove excess replicas when `spec.numberOfReplicas` is reduced on an attached volume (without it, `cleanupAutoBalancedReplicas` returns immediately and extra replicas are never removed).
 
 `replicaZoneSoftAntiAffinity: false` is kept — with same-region already enforced by topology constraints, zone spreading within a region is not needed and would add unnecessary complexity.
