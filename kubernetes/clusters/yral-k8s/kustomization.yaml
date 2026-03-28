@@ -32,7 +32,6 @@ resources:
   - infrastructure-metabase.yaml
   - infrastructure-clickhouse-operator.yaml
   - infrastructure-clickhouse.yaml
-  - infrastructure-bytebase.yaml
   - networking.yaml
   - apps.yaml
 
