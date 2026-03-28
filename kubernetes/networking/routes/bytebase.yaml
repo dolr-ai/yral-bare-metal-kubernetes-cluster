@@ -1,0 +1,41 @@
+# Bytebase HTTPRoute
+#
+# Exposes Bytebase at https://bytebase.yral.com via oauth2-proxy (Google Workspace SSO).
+# Bytebase has its own user accounts — users log in to Bytebase after passing oauth2-proxy.
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: bytebase-redirect
+  namespace: kube-system
+spec:
+  parentRefs:
+    - name: web-gateway
+      namespace: kube-system
+      sectionName: http
+  hostnames:
+    - bytebase.yral.com
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: bytebase
+  namespace: kube-system
+spec:
+  parentRefs:
+    - name: web-gateway
+      namespace: kube-system
+      sectionName: https
+  hostnames:
+    - bytebase.yral.com
+  rules:
+    - backendRefs:
+        - name: oauth2-proxy-bytebase
+          namespace: oauth2-proxy
+          port: 4180

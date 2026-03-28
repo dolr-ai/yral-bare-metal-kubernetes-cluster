@@ -17,4 +17,6 @@ resources:
   - service-kafka-console.yaml
   - deployment-metabase.yaml
   - service-metabase.yaml
+  - deployment-bytebase.yaml
+  - service-bytebase.yaml
   - reference-grant.yaml
