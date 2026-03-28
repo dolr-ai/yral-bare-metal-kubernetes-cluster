@@ -5,4 +5,4 @@ metadata:
   namespace: bytebase
 spec:
   interval: 1h
-  url: https://charts.bytebase.com
+  url: https://bytebase.github.io/bytebase
