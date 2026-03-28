@@ -36,9 +36,9 @@ spec:
   partitions: 12
   replicas: 3
   config:
-    # Storage-based retention: ~16.6 GiB per partition × 12 partitions = 200 GiB total cap.
-    # 18253611008 = floor(200 × 1024^3 / 12)
-    retention.bytes: "18253611008"
+    # Storage-based retention: 20 GiB per partition × 12 partitions = 240 GiB total cap (~90% of 250 Gi disk).
+    # 21474836480 = 20 × 1024^3
+    retention.bytes: "21474836480"
     # Explicitly disable time-based retention on this topic (cluster default is already -1)
     retention.ms: "-1"
     min.insync.replicas: "2"
