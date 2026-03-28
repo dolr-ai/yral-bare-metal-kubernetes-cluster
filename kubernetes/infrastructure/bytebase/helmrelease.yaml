@@ -1,0 +1,55 @@
+# Bytebase — Database schema change management and GitOps for ClickHouse (and others).
+#
+# Exposed at https://bytebase.yral.com via oauth2-proxy (Google Workspace SSO).
+# Bytebase has its own user accounts — users authenticate with Google first (oauth2-proxy),
+# then log in to Bytebase separately on first visit.
+#
+# Initial setup:
+#   1. Visit https://bytebase.yral.com — Bytebase shows its setup wizard.
+#   2. Create an admin account.
+#   3. Add ClickHouse instance:
+#        Environment: Prod
+#        Engine: ClickHouse
+#        Host: chi-analytics-events-0-0.clickhouse.svc.cluster.local
+#        Port: 9000
+#        Username: default
+#        Password: (leave empty)
+#
+# Chart: https://charts.bytebase.com
+# Releases: https://github.com/bytebase/bytebase/releases
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: bytebase
+  namespace: bytebase
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: bytebase
+      version: ">=2.0.0"
+      sourceRef:
+        kind: HelmRepository
+        name: bytebase
+        namespace: bytebase
+  timeout: 5m
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    replicaCount: 1
+    bytebase:
+      option:
+        external-url: "https://bytebase.yral.com"
+        port: 8080
+      persistence:
+        enabled: true
+        storageClass: "longhorn"
+        size: 10Gi
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi

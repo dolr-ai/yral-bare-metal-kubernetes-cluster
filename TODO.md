@@ -1,4 +1,3 @@
-- What is the right way to do clickhouse migrations? At what point should we introduce a declarative migration tooling for Clickhouse. I want a completely free and open source solution. Also, I want a mechanism where the current state of the database reflects my current declaration file instead of accruing migration files over time. I want to be able to make changes to the declaration file and have it reflect the current state of the database without having to write new migration files every time. I also want to be able to backfill data if needed as part of the migration process.  
 - Backfill the missing geo ip->location mapping for all the existing snowplow events in clickhouse, so that we can use that data for analytics and segmentation
 - Cleanup backfill jobs once done
 - We added drop statements to the clickhouse table initialization to reinit them. They are run and have fulfilled their purpose. Should we remove those?
@@ -30,3 +29,4 @@
 - archive all the unused org repos
 - Confirm that all the new volumes being provisioned have 1 replica unless specifically configure to have 2
 - How do we enforce schema on the events being ingested into our kafka topics? Should we use Snowplow's schema registry that uses iglu? Figure out if this is open and popular. Or should we use schema enforcement at Kafka's layer? This is probably the more popular and documented solution
+- Clean up unused dns entries

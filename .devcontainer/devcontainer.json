@@ -12,22 +12,10 @@
 		"ghcr.io/devcontainers-extra/features/ansible:2": {},
 		"ghcr.io/devcontainers/features/github-cli:1": {},
 		"ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {},
-		"ghcr.io/jsburckhardt/devcontainer-features/flux:1": {},
+		"ghcr.io/goldsam/dev-container-features/flux2:1": {},
 		"ghcr.io/devcontainers-extra/features/age:1": {},
 		"ghcr.io/devcontainers-extra/features/sops:1": {},
-		"ghcr.io/devcontainers/features/aws-cli:1": {},
-		"ghcr.io/devcontainers/features/java:1": {
-			"version": "21"
-		},
-		"ghcr.io/NordcomInc/devcontainer-features/android-sdk:1": {
-			"platform": "35",
-			"build_tools": "35.0.0"
-		}
-	},
-	// Minimum host RAM required for Android builds (Gradle daemon needs ~10 GB with -Xmx8192M).
-	// Increase Docker Desktop memory (Settings → Resources) if builds OOM.
-	"hostRequirements": {
-		"memory": "16gb"
+		"ghcr.io/devcontainers/features/aws-cli:1": {}
 	},
 	// Mount SSH agent socket from WSL host into container
 	"mounts": [
