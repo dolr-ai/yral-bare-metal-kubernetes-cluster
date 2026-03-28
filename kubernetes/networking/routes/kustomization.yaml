@@ -9,4 +9,5 @@ resources:
   - dashboard.yaml
   - kafka-console.yaml
   - metabase.yaml
+  - bytebase.yaml
 
