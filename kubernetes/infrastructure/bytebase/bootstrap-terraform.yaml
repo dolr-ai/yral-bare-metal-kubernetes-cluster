@@ -19,7 +19,7 @@ data:
       required_providers {
         bytebase = {
           source  = "bytebase/bytebase"
-          version = "3.8.5"
+          version = "3.16.3"
         }
       }
     }
