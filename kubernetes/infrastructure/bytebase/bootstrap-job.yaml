@@ -33,11 +33,12 @@ spec:
       containers:
         - name: terraform
           image: hashicorp/terraform:1.10
-          workingDir: /terraform
+          workingDir: /workspace
           command:
             - /bin/sh
             - -c
             - |
+              cp /terraform-config/main.tf /workspace/main.tf
               terraform init -input=false
               terraform apply -input=false -auto-approve \
                 -var="service_account=${BYTEBASE_SERVICE_ACCOUNT}" \
@@ -55,7 +56,10 @@ spec:
                   key: service-account-key
           volumeMounts:
             - name: terraform-config
-              mountPath: /terraform
+              mountPath: /terraform-config
+              readOnly: true
+            - name: workspace
+              mountPath: /workspace
           resources:
             requests:
               cpu: 50m
@@ -67,3 +71,5 @@ spec:
         - name: terraform-config
           configMap:
             name: bytebase-terraform
+        - name: workspace
+          emptyDir: {}
