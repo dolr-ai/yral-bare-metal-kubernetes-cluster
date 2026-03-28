@@ -41,15 +41,6 @@ spec:
               <query><![CDATA[CREATE DATABASE IF NOT EXISTS snowplow]]></query>
             </scripts>
             <scripts>
-              <query><![CDATA[DROP TABLE IF EXISTS snowplow.events_mv]]></query>
-            </scripts>
-            <scripts>
-              <query><![CDATA[DROP TABLE IF EXISTS snowplow.events_v2_mv]]></query>
-            </scripts>
-            <scripts>
-              <query><![CDATA[DROP TABLE IF EXISTS snowplow.events_queue]]></query>
-            </scripts>
-            <scripts>
               <query><![CDATA[CREATE TABLE IF NOT EXISTS snowplow.events_queue (
               app_id String,
               platform String,
