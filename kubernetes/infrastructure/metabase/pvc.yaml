@@ -8,9 +8,6 @@ metadata:
   name: metabase-data
   namespace: metabase
 spec:
-  # 2 replicas: Metabase runs as a single pod with an embedded H2 database.
-  # Switch to the default `longhorn` StorageClass once Metabase is migrated
-  # to an external PostgreSQL with its own HA.
   storageClassName: longhorn
   accessModes:
     - ReadWriteOnce

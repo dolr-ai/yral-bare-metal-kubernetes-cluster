@@ -28,7 +28,7 @@ spec:
   storage:
     type: persistent-claim
     size: 250Gi
-    class: longhorn
+    class: longhorn-1replica
     deleteClaim: false
   template:
     pod:

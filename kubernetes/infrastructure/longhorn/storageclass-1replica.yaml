@@ -1,0 +1,27 @@
+# StorageClass for workloads with built-in app-level replication that makes
+# Longhorn-level replication redundant (e.g. Kafka: 3 brokers, replication.factor=3).
+# Using this avoids doubling write traffic for data that is already replicated by
+# the application itself.
+#
+# Workloads using this class:
+#   - Kafka (3 brokers × replication.factor=3 — app replication is the HA strategy)
+#
+# All other workloads should use the default `longhorn` StorageClass (2 replicas).
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-1replica
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  numberOfReplicas: "1"
+  dataLocality: "best-effort"
+  staleReplicaTimeout: "90"
+  # Must use JSON format (Longhorn v1.11+). Plain string "false" is truthy in Go
+  # templates and would render as {"v1":"true"} — causing salvage failures when
+  # the engine (controlled by the global Setting) and replicas disagree.
+  disableRevisionCounter: '{"v1":"false"}'

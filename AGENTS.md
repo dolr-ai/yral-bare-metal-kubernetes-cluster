@@ -657,7 +657,7 @@ worker-2 and all subsequently provisioned nodes are on RAID0. worker-1 is being 
 
 **Longhorn replica count and StorageClass policy:**
 
-The default `longhorn` StorageClass uses 1 replica (`defaultReplicaCount: 1`). **Always use `storageClassName: longhorn` (or omit it to use the cluster default) for new PVCs.** Only set `storageClassName: longhorn-2replicas` when a volume explicitly needs 2 Longhorn replicas — document the reason in a comment when you do. The `longhorn-2replicas` StorageClass is reserved for workloads without built-in application-level redundancy that need Longhorn replication as their HA mechanism.
+The default `longhorn` StorageClass uses 2 replicas (`defaultReplicaCount: 2`). **Always use `storageClassName: longhorn` (or omit it) for new PVCs.** The `longhorn-1replica` StorageClass exists exclusively for workloads with built-in app-level replication that makes Longhorn replication redundant (currently only Kafka: 3 brokers, replication.factor=3). Only use `longhorn-1replica` when the application already guarantees its own data redundancy — document the reason in a comment. All Longhorn replicas are constrained to the same `topology.kubernetes.io/region` as the provisioning pod via `csiAllowedTopologyKeys` + `WaitForFirstConsumer`.
 
 **Storage reservation — two separate knobs:**
 

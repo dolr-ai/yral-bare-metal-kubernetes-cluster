@@ -19,12 +19,11 @@ spec:
       retries: 3
   values:
     defaultSettings:
-      # 1 replica by default. Workloads with built-in replication (Kafka: 3 brokers,
-      # replication.factor=3) don't need Longhorn-level replication — it just doubles
-      # write traffic. Workloads without their own HA use the longhorn-2replicas
-      # StorageClass explicitly until they gain proper in-cluster redundancy.
-      # S3 backups (weekly) are the DR path for catastrophic failures.
-      defaultReplicaCount: 1
+      # 2 replicas by default — all volumes get a second copy for automatic failover
+      # on node loss. Workloads with built-in app-level replication (e.g. Kafka:
+      # 3 brokers, replication.factor=3) explicitly opt down to 1 replica via the
+      # longhorn-1replica StorageClass to avoid doubling write traffic unnecessarily.
+      defaultReplicaCount: 2
 
       # Reserve 5% of each disk for the OS, kubelet, and containerd image cache.
       # Kubelet's default imageGCHighThresholdPercent (85%) automatically evicts
@@ -134,7 +133,7 @@ spec:
       # parameter on the default Longhorn StorageClass, which is what Kubernetes uses
       # when provisioning PVCs. If only defaultSettings is set, the StorageClass retains
       # the Helm chart default of 3.
-      defaultClassReplicaCount: 1
+      defaultClassReplicaCount: 2
 
       # One replica on the pod's node (local I/O, no network hop). best-effort means
       # Longhorn migrates a local replica to the pod's node in the background after

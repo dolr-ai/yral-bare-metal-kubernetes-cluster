@@ -4,7 +4,7 @@ resources:
   - namespace.yaml
   - helmrepository.yaml
   - helmrelease.yaml
-  - storageclass-2replicas.yaml
+  - storageclass-1replica.yaml
   - secret.sops.yaml
   - backuptarget.yaml
   - recurringjobs.yaml
