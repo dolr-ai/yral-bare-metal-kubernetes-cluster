@@ -5,3 +5,6 @@ resources:
   - postgres.yaml
   - helmrepository.yaml
   - helmrelease.yaml
+  - bootstrap-secret.sops.yaml
+  - bootstrap-terraform.yaml
+  - bootstrap-job.yaml
