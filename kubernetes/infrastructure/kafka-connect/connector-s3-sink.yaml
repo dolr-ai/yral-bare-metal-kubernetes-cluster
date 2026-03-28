@@ -33,6 +33,9 @@ spec:
   config:
     # ── Source topic ────────────────────────────────────────────────────────
     topics: snowplow-enriched
+    # Start from the earliest available offset when no committed offsets exist.
+    # Safe to leave permanently — once offsets are committed, this is ignored.
+    consumer.override.auto.offset.reset: earliest
 
     # ── S3 destination ──────────────────────────────────────────────────────
     # Hetzner FSN1 object storage endpoint
