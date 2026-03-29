@@ -684,6 +684,18 @@ If in doubt, use `longhorn`. Document the specific reason when choosing `longhor
 
 Current version: `1.11.1`. The placement strategy for stateful workloads:
 
+**Post-upgrade: engine image must be manually upgraded per-volume.** When the Longhorn HelmRelease chart version is bumped, the control plane (manager, CSI driver) upgrades automatically but existing attached volumes keep running on the old engine image — Longhorn deliberately does not auto-live-upgrade them to avoid a fleet-wide I/O blip. New volumes get the new image automatically. After any chart version bump, run:
+```bash
+NEW_IMAGE="docker.io/longhornio/longhorn-engine:v<new-version>"
+kubectl patch volumes.longhorn.io \
+  $(kubectl get volumes.longhorn.io -n longhorn-system --no-headers \
+    -o custom-columns='NAME:.metadata.name,IMAGE:.status.currentImage' \
+    | grep -v "$NEW_IMAGE" | awk '{print $1}' | tr '\n' ' ') \
+  -n longhorn-system --type=merge -p "{\"spec\":{\"image\":\"$NEW_IMAGE\"}}"
+```
+The correct field is `spec.image` (not `spec.engineImage`). The live upgrade causes a brief per-volume engine process restart but does not detach or interrupt I/O observable to pods.
+
+
 - **Same-node** (replica 1): emergent — `persistence.defaultDataLocality: best-effort` migrates a replica to the pod's node in the background; `kube-scheduler` stability means pods tend to return to the same node on restart
 - **Same-region** (replica 2): enforced by `csiAllowedTopologyKeys: "topology.kubernetes.io/region"` + `allowedTopologies` in both StorageClasses + `WaitForFirstConsumer` (two-layer mechanism). For existing volumes with `accessibilityRequirements: null`, patch `spec.nodeSelector` on the Volume CR — Longhorn's reconciliation loop continuously enforces it and evicts out-of-region replicas automatically. Longhorn 1.11.1 has no `replica-region-soft-anti-affinity` setting.
 - **Cross-region**: blocked for new PVs via the two-layer mechanism; existing volumes with null `accessibilityRequirements` must have `spec.nodeSelector` patched
