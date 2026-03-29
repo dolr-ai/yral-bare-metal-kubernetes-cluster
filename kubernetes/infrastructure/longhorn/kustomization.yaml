@@ -8,3 +8,4 @@ resources:
   - secret.sops.yaml
   - backuptarget.yaml
   - recurringjobs.yaml
+  - settings.yaml
