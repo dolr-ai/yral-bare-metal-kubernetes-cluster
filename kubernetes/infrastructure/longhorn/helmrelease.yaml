@@ -44,8 +44,9 @@ spec:
       # dataLocality: best-effort pinning one replica to the pod's node, this setting
       # prevents secondary replicas from drifting to a different zone within the region.
       replicaZoneSoftAntiAffinity: false
-      # NOTE: replicaRegionSoftAntiAffinity is NOT a valid HelmRelease value in 1.11.1.
-      # It is applied as a Setting CR in settings.yaml instead.
+      # NOTE: Longhorn 1.11.1 has no replica-region-soft-anti-affinity setting.
+      # Same-region enforcement relies solely on csiAllowedTopologyKeys + WaitForFirstConsumer.
+      # Cross-region replicas on pre-existing volumes must be evicted manually.
 
       # Region-constrained REPLICA PLACEMENT (requires v1.11.1+).
       #

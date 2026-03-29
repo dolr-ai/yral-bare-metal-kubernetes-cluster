@@ -674,8 +674,8 @@ The default `longhorn` StorageClass uses 2 replicas (`defaultReplicaCount: 2`). 
 Current version: `1.11.1`. The placement strategy for stateful workloads:
 
 - **Same-node** (replica 1): emergent — `persistence.defaultDataLocality: best-effort` migrates a replica to the pod's node in the background; `kube-scheduler` stability means pods tend to return to the same node on restart
-- **Same-region** (replica 2): enforced by `csiAllowedTopologyKeys: "topology.kubernetes.io/region"` + `WaitForFirstConsumer` (primary placement) AND `replicaRegionSoftAntiAffinity: false` (hard-blocks cross-region secondary replicas). Both are required — confirmed 2026-03-29: `csiAllowedTopologyKeys` alone did not prevent the secondary replica from landing in a different region.
-- **Cross-region**: blocked for patched PVs; blocked for new PVs via the combination above
+- **Same-region** (replica 2): enforced by `csiAllowedTopologyKeys: "topology.kubernetes.io/region"` + `WaitForFirstConsumer`. Longhorn 1.11.1 has no `replica-region-soft-anti-affinity` setting (does not exist in this version). Cross-region replicas on pre-existing or mis-scheduled volumes must be evicted manually.
+- **Cross-region**: blocked for new PVs via `csiAllowedTopologyKeys` + `WaitForFirstConsumer`; pre-existing violations require manual replica eviction
 
 **`csiAllowedTopologyKeys` — REPLICA PLACEMENT only, not pod scheduling:**
 
@@ -692,7 +692,7 @@ The 7 stateful PVs (kafka-0/1/2, loki, prometheus, clickhouse, metabase) were ma
 
 **Steady-state placement hierarchy:**
 1. Same-node: emergent (scheduler stability + `dataLocality: best-effort` pulling replica back over time)
-2. Same-region: enforced by `csiAllowedTopologyKeys` + `WaitForFirstConsumer` (primary replica) and `replicaRegionSoftAntiAffinity: false` (all replicas). Manual PV `spec.nodeAffinity` patches on the 7 pre-existing stateful PVs provide an additional pod scheduling constraint for those volumes.
+2. Same-region: enforced by `csiAllowedTopologyKeys` + `WaitForFirstConsumer` for new PVs. Manual PV `spec.nodeAffinity` patches on the 7 pre-existing stateful PVs provide an additional pod scheduling constraint. Pre-existing cross-region replicas must be evicted manually (Longhorn 1.11.1 has no region-level soft-anti-affinity setting).
 3. Cross-region: blocked
 
 **`csiAllowedTopologyKeys` applies to new volumes only.** Pre-existing volumes have `accessibilityRequirements` written at creation time and cannot be patched after the fact (field is stripped by the v1.11 CRD). `replicaAutoBalance` cannot help pre-existing volumes because they inherit `replicaAutoBalance: ignored`.
@@ -720,7 +720,7 @@ This is distinct from the manual PV nodeAffinity patches (which constrain pre-ex
 
 `replicaZoneSoftAntiAffinity: false` is kept — with same-region already enforced by topology constraints, zone spreading within a region is not needed and would add unnecessary complexity.
 
-`replicaRegionSoftAntiAffinity: false` is set — this is the hard constraint that prevents replicas from crossing regions. `csiAllowedTopologyKeys` alone is insufficient; without this flag, Longhorn can still place a secondary replica in the other region. Confirmed by geoip-db PVC landing replicas in both helsinki and falkenstein on 2026-03-29.
+**`replica-region-soft-anti-affinity` does not exist in Longhorn 1.11.1.** Attempting to create it as a Setting CR will be rejected by the Longhorn admission webhook. If upgrading Longhorn to a version that supports it, this setting should be set to `false`. Until then, `csiAllowedTopologyKeys` + `WaitForFirstConsumer` is the only declarative mechanism; cross-region replicas on existing volumes must be evicted manually.
 
 **`disableRevisionCounter` — critical HelmRelease format requirement (Longhorn v1.11+):**
 
