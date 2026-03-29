@@ -44,6 +44,10 @@ spec:
       # dataLocality: best-effort pinning one replica to the pod's node, this setting
       # prevents secondary replicas from drifting to a different zone within the region.
       replicaZoneSoftAntiAffinity: false
+      # Hard constraint: replicas must not cross regions. Without this, Longhorn
+      # can place a second replica in a different region even when csiAllowedTopologyKeys
+      # constrains the PV topology — confirmed by geoip-db PVC on 2026-03-29.
+      replicaRegionSoftAntiAffinity: false
 
       # Region-constrained REPLICA PLACEMENT (requires v1.11.1+).
       #
