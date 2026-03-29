@@ -101,6 +101,13 @@ spec:
         name: kafka-connect-metrics-config
         key: connect-metrics-config.yml
 
+  jvmOptions:
+    # Cap JVM heap at 2 GiB — leaves ~1 GiB headroom within the 3 GiB container
+    # limit for off-heap (direct memory, metaspace, thread stacks, JNI).
+    # Without this, the JVM can expand to fill the container limit and trigger OOM alerts.
+    "-Xmx": "2g"
+    "-Xms": "1g"
+
   resources:
     requests:
       cpu: 500m
