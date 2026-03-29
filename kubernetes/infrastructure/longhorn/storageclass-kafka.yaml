@@ -1,12 +1,24 @@
-# StorageClass for workloads with built-in app-level replication that makes
-# Longhorn-level replication redundant (e.g. Kafka: 3 brokers, replication.factor=3).
-# Using this avoids doubling write traffic for data that is already replicated by
-# the application itself.
+# Kafka-specific StorageClass — 1 Longhorn replica.
 #
-# Workloads using this class:
-#   - Kafka (3 brokers × replication.factor=3 — app replication is the HA strategy)
+# WHY KAFKA IS THE ONLY EXCEPTION TO THE 2-REPLICA DEFAULT:
+#   Kafka implements its own replication at the application layer (3 brokers,
+#   replication.factor=3). This is STRICTLY STRONGER than Longhorn 2-replica:
+#     - Kafka tolerates 2/3 node failures; Longhorn 2-replica tolerates only 1/2.
+#     - Layering Longhorn replication on top would produce 6× physical disk writes
+#       per produce request (3 brokers × 2 Longhorn replicas) with zero additional
+#       durability benefit — Kafka's replication IS the write path, not a redundancy
+#       layer on top of it.
 #
-# All other workloads should use the default `longhorn` StorageClass (2 replicas).
+# THIS IS NOT A PATTERN TO COPY. The default for all other stateful workloads —
+# including PostgreSQL, ClickHouse, Redis, and any future databases — is the
+# `longhorn` StorageClass (2 replicas). Do NOT apply this StorageClass to anything
+# other than Kafka without explicit confirmation that all three criteria below are met:
+#   1. The application implements its own replication natively (not just backups)
+#   2. App-level replication is strictly stronger than Longhorn 2-replica
+#   3. The write amplification from layering both is measurable and unacceptable
+#
+# Workloads currently using this class:
+#   - Kafka (the only one; this list should stay short)
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
