@@ -721,6 +721,22 @@ This is a critical distinction for Longhorn specifically. Because Longhorn is ne
 
 The 7 stateful PVs (kafka-0/1/2, loki, prometheus, clickhouse, metabase) were manually patched with a **single-term** `topology.kubernetes.io/region` nodeAffinity (e.g., `region In [helsinki]`). This single-term patch — written directly to the PV, bypassing what the CSI provisioner would have written — IS a real pod scheduling constraint: the pod cannot schedule cross-region. New PVCs created in the future do not automatically get this constraint and must be patched after first provision if required.
 
+**All 9 current volumes have `spec.nodeSelector` set** on the Longhorn Volume CR as of 2026-03-29:
+
+| Volume | App | Region |
+|--------|-----|--------|
+| pvc-225e1a12 | kafka-combined-2 | falkenstein |
+| pvc-29c07162 | kafka-combined-0 | falkenstein |
+| pvc-edd70f39 | kafka-combined-1 | falkenstein |
+| pvc-14260b9b | metabase | falkenstein |
+| pvc-c4cf47bc | bytebase-postgres | falkenstein |
+| pvc-1d0f9a6d | prometheus | helsinki |
+| pvc-71387016 | loki | helsinki |
+| pvc-9b8a0ca6 | clickhouse | helsinki |
+| pvc-250ac12c | geoip-db | helsinki |
+
+When provisioning a new PVC, always patch `spec.nodeSelector` on the resulting Longhorn Volume CR to match the region the workload pod landed in.
+
 **Steady-state placement hierarchy:**
 1. Same-node: emergent (scheduler stability + `dataLocality: best-effort` pulling replica back over time)
 2. Same-region: enforced for new PVs by `csiAllowedTopologyKeys` + `allowedTopologies` in StorageClasses + `WaitForFirstConsumer`. For pre-existing volumes with `accessibilityRequirements: null`, patch `spec.nodeSelector` on the Longhorn Volume CR — the reconciliation loop evicts out-of-region replicas continuously. Manual single-term PV `nodeAffinity` patches on the 7 pre-existing stateful PVs add a pod scheduling constraint.
