@@ -1,3 +1,5 @@
+- Host yral.com to root domain. Take down about.yral.com
+- refactor hetzner-bare-metal repo to use individual segmentation for the inventory file and commit to the individuals owning infra strategy completely
 - Fix volumes still being placed across regions instead of within the same region. Also what is zone in longhorn terminology? What value is it set to for our nodes?
 - Snowplow bad events are human readable but the enriched events are not. Figure out why and decide if we want to keep it this way
 - We need to make it so that there are no entries in snowplow-bad. They should all go to snowplow-enriched. IF there are events in snowplow-bad, it means the enrichment process is failing for some reason and we need to investigate and fix it.

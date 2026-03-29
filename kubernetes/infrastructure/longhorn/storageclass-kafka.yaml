@@ -29,22 +29,6 @@ provisioner: driver.longhorn.io
 allowVolumeExpansion: true
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
-# allowedTopologies is the second layer of same-region enforcement.
-# csiAllowedTopologyKeys causes Longhorn CSI node plugins to *advertise*
-# topology.kubernetes.io/region to the external-provisioner, but advertisement
-# requires the CSI pods to have restarted since the setting was applied. If a PVC
-# is provisioned during that window, accessibilityRequirements ends up null and
-# replicas are placed freely across regions.
-# allowedTopologies is provisioner-side: it is always evaluated regardless of
-# CSI pod registration state. The external-provisioner intersects this with the
-# selected node's labels (WaitForFirstConsumer) to generate requisite topology
-# constraints, guaranteeing accessibilityRequirements is populated for every PVC.
-allowedTopologies:
-  - matchLabelExpressions:
-      - key: topology.kubernetes.io/region
-        values:
-          - falkenstein
-          - helsinki
 parameters:
   numberOfReplicas: "1"
   dataLocality: "best-effort"
