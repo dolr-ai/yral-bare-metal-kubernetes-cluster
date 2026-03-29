@@ -6,7 +6,11 @@
 # Pod anti-affinity spreads brokers across different FSN1 datacenter zones
 # so a single DC failure never loses quorum.
 #
-# Storage: 250Gi Longhorn PVC per node (2 replicas via default longhorn StorageClass)
+# Storage: 250Gi Longhorn PVC per node (1 replica via longhorn-1replica StorageClass)
+#   Kafka provides its own replication (3 brokers, replication.factor=3) which is strictly
+#   stronger than Longhorn 2-replica: tolerates 2/3 node failures vs Longhorn's 1/2.
+#   Adding Longhorn replication on top would create 6× write amplification per produce request
+#   (3 brokers × 2 Longhorn replicas) with no additional durability benefit.
 #   200Gi  — data headroom for snowplow-enriched topic (200GiB cap spread across 12 partitions)
 #    50Gi  — Kafka index files, __consumer_offsets, Connect internal topics, overhead
 #
@@ -28,7 +32,7 @@ spec:
   storage:
     type: persistent-claim
     size: 250Gi
-    class: longhorn
+    class: longhorn-1replica
     deleteClaim: false
   template:
     pod:

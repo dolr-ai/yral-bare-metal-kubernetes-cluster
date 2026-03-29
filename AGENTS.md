@@ -657,7 +657,16 @@ worker-2 and all subsequently provisioned nodes are on RAID0. worker-1 is being 
 
 **Longhorn replica count and StorageClass policy:**
 
-The default `longhorn` StorageClass uses 2 replicas (`defaultReplicaCount: 2`). **Always use `storageClassName: longhorn` (or omit it) for new PVCs.** The `longhorn-1replica` StorageClass exists exclusively for workloads with built-in app-level replication that makes Longhorn replication redundant (currently only Kafka: 3 brokers, replication.factor=3). Only use `longhorn-1replica` when the application already guarantees its own data redundancy — document the reason in a comment. All Longhorn replicas are constrained to the same `topology.kubernetes.io/region` as the provisioning pod via `csiAllowedTopologyKeys` + `WaitForFirstConsumer`.
+The default `longhorn` StorageClass uses 2 replicas (`defaultReplicaCount: 2`). **Always use `storageClassName: longhorn` (or omit it) for new PVCs.** This is the right choice for nearly all stateful workloads — databases, caches, object stores, and services that do not implement their own replication. Longhorn 2-replica tolerates a single node failure without data loss and without requiring the application to handle it.
+
+The `longhorn-1replica` StorageClass exists exclusively for workloads where app-level replication is not just present but **strictly stronger** than what Longhorn provides, making Longhorn replication purely wasteful. Currently only Kafka meets this bar: with 3 brokers and `replication.factor=3`, Kafka can tolerate 2 of 3 node failures — Longhorn 2-replica only tolerates 1. Layering both gives 6× physical disk writes per produce request (3 brokers × 2 Longhorn replicas) with no additional durability benefit. Kafka's replication is the write path itself, not an optional redundancy layer on top of it.
+
+Only use `longhorn-1replica` when **all three** of the following are true:
+1. The application implements its own replication natively (not just backups or failover)
+2. App-level replication is strictly stronger than Longhorn 2-replica
+3. The write amplification from layering both is measurable and unacceptable
+
+If in doubt, use `longhorn`. Document the specific reason when choosing `longhorn-1replica`. All Longhorn replicas are constrained to the same `topology.kubernetes.io/region` as the provisioning pod via `csiAllowedTopologyKeys` + `WaitForFirstConsumer`.
 
 **Storage reservation — two separate knobs:**
 
