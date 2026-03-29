@@ -1,3 +1,4 @@
+- Fix volumes still being placed across regions instead of within the same region. Also what is zone in longhorn terminology? What value is it set to for our nodes?
 - Snowplow bad events are human readable but the enriched events are not. Figure out why and decide if we want to keep it this way
 - We need to make it so that there are no entries in snowplow-bad. They should all go to snowplow-enriched. IF there are events in snowplow-bad, it means the enrichment process is failing for some reason and we need to investigate and fix it.
 - existing Loki/Prometheus/ClickHouse/Metabase volumes retain their 2 Longhorn replicas (desired outcome; no migration needed). Each app comment in the PVC/HelmRelease now documents exactly what redundancy work is needed before it can drop to 1 replica. Figure out 1 at a time what work is needed to migrate each app to its desired state with 1 replica and then we execute it

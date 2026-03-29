@@ -674,8 +674,8 @@ The default `longhorn` StorageClass uses 2 replicas (`defaultReplicaCount: 2`). 
 Current version: `1.11.1`. The placement strategy for stateful workloads:
 
 - **Same-node** (replica 1): emergent — `persistence.defaultDataLocality: best-effort` migrates a replica to the pod's node in the background; `kube-scheduler` stability means pods tend to return to the same node on restart
-- **Same-region** (replica 2): enforced by `csiAllowedTopologyKeys: "topology.kubernetes.io/region"` + `WaitForFirstConsumer`. Longhorn 1.11.1 has no `replica-region-soft-anti-affinity` setting (does not exist in this version). Cross-region replicas on pre-existing or mis-scheduled volumes must be evicted manually.
-- **Cross-region**: blocked for new PVs via `csiAllowedTopologyKeys` + `WaitForFirstConsumer`; pre-existing violations require manual replica eviction
+- **Same-region** (replica 2): enforced by `csiAllowedTopologyKeys: "topology.kubernetes.io/region"` + `allowedTopologies` in both StorageClasses + `WaitForFirstConsumer` (two-layer mechanism). For existing volumes with `accessibilityRequirements: null`, patch `spec.nodeSelector` on the Volume CR — Longhorn's reconciliation loop continuously enforces it and evicts out-of-region replicas automatically. Longhorn 1.11.1 has no `replica-region-soft-anti-affinity` setting.
+- **Cross-region**: blocked for new PVs via the two-layer mechanism; existing volumes with null `accessibilityRequirements` must have `spec.nodeSelector` patched
 
 **`csiAllowedTopologyKeys` — REPLICA PLACEMENT only, not pod scheduling:**
 
@@ -686,16 +686,24 @@ This is a critical distinction for Longhorn specifically. Because Longhorn is ne
 - What `csiAllowedTopologyKeys: "topology.kubernetes.io/region"` **does** accomplish: Longhorn reads the region from `accessibilityRequirements` on the Volume CR and places all replicas in that region. Cross-WAN replica writes are prevented.
 - The Kubernetes PV `nodeAffinity` is written but orthogonal — Longhorn's internal `Volume.spec.accessibilityRequirements` drives replica placement, not the PV nodeAffinity.
 
+**`csiAllowedTopologyKeys` has a re-registration race window — always pair with `allowedTopologies` in StorageClasses:**
+
+`csiAllowedTopologyKeys` causes Longhorn's CSI node plugins to *advertise* the topology keys to the k8s external-provisioner on registration. If a PVC is provisioned before the CSI pods have restarted and re-registered after the setting was applied, `accessibilityRequirements` ends up `null` and replicas are placed freely across regions. Confirmed: the `geoip-db` volume was provisioned 3 days after `csiAllowedTopologyKeys` was configured but before the CSI pods re-registered, resulting in cross-region replicas.
+
+**The fix: `allowedTopologies` in every StorageClass.** This is evaluated by the external-provisioner itself, independent of CSI pod state. Both `longhorn` and `longhorn-1replica` StorageClasses carry `allowedTopologies` listing all valid regions. The external-provisioner intersects this with the selected node's labels (`WaitForFirstConsumer`) to set `requisite` topology constraints, guaranteeing `accessibilityRequirements` is always populated.
+
+**For existing volumes with `accessibilityRequirements: null`** (provisioned before these mechanisms were fully in place): patch `spec.nodeSelector` on the Longhorn Volume CR to the correct region. Longhorn's reconciliation loop continuously enforces this — out-of-region replicas are evicted and rebuilt in-region automatically.
+
 **Pod scheduling constraint for stateful workloads — manual PV patches:**
 
 The 7 stateful PVs (kafka-0/1/2, loki, prometheus, clickhouse, metabase) were manually patched with a **single-term** `topology.kubernetes.io/region` nodeAffinity (e.g., `region In [helsinki]`). This single-term patch — written directly to the PV, bypassing what the CSI provisioner would have written — IS a real pod scheduling constraint: the pod cannot schedule cross-region. New PVCs created in the future do not automatically get this constraint and must be patched after first provision if required.
 
 **Steady-state placement hierarchy:**
 1. Same-node: emergent (scheduler stability + `dataLocality: best-effort` pulling replica back over time)
-2. Same-region: enforced by `csiAllowedTopologyKeys` + `WaitForFirstConsumer` for new PVs. Manual PV `spec.nodeAffinity` patches on the 7 pre-existing stateful PVs provide an additional pod scheduling constraint. Pre-existing cross-region replicas must be evicted manually (Longhorn 1.11.1 has no region-level soft-anti-affinity setting).
-3. Cross-region: blocked
+2. Same-region: enforced for new PVs by `csiAllowedTopologyKeys` + `allowedTopologies` in StorageClasses + `WaitForFirstConsumer`. For pre-existing volumes with `accessibilityRequirements: null`, patch `spec.nodeSelector` on the Longhorn Volume CR — the reconciliation loop evicts out-of-region replicas continuously. Manual single-term PV `nodeAffinity` patches on the 7 pre-existing stateful PVs add a pod scheduling constraint.
+3. Cross-region: blocked for new volumes; must patch Volume CRs for pre-existing violations
 
-**`csiAllowedTopologyKeys` applies to new volumes only.** Pre-existing volumes have `accessibilityRequirements` written at creation time and cannot be patched after the fact (field is stripped by the v1.11 CRD). `replicaAutoBalance` cannot help pre-existing volumes because they inherit `replicaAutoBalance: ignored`.
+**`accessibilityRequirements` on new volumes vs existing:** New volumes provisioned with the two-layer StorageClass mechanism always get `accessibilityRequirements` set. Pre-existing volumes with `accessibilityRequirements: null` cannot have this field patched (stripped by the v1.11 CRD) — use `spec.nodeSelector` on the Volume CR instead. `replicaAutoBalance` cannot help pre-existing volumes because they inherit `replicaAutoBalance: ignored`.
 
 **Co-locating tightly-coupled pods (app + its database):**
 

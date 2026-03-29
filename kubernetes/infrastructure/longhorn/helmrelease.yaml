@@ -45,45 +45,48 @@ spec:
       # prevents secondary replicas from drifting to a different zone within the region.
       replicaZoneSoftAntiAffinity: false
       # NOTE: Longhorn 1.11.1 has no replica-region-soft-anti-affinity setting.
-      # Same-region enforcement relies solely on csiAllowedTopologyKeys + WaitForFirstConsumer.
-      # Cross-region replicas on pre-existing volumes must be evicted manually.
+      # Same-region enforcement uses csiAllowedTopologyKeys + allowedTopologies in
+      # StorageClasses + WaitForFirstConsumer (two-layer mechanism).
+      # Cross-region replicas on pre-existing volumes must be corrected by patching
+      # spec.nodeSelector on the Volume CR — Longhorn's reconciliation loop then
+      # continuously enforces the constraint.
 
-      # Region-constrained REPLICA PLACEMENT (requires v1.11.1+).
+      # Region-constrained REPLICA PLACEMENT — two-layer mechanism.
       #
-      # IMPORTANT: For Longhorn (network-attached storage), csiAllowedTopologyKeys
-      # controls where Longhorn places *replicas*, NOT where pods are scheduled.
-      # Longhorn is accessible from any node in the cluster, so its CSI driver
-      # reports every node as an accessible topology endpoint. The resulting PV
-      # nodeAffinity is OR'd across all nodes/regions — i.e., it is permissive and
-      # does not constrain pod scheduling at all.
+      # Layer 1: csiAllowedTopologyKeys (this setting)
+      #   Causes Longhorn CSI node plugins to *advertise* topology.kubernetes.io/region
+      #   to the k8s external-provisioner when registering. The external-provisioner
+      #   then passes the pod's region into CreateVolume's accessibilityRequirements,
+      #   and Longhorn's internal scheduler uses it to confine replica placement.
       #
-      # What this setting DOES accomplish:
-      #   Longhorn reads the topology keys from the CSI CreateVolume request's
-      #   accessibilityRequirements and uses them to restrict replica placement to
-      #   the same region as the provisioning pod. With WaitForFirstConsumer, the
-      #   provisioner passes the scheduled pod's region → all replicas land in that
-      #   region → no synchronous cross-WAN writes.
+      #   Limitation: advertisement requires the Longhorn CSI plugin pods to have
+      #   restarted *after* this setting was applied. PVCs provisioned during the
+      #   re-registration window get accessibilityRequirements: null and replicas are
+      #   placed freely. Confirmed by the geoip-db volume (created 2026-03-26 with
+      #   null accessibilityRequirements despite this setting being active since
+      #   2026-03-23 — CSI pods hadn't yet re-registered).
       #
-      # What this setting does NOT do (tested and confirmed):
-      #   Adding kubernetes.io/hostname here produces a PV nodeAffinity that lists
-      #   every single cluster node as a separate OR'd term — useless for scheduling.
-      #   The CSI driver returns all nodes because any node can mount a Longhorn
-      #   volume over the mesh.
+      # Layer 2: allowedTopologies on the StorageClasses (see persistence section)
+      #   Provisioner-side guarantee: the external-provisioner always evaluates
+      #   allowedTopologies regardless of CSI pod registration state. It intersects
+      #   allowedTopologies with the selected node's labels (WaitForFirstConsumer) to
+      #   generate requisite topology, closing the re-registration race window.
+      #   Both StorageClasses (longhorn and longhorn-1replica) carry this field.
+      #
+      # Together these two layers ensure all new PVCs get accessibilityRequirements
+      # set to the provisioning pod's region, and Longhorn enforces it continuously.
+      #
+      # IMPORTANT: For Longhorn (network-attached storage), this setting controls
+      # where Longhorn places *replicas*, NOT where pods are scheduled. Longhorn is
+      # accessible from any node, so its CSI driver reports every node as an
+      # accessible topology endpoint. The resulting PV nodeAffinity is OR'd across
+      # all nodes/regions — permissive, not a pod scheduling constraint.
       #
       # Pod scheduling constraint for existing stateful PVs:
       #   The 7 stateful PVs (kafka-0/1/2, loki, prometheus, clickhouse, metabase)
-      #   have been manually patched with a single-term region nodeAffinity
-      #   (topology.kubernetes.io/region = helsinki|falkenstein). This single-term
-      #   patch — bypassing the CSI provisioner — IS a real pod scheduling constraint:
-      #   the pod cannot schedule cross-region. New PVCs do not get this constraint
-      #   automatically; they must also be patched after first provision if required.
-      #
-      # Steady-state placement strategy for stateful pods:
-      #   1. Same-node: emergent — scheduler stability + dataLocality: best-effort
-      #      pulls the local replica back after any intra-region drift
-      #   2. Same-region: enforced by the manual PV nodeAffinity patch on existing PVs
-      #   3. Cross-region: blocked for patched PVs; replica placement constrained for
-      #      new PVs via this setting
+      #   have been manually patched with a single-term region nodeAffinity. This
+      #   IS a real pod scheduling constraint (single OR term = required). New PVCs
+      #   do not get this automatically and must be patched if required.
       csiAllowedTopologyKeys: "topology.kubernetes.io/region"
 
       # Enable the revision counter globally. This controls the --disableRevCounter
@@ -153,6 +156,20 @@ spec:
       # the PV is provisioned immediately with no node context, so csiAllowedTopologyKeys
       # has nothing to infer from and region constraint is not applied.
       volumeBindingMode: "WaitForFirstConsumer"
+
+      # allowedTopologies is the second layer of same-region enforcement alongside
+      # csiAllowedTopologyKeys. The external-provisioner evaluates this field
+      # regardless of CSI pod registration state — closing the race window where a
+      # PVC provisioned just after a Longhorn CSI pod restart would get
+      # accessibilityRequirements: null and land replicas cross-region.
+      # Both values (falkenstein, helsinki) are listed so any region is valid;
+      # WaitForFirstConsumer then narrows to exactly the pod's region at bind time.
+      allowedTopologies:
+        - matchLabelExpressions:
+            - key: topology.kubernetes.io/region
+              values:
+                - falkenstein
+                - helsinki
 
       # Enable the revision counter so Longhorn can determine which blocks changed
       # while a replica was offline (e.g. during a node reboot). With this enabled,
