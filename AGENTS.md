@@ -721,25 +721,27 @@ This is a critical distinction for Longhorn specifically. Because Longhorn is ne
 
 The 7 stateful PVs (kafka-0/1/2, loki, prometheus, clickhouse, metabase) were manually patched with a **single-term** `topology.kubernetes.io/region` nodeAffinity (e.g., `region In [helsinki]`). This single-term patch — written directly to the PV, bypassing what the CSI provisioner would have written — IS a real pod scheduling constraint: the pod cannot schedule cross-region. New PVCs created in the future do not automatically get this constraint and must be patched after first provision if required.
 
+**PV `spec.nodeAffinity` is immutable on bound PVs.** Kubernetes rejects `kubectl patch pv` attempts that change `nodeAffinity` with `"field is immutable"`. The only way to fix an OR-term nodeAffinity on a bound PV is to delete and recreate the PVC (which destroys the data). For bytebase-postgres and geoip-db — whose PVCs were provisioned with OR-terms before the two-layer mechanism was fully in place — the Longhorn Volume CR `spec.nodeSelector` is the effective durability enforcement (replica placement is locked); the PV nodeAffinity cannot be corrected without downtime and PVC recreation. Scheduler stability keeps their pods on the same nodes across restarts in practice.
+
 **All 9 current volumes have `spec.nodeSelector` set** on the Longhorn Volume CR as of 2026-03-29:
 
-| Volume | App | Region |
-|--------|-----|--------|
-| pvc-225e1a12 | kafka-combined-2 | falkenstein |
-| pvc-29c07162 | kafka-combined-0 | falkenstein |
-| pvc-edd70f39 | kafka-combined-1 | falkenstein |
-| pvc-14260b9b | metabase | falkenstein |
-| pvc-c4cf47bc | bytebase-postgres | falkenstein |
-| pvc-1d0f9a6d | prometheus | helsinki |
-| pvc-71387016 | loki | helsinki |
-| pvc-9b8a0ca6 | clickhouse | helsinki |
-| pvc-250ac12c | geoip-db | helsinki |
+| Volume | App | Region | PV nodeAffinity |
+|--------|-----|--------|-----------------|
+| pvc-225e1a12 | kafka-combined-2 | falkenstein | single-term ✅ |
+| pvc-29c07162 | kafka-combined-0 | falkenstein | single-term ✅ |
+| pvc-edd70f39 | kafka-combined-1 | falkenstein | single-term ✅ |
+| pvc-14260b9b | metabase | falkenstein | single-term ✅ |
+| pvc-c4cf47bc | bytebase-postgres | falkenstein | OR-terms ⚠️ (immutable, cannot fix without PVC recreation) |
+| pvc-1d0f9a6d | prometheus | helsinki | single-term ✅ |
+| pvc-71387016 | loki | helsinki | single-term ✅ |
+| pvc-9b8a0ca6 | clickhouse | helsinki | single-term ✅ |
+| pvc-250ac12c | geoip-db | helsinki | OR-terms ⚠️ (immutable, cannot fix without PVC recreation) |
 
 When provisioning a new PVC, always patch `spec.nodeSelector` on the resulting Longhorn Volume CR to match the region the workload pod landed in.
 
 **Steady-state placement hierarchy:**
 1. Same-node: emergent (scheduler stability + `dataLocality: best-effort` pulling replica back over time)
-2. Same-region: enforced for new PVs by `csiAllowedTopologyKeys` + `allowedTopologies` in StorageClasses + `WaitForFirstConsumer`. For pre-existing volumes with `accessibilityRequirements: null`, patch `spec.nodeSelector` on the Longhorn Volume CR — the reconciliation loop evicts out-of-region replicas continuously. Manual single-term PV `nodeAffinity` patches on the 7 pre-existing stateful PVs add a pod scheduling constraint.
+2. Same-region: enforced for new PVs by `csiAllowedTopologyKeys` + `allowedTopologies` in StorageClasses + `WaitForFirstConsumer`. For pre-existing volumes with `accessibilityRequirements: null`, patch `spec.nodeSelector` on the Longhorn Volume CR — the reconciliation loop evicts out-of-region replicas continuously. Manual single-term PV `nodeAffinity` patches on the 7 pre-existing stateful PVs add a pod scheduling constraint. **Note:** PV `spec.nodeAffinity` is immutable on bound PVs — bytebase-postgres and geoip-db retain OR-term nodeAffinity (provisioned before topology was fully in place); their replica placement is still locked via `spec.nodeSelector` on the Longhorn Volume CR.
 3. Cross-region: blocked for new volumes; must patch Volume CRs for pre-existing violations
 
 **`accessibilityRequirements` on new volumes vs existing:** New volumes provisioned with the two-layer StorageClass mechanism always get `accessibilityRequirements` set. Pre-existing volumes with `accessibilityRequirements: null` cannot have this field patched (stripped by the v1.11 CRD) — use `spec.nodeSelector` on the Volume CR instead. `replicaAutoBalance` cannot help pre-existing volumes because they inherit `replicaAutoBalance: ignored`.
