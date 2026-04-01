@@ -5,9 +5,9 @@ metadata:
   namespace: devpod
 spec:
   hard:
-    requests.storage: 500Gi
+    # requests.storage: 500Gi
     pods: "20"
-    requests.cpu: "40"
-    requests.memory: 160Gi
-    limits.cpu: "80"
-    limits.memory: 320Gi
+    # requests.cpu: "40"
+    # requests.memory: 160Gi
+    # limits.cpu: "80"
+    # limits.memory: 320Gi
