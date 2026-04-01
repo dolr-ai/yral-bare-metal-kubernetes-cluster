@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: devpod-client
+  namespace: devpod
+automountServiceAccountToken: false
+---
+# Long-lived token for the WSL2 host kubeconfig.
+# Kubernetes 1.24+ does not auto-create SA tokens; this Secret opts in explicitly.
+# Treat this Secret like a password — it is the sole credential on the WSL2 host.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: devpod-client-token
+  namespace: devpod
+  annotations:
+    kubernetes.io/service-account.name: devpod-client
+type: kubernetes.io/service-account-token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: devpod-client
+  namespace: devpod
+rules:
+  # Pod lifecycle — create, inspect, delete workspaces
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
+  # SSH access and port forwarding into workspace pods
+  - apiGroups: [""]
+    resources: ["pods/exec", "pods/portforward"]
+    verbs: ["create", "get"]
+  # Log access for debugging workspace startup
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get", "list", "watch"]
+  # Persistent workspace storage
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch"]
+  # ConfigMaps used by envbuilder during image build
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch"]
+  # Secrets — imagePullSecrets for private GHCR images
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch"]
+  # Services — DevPod creates these for port-forwarding endpoints
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch"]
+  # Events — workspace startup diagnostics
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: devpod-client
+  namespace: devpod
+subjects:
+  - kind: ServiceAccount
+    name: devpod-client
+    namespace: devpod
+roleRef:
+  kind: Role
+  name: devpod-client
+  apiGroup: rbac.authorization.k8s.io

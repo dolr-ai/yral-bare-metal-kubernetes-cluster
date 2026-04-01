@@ -33,6 +33,7 @@ resources:
   - infrastructure-clickhouse-operator.yaml
   - infrastructure-clickhouse.yaml
   - infrastructure-bytebase.yaml
+  - infrastructure-devpod.yaml
   - networking.yaml
   - apps.yaml
 
