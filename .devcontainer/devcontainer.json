@@ -27,7 +27,7 @@
 		"SSH_AUTH_SOCK": "/ssh-agent"
 	},
 	// Run post-create setup script
-	"postCreateCommand": ".devcontainer/postCreate.sh"
+	"postCreateCommand": ".devcontainer/post-create.sh"
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 	// Configure tool-specific properties.
