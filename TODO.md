@@ -29,3 +29,5 @@
 - Confirm that all the new volumes being provisioned have 1 replica unless specifically configure to have 2
 - How do we enforce schema on the events being ingested into our kafka topics? Should we use Snowplow's schema registry that uses iglu? Figure out if this is open and popular. Or should we use schema enforcement at Kafka's layer? This is probably the more popular and documented solution
 - Clean up unused dns entries
+- symlink the devpod config to the .dotfiles repo
+- use ansible vault to manage secrets in the .dotfiles repo
