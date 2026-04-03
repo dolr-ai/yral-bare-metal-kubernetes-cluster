@@ -31,3 +31,4 @@
 - Clean up unused dns entries
 - symlink the devpod config to the .dotfiles repo
 - use ansible vault to manage secrets in the .dotfiles repo
+- encrypted volumes for longhorn

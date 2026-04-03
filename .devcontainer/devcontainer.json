@@ -18,14 +18,14 @@
 		"ghcr.io/devcontainers/features/aws-cli:1": {}
 	},
 	// Mount SSH agent socket from WSL host into container
-	// "mounts": [
-	// 	"type=bind,source=${env:HOME}/.ssh/agent.sock,target=/ssh-agent,consistency=cached",
-	// 	"type=bind,source=${env:HOME}/.config/gh,target=/home/vscode/.config/gh,consistency=cached"
-	// ],
+	"mounts": [
+		"type=bind,source=${env:HOME}/.ssh/agent.sock,target=/ssh-agent,consistency=cached",
+		"type=bind,source=${env:HOME}/.config/gh,target=/home/vscode/.config/gh,consistency=cached"
+	],
 	// Set SSH_AUTH_SOCK environment variable to point to mounted socket
-	// "remoteEnv": {
-	// 	"SSH_AUTH_SOCK": "/ssh-agent"
-	// },
+	"remoteEnv": {
+		"SSH_AUTH_SOCK": "/ssh-agent"
+	},
 	// Run post-create setup script
 	"postCreateCommand": ".devcontainer/post-create.sh"
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
