@@ -32,3 +32,37 @@
 - symlink the devpod config to the .dotfiles repo
 - use ansible vault to manage secrets in the .dotfiles repo
 - encrypted volumes for longhorn
+- The lateral movement problem is the serious one. If any single pod is compromised (RCE via a vulnerable dependency, a misconfigured container, a supply chain attack), the attacker has unrestricted access to:
+
+ClickHouse — can read/write all analytics data, port 8123 open to every pod
+Kafka — can produce/consume any topic, including snowplow events
+Longhorn manager API — can manipulate volumes or extract data from snapshots
+All Prometheus/Grafana metrics — operational intelligence leakage
+The Kubernetes API itself indirectly via any misconfigured RBAC
+In your setup this is especially relevant because you have data infrastructure (ClickHouse, Kafka) and orchestration infrastructure (Longhorn, Flux) all on the same flat network as application pods.
+
+The noisy neighbour / accidental misconfiguration problem: A misconfigured pod (wrong namespace, wrong labels) can accidentally reach production databases. There's no enforcement boundary.
+
+Should you apply it now?
+Honest answer: not all at once. Here's why this is hard for your specific cluster:
+
+Monitoring scrapes everything — Prometheus needs ingress to every pod in every namespace on metrics ports. A blanket default-deny breaks this immediately if you don't enumerate every scrape target.
+
+Longhorn is deeply cross-namespace — the CSI driver, manager, instance-manager, and share-manager pods communicate heavily across longhorn-system, kube-system, and default. Their dependency graph is not trivial to express in policies.
+
+Strimzi explicitly disabled policy generation (generateNetworkPolicy: false) — meaning someone already decided the generated policies were problematic. You'd need to write Kafka network policies from scratch.
+
+The cilium-envoy hostNetwork constraint (documented in AGENTS.md) — gateway traffic arrives as a node IP, so you can't write namespaceSelector-based ingress rules for any pod that receives external traffic. Every such pod needs a port-only rule with no from: clause, which is weaker than it looks.
+
+CoreDNS — everything needs egress to kube-dns on UDP/TCP 53, or DNS breaks silently.
+
+A practical approach if you do want to harden
+The right way is incremental:
+
+Start with namespace isolation for your highest-value targets — ClickHouse and Kafka first. An explicit allow-list for what actually needs to talk to them (Kafka Connect, Metabase, ClickHouse is reachable from… what exactly?) is achievable without a cluster-wide policy change.
+
+Use Hubble (already deployed) to generate the actual traffic map before writing any policies. hubble observe --namespace clickhouse will show you exactly which pods are making connections to ClickHouse right now. Write policies to match reality, don't guess.
+
+Don't do CiliumClusterwideNetworkPolicy default-deny yet — that's a single change that would silently break an unknown number of things. Namespace-scoped policies for specific high-value namespaces are lower risk and reversible.
+
+In short: your current state is a real security gap worth closing, but "apply default-deny cluster-wide" is not the right first move. Hubble → traffic map → targeted policies for ClickHouse and Kafka → expand from there.
