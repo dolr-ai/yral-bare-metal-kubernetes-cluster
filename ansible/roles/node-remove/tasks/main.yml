@@ -224,6 +224,38 @@
     msg: "Node {{ node_remove_k8s_name }} not found in cluster, skipping drain"
   when: node_check.rc != 0
 
+- name: Force-delete Terminating pods on dead node before drain
+  # Pods stuck in Terminating on an unreachable node will never complete graceful
+  # termination — kubectl drain waits for them and times out. Force-deleting them
+  # removes the pod objects immediately (the containers are already gone since the
+  # node is dead), unblocking drain.
+  ansible.builtin.shell: |
+    kubectl get pods --all-namespaces --field-selector \
+      spec.nodeName={{ node_remove_k8s_name }},status.phase=Running \
+      -o json | python3 -c "
+    import sys, json, subprocess
+    pods = json.load(sys.stdin)['items']
+    terminating = [
+        (p['metadata']['namespace'], p['metadata']['name'])
+        for p in pods
+        if p.get('metadata', {}).get('deletionTimestamp')
+    ]
+    for ns, name in terminating:
+        print(f'Force-deleting Terminating pod {ns}/{name}')
+        subprocess.run([
+            'kubectl', 'delete', 'pod', name,
+            '-n', ns,
+            '--grace-period=0', '--force'
+        ])
+    print(f'Done: {len(terminating)} Terminating pod(s) force-deleted')
+    "
+  delegate_to: "{{ kubectl_delegate }}"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  when: node_check.rc == 0
+  changed_when: true
+  run_once: true
+
 - name: Drain the node
   ansible.builtin.command: >
     kubectl drain {{ node_remove_k8s_name }}

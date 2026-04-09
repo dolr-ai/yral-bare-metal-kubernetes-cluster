@@ -14,8 +14,7 @@
 # leave it permanently enabled if no reboot ended up being required.
 #
 # kubectl commands run on localhost (the Ansible controller / devcontainer).
-# postCreate.sh symlinks /root/.kube/config → /home/vscode/.kube/config so that
-# Ansible tasks running as root (ansible.cfg: become=True) can reach the cluster.
+# The vscode user's ~/.kube/config is used directly — no become needed.
 
 - name: Check that target_host is defined
   ansible.builtin.fail:
@@ -55,12 +54,26 @@
   ansible.builtin.shell: |
     kubectl get node.longhorn.io {{ target_host }} -n longhorn-system \
       -o json | python3 -c "
-    import sys, json
+    import sys, json, subprocess, shlex
     d = json.load(sys.stdin)
-    total = sum(
-        len(disk.get('scheduledReplica', {}))
-        for disk in d.get('status', {}).get('diskStatus', {}).values()
-    )
+    total = 0
+    for disk in d.get('status', {}).get('diskStatus', {}).values():
+        for replica_name in disk.get('scheduledReplica', {}):
+            # Only count replicas whose CR actually exists.
+            # On a dead node, scheduledReplica can contain phantom entries
+            # (the replica CR was already deleted but the node status was never
+            # reconciled because the node is unreachable). Counting phantoms
+            # would cause the eviction wait to loop forever.
+            result = subprocess.run(
+                shlex.split(
+                    f'kubectl get replica.longhorn.io {replica_name} -n longhorn-system'
+                ),
+                capture_output=True
+            )
+            if result.returncode == 0:
+                total += 1
+            else:
+                print(f'PHANTOM replica {replica_name} (CR not found, skipping)', file=sys.stderr)
     print(total)
     "
   register: replica_count_before
@@ -91,18 +104,25 @@
   ansible.builtin.shell: |
     kubectl get node.longhorn.io {{ target_host }} -n longhorn-system \
       -o json | python3 -c "
-    import sys, json
+    import sys, json, subprocess, shlex
     d = json.load(sys.stdin)
-    total = sum(
-        len(disk.get('scheduledReplica', {}))
-        for disk in d.get('status', {}).get('diskStatus', {}).values()
-    )
+    total = 0
+    for disk in d.get('status', {}).get('diskStatus', {}).values():
+        for replica_name in disk.get('scheduledReplica', {}):
+            result = subprocess.run(
+                shlex.split(
+                    f'kubectl get replica.longhorn.io {replica_name} -n longhorn-system'
+                ),
+                capture_output=True
+            )
+            if result.returncode == 0:
+                total += 1
     print(total)
     "
   register: replica_count
   until: replica_count.stdout | int == 0
-  retries: 360
-  delay: 5
+  retries: 60
+  delay: 30
   changed_when: false
   when:
     - longhorn_node_check.rc == 0
