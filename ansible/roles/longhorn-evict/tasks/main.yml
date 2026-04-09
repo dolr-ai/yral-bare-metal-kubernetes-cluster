@@ -75,10 +75,10 @@
   run_once: true
 
 - name: Enable eviction on each disk
-  ansible.builtin.command: >
+  ansible.builtin.shell: >
     kubectl patch node.longhorn.io {{ target_host }} -n longhorn-system
     --type=json
-    -p=[{"op":"replace","path":"/spec/disks/{{ item }}/evictionRequested","value":true}]
+    -p='[{"op":"replace","path":"/spec/disks/{{ item }}/allowScheduling","value":false},{"op":"replace","path":"/spec/disks/{{ item }}/evictionRequested","value":true}]'
   loop: "{{ longhorn_disk_keys.stdout_lines | default([]) }}"
   when:
     - longhorn_node_check.rc == 0

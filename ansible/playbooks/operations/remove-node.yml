@@ -7,5 +7,5 @@
   gather_facts: false
 
   roles:
-    - role: longhorn-evict  # Drain all Longhorn replicas before removing the node
+    - role: longhorn-evict # Drain all Longhorn replicas before removing the node
     - role: node-remove
