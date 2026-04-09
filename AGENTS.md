@@ -499,25 +499,18 @@ print(d.get('vault_my_secret', ''))
 
 **If the SSH key or any other secret is missing after a container rebuild, fix `postCreate.sh` — never extract secrets manually in the terminal.** The postCreate.sh script is the contract that makes the devcontainer self-contained; workarounds defeat that contract and will silently break for future agents.
 
-### `become: true` + devcontainer user mismatch
+### `become` usage
 
-`postCreate.sh` runs as the **`vscode`** user (HOME=/home/vscode). `ansible.cfg` sets `become = True` globally, so every Ansible task that runs on `localhost` executes as **`root`** (HOME=/root). These are two different home directories.
+`ansible.cfg` sets `become = False` globally. This is intentional:
 
-**The fix: `postCreate.sh` creates root symlinks for every user-owned file that Ansible needs.**
+- **Remote plays** (`hosts: worker_nodes`, `hosts: control_plane`): `ansible_user: root` is set in `hosts.yml`, so Ansible already SSH-es in as root. A global `become: true` would run a redundant `sudo root → root` on every task.
+- **Localhost plays** (`hosts: localhost`): the `vscode` user has `~/.kube/config`, the SSH key, and all vault-extracted credentials. No privilege escalation is needed.
 
-After writing each file, `postCreate.sh` immediately symlinks it under `/root/` so that `become: true` Ansible tasks find the same content:
+**Playbooks that target remote nodes declare `become: true` at the play level** (e.g. `add-worker.yml`, `upgrade-worker.yml`). This is belt-and-suspenders for tasks that genuinely need it (package installs, systemd, etc.) and is harmless since the SSH session is already root.
 
-| File | vscode path | root path (symlink) |
-|---|---|---|
-| kubeconfig | `/home/vscode/.kube/config` | `/root/.kube/config` → same file |
-| SSH key | `/home/vscode/.ssh/hetzner-ansible-key` | `/root/.ssh/hetzner-ansible-key` → same file |
-| `/tmp/.cf` (Cloudflare token) | owned by vscode, mode 600 | readable by root — no action needed |
+**Localhost playbooks** (`remove-node.yml`, `etcd-backup.yml`) do **not** set `become: true` — they run kubectl, curl, and vault operations as `vscode`, which is correct.
 
-This means roles never need `become: false` just to call kubectl or read the SSH key — the global `become: true` default works without per-task overrides.
-
-**If a new file is added to `postCreate.sh` that Ansible localhost roles will need, add a matching `sudo ln -sf` immediately after writing it.** Do not scatter `become: false` workarounds across roles.
-
-**This was the root cause of the `longhorn-evict` failure during worker-1 removal.** kubectl on localhost ran as root → no kubeconfig at `/root/.kube/config` → fell back to `localhost:8080` → connection refused. Fixed by adding the root symlink in `postCreate.sh`.
+Individual tasks within roles may declare `become: true` when `delegate_to: target_host` is used — these are explicit and intentional (e.g. stopping kubelet on the node being removed).
 
 ### Kubernetes Cluster
 - v1.35 with kubeadm

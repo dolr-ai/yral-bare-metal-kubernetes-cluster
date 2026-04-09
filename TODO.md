@@ -68,3 +68,4 @@ Don't do CiliumClusterwideNetworkPolicy default-deny yet — that's a single cha
 In short: your current state is a real security gap worth closing, but "apply default-deny cluster-wide" is not the right first move. Hubble → traffic map → targeted policies for ClickHouse and Kafka → expand from there.
 
 - evaluate if kubernetes secrets are actually secure and consider if we should host hashicorp vault on the cluster to manage secrets instead
+- Run this benchmark - https://github.com/aquasecurity/kube-bench
