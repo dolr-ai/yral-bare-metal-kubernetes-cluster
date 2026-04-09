@@ -69,3 +69,4 @@ In short: your current state is a real security gap worth closing, but "apply de
 
 - evaluate if kubernetes secrets are actually secure and consider if we should host hashicorp vault on the cluster to manage secrets instead
 - Run this benchmark - https://github.com/aquasecurity/kube-bench
+- No notifications received for the dead node. We should have an alert for this. Set up a Grafana alert that notifies us when a node goes down, so we can investigate and fix it as soon as possible. This is critical for maintaining the health and availability of our cluster.

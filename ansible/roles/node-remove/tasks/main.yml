@@ -337,6 +337,7 @@
   delegate_to: "{{ target_host }}"
   become: true
   failed_when: false
+  ignore_unreachable: true
 
 - name: Remove Kubernetes configuration
   ansible.builtin.file:
@@ -349,13 +350,39 @@
   delegate_to: "{{ target_host }}"
   become: true
   failed_when: false
+  ignore_unreachable: true
 
 - name: Reset iptables (optional)
   ansible.builtin.command: iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
   delegate_to: "{{ target_host }}"
   become: true
   failed_when: false
+  ignore_unreachable: true
   when: reset_iptables | default(false)
+
+- name: Delete stale VolumeAttachments for removed node
+  # After a node is deleted, the CSI detach finalizer can leave VolumeAttachment
+  # objects pointing to the dead node. These block new attachments on the pod's
+  # rescheduled node since RWO volumes can only attach to one node at a time.
+  ansible.builtin.shell: |
+    kubectl get volumeattachment -o json | python3 -c "
+    import sys, json, subprocess
+    items = json.load(sys.stdin)['items']
+    stale = [
+        va['metadata']['name']
+        for va in items
+        if va['spec'].get('nodeName') == '{{ node_remove_k8s_name }}'
+    ]
+    for name in stale:
+        print(f'Deleting stale VolumeAttachment {name}')
+        subprocess.run(['kubectl', 'delete', 'volumeattachment', name])
+    print(f'Done: {len(stale)} stale VolumeAttachment(s) deleted')
+    "
+  delegate_to: "{{ kubectl_delegate }}"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: true
+  run_once: true
 
 - name: List remaining nodes
   ansible.builtin.command: kubectl get nodes
