@@ -18,3 +18,4 @@ spec:
       name: sops-age
   dependsOn:
     - name: infrastructure-longhorn
+    - name: infrastructure-rook-ceph-cluster

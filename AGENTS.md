@@ -759,6 +759,205 @@ for name in to_patch:
 
 **Recovery if a volume is stuck in the salvage cycle:** See the "Cilium BPF Service Table Staleness" section pattern for diagnosis. Fix order: (1) patch the global Setting CR to `{"v1":"false"}`, (2) restart the longhorn-manager pod on the volume's ownerID node to flush its setting cache, (3) patch the Engine CR `spec.revisionCounterDisabled: false`, (4) clear `failedAt` on both replicas.
 
+### Rook/Ceph — Distributed Block Storage
+
+The cluster is migrating from Longhorn to **Rook/Ceph** as the primary CSI provider. Rook v1.19.3 + Ceph v20.2.1 (Tentacle). All new stateful workloads should use `storageClassName: ceph-block` once the migration is complete and Ceph is made the default StorageClass.
+
+**Why Ceph instead of Longhorn:**
+Longhorn caps each PVC at a single node's disk size. Ceph aggregates all OSD disks across the entire cluster into one logical pool; a PVC's maximum size is the total usable pool capacity (currently ~16.5 TB at 2× replication over 35 workers × 950 GB per worker).
+
+**Disk layout per worker node (post-reprovision):**
+
+| Device | Role | Size |
+|--------|------|------|
+| `nvme0n1p1` | EFI / BIOS boot | ~512 MB |
+| `nvme0n1p2` | btrfs OS root | **50 GB** |
+| `nvme0n1p3` | Raw Ceph OSD partition (created by `storage-setup`) | ~450 GB |
+| `nvme1n1` | Raw Ceph OSD whole disk (wiped by `storage-setup`) | ~500 GB |
+
+Each worker contributes **2 OSDs** (~950 GB total). Control planes keep the original full-disk btrfs RAID0 layout and are **not** Ceph OSD nodes (they are in Helsinki; all workers are in Falkenstein).
+
+**How worker reprovisioning works with the new disk layout:**
+- `provision` role passes `OS_PARTITION_SIZE=50G` to `install-ubuntu.sh` via `provision_os_partition_size` (auto-detected from `group_names`); control planes continue to use `all`.
+- `storage-setup` role detects `'worker_nodes' in group_names` and runs the Ceph OSD path: creates the GPT partition on nvme0n1 free space with `sgdisk`, wipes nvme1n1, creates `/var/lib/rook`.
+- Rook's `deviceFilter: "nvme"` auto-discovers both raw devices on the newly joined node.
+
+**Rook/Ceph Kubernetes manifests — two-directory split:**
+```
+kubernetes/infrastructure/rook-ceph/
+  operator/   ← Flux Kustomization: infrastructure-rook-ceph-operator
+    namespace.yaml, helmrepository.yaml, helmrelease.yaml
+  cluster/    ← Flux Kustomization: infrastructure-rook-ceph-cluster (dependsOn: operator)
+    cephcluster.yaml, cephblockpool.yaml, storageclass-rbd.yaml
+```
+The split is necessary because the `CephCluster` CRD is installed by the Rook Helm chart. `wait: true` on the operator Kustomization ensures CRDs exist before the cluster CRs are applied.
+
+**Pool configuration:**
+- `replication.size: 2` — each block is written to 2 different OSD nodes.
+- `failureDomain: host` — replicas must land on different physical nodes.
+- Usable capacity: ~16.5 TB (33 TB raw ÷ 2).
+- `ceph-block` StorageClass: RWO, `WaitForFirstConsumer`, `allowVolumeExpansion: true`.
+- **OSD encryption**: `encryptedDevice: "true"` — every OSD is LUKS-encrypted at the block device layer. Keys are generated per-OSD at provisioning time and stored as Kubernetes Secrets in the `rook-ceph` namespace (`rook-ceph-osd-encryption-key-<osd-id>`). This was set before any OSDs were provisioned; it cannot be applied retroactively without destroying and reprovisioning the OSD.
+
+**Default StorageClass transition:**
+`ceph-block` is intentionally **not** the default during migration. Once all Longhorn PVCs are migrated, flip both annotations:
+```bash
+kubectl patch storageclass ceph-block -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+kubectl patch storageclass longhorn -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
+```
+Then update the Longhorn HelmRelease `persistence.defaultClass: false` and commit.
+
+**Monitoring Ceph cluster health:**
+```bash
+# Overall health
+kubectl exec -n rook-ceph deploy/rook-ceph-tools -- ceph status
+
+# OSD status (expect 70 OSDs once all 35 workers are reprovisioned)
+kubectl exec -n rook-ceph deploy/rook-ceph-tools -- ceph osd status
+
+# Pool usage
+kubectl exec -n rook-ceph deploy/rook-ceph-tools -- ceph df
+
+# Placement group status (should be 100% active+clean at steady state)
+kubectl exec -n rook-ceph deploy/rook-ceph-tools -- ceph pg stat
+```
+
+Deploy the Ceph toolbox for ad-hoc diagnostics:
+```bash
+kubectl apply -f https://raw.githubusercontent.com/rook/rook/v1.19.3/deploy/examples/toolbox.yaml
+```
+
+**Worker node migration sequence:**
+Workers are reprovisioned one at a time using the existing `remove-node.yml` → `add-worker.yml` playbooks. No new playbook is needed. Run:
+```bash
+# Reprovision a worker (30-60 min per node)
+ansible-playbook ansible/playbooks/operations/remove-node.yml -e target_host=worker-N
+ansible-playbook ansible/playbooks/operations/add-worker.yml -e target_host=worker-N
+# Verify the new OSDs are UP before moving to the next worker:
+kubectl exec -n rook-ceph deploy/rook-ceph-tools -- ceph osd status
+```
+
+The cluster is usable for PVC provisioning once **3 OSD nodes** are online (mons achieve quorum and the block pool has enough replicated copies). Wait for `ceph status` to show `HEALTH_OK` or `HEALTH_WARN` (not `HEALTH_ERR`) before provisioning test volumes.
+
+**PVC data migration procedure (Longhorn → Ceph):**
+
+For each workload with a Longhorn PVC, perform this sequence. The procedure uses a temporary migration PVC and a rsync Job to avoid downtime. The hardest part is rebinding a StatefulSet's PVC to the new Ceph PV.
+
+```bash
+# Example: migrating Loki's 600 Gi PVC (storage-loki-0)
+NAMESPACE=loki
+OLD_PVC=storage-loki-0
+NEW_SIZE=600Gi
+WORKLOAD=loki  # StatefulSet name
+
+# 1. Scale the workload to 0 to quiesce writes
+kubectl scale statefulset $WORKLOAD -n $NAMESPACE --replicas=0
+kubectl wait pod -n $NAMESPACE -l app.kubernetes.io/name=loki --for=delete --timeout=120s
+
+# 2. Create a migration Ceph PVC
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ${OLD_PVC}-migrate
+  namespace: $NAMESPACE
+spec:
+  storageClassName: ceph-block
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: $NEW_SIZE
+EOF
+
+# 3. Run rsync Job to copy data (replace image tag as needed)
+kubectl apply -f - <<EOF
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrate-${OLD_PVC}
+  namespace: $NAMESPACE
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: rsync
+          image: alpine:3.20
+          command: [sh, -c, "apk add --no-cache rsync && rsync -avx --delete /src/ /dst/"]
+          volumeMounts:
+            - name: src
+              mountPath: /src
+            - name: dst
+              mountPath: /dst
+      volumes:
+        - name: src
+          persistentVolumeClaim:
+            claimName: $OLD_PVC
+        - name: dst
+          persistentVolumeClaim:
+            claimName: ${OLD_PVC}-migrate
+EOF
+kubectl wait job migrate-${OLD_PVC} -n $NAMESPACE --for=condition=complete --timeout=3600s
+kubectl delete job migrate-${OLD_PVC} -n $NAMESPACE
+
+# 4. Mark the Ceph PV as Retain so it survives PVC deletion
+CEPH_PV=$(kubectl get pvc ${OLD_PVC}-migrate -n $NAMESPACE -o jsonpath='{.spec.volumeName}')
+kubectl patch pv $CEPH_PV -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}'
+
+# 5. Delete both PVCs (the Longhorn PVC is reclaimed; the Ceph PV stays due to Retain)
+kubectl delete pvc $OLD_PVC -n $NAMESPACE
+kubectl delete pvc ${OLD_PVC}-migrate -n $NAMESPACE
+
+# After the second delete, the Ceph PV status goes to Released.
+# 6. Patch the Ceph PV to clear its claimRef (makes it Available for rebinding)
+kubectl patch pv $CEPH_PV -p '{"spec":{"claimRef":null}}'
+
+# 7. Create a new PVC with the ORIGINAL name, binding explicitly to the Ceph PV
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: $OLD_PVC
+  namespace: $NAMESPACE
+spec:
+  storageClassName: ceph-block
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: $NEW_SIZE
+  volumeName: $CEPH_PV
+EOF
+kubectl wait pvc $OLD_PVC -n $NAMESPACE --for=condition=Bound --timeout=60s
+
+# 8. Scale the workload back up and verify it starts cleanly
+kubectl scale statefulset $WORKLOAD -n $NAMESPACE --replicas=1
+kubectl rollout status statefulset $WORKLOAD -n $NAMESPACE --timeout=300s
+
+# 9. Restore the Ceph PV reclaim policy to Delete (normal behaviour)
+kubectl patch pv $CEPH_PV -p '{"spec":{"persistentVolumeReclaimPolicy":"Delete"}}'
+```
+
+**PVCs to migrate (current inventory):**
+
+| Namespace | PVC | Size | Workload | Notes |
+|-----------|-----|------|----------|-------|
+| loki | storage-loki-0 | 600 Gi | loki StatefulSet | Largest — migrate with care |
+| kafka | data-kafka-cluster-combined-0/1/2 | 250 Gi × 3 | Kafka StatefulSet (3 brokers) | App-level replication → use `ceph-block` (single Rook replica acceptable only if using a 1-replica CephBlockPool variant) |
+| clickhouse | data-volume-chi-analytics-events-0-0-0 | 200 Gi | ClickHouse | Follow immutable data ops pattern |
+| monitoring | prometheus-kube-prometheus-stack-prometheus-db-... | 100 Gi | Prometheus StatefulSet | Losing metrics history OK temporarily |
+| metabase | metabase-data | 10 Gi | Metabase Deployment | |
+| bytebase | bytebase-postgres-data | 5 Gi | Bytebase StatefulSet | |
+| snowplow | geoip-db | 1 Gi | Snowplow | Tiny — migrate last |
+
+**Kafka note:** Kafka brokers use `longhorn-1replica` currently. After migration to Ceph, continue using a 1-replica pool. Either reuse the same `ceph-block` StorageClass with a separate `CephBlockPool` configured for `replicated.size: 1`, or apply Kafka's own replication factor guarantee directly. Decision: use `ceph-block` (2-replica pool) for simplicity — the write amplification concern (3 brokers × 2 Longhorn replicas) still applies, but at cluster scale the I/O is no longer cross-node per write (Ceph is in the same Falkenstein region as Kafka pods). If write amplification becomes measurable, create a `ceph-block-1replica` StorageClass pointing to a separate 1-replica pool.
+
+**Decommissioning Longhorn (after all PVCs migrated):**
+1. Make `ceph-block` the default StorageClass (flip annotations above).
+2. Remove `infrastructure-longhorn` from `kubernetes/clusters/yral-k8s/kustomization.yaml`.
+3. Suspend the Flux Kustomization first: `flux suspend kustomization infrastructure-longhorn`.
+4. Remove `storage-setup`'s Longhorn section for control planes (the `chattr +C` block and `/var/lib/longhorn` directory creation) — they are marked with "Remove once Longhorn is removed" comments.
+5. Remove `longhorn-evict` role invocation from `remove-node.yml` (no more Longhorn volumes to evict).
+
 ### Backup Strategy
 
 Two complementary backup mechanisms run in parallel — use both, they are not redundant:

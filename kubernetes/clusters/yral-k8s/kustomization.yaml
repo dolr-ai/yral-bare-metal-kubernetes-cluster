@@ -18,6 +18,8 @@ resources:
   - infrastructure-flux-receiver.yaml
   - infrastructure-metrics-server.yaml
   - infrastructure-longhorn.yaml
+  - infrastructure-rook-ceph-operator.yaml
+  - infrastructure-rook-ceph-cluster.yaml
   - infrastructure-reloader.yaml
   - infrastructure-monitoring.yaml
   - infrastructure-vpa.yaml

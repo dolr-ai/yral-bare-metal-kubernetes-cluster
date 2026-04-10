@@ -1,0 +1,24 @@
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: ceph-blockpool
+  namespace: rook-ceph
+spec:
+  # failureDomain: host — each replica lands on a different physical node.
+  # With replication size 2 and 35 worker nodes, the cluster can lose any
+  # single node without losing any data.
+  failureDomain: host
+
+  replicated:
+    # 2 replicas matches the current Longhorn defaultReplicaCount of 2.
+    # Tolerates 1-node failure with full data availability.
+    # Raw capacity per TB of OSD pool: 2 TB raw → 1 TB usable.
+    # With ~33 TB raw across 35 workers: ~16.5 TB usable.
+    size: 2
+    requireSafeReplicaSize: true
+
+  # Enable the per-pool mirroring status metric for Prometheus.
+  statusCheck:
+    mirror:
+      disabled: false
+      interval: "60s"

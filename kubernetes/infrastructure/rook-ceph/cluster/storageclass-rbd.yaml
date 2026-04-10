@@ -1,0 +1,50 @@
+# StorageClass for Ceph RBD block volumes (RWO).
+#
+# MIGRATION STATUS: ceph-block is intentionally NOT set as the default
+# StorageClass while Longhorn PVCs are being migrated.  Once all workloads
+# have been moved to Ceph (see PVC migration procedure in AGENTS.md), set
+# storageclass.kubernetes.io/is-default-class: "true" and patch the Longhorn
+# StorageClass annotation to "false" in the Longhorn HelmRelease values.
+#
+# USE: Set storageClassName: ceph-block on new PVCs and StatefulSet
+# volumeClaimTemplates during the migration window.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ceph-block
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+provisioner: rook-ceph.rbd.csi.ceph.com
+parameters:
+  clusterID: rook-ceph
+  pool: ceph-blockpool
+
+  # RBD image format v2 is required for layering, cloning, and fast-diff.
+  imageFormat: "2"
+
+  # Feature set enabled on all new RBD images.
+  #   layering        — snapshot support (required for PVC clones/backups)
+  #   fastdiff        — fast delta computation for incremental snapshots
+  #   object-map      — accelerates diff-based operations (requires exclusive-lock)
+  #   deep-flatten    — allows flattening of cloned images and their parents
+  #   exclusive-lock  — required for object-map and safe multi-host access
+  # All features require kernel ≥ 5.x and Ceph Jewel or newer; Ubuntu 24.04
+  # with kernel 6.x satisfies both requirements.
+  imageFeatures: layering,fastdiff,object-map,deep-flatten,exclusive-lock
+
+  # CSI driver secret references.  These Secrets are created by the Rook operator
+  # when the CephCluster is initialised.  Do not modify these names.
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+  csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+  csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+
+# WaitForFirstConsumer defers PV provisioning until the pod is scheduled,
+# ensuring the RBD image is created in the same topology zone as the pod.
+# This mirrors the Longhorn volumeBindingMode already in use.
+volumeBindingMode: WaitForFirstConsumer

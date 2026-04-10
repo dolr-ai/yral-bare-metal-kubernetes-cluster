@@ -1,0 +1,18 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: infrastructure-rook-ceph-operator
+  namespace: flux-system
+spec:
+  interval: 1h
+  path: ./kubernetes/infrastructure/rook-ceph/operator
+  prune: true
+  # wait: true ensures Flux blocks until the HelmRelease reaches Ready=True,
+  # which means the rook-ceph operator chart (and its CRDs) are fully installed.
+  # infrastructure-rook-ceph-cluster depends on this Kustomization so the
+  # CephCluster CRD is guaranteed to exist before the cluster CRs are applied.
+  wait: true
+  timeout: 20m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

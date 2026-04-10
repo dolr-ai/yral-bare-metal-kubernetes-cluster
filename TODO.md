@@ -68,6 +68,15 @@ Don't do CiliumClusterwideNetworkPolicy default-deny yet — that's a single cha
 
 In short: your current state is a real security gap worth closing, but "apply default-deny cluster-wide" is not the right first move. Hubble → traffic map → targeted policies for ClickHouse and Kafka → expand from there.
 
-- evaluate if kubernetes secrets are actually secure and consider if we should host hashicorp vault on the cluster to manage secrets instead
+- evaluate if kubernetes secrets are actually secure and consider if we should host hashicorp vault on the cluster to manage secrets instead. This is because I imagine secrets are stored in etcd in plaintext. Since etcd nodes have their disk without encryption, the kubernetes secrets are essentially insecure, right? Is there a way to encrypt etcd at rest? Confirm this:
+The key never leaves the cluster and is encrypted at rest inside etcd (Kubernetes API server encrypts Secrets at the etcd layer by default in kubeadm clusters).
 - Run this benchmark - https://github.com/aquasecurity/kube-bench
 - No notifications received for the dead node. We should have an alert for this. Set up a Grafana alert that notifies us when a node goes down, so we can investigate and fix it as soon as possible. This is critical for maintaining the health and availability of our cluster.
+- Cleanup longhorn when done with the entire migration
+    - Longhorn UI
+    - Longhorn S3 backups
+
+- MIGRATION STATUS: ceph-block is intentionally NOT set as the default StorageClass while Longhorn PVCs are being migrated.  Once all workloads have been moved to Ceph (see PVC migration procedure in AGENTS.md), set storageclass.kubernetes.io/is-default-class: "true" and patch the Longhorn StorageClass annotation to "false" in the Longhorn HelmRelease values.
+After migration is complete, ensure Rook-Ceph is the default StorageClass and that the Longhorn StorageClass is not default, to ensure new volumes are provisioned on Ceph by default.
+
+- Update AGENTS.md after the migration is done and remove redundant sections

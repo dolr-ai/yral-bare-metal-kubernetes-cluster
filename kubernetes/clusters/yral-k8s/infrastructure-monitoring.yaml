@@ -11,6 +11,7 @@ spec:
   timeout: 10m
   dependsOn:
     - name: infrastructure-longhorn
+    - name: infrastructure-rook-ceph-cluster
     - name: infrastructure-reloader
   sourceRef:
     kind: GitRepository

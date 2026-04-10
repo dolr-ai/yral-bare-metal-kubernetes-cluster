@@ -11,6 +11,7 @@ spec:
   timeout: 10m
   dependsOn:
     - name: infrastructure-longhorn
+    - name: infrastructure-rook-ceph-cluster
   sourceRef:
     kind: GitRepository
     name: flux-system

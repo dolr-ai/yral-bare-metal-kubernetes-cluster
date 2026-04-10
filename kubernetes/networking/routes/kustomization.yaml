@@ -4,6 +4,7 @@ resources:
   - hubble-ui.yaml
   - grafana.yaml
   - longhorn-ui.yaml
+  - ceph-dashboard.yaml
   - headlamp.yaml
   - snowplow-collector.yaml
   - dashboard.yaml
