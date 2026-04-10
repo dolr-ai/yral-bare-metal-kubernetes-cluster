@@ -17,7 +17,7 @@ spec:
 
   # Enforce pre-upgrade health checks.  Rook will not proceed with a Ceph image
   # upgrade if any PGs are degraded or any OSDs are out of service.
-  skipUpgradesChecks: false
+  skipUpgradeChecks: false
   continueUpgradeAfterChecksEvenIfNotHealthy: false
   waitTimeoutForHealthyOSDInMinutes: 10
   upgradeOSDRequiresHealthyPGs: true
