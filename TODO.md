@@ -1,3 +1,4 @@
+- Just to confirm, for control plane nodes, we are still using the entire 1 TB via joining 2 500GB drives using btrfs, right? No point wasting space on the control planes since they don't run Ceph OSDs
 - Host yral.com to root domain. Take down about.yral.com
 - refactor hetzner-bare-metal repo to use individual segmentation for the inventory file and commit to the individuals owning infra strategy completely
 - Fix volumes still being placed across regions instead of within the same region. Also what is zone in longhorn terminology? What value is it set to for our nodes?

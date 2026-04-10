@@ -1,226 +1,320 @@
 ---
-# Storage Setup - Expand btrfs filesystem to second drive, and prepare Longhorn data path
-# This role detects if multiple drives exist and expands btrfs if applicable.
+# Storage Setup - Prepares node-local disk resources according to the node's role.
 #
-# btrfs + Longhorn CoW conflict:
-# btrfs uses Copy-on-Write (CoW) for all files by default. Longhorn also implements its
-# own CoW replication model. The combination causes double-CoW: every Longhorn write
-# triggers a btrfs CoW as well, producing write amplification, metadata fragmentation,
-# and apparent out-of-space conditions even when free capacity exists.
+# WORKER NODES — Ceph OSD preparation:
+#   Workers are Rook/Ceph OSD nodes.  They are provisioned with a 50 GB btrfs root
+#   on nvme0n1; the remaining ~450 GB of nvme0n1 is left as GPT free space, and
+#   nvme1n1 is kept entirely raw.  This role fills that free space with a new GPT
+#   partition (labelled "ceph-osd") and wipes nvme1n1 clean.  Rook auto-discovers
+#   both devices via its deviceFilter and creates two OSDs per worker:
+#     OSD-A: nvme0n1p<N> (~450 GB, GPT partition on the OS drive)
+#     OSD-B: nvme1n1     (~500 GB, raw second NVMe)
+#   Total per worker: ~950 GB Ceph block storage.
 #
-# Fix: set the `nodatacow` attribute (chattr +C) on /var/lib/longhorn BEFORE Longhorn's
-# DaemonSet ever writes to that path. This disables btrfs CoW for that directory tree
-# while leaving the rest of the filesystem unaffected.
-#
-# This must run during node provisioning (before worker-join / control-plane-join),
-# since Longhorn's DaemonSet only schedules after the node joins the cluster.
-
-- name: Create Longhorn data directory
-  ansible.builtin.file:
-    path: /var/lib/longhorn
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-
-- name: Disable btrfs Copy-on-Write for Longhorn data directory
-  ansible.builtin.command: chattr +C /var/lib/longhorn
-  # nodatacow can only be set on an empty directory on btrfs; the attribute is then
-  # inherited by all files created inside it. Verify with: lsattr -d /var/lib/longhorn
-  # Expected output: ---------------C-- /var/lib/longhorn
-  register: chattr_result
-  changed_when: chattr_result.rc == 0
-  failed_when: chattr_result.rc != 0
-
-- name: Verify nodatacow is set on Longhorn data directory
-  ansible.builtin.command: lsattr -d /var/lib/longhorn
-  register: lsattr_result
-  changed_when: false
-
-- name: Assert nodatacow flag is present
-  ansible.builtin.assert:
-    that: "'C' in lsattr_result.stdout"
-    fail_msg: "nodatacow (chattr +C) was not set on /var/lib/longhorn — Longhorn volumes will suffer double-CoW performance degradation on btrfs"
-    success_msg: "nodatacow confirmed on /var/lib/longhorn: {{ lsattr_result.stdout }}"
+# CONTROL PLANES — btrfs expansion + Longhorn data path:
+#   Control planes are not Ceph OSD nodes and keep the full-disk btrfs layout.
+#   nvme1n1 is joined into the btrfs RAID0 pool for maximum ephemeral/OS capacity.
+#   The Longhorn data directory is created with nodatacow to prevent double-CoW
+#   while Longhorn is still the CSI provider during the migration window.
+#   Remove the Longhorn section once the Longhorn → Rook/Ceph migration is complete.
 
 # ---------------------------------------------------------------------------
-# Expand btrfs filesystem to second drive (if present)
+# WORKER PATH — Ceph OSD disk preparation
 
-- name: Get list of all disk devices
-  ansible.builtin.shell: lsblk -d -o NAME,TYPE | grep disk | awk '{print $1}'
-  register: disk_list
-  changed_when: false
-
-- name: Display available disks
-  ansible.builtin.debug:
-    msg: "Available disks: {{ disk_list.stdout_lines }}"
-
-- name: Check if server has multiple drives
-  ansible.builtin.set_fact:
-    has_multiple_drives: "{{ disk_list.stdout_lines | length > 1 }}"
-
-- name: Skip if only one drive
-  ansible.builtin.debug:
-    msg: "Only one drive detected. Skipping btrfs expansion."
-  when: not has_multiple_drives
-
-- when: has_multiple_drives
+- name: "[worker] Prepare Ceph OSD disks"
+  when: "'worker_nodes' in group_names"
   block:
-    - name: Check if root filesystem is btrfs
-      ansible.builtin.shell: df -T / | tail -1 | awk '{print $2}'
-      register: root_fs_type
+    - name: "[worker] Install gdisk (provides sgdisk) for GPT partition management"
+      ansible.builtin.apt:
+        name: gdisk
+        state: present
+        update_cache: false
+
+    - name: "[worker] Check whether Ceph OSD partition already exists on nvme0n1"
+      ansible.builtin.shell: |
+        set -o pipefail
+        sgdisk --print /dev/nvme0n1 2>/dev/null | grep -q 'ceph-osd'
+      args:
+        executable: /bin/bash
+      register: ceph_part_check
+      changed_when: false
+      failed_when: false
+
+    - name: "[worker] Create Ceph OSD GPT partition on remaining nvme0n1 free space"
+      # sgdisk --new=0:0:0 creates the next available partition number,
+      # starting at the first free sector and ending at the last usable sector.
+      # This fills all unallocated space left after the 50 GB OS root partition
+      # that installimage created (e.g. p1=EFI, p2=root, p3=this ceph-osd partition).
+      ansible.builtin.command: sgdisk --new=0:0:0 --change-name=0:ceph-osd /dev/nvme0n1
+      when: ceph_part_check.rc != 0
+      register: sgdisk_result
+
+    - name: "[worker] Notify kernel of new partition table on nvme0n1"
+      ansible.builtin.command: partprobe /dev/nvme0n1
+      when: sgdisk_result is changed
+
+    - name: "[worker] Verify Ceph OSD partition was created on nvme0n1"
+      ansible.builtin.shell: |
+        set -o pipefail
+        sgdisk --print /dev/nvme0n1 | grep -q 'ceph-osd'
+      args:
+        executable: /bin/bash
+      register: ceph_part_verify
+      changed_when: false
+      failed_when: ceph_part_verify.rc != 0
+
+    - name: "[worker] Display nvme0n1 partition layout"
+      ansible.builtin.shell: lsblk /dev/nvme0n1
+      changed_when: false
+      register: nvme0_layout
+
+    - name: "[worker] Show nvme0n1 partition layout"
+      ansible.builtin.debug:
+        msg: "{{ nvme0_layout.stdout_lines }}"
+
+    - name: "[worker] Check whether nvme1n1 already has a filesystem or partition table"
+      ansible.builtin.shell: |
+        blkid /dev/nvme1n1 2>/dev/null | grep -q 'TYPE\|PTTYPE'
+      register: nvme1_has_fs
+      changed_when: false
+      failed_when: false
+
+    - name: "[worker] Wipe all filesystem and partition-table signatures from nvme1n1"
+      # Ensures nvme1n1 is completely raw so Rook discovers it as an OSD candidate.
+      # The drive was part of the btrfs RAID0 pool on the previous OS install, so it
+      # carries btrfs superblocks that must be removed before Rook can claim it.
+      ansible.builtin.command: wipefs -af /dev/nvme1n1
+      when: nvme1_has_fs.rc == 0
+
+    - name: "[worker] Create Rook data directory"
+      # Rook stores its own metadata (e.g. keyring, config) in dataDirHostPath.
+      # Must exist before the Rook OSD prepare job runs on this node.
+      ansible.builtin.file:
+        path: /var/lib/rook
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: "[worker] Display Ceph OSD disk summary"
+      ansible.builtin.debug:
+        msg: >
+          Worker {{ inventory_hostname }} Ceph OSD disks prepared:
+          nvme0n1 — OS root (50 GB) + ceph-osd GPT partition (~450 GB);
+          nvme1n1 — raw, ready for Rook OSD discovery (~500 GB).
+          Total Ceph capacity on this node: ~950 GB.
+
+# ---------------------------------------------------------------------------
+# CONTROL PLANE PATH — btrfs expansion + Longhorn data path
+
+- name: "[control-plane] Prepare Longhorn data directory and expand btrfs"
+  when: "'worker_nodes' not in group_names"
+  block:
+    # NOTE: Remove the next three tasks once Longhorn is fully removed.
+    - name: "[control-plane] Create Longhorn data directory"
+      ansible.builtin.file:
+        path: /var/lib/longhorn
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: "[control-plane] Disable btrfs Copy-on-Write for Longhorn data directory"
+      # nodatacow can only be set on an empty directory on btrfs; the attribute is
+      # inherited by all files created inside it.
+      # Expected lsattr output: ---------------C-- /var/lib/longhorn
+      ansible.builtin.command: chattr +C /var/lib/longhorn
+      register: chattr_result
+      changed_when: chattr_result.rc == 0
+      failed_when: chattr_result.rc != 0
+
+    - name: "[control-plane] Verify nodatacow is set on Longhorn data directory"
+      ansible.builtin.command: lsattr -d /var/lib/longhorn
+      register: lsattr_result
       changed_when: false
 
-    - name: Display root filesystem type
-      ansible.builtin.debug:
-        msg: "Root filesystem type: {{ root_fs_type.stdout }}"
+    - name: "[control-plane] Assert nodatacow flag is present"
+      ansible.builtin.assert:
+        that: "'C' in lsattr_result.stdout"
+        fail_msg: "nodatacow (chattr +C) was not set on /var/lib/longhorn — Longhorn volumes will suffer double-CoW performance degradation on btrfs"
+        success_msg: "nodatacow confirmed on /var/lib/longhorn: {{ lsattr_result.stdout }}"
 
-    - name: Skip if root is not btrfs
-      ansible.builtin.debug:
-        msg: "Root filesystem is {{ root_fs_type.stdout }}, not btrfs. Skipping btrfs expansion."
-      when: root_fs_type.stdout != "btrfs"
-
-    - name: Get current btrfs devices
-      ansible.builtin.shell: btrfs filesystem show / | grep -oP '/dev/\S+' | sed 's|/dev/||' | sort
-      register: btrfs_devices
+    # Expand btrfs to the second drive so the full ~1 TB of NVMe capacity is
+    # available for ephemeral storage, kubelet image cache, and containerd.
+    - name: "[control-plane] Get list of all disk devices"
+      ansible.builtin.shell: lsblk -d -o NAME,TYPE | grep disk | awk '{print $1}'
+      register: disk_list
       changed_when: false
-      when: root_fs_type.stdout == "btrfs"
 
-    - name: Display current btrfs devices
+    - name: "[control-plane] Display available disks"
       ansible.builtin.debug:
-        msg: "Current btrfs devices: {{ btrfs_devices.stdout_lines }}"
-      when: root_fs_type.stdout == "btrfs"
+        msg: "Available disks: {{ disk_list.stdout_lines }}"
 
-    - name: Expand btrfs to second drive
-      when: root_fs_type.stdout == "btrfs" and btrfs_devices.stdout_lines | length < 2
+    - name: "[control-plane] Check if server has multiple drives"
+      ansible.builtin.set_fact:
+        has_multiple_drives: "{{ disk_list.stdout_lines | length > 1 }}"
+
+    - name: "[control-plane] Skip btrfs expansion — only one drive detected"
+      ansible.builtin.debug:
+        msg: "Only one drive detected. Skipping btrfs expansion."
+      when: not has_multiple_drives
+
+    - name: "[control-plane] Expand btrfs to second drive"
+      when: has_multiple_drives
       block:
-        - name: Get root device name (without partition)
-          ansible.builtin.shell: |
-            set -o pipefail && root_dev=$(df / | tail -1 | awk '{print $1}')
-            # Strip partition number to get base device
-            if [[ $root_dev =~ nvme ]]; then
-              echo "$root_dev" | sed 's/p[0-9]*$//'
-            else
-              echo "$root_dev" | sed 's/[0-9]*$//'
-            fi
-          args:
-            executable: /bin/bash
-          register: root_device_raw
+        - name: "[control-plane] Check if root filesystem is btrfs"
+          ansible.builtin.shell: df -T / | tail -1 | awk '{print $2}'
+          register: root_fs_type
           changed_when: false
 
-        - name: Extract base device name
-          ansible.builtin.set_fact:
-            root_base_device: "{{ root_device_raw.stdout | basename }}"
-
-        - name: Display root base device
+        - name: "[control-plane] Display root filesystem type"
           ansible.builtin.debug:
-            msg: "Root filesystem is on base device: {{ root_base_device }}"
+            msg: "Root filesystem type: {{ root_fs_type.stdout }}"
 
-        - name: Find available unused drives
-          ansible.builtin.shell: |
-            set -o pipefail && all_disks=({{ disk_list.stdout_lines | join(' ') }})
-            root_base="{{ root_base_device }}"
-            for disk in "${all_disks[@]}"; do
-              if [[ "$disk" != "$root_base" ]]; then
-                echo "$disk"
-                exit 0
-              fi
-            done
-          args:
-            executable: /bin/bash
-          register: available_drive_result
+        - name: "[control-plane] Skip — root is not btrfs"
+          ansible.builtin.debug:
+            msg: "Root filesystem is {{ root_fs_type.stdout }}, not btrfs. Skipping btrfs expansion."
+          when: root_fs_type.stdout != "btrfs"
+
+        - name: "[control-plane] Get current btrfs devices"
+          ansible.builtin.shell: btrfs filesystem show / | grep -oP '/dev/\S+' | sed 's|/dev/||' | sort
+          register: btrfs_devices
           changed_when: false
-          failed_when: false
+          when: root_fs_type.stdout == "btrfs"
 
-        - name: Set available drive
-          ansible.builtin.set_fact:
-            second_drive: "{{ available_drive_result.stdout | trim }}"
-          when: available_drive_result.stdout != ""
-
-        - name: Display available drive
+        - name: "[control-plane] Display current btrfs devices"
           ansible.builtin.debug:
-            msg: "Available unused drive: {{ second_drive }}"
-          when: second_drive is defined and second_drive != ""
+            msg: "Current btrfs devices: {{ btrfs_devices.stdout_lines }}"
+          when: root_fs_type.stdout == "btrfs"
 
-        - name: Skip if no available drive found
-          ansible.builtin.debug:
-            msg: "No unused drive found. All drives are already in use."
-          when: second_drive is not defined or second_drive == ""
-
-        - name: Check if available drive exists
-          ansible.builtin.stat:
-            path: "/dev/{{ second_drive }}"
-          register: second_drive_stat
-          when: second_drive is defined and second_drive != ""
-
-        - name: Wipe filesystem signatures from second drive
-          ansible.builtin.command: wipefs -a /dev/{{ second_drive }}
-          when: second_drive is defined and second_drive != "" and second_drive_stat.stat.exists
-          register: wipe_result
-
-        - name: Create GPT partition table
-          ansible.builtin.command: parted /dev/{{ second_drive }} mklabel gpt
-          when: second_drive is defined and second_drive != "" and second_drive_stat.stat.exists and wipe_result.changed
-
-        - name: Add second drive to btrfs filesystem
-          ansible.builtin.command: btrfs device add -f /dev/{{ second_drive }} /
-          when: second_drive is defined and second_drive != "" and second_drive_stat.stat.exists and wipe_result.changed
-          register: btrfs_add
-
-        - name: Record whether btrfs device was added
-          ansible.builtin.set_fact:
-            btrfs_device_added: "{{ btrfs_add is changed }}"
-
-        - name: Balance and report btrfs filesystem expansion
-          when: btrfs_device_added
+        - name: "[control-plane] Add second drive to btrfs RAID0 pool"
+          when: root_fs_type.stdout == "btrfs" and btrfs_devices.stdout_lines | length < 2
           block:
-            - name: Display btrfs filesystem before balance
-              ansible.builtin.command: btrfs filesystem show
+            - name: "[control-plane] Get root base device name"
+              ansible.builtin.shell: |
+                set -o pipefail && root_dev=$(df / | tail -1 | awk '{print $1}')
+                if [[ $root_dev =~ nvme ]]; then
+                  echo "$root_dev" | sed 's/p[0-9]*$//'
+                else
+                  echo "$root_dev" | sed 's/[0-9]*$//'
+                fi
+              args:
+                executable: /bin/bash
+              register: root_device_raw
               changed_when: false
-              register: btrfs_before
 
-            - name: Show filesystem before balance
+            - name: "[control-plane] Extract base device name"
+              ansible.builtin.set_fact:
+                root_base_device: "{{ root_device_raw.stdout | basename }}"
+
+            - name: "[control-plane] Display root base device"
               ansible.builtin.debug:
-                msg: "{{ btrfs_before.stdout_lines }}"
+                msg: "Root filesystem is on base device: {{ root_base_device }}"
 
-            - name: Convert btrfs data to RAID0 and start balance
-              # -dconvert=raid0  : stripe data chunks across both NVMe drives for max
-              #                    throughput and full combined capacity (no redundancy).
-              # -mconvert=dup    : keep metadata mirrored on both drives so a single
-              #                    bad metadata chunk does not corrupt the filesystem.
-              # Node-level redundancy (RAID0) is acceptable here because Longhorn
-              # provides cross-node replica redundancy (defaultReplicaCount: 2).
-              ansible.builtin.command: btrfs balance start -dconvert=raid0 -mconvert=dup /
-              async: 3600
-              poll: 30
-
-            - name: Display btrfs filesystem after balance
-              ansible.builtin.command: btrfs filesystem show
+            - name: "[control-plane] Find available unused drive"
+              ansible.builtin.shell: |
+                set -o pipefail && all_disks=({{ disk_list.stdout_lines | join(' ') }})
+                root_base="{{ root_base_device }}"
+                for disk in "${all_disks[@]}"; do
+                  if [[ "$disk" != "$root_base" ]]; then
+                    echo "$disk"
+                    exit 0
+                  fi
+                done
+              args:
+                executable: /bin/bash
+              register: available_drive_result
               changed_when: false
-              register: btrfs_after
+              failed_when: false
 
-            - name: Show filesystem after balance
+            - name: "[control-plane] Set second drive fact"
+              ansible.builtin.set_fact:
+                second_drive: "{{ available_drive_result.stdout | trim }}"
+              when: available_drive_result.stdout != ""
+
+            - name: "[control-plane] Display available drive"
               ansible.builtin.debug:
-                msg: "{{ btrfs_after.stdout_lines }}"
+                msg: "Available unused drive: {{ second_drive }}"
+              when: second_drive is defined and second_drive != ""
 
-            - name: Display disk usage
-              ansible.builtin.command: df -h /
-              changed_when: false
-              register: df_output
-
-            - name: Show disk usage
+            - name: "[control-plane] No unused drive found — skip expansion"
               ansible.builtin.debug:
-                msg: "{{ df_output.stdout_lines }}"
+                msg: "No unused drive found. All drives are already in use."
+              when: second_drive is not defined or second_drive == ""
 
-            - name: Display btrfs filesystem usage
-              ansible.builtin.command: btrfs filesystem usage /
-              changed_when: false
-              register: btrfs_usage
+            - name: "[control-plane] Check if second drive device exists"
+              ansible.builtin.stat:
+                path: "/dev/{{ second_drive }}"
+              register: second_drive_stat
+              when: second_drive is defined and second_drive != ""
 
-            - name: Show btrfs usage
-              ansible.builtin.debug:
-                msg: "{{ btrfs_usage.stdout_lines }}"
+            - name: "[control-plane] Wipe filesystem signatures from second drive"
+              ansible.builtin.command: wipefs -a /dev/{{ second_drive }}
+              when: second_drive is defined and second_drive != "" and second_drive_stat.stat.exists
+              register: wipe_result
 
-            - name: Success message
-              ansible.builtin.debug:
-                msg: "✅ Successfully expanded btrfs filesystem to /dev/{{ second_drive }} with RAID0 data striping"
+            - name: "[control-plane] Create GPT partition table on second drive"
+              ansible.builtin.command: parted /dev/{{ second_drive }} mklabel gpt
+              when: second_drive is defined and second_drive != "" and second_drive_stat.stat.exists and wipe_result.changed
+
+            - name: "[control-plane] Add second drive to btrfs filesystem"
+              ansible.builtin.command: btrfs device add -f /dev/{{ second_drive }} /
+              when: second_drive is defined and second_drive != "" and second_drive_stat.stat.exists and wipe_result.changed
+              register: btrfs_add
+
+            - name: "[control-plane] Record whether btrfs device was added"
+              ansible.builtin.set_fact:
+                btrfs_device_added: "{{ btrfs_add is changed }}"
+
+            - name: "[control-plane] Balance btrfs to RAID0 data / DUP metadata"
+              when: btrfs_device_added
+              block:
+                - name: "[control-plane] Show btrfs filesystem before balance"
+                  ansible.builtin.command: btrfs filesystem show
+                  changed_when: false
+                  register: btrfs_before
+
+                - name: "[control-plane] Display pre-balance state"
+                  ansible.builtin.debug:
+                    msg: "{{ btrfs_before.stdout_lines }}"
+
+                - name: "[control-plane] Convert btrfs data to RAID0 and start balance"
+                  # -dconvert=raid0 : stripe data across both NVMe drives for full
+                  #                   combined capacity and maximum sequential I/O.
+                  # -mconvert=dup   : mirror metadata on both drives so a single bad
+                  #                   metadata chunk does not corrupt the filesystem.
+                  # Longhorn/Rook provides cross-node redundancy; RAID0 here is safe.
+                  ansible.builtin.command: btrfs balance start -dconvert=raid0 -mconvert=dup /
+                  async: 3600
+                  poll: 30
+
+                - name: "[control-plane] Show btrfs filesystem after balance"
+                  ansible.builtin.command: btrfs filesystem show
+                  changed_when: false
+                  register: btrfs_after
+
+                - name: "[control-plane] Display post-balance state"
+                  ansible.builtin.debug:
+                    msg: "{{ btrfs_after.stdout_lines }}"
+
+                - name: "[control-plane] Display disk usage after expansion"
+                  ansible.builtin.command: df -h /
+                  changed_when: false
+                  register: df_output
+
+                - name: "[control-plane] Show disk usage"
+                  ansible.builtin.debug:
+                    msg: "{{ df_output.stdout_lines }}"
+
+                - name: "[control-plane] Display btrfs filesystem usage"
+                  ansible.builtin.command: btrfs filesystem usage /
+                  changed_when: false
+                  register: btrfs_usage
+
+                - name: "[control-plane] Show btrfs usage"
+                  ansible.builtin.debug:
+                    msg: "{{ btrfs_usage.stdout_lines }}"
+
+                - name: "[control-plane] Success — btrfs expanded to RAID0"
+                  ansible.builtin.debug:
+                    msg: "Successfully expanded btrfs filesystem to /dev/{{ second_drive }} with RAID0 data striping"

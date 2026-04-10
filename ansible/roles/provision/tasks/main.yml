@@ -144,7 +144,8 @@
           root@{{ provision_server_ip }} \
           "curl -fsSL https://raw.githubusercontent.com/{{ provision_github_repository }}/main/scripts/install-ubuntu.sh | \
           MACHINE_HOSTNAME='{{ inventory_hostname }}' \
-          DRIVE_TO_USE='{{ provision_drive_to_use }}' bash"
+          DRIVE_TO_USE='{{ provision_drive_to_use }}' \
+          OS_PARTITION_SIZE='{{ provision_os_partition_size }}' bash"
       register: provision_install_output
       failed_when: false
       changed_when: true

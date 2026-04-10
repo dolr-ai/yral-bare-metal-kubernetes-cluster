@@ -4,3 +4,12 @@ provision_hetzner_ssh_keys:
   - "saikatdas0790@gmail.com"
 
 provision_github_repository: "dolr-ai/yral-bare-metal-kubernetes-cluster"
+
+# OS partition size for the root btrfs filesystem on the primary NVMe drive.
+# Workers use 50G — the remaining ~450 GB of nvme0n1 stays as unallocated GPT
+# free space.  The storage-setup role then creates a Ceph OSD partition there,
+# and nvme1n1 is left completely raw for a second OSD.  Total Ceph capacity per
+# worker is therefore ~950 GB (450 GB nvme0 partition + 500 GB nvme1).
+# Control planes use 'all' (full disk) because they are not Ceph OSD nodes and
+# benefit from the extra ephemeral storage for containerd and kubelet.
+provision_os_partition_size: "{{ '50G' if 'worker_nodes' in group_names else 'all' }}"

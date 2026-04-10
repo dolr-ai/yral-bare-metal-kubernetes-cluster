@@ -93,13 +93,23 @@ fi
 
 echo "Starting installimage..."
 
+# OS_PARTITION_SIZE controls the root filesystem size on the primary drive.
+# Defaults to 'all' (use the entire disk), which is correct for control planes.
+# Worker nodes set this to '50G' during provisioning so that ~450 GB of the
+# primary NVMe remains as raw unallocated space — the storage-setup role then
+# creates a GPT partition there for a Rook/Ceph OSD, and the second NVMe is
+# left entirely raw for a second Ceph OSD.  This maximises the cluster-wide
+# Ceph pool to ~950 GB per worker (50 GB OS + 450 GB partition + 500 GB nvme1).
+OS_PARTITION_SIZE="${OS_PARTITION_SIZE:-all}"
+
+echo "OS partition size: ${OS_PARTITION_SIZE}"
+
 # Run installimage with full path (alias doesn't work in non-interactive shells)
-# Install on single drive - second drive will be added after first boot
 /root/.oldroot/nfs/install/installimage -a \
     -n "$MACHINE_HOSTNAME" \
     -r no \
     -l 0 \
-    -p /:btrfs:all \
+    -p "/:btrfs:${OS_PARTITION_SIZE}" \
     -d "$DRIVE_TO_USE" \
     -f yes \
     -t yes \
