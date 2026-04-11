@@ -104,15 +104,38 @@ OS_PARTITION_SIZE="${OS_PARTITION_SIZE:-all}"
 
 echo "OS partition size: ${OS_PARTITION_SIZE}"
 
-# Run installimage with full path (alias doesn't work in non-interactive shells)
-/root/.oldroot/nfs/install/installimage -a \
-    -n "$MACHINE_HOSTNAME" \
-    -r no \
-    -l 0 \
-    -p "/:btrfs:${OS_PARTITION_SIZE}" \
-    -d "$DRIVE_TO_USE" \
-    -f yes \
-    -t yes \
-    -i /root/images/Ubuntu-2404-noble-amd64-base.tar.gz
+# Write installimage autosetup config file.
+#
+# FORCE_GPT 2 — forces a GPT partition table regardless of whether the rescue
+# system is running in UEFI or legacy BIOS mode, and regardless of disk size.
+# Without it, installimage defaults to MBR on disks smaller than 2 TiB when
+# the rescue system boots in BIOS mode, which prevents sgdisk from later
+# adding a GPT partition for the Ceph OSD without the --mbrtogpt workaround.
+# With FORCE_GPT 2, installimage automatically inserts a small BIOS boot
+# partition (type bios_grub, ~1 MiB) as the first partition so GRUB can still
+# boot in legacy-BIOS mode from the GPT disk.
+#
+# Resulting partition layout (workers):
+#   nvme0n1p1  ~1 MiB   BIOS boot (auto, for GRUB stage1.5)
+#   nvme0n1p2  50 GiB   btrfs root
+#   [free]     ~450 GiB → storage-setup adds nvme0n1p3 (ceph-osd)
+#
+# Resulting partition layout (control planes, OS_PARTITION_SIZE=all):
+#   nvme0n1p1  ~1 MiB   BIOS boot (auto)
+#   nvme0n1p2  all      btrfs root
+cat > /autosetup << AUTOEOF
+DRIVE1 /dev/${DRIVE_TO_USE}
+SWRAID 0
+FORMATDRIVE1 yes
+HOSTNAME ${MACHINE_HOSTNAME}
+BOOTLOADER grub
+PART / btrfs ${OS_PARTITION_SIZE}
+IMAGE /root/images/Ubuntu-2404-noble-amd64-base.tar.gz
+FORCE_GPT 2
+AUTOEOF
+
+echo "Running installimage in automode..."
+# Use full path — the installimage alias is not available in non-interactive shells.
+/root/.oldroot/nfs/install/installimage -a
 
 echo "Installation complete!"

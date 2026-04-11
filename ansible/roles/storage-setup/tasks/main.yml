@@ -41,10 +41,13 @@
       failed_when: false
 
     - name: "[worker] Create Ceph OSD GPT partition on remaining nvme0n1 free space"
-      # sgdisk --new=0:0:0 creates the next available partition number,
-      # starting at the first free sector and ending at the last usable sector.
-      # This fills all unallocated space left after the 50 GB OS root partition
-      # that installimage created (e.g. p1=EFI, p2=root, p3=this ceph-osd partition).
+      # install-ubuntu.sh uses FORCE_GPT 2 in the installimage autosetup config,
+      # so nvme0n1 arrives as a GPT disk with two partitions:
+      #   p1 = BIOS boot (~1 MiB, auto-created by installimage for GRUB)
+      #   p2 = btrfs root (50 GiB)
+      # --new=0:0:0 creates the next available partition number (p3), starting
+      # at the first free sector and ending at the last usable sector — consuming
+      # all space left after the 50 GiB OS root partition.
       ansible.builtin.command: sgdisk --new=0:0:0 --change-name=0:ceph-osd /dev/nvme0n1
       when: ceph_part_check.rc != 0
       register: sgdisk_result
