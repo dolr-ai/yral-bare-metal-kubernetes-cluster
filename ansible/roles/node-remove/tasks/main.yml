@@ -87,14 +87,6 @@
     - control_plane_confirm.user_input | default('') != 'yes-remove-control-plane'
   run_once: true
 
-- name: Pause for worker confirmation
-  ansible.builtin.pause:
-    prompt: "Press ENTER to continue or Ctrl+C to abort"
-  when:
-    - not is_control_plane
-    - confirm_node_remove | default('') != 'yes'
-  run_once: true
-
 - name: Set target host IP fact
   ansible.builtin.set_fact:
     node_remove_target_ip: "{{ hostvars[target_host]['ansible_host'] }}"
@@ -364,6 +356,12 @@
   # After a node is deleted, the CSI detach finalizer can leave VolumeAttachment
   # objects pointing to the dead node. These block new attachments on the pod's
   # rescheduled node since RWO volumes can only attach to one node at a time.
+  #
+  # Two-step pattern:
+  # 1. Merge-patch finalizers to null — more reliable than json-patch "remove"
+  #    which errors when the path doesn't exist (and capture_output hides it).
+  # 2. Force-delete with --grace-period=0 --force to prevent kubectl from
+  #    blocking on webhook callbacks or residual controller finalizer processing.
   ansible.builtin.shell: |
     kubectl get volumeattachment -o json | python3 -c "
     import sys, json, subprocess
@@ -374,14 +372,18 @@
         if va['spec'].get('nodeName') == '{{ node_remove_k8s_name }}'
     ]
     for name in stale:
-        print(f'Deleting stale VolumeAttachment {name}')
-        # Strip finalizers first — the CSI detach finalizer blocks deletion when
-        # the node is already gone (attacher can never call NodeUnpublish).
-        subprocess.run(['kubectl', 'patch', 'volumeattachment', name,
-                        '--type=json',
-                        '-p', '[{"op":"remove","path":"/metadata/finalizers"}]'],
-                       capture_output=True)
-        subprocess.run(['kubectl', 'delete', 'volumeattachment', name, '--ignore-not-found'])
+        print(f'Clearing finalizers on VolumeAttachment {name}')
+        subprocess.run(
+            ['kubectl', 'patch', 'volumeattachment', name,
+             '--type=merge', '-p', '{\"metadata\":{\"finalizers\":null}}'],
+            capture_output=True
+        )
+        print(f'Force-deleting VolumeAttachment {name}')
+        subprocess.run(
+            ['kubectl', 'delete', 'volumeattachment', name,
+             '--ignore-not-found', '--grace-period=0', '--force'],
+            capture_output=True
+        )
     print(f'Done: {len(stale)} stale VolumeAttachment(s) deleted')
     "
   delegate_to: "{{ kubectl_delegate }}"
@@ -389,6 +391,7 @@
     KUBECONFIG: /etc/kubernetes/admin.conf
   changed_when: true
   run_once: true
+  timeout: 60
 
 - name: List remaining nodes
   ansible.builtin.command: kubectl get nodes
