@@ -55,14 +55,22 @@ else
     echo "No mdadm arrays found to stop"
 fi
 
-# Wipe filesystems based on drive type
-echo "Wiping existing filesystems..."
+# Wipe filesystems AND partition tables based on drive type.
+# Both steps are required:
+#   sgdisk --zap-all  — destroys GPT primary + backup partition tables, and
+#                       any MBR/hybrid partition table. Without this, an old
+#                       partition table survives wipefs and can cause installimage
+#                       to mis-detect the target drive or choose the wrong one.
+#   wipefs -fa        — removes filesystem/RAID superblock signatures that
+#                       sgdisk does not touch (btrfs, ext4, LVM, mdraid, etc.).
+echo "Wiping existing partition tables and filesystems..."
 if [[ "$DRIVE_TO_USE" == nvme* ]]; then
     # For NVMe drives
     if ls /dev/nvme*n1 2>/dev/null | grep -q .; then
         for drive in /dev/nvme*n1; do
             if [ -b "$drive" ]; then
                 echo "Wiping $drive"
+                sgdisk --zap-all "$drive" 2>/dev/null || true
                 wipefs -fa "$drive" 2>/dev/null || true
             fi
         done
@@ -75,6 +83,7 @@ else
         for drive in /dev/sd?; do
             if [ -b "$drive" ]; then
                 echo "Wiping $drive"
+                sgdisk --zap-all "$drive" 2>/dev/null || true
                 wipefs -fa "$drive" 2>/dev/null || true
             fi
         done
