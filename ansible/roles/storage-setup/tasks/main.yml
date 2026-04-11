@@ -2,13 +2,14 @@
 # Storage Setup - Prepares node-local disk resources according to the node's role.
 #
 # WORKER NODES — Ceph OSD preparation:
-#   Workers are Rook/Ceph OSD nodes.  They are provisioned with a 50 GB btrfs root
-#   on nvme0n1; the remaining ~450 GB of nvme0n1 is left as GPT free space, and
-#   nvme1n1 is kept entirely raw.  This role fills that free space with a new GPT
-#   partition (labelled "ceph-osd") and wipes nvme1n1 clean.  Rook auto-discovers
-#   both devices via its deviceFilter and creates two OSDs per worker:
-#     OSD-A: nvme0n1p<N> (~450 GB, GPT partition on the OS drive)
-#     OSD-B: nvme1n1     (~500 GB, raw second NVMe)
+#   Workers are Rook/Ceph OSD nodes.  installimage installs a 50 GB btrfs root on
+#   one of the two NVMe drives (whichever the rescue kernel enumerates as nvme0n1).
+#   The rescue kernel and the production Ubuntu kernel may enumerate PCIe NVMe slots
+#   in different orders, so the OS may land on nvme0n1 OR nvme1n1 after reboot.
+#   This role detects the OS drive at runtime (via findmnt + lsblk) and:
+#     • Adds a GPT partition labelled "ceph-osd" to the OS drive (free space after
+#       the 50 GB root) — Rook uses this as OSD-A (~450 GB).
+#     • Wipes the secondary NVMe drive clean — Rook uses this as OSD-B (~500 GB).
 #   Total per worker: ~950 GB Ceph block storage.
 #
 # CONTROL PLANES — btrfs expansion + Longhorn data path:
@@ -30,64 +31,96 @@
         state: present
         update_cache: false
 
-    - name: "[worker] Check whether Ceph OSD partition already exists on nvme0n1"
+    - name: "[worker] Detect OS NVMe drive (the drive that contains /)"
+      # findmnt returns the root partition device (e.g. /dev/nvme1n1p1); lsblk
+      # strips the partition suffix to give the parent disk (e.g. nvme1n1).
+      # The rescue kernel and the production Ubuntu kernel may enumerate NVMe PCIe
+      # slots in different orders, so the OS drive is not always nvme0n1.
       ansible.builtin.shell: |
         set -o pipefail
-        sgdisk --print /dev/nvme0n1 2>/dev/null | grep -q 'ceph-osd'
+        root_part=$(findmnt -n -o SOURCE /)
+        lsblk -no pkname "$root_part"
+      args:
+        executable: /bin/bash
+      register: worker_os_nvme_result
+      changed_when: false
+
+    - name: "[worker] Set OS NVMe drive fact"
+      ansible.builtin.set_fact:
+        worker_os_nvme: "{{ worker_os_nvme_result.stdout | trim }}"
+
+    - name: "[worker] Detect secondary (raw) NVMe drive"
+      # The raw drive is whichever NVMe device is NOT the OS drive.
+      ansible.builtin.shell: |
+        lsblk -d --noheadings -o NAME | grep '^nvme' | grep -v '^{{ worker_os_nvme }}$'
+      register: worker_raw_nvme_result
+      changed_when: false
+
+    - name: "[worker] Set secondary NVMe drive fact"
+      ansible.builtin.set_fact:
+        worker_raw_nvme: "{{ worker_raw_nvme_result.stdout | trim }}"
+
+    - name: "[worker] Display detected drive assignments"
+      ansible.builtin.debug:
+        msg: "OS drive: /dev/{{ worker_os_nvme }} | Raw OSD drive: /dev/{{ worker_raw_nvme }}"
+
+    - name: "[worker] Check whether Ceph OSD partition already exists on OS drive"
+      ansible.builtin.shell: |
+        set -o pipefail
+        sgdisk --print /dev/{{ worker_os_nvme }} 2>/dev/null | grep -q 'ceph-osd'
       args:
         executable: /bin/bash
       register: ceph_part_check
       changed_when: false
       failed_when: false
 
-    - name: "[worker] Create Ceph OSD GPT partition on remaining nvme0n1 free space"
+    - name: "[worker] Create Ceph OSD GPT partition on remaining OS drive free space"
       # install-ubuntu.sh uses FORCE_GPT 2 in the installimage autosetup config,
-      # so nvme0n1 arrives as a GPT disk with two partitions:
-      #   p1 = BIOS boot (~1 MiB, auto-created by installimage for GRUB)
-      #   p2 = btrfs root (50 GiB)
-      # --new=0:0:0 creates the next available partition number (p3), starting
-      # at the first free sector and ending at the last usable sector — consuming
-      # all space left after the 50 GiB OS root partition.
-      ansible.builtin.command: sgdisk --new=0:0:0 --change-name=0:ceph-osd /dev/nvme0n1
+      # so the OS drive arrives as a GPT disk with the OS root partition (50 GiB)
+      # and a BIOS boot partition (~1 MiB, auto-created by installimage for GRUB).
+      # --new=0:0:0 creates the next available partition number, starting at the
+      # first free sector and ending at the last usable sector — consuming all
+      # space left after the 50 GiB OS root.
+      ansible.builtin.command: sgdisk --new=0:0:0 --change-name=0:ceph-osd /dev/{{ worker_os_nvme }}
       when: ceph_part_check.rc != 0
       register: sgdisk_result
 
-    - name: "[worker] Notify kernel of new partition table on nvme0n1"
-      ansible.builtin.command: partprobe /dev/nvme0n1
+    - name: "[worker] Notify kernel of new partition table on OS drive"
+      ansible.builtin.command: partprobe /dev/{{ worker_os_nvme }}
       when: sgdisk_result is changed
 
-    - name: "[worker] Verify Ceph OSD partition was created on nvme0n1"
+    - name: "[worker] Verify Ceph OSD partition was created on OS drive"
       ansible.builtin.shell: |
         set -o pipefail
-        sgdisk --print /dev/nvme0n1 | grep -q 'ceph-osd'
+        sgdisk --print /dev/{{ worker_os_nvme }} | grep -q 'ceph-osd'
       args:
         executable: /bin/bash
       register: ceph_part_verify
       changed_when: false
       failed_when: ceph_part_verify.rc != 0
 
-    - name: "[worker] Display nvme0n1 partition layout"
-      ansible.builtin.shell: lsblk /dev/nvme0n1
+    - name: "[worker] Display OS drive partition layout"
+      ansible.builtin.shell: lsblk /dev/{{ worker_os_nvme }}
       changed_when: false
-      register: nvme0_layout
+      register: os_nvme_layout
 
-    - name: "[worker] Show nvme0n1 partition layout"
+    - name: "[worker] Show OS drive partition layout"
       ansible.builtin.debug:
-        msg: "{{ nvme0_layout.stdout_lines }}"
+        msg: "{{ os_nvme_layout.stdout_lines }}"
 
-    - name: "[worker] Check whether nvme1n1 already has a filesystem or partition table"
+    - name: "[worker] Check whether raw drive already has a filesystem or partition table"
       ansible.builtin.shell: |
-        blkid /dev/nvme1n1 2>/dev/null | grep -q 'TYPE\|PTTYPE'
-      register: nvme1_has_fs
+        blkid /dev/{{ worker_raw_nvme }} 2>/dev/null | grep -q 'TYPE\|PTTYPE'
+      register: raw_nvme_has_fs
       changed_when: false
       failed_when: false
 
-    - name: "[worker] Wipe all filesystem and partition-table signatures from nvme1n1"
-      # Ensures nvme1n1 is completely raw so Rook discovers it as an OSD candidate.
-      # The drive was part of the btrfs RAID0 pool on the previous OS install, so it
-      # carries btrfs superblocks that must be removed before Rook can claim it.
-      ansible.builtin.command: wipefs -af /dev/nvme1n1
-      when: nvme1_has_fs.rc == 0
+    - name: "[worker] Wipe all filesystem and partition-table signatures from raw drive"
+      # Ensures the raw drive is completely blank so Rook discovers it as an OSD
+      # candidate.  The drive may carry btrfs superblocks or GPT headers from a
+      # previous install that must be removed before Rook can claim it.
+      ansible.builtin.command: wipefs -af /dev/{{ worker_raw_nvme }}
+      when: raw_nvme_has_fs.rc == 0
 
     - name: "[worker] Create Rook data directory"
       # Rook stores its own metadata (e.g. keyring, config) in dataDirHostPath.
@@ -103,8 +136,8 @@
       ansible.builtin.debug:
         msg: >
           Worker {{ inventory_hostname }} Ceph OSD disks prepared:
-          nvme0n1 — OS root (50 GB) + ceph-osd GPT partition (~450 GB);
-          nvme1n1 — raw, ready for Rook OSD discovery (~500 GB).
+          {{ worker_os_nvme }} — OS root (50 GB) + ceph-osd GPT partition (~450 GB);
+          {{ worker_raw_nvme }} — raw, ready for Rook OSD discovery (~500 GB).
           Total Ceph capacity on this node: ~950 GB.
 
 # ---------------------------------------------------------------------------
