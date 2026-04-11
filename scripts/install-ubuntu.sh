@@ -134,8 +134,13 @@ IMAGE /root/images/Ubuntu-2404-noble-amd64-base.tar.gz
 FORCE_GPT 2
 AUTOEOF
 
-echo "Running installimage in automode..."
+echo "Running installimage..."
 # Use full path — the installimage alias is not available in non-interactive shells.
-/root/.oldroot/nfs/install/installimage -a
+# Do NOT pass -a here.  When /autosetup exists, installimage automatically detects
+# it and switches to non-interactive automode.  Passing -a without also providing
+# the config and image via -c/-i flags produces:
+#   "ERROR: in automatic mode you need to specify an image and a config file!"
+# The /autosetup detection route is the correct non-interactive path.
+/root/.oldroot/nfs/install/installimage
 
 echo "Installation complete!"
