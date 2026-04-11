@@ -43,6 +43,13 @@ spec:
     # the HTTPRoute can proxy plain HTTP to the dashboard Service.
     ssl: false
 
+  # Arbitrary Ceph config key/value pairs applied via `ceph config set`.
+  # Auth is disabled because oauth2-proxy enforces authentication in front
+  # of the dashboard at the cluster edge — a second login prompt is redundant.
+  cephConfig:
+    mgr/dashboard:
+      enable_auth: "false"
+
   monitoring:
     enabled: true
     metricsDisabled: false
