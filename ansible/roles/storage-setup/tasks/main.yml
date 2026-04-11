@@ -64,24 +64,31 @@
       ansible.builtin.debug:
         msg: "OS drive: /dev/{{ worker_os_nvme }} | Raw OSD drive: /dev/{{ worker_raw_nvme }}"
 
-    - name: "[worker] Check whether Ceph OSD partition already exists on OS drive"
+    - name: "[worker] Check whether Rook OSD partition already exists on OS drive"
+      # installimage always creates exactly 2 partitions (OS root + BIOS boot).
+      # A third partition means the Rook OSD partition was already created.
+      # This check avoids re-creating the partition on idempotent re-runs.
       ansible.builtin.shell: |
-        set -o pipefail
-        sgdisk --print /dev/{{ worker_os_nvme }} 2>/dev/null | grep -q 'ceph-osd'
-      args:
-        executable: /bin/bash
+        PART_COUNT=$(lsblk -rno TYPE /dev/{{ worker_os_nvme }} | grep -c '^part$' 2>/dev/null || echo 0)
+        [ "$PART_COUNT" -gt 2 ]
       register: ceph_part_check
       changed_when: false
       failed_when: false
 
-    - name: "[worker] Create Ceph OSD GPT partition on remaining OS drive free space"
+    - name: "[worker] Create Rook OSD GPT partition on remaining OS drive free space"
       # install-ubuntu.sh uses FORCE_GPT 2 in the installimage autosetup config,
       # so the OS drive arrives as a GPT disk with the OS root partition (50 GiB)
       # and a BIOS boot partition (~1 MiB, auto-created by installimage for GRUB).
       # --new=0:0:0 creates the next available partition number, starting at the
       # first free sector and ending at the last usable sector — consuming all
       # space left after the 50 GiB OS root.
-      ansible.builtin.command: sgdisk --new=0:0:0 --change-name=0:ceph-osd /dev/{{ worker_os_nvme }}
+      #
+      # CRITICAL: Do NOT use a partition name containing "ceph" (e.g. "ceph-osd").
+      # ceph-volume inventory checks:  'ceph' in partlabel  to detect ceph-disk
+      # partitions and marks them as "Used by ceph-disk", causing Rook to skip them
+      # permanently. Use "rook-osd" — the Rook deviceFilter ("nvme") matches by
+      # device name, not partition label.
+      ansible.builtin.command: sgdisk --new=0:0:0 --change-name=0:rook-osd /dev/{{ worker_os_nvme }}
       when: ceph_part_check.rc != 0
       register: sgdisk_result
 
@@ -89,16 +96,15 @@
       ansible.builtin.command: partprobe /dev/{{ worker_os_nvme }}
       when: sgdisk_result is changed
 
-    - name: "[worker] Wipe stale signatures from the new ceph-osd partition"
+    - name: "[worker] Wipe stale signatures from the new Rook OSD partition"
       # sgdisk --zap-all clears the partition table but NOT the data area, so old btrfs
-      # or ceph signatures from prior installations may survive at the partition's start
-      # sector.  ceph-volume inventory detects these and marks the partition as
-      # "Used by ceph-disk", causing Rook to skip it.  wipefs -af on the raw partition
-      # device clears all such signatures.  Only run when the partition was just created;
-      # do NOT run on an already-provisioned OSD partition (would corrupt Ceph data).
+      # or other signatures from prior installations may survive at the partition's
+      # start sector.  wipefs -af on the raw partition device clears all such
+      # signatures.  Only run when the partition was just created; do NOT run on an
+      # already-provisioned OSD partition (would corrupt Ceph data).
       ansible.builtin.shell: |
         set -o pipefail
-        PART=$(lsblk -rno NAME,PARTLABEL /dev/{{ worker_os_nvme }} | awk '$2=="ceph-osd" {print "/dev/" $1}')
+        PART=$(lsblk -rno NAME,PARTLABEL /dev/{{ worker_os_nvme }} | awk '$2=="rook-osd" {print "/dev/" $1}')
         [ -n "$PART" ] && wipefs -af "$PART"
       args:
         executable: /bin/bash
@@ -109,12 +115,10 @@
       ansible.builtin.command: partprobe /dev/{{ worker_os_nvme }}
       when: sgdisk_result is changed
 
-    - name: "[worker] Verify Ceph OSD partition was created on OS drive"
+    - name: "[worker] Verify Rook OSD partition was created on OS drive"
       ansible.builtin.shell: |
-        set -o pipefail
-        sgdisk --print /dev/{{ worker_os_nvme }} | grep -q 'ceph-osd'
-      args:
-        executable: /bin/bash
+        PART_COUNT=$(lsblk -rno TYPE /dev/{{ worker_os_nvme }} | grep -c '^part$' 2>/dev/null || echo 0)
+        [ "$PART_COUNT" -gt 2 ]
       register: ceph_part_verify
       changed_when: false
       failed_when: ceph_part_verify.rc != 0
