@@ -1,3 +1,4 @@
+- Disable ceph ui auth because it is already tackled by oauth2-proxy. 
 - Just to confirm, for control plane nodes, we are still using the entire 1 TB via joining 2 500GB drives using btrfs, right? No point wasting space on the control planes since they don't run Ceph OSDs
 - Host yral.com to root domain. Take down about.yral.com
 - refactor hetzner-bare-metal repo to use individual segmentation for the inventory file and commit to the individuals owning infra strategy completely
