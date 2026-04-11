@@ -1,26 +1,34 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="https://yral.com/img/yral/favicon.ico" rel="shortcut icon">
   <title>Yral Internal Dashboard</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
     :root {
-      --bg:       #0d1117;
-      --surface:  #161b22;
-      --border:   #30363d;
-      --text:     #e6edf3;
-      --muted:    #8b949e;
-      --accent:   #58a6ff;
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
       --accent-hover: #79c0ff;
-      --tag-bg:   #1f2937;
+      --tag-bg: #1f2937;
       --tag-text: #94a3b8;
     }
 
-    html, body {
+    html,
+    body {
       min-height: 100vh;
       background: var(--bg);
       color: var(--text);
@@ -65,7 +73,9 @@
       margin-top: 2rem;
     }
 
-    .section-title:first-child { margin-top: 0; }
+    .section-title:first-child {
+      margin-top: 0;
+    }
 
     .section-subtitle {
       font-size: 0.8rem;
@@ -112,7 +122,9 @@
       color: var(--accent);
     }
 
-    a.card:hover .card-name { color: var(--accent-hover); }
+    a.card:hover .card-name {
+      color: var(--accent-hover);
+    }
 
     .card-desc {
       font-size: 0.83rem;
@@ -141,12 +153,14 @@
     }
   </style>
 </head>
+
 <body>
   <header>
     <h1>yral.com — Internal Dashboard</h1>
     <p>All internal tools and apps hosted on the cluster.</p>
   </header>
 
+  <!-- Arrange the cards in alphabetical order in their respective sections -->
   <main>
 
     <div class="section-title">Public</div>
@@ -155,7 +169,8 @@
 
       <a class="card" href="https://status.yral.com/" target="_blank" rel="noopener">
         <span class="card-name">Yral Status page</span>
-        <span class="card-desc">Services uptime and status page. Alerts on service downtime. Hosted and maintained by Saikat</span>
+        <span class="card-desc">Services uptime and status page. Alerts on service downtime. Hosted and maintained by
+          Saikat</span>
         <span class="card-url">status.yral.com/</span>
       </a>
 
@@ -191,7 +206,8 @@
 
       <a class="card" href="https://metabase.yral.com" target="_blank" rel="noopener">
         <span class="card-name">Metabase</span>
-        <span class="card-desc">BI dashboards and SQL exploration over the Snowplow data lake. Hosted and maintained by Saikat</span>
+        <span class="card-desc">BI dashboards and SQL exploration over the Snowplow data lake. Hosted and maintained by
+          Saikat</span>
         <span class="card-url">metabase.yral.com</span>
       </a>
 
@@ -203,7 +219,8 @@
 
       <a class="card" href="https://beszel.yral.com" target="_blank" rel="noopener">
         <span class="card-name">Beszel</span>
-        <span class="card-desc">Server usage monitoring. Alerts on server failure. Also useful for looking at docker container logs. Hosted and maintained by Saikat</span>
+        <span class="card-desc">Server usage monitoring. Alerts on server failure. Also useful for looking at docker
+          container logs. Hosted and maintained by Saikat</span>
         <span class="card-url">beszel.yral.com</span>
       </a>
 
@@ -215,7 +232,8 @@
 
       <a class="card" href="https://vault.yral.com" target="_blank" rel="noopener">
         <span class="card-name">Vault</span>
-        <span class="card-desc">HashiCorp Vault meant for custodying secrets and consuming them in your repos via Github Actions. Hosted and maintained by Naitik</span>
+        <span class="card-desc">HashiCorp Vault meant for custodying secrets and consuming them in your repos via Github
+          Actions. Hosted and maintained by Naitik</span>
         <span class="card-url">vault.yral.com</span>
       </a>
 
@@ -224,6 +242,12 @@
     <div class="section-title">Superadmin / Owner</div>
     <div class="section-subtitle">Requires <code>developer-admin@gobazzinga.io</code> membership</div>
     <div class="grid">
+
+      <a class="card" href="https://ceph.yral.com" target="_blank" rel="noopener">
+        <span class="card-name">Ceph Dashboard</span>
+        <span class="card-desc">Rook/Ceph distributed storage — pool health, OSD status, capacity</span>
+        <span class="card-url">ceph.yral.com</span>
+      </a>
 
       <a class="card" href="https://beszel.yral.com/_/" target="_blank" rel="noopener">
         <span class="card-name">Beszel Admin</span>
@@ -273,18 +297,14 @@
         <span class="card-url">longhorn-ui.yral.com</span>
       </a>
 
-      <a class="card" href="https://ceph.yral.com" target="_blank" rel="noopener">
-        <span class="card-name">Ceph Dashboard</span>
-        <span class="card-desc">Rook/Ceph distributed storage — pool health, OSD status, capacity</span>
-        <span class="card-url">ceph.yral.com</span>
-      </a>
-
     </div>
 
   </main>
 
   <footer>
-    yral bare-metal Kubernetes cluster &middot; To add a service, update <code>kubernetes/apps/dashboard/index.html</code>
+    yral bare-metal Kubernetes cluster &middot; To add a service, update
+    <code>kubernetes/apps/dashboard/index.html</code>
   </footer>
 </body>
+
 </html>
