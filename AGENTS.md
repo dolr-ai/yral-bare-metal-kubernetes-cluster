@@ -797,7 +797,7 @@ The split is necessary because the `CephCluster` CRD is installed by the Rook He
 - `failureDomain: host` — replicas must land on different physical nodes.
 - Usable capacity: ~16.5 TB (33 TB raw ÷ 2).
 - `ceph-block` StorageClass: RWO, `WaitForFirstConsumer`, `allowVolumeExpansion: true`.
-- **OSD encryption**: `encryptedDevice: "true"` — every OSD is LUKS-encrypted at the block device layer. Keys are generated per-OSD at provisioning time and stored as Kubernetes Secrets in the `rook-ceph` namespace (`rook-ceph-osd-encryption-key-<osd-id>`). This was set before any OSDs were provisioned; it cannot be applied retroactively without destroying and reprovisioning the OSD.
+- **OSD encryption**: Intentionally disabled. `encryptedDevice: "true"` restricts Rook to whole-disk OSDs only — ceph-volume unconditionally rejects partitions in encrypted mode. Each worker provides one ~450 GB partition (`nvme0n1p3`) and one ~477 GB whole disk (`nvme1n1`) as separate OSDs, so encryption would silently drop half the capacity per worker. In-transit encryption is provided by Cilium WireGuard cluster-wide.
 
 **Default StorageClass transition:**
 `ceph-block` is intentionally **not** the default during migration. Once all Longhorn PVCs are migrated, flip both annotations:

@@ -132,19 +132,20 @@ spec:
   # Storage — auto-discover all available raw block devices on worker nodes.
   #
   # After reprovisioning, each NVMe worker exposes two raw block devices:
-  #   nvme0n1p<N>: ~450 GB GPT partition on the OS drive (created by storage-setup)
-  #   nvme1n1:     ~500 GB raw second NVMe drive (wiped clean by storage-setup)
+  #   nvme0n1p3:   ~450 GB GPT partition on the OS drive (created by storage-setup,
+  #                labelled "rook-osd" — label must NOT contain "ceph" to avoid
+  #                ceph-volume false-positive "Used by ceph-disk" rejection)
+  #   nvme1n1:     ~477 GB raw second NVMe drive (wiped clean by storage-setup)
+  #
+  # Each worker contributes 2 OSDs (~927 GB).  35 workers = ~16.2 TB usable at
+  # 2× replication.
   #
   # useAllDevices: true tells Rook to claim any device/partition that has no
   # existing filesystem or partition table.  Rook's availability check skips:
   #   - nvme0n1      (whole disk — has a GPT partition table → not claimable)
   #   - nvme0n1p1    (EFI partition — has vfat filesystem → skip)
   #   - nvme0n1p2    (OS root — has btrfs filesystem, mounted as / → skip)
-  # and claims only the raw ceph-osd partition and the raw second drive.
-  #
-  # Future nodes with SATA SSDs or HDDs will also be discovered automatically
-  # without any configuration change — as long as the storage-setup role leaves
-  # those disks raw (no filesystem, no partition table) before the node joins.
+  # and claims only nvme0n1p3 and nvme1n1.
   #
   # Workers are reprovisioned one at a time (remove-node.yml → add-worker.yml).
   # Rook auto-discovers each new OSD as workers rejoin.  The cluster becomes
@@ -154,17 +155,13 @@ spec:
     useAllDevices: true
     config:
       osdsPerDevice: "1"
-      # Encrypt every OSD at rest using Linux dm-crypt/LUKS.
-      # Rook generates a unique key per OSD at provisioning time and stores it
-      # as a Kubernetes Secret in the rook-ceph namespace (one Secret per OSD,
-      # named rook-ceph-osd-encryption-key-<osd-id>).
-      # The keys are never written to disk in plaintext; they live only in etcd,
-      # which kubeadm encrypts at rest via the API server EncryptionConfiguration.
-      # This must be set BEFORE the first OSD is ever provisioned — it cannot be
-      # applied retroactively to existing OSDs without destroying and re-creating them.
-      # In-transit encryption is already provided by Cilium WireGuard and does not
-      # need to be duplicated at the Ceph network layer.
-      encryptedDevice: "true"
+      # Encryption is intentionally disabled.
+      # encryptedDevice: "true" restricts Rook to whole-disk OSDs only — partitions
+      # are unconditionally rejected by ceph-volume when encrypted mode is on.
+      # Each worker exposes one ~450 GB GPT partition (nvme0n1p3) and one ~477 GB
+      # raw whole disk (nvme1n1); disabling encryption allows both to be used as
+      # separate OSDs, doubling raw capacity per worker (~16.2 TB usable vs ~8.4 TB).
+      # In-transit encryption is provided by Cilium WireGuard cluster-wide.
 
   # ---------------------------------------------------------------------------
   # Resource requests — sized for Hetzner AX102 / AX52-class nodes.
