@@ -60,3 +60,16 @@
     msg: >-
       Added A record: {{ cloudflare_app_wildcard_hostname }} → {{ hostvars[inventory_hostname]['ansible_host'] }}
       (record id: {{ worker_join_cf_result.json.result.id }})
+
+- name: Delete stale Rook OSD prepare job for this node
+  # Rook creates OSD prepare jobs eagerly for all cluster nodes when first deployed.
+  # If a node is later reprovisioned with new raw devices, the old Completed job
+  # prevents Rook from re-discovering them — Kubernetes Jobs are one-shot and Rook
+  # does not re-create them on node rejoin. Deleting the stale job here triggers
+  # Rook's reconciler to create a fresh one on the next CephCluster reconcile cycle,
+  # discovering the new partitions created by the storage-setup role.
+  ansible.builtin.command: >
+    kubectl delete job rook-ceph-osd-prepare-{{ inventory_hostname }}
+    -n rook-ceph --ignore-not-found
+  delegate_to: localhost
+  changed_when: true
