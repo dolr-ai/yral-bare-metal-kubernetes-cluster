@@ -47,8 +47,8 @@ spec:
   # Auth is disabled because oauth2-proxy enforces authentication in front
   # of the dashboard at the cluster edge — a second login prompt is redundant.
   cephConfig:
-    mgr/dashboard:
-      enable_auth: "false"
+    mgr:
+      mgr/dashboard/enable_auth: "false"
 
   monitoring:
     enabled: true
