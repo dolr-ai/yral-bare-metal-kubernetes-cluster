@@ -190,6 +190,28 @@
         executable: /bin/bash
       changed_when: true
 
+    - name: "[worker] Remove stale Rook OSD data directories"
+      # ceph-volume raw list reads /var/lib/rook/rook-ceph/<clusterid>_<uuid>/
+      # to identify which block device each OSD UUID belongs to.  If these dirs
+      # survive a node reprovision, ceph-volume will re-report the old UUID→device
+      # mappings (including any wrongly-assigned OSD on the whole OS disk) even
+      # after the disks are fully zeroed — because it is reading the host-path
+      # metadata, not the disk bytes.  Delete the cluster-specific OSD dirs and
+      # recreate the parent so Rook starts from a clean slate.
+      # /var/lib/rook/rook-ceph/<clusterid>_<osd-uuid>/ only — do NOT delete
+      # the entire /var/lib/rook tree as Rook may share other state there.
+      ansible.builtin.shell: |
+        if [ -d /var/lib/rook/rook-ceph ]; then
+          # Remove only the UUID-named OSD dirs (format: <clusterid>_<uuid>)
+          find /var/lib/rook/rook-ceph -maxdepth 1 -type d \
+            -regextype posix-extended \
+            -regex '.*/[0-9a-f-]+_[0-9a-f-]+$' \
+            -exec rm -rf {} +
+        fi
+      args:
+        executable: /bin/bash
+      changed_when: true
+
     - name: "[worker] Create Rook data directory"
       # Rook stores its own metadata (e.g. keyring, config) in dataDirHostPath.
       # Must exist before the Rook OSD prepare job runs on this node.
