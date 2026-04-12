@@ -1211,6 +1211,22 @@ ansible-playbook ... -v 2>&1 | tee /tmp/some.log &
 
 Rationale: background execution causes output buffer overflows, silent truncation, and read timeouts. Foreground execution streams output directly, blocks until the play finishes, and makes failures immediately visible. Long playbooks (30–60 min) are fine to run foreground — the terminal stays open for the duration.
 
+**Never truncate command output:**
+
+Never pipe terminal output through `tail`, `head`, `grep`, or any other filter that truncates it during normal command runs. The user follows along with full output in the terminal in real time — filtering hides context that matters for debugging.
+
+```bash
+# ✅ Correct — full output visible
+ansible-playbook ansible/playbooks/operations/add-worker.yml -e target_host=worker-1 -v
+kubectl logs -n rook-ceph job/rook-ceph-osd-prepare-worker-1
+
+# ❌ Wrong — truncates output the user needs to follow
+ansible-playbook ... -v 2>&1 | tail -5
+kubectl logs ... | grep -E "configured|skip"
+```
+
+The one exception is post-hoc analysis of already-completed output (e.g. searching a stored log for a specific error after the fact), where filtering is appropriate.
+
 **Multi-node operations are always serial — never parallel:**
 
 Any operation that touches more than one cluster node must complete fully on each node before starting the next. This applies at every level — playbook invocations, role loops, and individual task loops within roles. Never run two operations against different nodes simultaneously.

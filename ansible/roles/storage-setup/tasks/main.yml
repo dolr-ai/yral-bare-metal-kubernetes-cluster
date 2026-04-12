@@ -96,19 +96,25 @@
       ansible.builtin.command: partprobe /dev/{{ worker_os_nvme }}
       when: sgdisk_result is changed
 
-    - name: "[worker] Wipe stale signatures from the new Rook OSD partition"
-      # sgdisk --zap-all clears the partition table but NOT the data area, so old btrfs
-      # or other signatures from prior installations may survive at the partition's
-      # start sector.  wipefs -af on the raw partition device clears all such
-      # signatures.  Only run when the partition was just created; do NOT run on an
-      # already-provisioned OSD partition (would corrupt Ceph data).
+    - name: "[worker] Wipe stale signatures from the Rook OSD partition"
+      # wipefs clears standard filesystem magic bytes but NOT ceph_bluestore —
+      # blkid detects bluestore by reading raw data at byte 0 of the device, not
+      # via the signature table that wipefs manages.  Zeroing the first 40 MB
+      # guarantees that blkid/udevadm see a blank device and Rook treats it as
+      # available for new OSD provisioning.
+      #
+      # This runs unconditionally (not guarded by sgdisk_result is changed)
+      # because storage-setup only executes during add-worker.yml provisioning,
+      # BEFORE the node joins the cluster.  No active Rook OSD can be
+      # mounted on this partition at this point, so zeroing is always safe.
       ansible.builtin.shell: |
         set -o pipefail
         PART=$(lsblk -rno NAME,PARTLABEL /dev/{{ worker_os_nvme }} | awk '$2=="rook-osd" {print "/dev/" $1}')
-        [ -n "$PART" ] && wipefs -af "$PART"
+        [ -n "$PART" ] || { echo "rook-osd partition not found"; exit 1; }
+        wipefs -af "$PART"
+        dd if=/dev/zero of="$PART" bs=4M count=10 conv=fsync
       args:
         executable: /bin/bash
-      when: sgdisk_result is changed
       changed_when: true
 
     - name: "[worker] Re-read partition table after signature wipe"
@@ -132,19 +138,18 @@
       ansible.builtin.debug:
         msg: "{{ os_nvme_layout.stdout_lines }}"
 
-    - name: "[worker] Check whether raw drive already has a filesystem or partition table"
+    - name: "[worker] Wipe all filesystem signatures and zero first 40 MB of raw drive"
+      # wipefs clears known filesystem magic bytes; dd zeros the first 40 MB to
+      # clear ceph_bluestore signatures (detected by blkid at byte 0 of the device,
+      # not via the signature table wipefs manages).  Always runs unconditionally:
+      # storage-setup only executes during add-worker.yml before the node joins,
+      # so no active Rook OSD can exist on this drive at this point.
       ansible.builtin.shell: |
-        blkid /dev/{{ worker_raw_nvme }} 2>/dev/null | grep -q 'TYPE\|PTTYPE'
-      register: raw_nvme_has_fs
-      changed_when: false
-      failed_when: false
-
-    - name: "[worker] Wipe all filesystem and partition-table signatures from raw drive"
-      # Ensures the raw drive is completely blank so Rook discovers it as an OSD
-      # candidate.  The drive may carry btrfs superblocks or GPT headers from a
-      # previous install that must be removed before Rook can claim it.
-      ansible.builtin.command: wipefs -af /dev/{{ worker_raw_nvme }}
-      when: raw_nvme_has_fs.rc == 0
+        wipefs -af /dev/{{ worker_raw_nvme }}
+        dd if=/dev/zero of=/dev/{{ worker_raw_nvme }} bs=4M count=10 conv=fsync
+      args:
+        executable: /bin/bash
+      changed_when: true
 
     - name: "[worker] Create Rook data directory"
       # Rook stores its own metadata (e.g. keyring, config) in dataDirHostPath.
