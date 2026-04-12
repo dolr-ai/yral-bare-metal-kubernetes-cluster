@@ -18,7 +18,7 @@ spec:
       # the final nginx.conf to a shared emptyDir volume.
       initContainers:
         - name: render-config
-          image: alpine:3.20
+          image: alpine:3.23
           command:
             - sh
             - -c
