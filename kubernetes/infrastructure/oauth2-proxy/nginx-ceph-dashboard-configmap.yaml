@@ -4,9 +4,9 @@ metadata:
   name: nginx-ceph-dashboard
   namespace: oauth2-proxy
 data:
-  # nginx.conf.tmpl: ${CEPH_DASHBOARD_TOKEN} is replaced at container startup
-  # by the alpine init container using awk. Only the JWT placeholder uses ${},
-  # nginx variables use $variable (no braces) so there is no conflict.
+  # nginx.conf.tmpl: @@CEPH_DASHBOARD_TOKEN@@ is replaced at container startup
+  # by the alpine init container using sed. @@ delimiters avoid all regex-special
+  # characters; nginx variables ($host, etc.) are left untouched.
   nginx.conf.tmpl: |
     worker_processes 1;
 
@@ -48,7 +48,7 @@ data:
                 # Angular initialises — Angular's auth guard finds a valid token
                 # and skips the login page entirely.
                 sub_filter_types text/html;
-                sub_filter '</head>' '<script>(function(){try{localStorage.setItem("dashboard_token","${CEPH_DASHBOARD_TOKEN}");localStorage.setItem("dashboard_username","proxy-admin");}catch(e){}})();</script></head>';
+                sub_filter '</head>' '<script>(function(){try{localStorage.setItem("dashboard_token","@@CEPH_DASHBOARD_TOKEN@@");localStorage.setItem("dashboard_username","proxy-admin");}catch(e){}})();</script></head>';
                 sub_filter_once on;
             }
         }

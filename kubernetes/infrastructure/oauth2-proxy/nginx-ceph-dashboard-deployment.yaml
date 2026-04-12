@@ -24,7 +24,7 @@ spec:
             - -c
             - |
               TOKEN=$(cat /secrets/ceph-token/token)
-              awk -v token="$TOKEN" '{gsub(/\${CEPH_DASHBOARD_TOKEN}/, token); print}' \
+              sed "s|@@CEPH_DASHBOARD_TOKEN@@|$TOKEN|g" \
                 /config/nginx.conf.tmpl > /rendered/nginx.conf
           volumeMounts:
             - name: config-template
