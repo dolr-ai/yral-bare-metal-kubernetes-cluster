@@ -98,24 +98,45 @@
 
     - name: "[worker] Wipe stale signatures from the Rook OSD partition"
       # wipefs clears standard filesystem magic bytes but NOT ceph_bluestore —
-      # blkid detects bluestore by reading raw data at multiple offsets (start,
-      # middle, and end of device).  We zero the first AND last 40 MB to
-      # guarantee all bluestore labels are wiped, including the secondary copy
-      # that ceph-volume stores at (device_size - 4096).
+      # blkid detects bluestore by reading raw data at offsets (start, middle,
+      # and end of the partition).  We zero the first AND last 40 MB of the
+      # OSD partition to clear all possible bluestore superblock locations
+      # within the partition itself.  The whole-disk tail (after p3 ends) is
+      # cleared separately in the next task.
       #
-      # This runs unconditionally: storage-setup only executes during
-      # add-worker.yml before the node joins, so no active Rook OSD can be
-      # mounted on this partition at this point.
+      # Runs unconditionally: storage-setup executes during add-worker.yml
+      # before the node joins, so no active Rook OSD is mounted on this
+      # partition at this point.
       ansible.builtin.shell: |
         set -o pipefail
         PART=$(lsblk -rno NAME,PARTLABEL /dev/{{ worker_os_nvme }} | awk '$2=="rook-osd" {print "/dev/" $1}')
         [ -n "$PART" ] || { echo "rook-osd partition not found"; exit 1; }
         wipefs -af "$PART"
-        # Zero start: clears primary bluestore label at offset 0
+        # Zero start: clears primary bluestore superblock at offset 0 of partition
         dd if=/dev/zero of="$PART" bs=4M count=10 conv=fsync
-        # Zero end: clears secondary bluestore label at (device_size - 4096)
+        # Zero end: clears secondary bluestore superblock at (partition_size - 4096)
         SECTORS=$(blockdev --getsz "$PART")
         dd if=/dev/zero of="$PART" bs=512 count=81920 seek=$(( SECTORS - 81920 )) conv=fsync
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    - name: "[worker] Zero the tail of the OS drive to clear residual bluestore labels"
+      # ceph-volume raw list scans for bluestore superblocks at THREE offsets on every
+      # block device it inspects: (1) offset 0, (2) device_size/2, and (3) device_size-4096.
+      # A previous Rook prepare job may have written a new raw bluestore OSD directly to
+      # the whole OS disk (e.g. nvme1n1) — placing its secondary superblock at
+      # (nvme1n1_size - 4096), which falls in the GPT backup partition-entry area at
+      # the TAIL of the disk, AFTER nvme1n1p3 ends.  The OSD partition wipe above only
+      # touches nvme1n1p3, not this unallocated tail.  Zeroing the last 40 MB of the
+      # whole OS disk clears the tail including any bluestore secondary superblock.
+      # Safe: the OS is at the START of the disk (p1 = first 50 GB); the tail is
+      # unallocated space beyond the last usable GPT sector.  Zeroing it corrupts the
+      # GPT backup header (redundant copy; primary GPT at sectors 1-33 is untouched),
+      # which is acceptable — the node is re-provisioned from scratch on each run.
+      ansible.builtin.shell: |
+        SECTORS=$(blockdev --getsz /dev/{{ worker_os_nvme }})
+        dd if=/dev/zero of=/dev/{{ worker_os_nvme }} bs=512 count=81920 seek=$(( SECTORS - 81920 )) conv=fsync
       args:
         executable: /bin/bash
       changed_when: true
