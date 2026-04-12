@@ -449,6 +449,15 @@ Multi-node upgrade orchestration (happens in playbook via `node-upgrade` role):
 - The `node-upgrade` role handles single-node upgrade logic: drain → remove → upgrade → reboot → rejoin → verify
 - Playbook controls loop across all nodes
 
+## Default-First Configuration Policy
+
+**Always prefer component defaults over explicit configuration.** Only add configuration parameters when a specific default behaviour is causing a concrete problem that needs solving. Explicitly setting parameters that match the default:
+- creates maintenance burden (the value must be kept in sync as defaults evolve)
+- introduces typo/format bugs that would otherwise be impossible
+- obscures intent (a reader cannot tell whether the value was set deliberately or cargo-culted)
+
+This applies to all components: Helm values, StorageClass parameters, CephCluster settings, Ansible role vars, etc. If the component ships a sensible default for the current versions in use, omit the parameter.
+
 ## Component Versioning Policy
 
 **Always ask the user which version to pin before adding or upgrading any component.**
@@ -838,6 +847,15 @@ kubectl exec -n rook-ceph deploy/rook-ceph-tools -- ceph osd status
 ```
 
 The cluster is usable for PVC provisioning once **3 OSD nodes** are online (mons achieve quorum and the block pool has enough replicated copies). Wait for `ceph status` to show `HEALTH_OK` or `HEALTH_WARN` (not `HEALTH_ERR`) before provisioning test volumes.
+
+**Batch-1 status (workers 1–3): COMPLETE as of April 2026.**
+Workers 1, 2, 3 are reprovisioned with the correct disk layout. Each has 2 OSDs — 6 total, ~2.7 TB total raw, ~1.3 TB usable at 2× replication. The remaining 32 workers (batch-2) still need reprovisioning.
+
+**ceph_bluestore signature wipe — important operational note:**
+`wipefs -af` does not clear `ceph_bluestore` signatures. blkid detects bluestore by reading raw data at byte 0 of the device, not via the standard wipefs signature table. The `storage-setup` role now runs `dd if=/dev/zero of=<device> bs=4M count=10 conv=fsync` after wipefs on both OSD devices (nvme0n1p3 and nvme1n1), guaranteeing that udevadm/blkid see a blank device on every reprovision. If you see a fresh OSD prepare job log the device as "contains a filesystem ceph_bluestore" and skip it, this dd step was not run — reprovision the worker again.
+
+**PARTLABEL must NOT contain "ceph" — important:**
+ceph-volume inventory checks `'ceph' in partlabel` and marks any match as "Used by ceph-disk", causing the OSD partition to be unconditionally skipped. The GPT partition on nvme0n1p3 MUST be labelled `rook-osd` (not `ceph-osd` or anything with "ceph"). This is enforced in `storage-setup` — do not change this label.
 
 **PVC data migration procedure (Longhorn → Ceph):**
 

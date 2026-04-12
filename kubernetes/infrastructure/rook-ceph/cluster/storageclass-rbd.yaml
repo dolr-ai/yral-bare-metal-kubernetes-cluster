@@ -19,18 +19,9 @@ parameters:
   clusterID: rook-ceph
   pool: ceph-blockpool
 
-  # RBD image format v2 is required for layering, cloning, and fast-diff.
-  imageFormat: "2"
-
-  # Feature set enabled on all new RBD images.
-  #   layering        — snapshot support (required for PVC clones/backups)
-  #   fastdiff        — fast delta computation for incremental snapshots
-  #   object-map      — accelerates diff-based operations (requires exclusive-lock)
-  #   deep-flatten    — allows flattening of cloned images and their parents
-  #   exclusive-lock  — required for object-map and safe multi-host access
-  # All features require kernel ≥ 5.x and Ceph Jewel or newer; Ubuntu 24.04
-  # with kernel 6.x satisfies both requirements.
-  imageFeatures: layering,fastdiff,object-map,deep-flatten,exclusive-lock
+  # imageFormat and imageFeatures are intentionally omitted — Rook CSI defaults
+  # are correct for modern Ceph and Ubuntu 24.04 kernels.  Only add these if a
+  # specific feature is needed to solve a concrete problem.
 
   # CSI driver secret references.  These Secrets are created by the Rook operator
   # when the CephCluster is initialised.  Do not modify these names.
