@@ -22,10 +22,9 @@ spec:
             - --google-group=developer-admin@gobazzinga.io
             - --google-admin-email=s@gobazzinga.io
             - --google-service-account-json=/etc/oauth2-proxy/service-account.json
-            # nginx-ceph-dashboard sits between oauth2-proxy and the Ceph mgr.
-            # It injects a long-lived JWT into localStorage on every HTML response
-            # so users land directly in the dashboard without a second login page.
-            - --upstream=http://nginx-ceph-dashboard.oauth2-proxy.svc.cluster.local:80
+            # The Rook mgr pod exposes the Ceph dashboard on port 7000 (ssl: false).
+            # Service name is rook-ceph-mgr-dashboard in the rook-ceph namespace.
+            - --upstream=http://rook-ceph-mgr-dashboard.rook-ceph.svc.cluster.local:7000
             - --http-address=0.0.0.0:4180
             - --cookie-secure=true
             - --cookie-name=_oauth2_proxy_ceph_dashboard
