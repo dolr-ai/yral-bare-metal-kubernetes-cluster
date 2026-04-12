@@ -55,7 +55,7 @@ spec:
         # 2-replica requirement is enforced by patching the Longhorn Volume CR directly.
         # Switch to longhorn-2replicas only when the PVC is deleted+recreated (e.g.
         # when Loki gains distributed HA and migrates to object-store backend).
-        storageClass: longhorn
+        storageClass: ceph-block
         size: 600Gi
       resources:
         requests:
