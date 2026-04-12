@@ -98,11 +98,12 @@
 
     - name: "[worker] Wipe stale signatures from the Rook OSD partition"
       # wipefs clears standard filesystem magic bytes but NOT ceph_bluestore —
-      # blkid detects bluestore by reading raw data at offsets (start, middle,
-      # and end of the partition).  We zero the first AND last 40 MB of the
-      # OSD partition to clear all possible bluestore superblock locations
-      # within the partition itself.  The whole-disk tail (after p3 ends) is
-      # cleared separately in the next task.
+      # blkid detects bluestore by reading raw data at specific disk offsets.
+      # We zero the first AND last 40 MB of the OSD partition to clear bluestore
+      # superblocks at the PARTITION boundaries (offset 0 and partition_size-4096).
+      # A secondary superblock from a previous whole-disk OSD provisioning may also
+      # exist deep inside the partition (at the whole-disk device_size/2 offset, ~188 GB
+      # into nvme1n1p3); that position is cleared by the whole-OS-disk midpoint task below.
       #
       # Runs unconditionally: storage-setup executes during add-worker.yml
       # before the node joins, so no active Rook OSD is mounted on this
@@ -114,28 +115,33 @@
         wipefs -af "$PART"
         # Zero start: clears primary bluestore superblock at offset 0 of partition
         dd if=/dev/zero of="$PART" bs=4M count=10 conv=fsync
-        # Zero end: clears secondary bluestore superblock at (partition_size - 4096)
+        # Zero end: clears bluestore superblock at (partition_size - 4096)
         SECTORS=$(blockdev --getsz "$PART")
         dd if=/dev/zero of="$PART" bs=512 count=81920 seek=$(( SECTORS - 81920 )) conv=fsync
       args:
         executable: /bin/bash
       changed_when: true
 
-    - name: "[worker] Zero the tail of the OS drive to clear residual bluestore labels"
+    - name: "[worker] Zero midpoint and tail of OS drive to clear residual bluestore labels"
       # ceph-volume raw list scans for bluestore superblocks at THREE offsets on every
-      # block device it inspects: (1) offset 0, (2) device_size/2, and (3) device_size-4096.
-      # A previous Rook prepare job may have written a new raw bluestore OSD directly to
-      # the whole OS disk (e.g. nvme1n1) — placing its secondary superblock at
-      # (nvme1n1_size - 4096), which falls in the GPT backup partition-entry area at
-      # the TAIL of the disk, AFTER nvme1n1p3 ends.  The OSD partition wipe above only
-      # touches nvme1n1p3, not this unallocated tail.  Zeroing the last 40 MB of the
-      # whole OS disk clears the tail including any bluestore secondary superblock.
-      # Safe: the OS is at the START of the disk (p1 = first 50 GB); the tail is
-      # unallocated space beyond the last usable GPT sector.  Zeroing it corrupts the
-      # GPT backup header (redundant copy; primary GPT at sectors 1-33 is untouched),
-      # which is acceptable — the node is re-provisioned from scratch on each run.
+      # block device: (1) offset 0, (2) device_size/2, and (3) device_size-4096.
+      # A previous Rook prepare job may write a raw bluestore OSD directly onto the
+      # whole OS disk, placing superblocks at ALL THREE of those positions:
+      #   • Offset 0: overwritten by the fresh OS install (new GPT) — no action needed.
+      #   • device_size/2 (~238 GB): falls INSIDE nvme1n1p3 at ~188 GB into the
+      #     partition, well beyond the partition start/end wipe window.  Must be
+      #     zeroed here via the WHOLE-DISK device path.
+      #   • device_size-4096: in the GPT backup area after nvme1n1p3 ends.  Must also
+      #     be zeroed here — the OSD partition wipe does not cover this region.
+      # Safe: the OS root (nvme1n1p1) is at the START of the disk (first 50 GB).
+      # The midpoint (~238 GB) and tail (~477 GB) are both inside or beyond
+      # nvme1n1p3, which is not mounted and will be freshly prepared by Rook.
       ansible.builtin.shell: |
         SECTORS=$(blockdev --getsz /dev/{{ worker_os_nvme }})
+        MID=$(( SECTORS / 2 - 2048 ))
+        # Zero 2 MB around device midpoint — clears secondary superblock at device_size/2
+        dd if=/dev/zero of=/dev/{{ worker_os_nvme }} bs=512 count=4096 seek=$MID conv=fsync
+        # Zero last 40 MB — clears tertiary superblock at device_size-4096 (GPT backup area)
         dd if=/dev/zero of=/dev/{{ worker_os_nvme }} bs=512 count=81920 seek=$(( SECTORS - 81920 )) conv=fsync
       args:
         executable: /bin/bash
@@ -162,17 +168,23 @@
       ansible.builtin.debug:
         msg: "{{ os_nvme_layout.stdout_lines }}"
 
-    - name: "[worker] Wipe all filesystem signatures and zero start+end of raw drive"
-      # wipefs clears known filesystem magic bytes; dd zeros the first AND last
-      # 40 MB to clear all ceph_bluestore labels (primary at offset 0, secondary
-      # at device_size - 4096).  Always runs unconditionally: storage-setup runs
-      # before the node joins, so no active Rook OSD exists on this drive.
+    - name: "[worker] Wipe all filesystem signatures and zero start+midpoint+end of raw drive"
+      # wipefs clears known filesystem magic bytes; dd zeros all THREE positions
+      # that ceph-volume raw list checks for bluestore superblocks:
+      #   • Offset 0 (primary): cleared by wipefs + first dd.
+      #   • device_size/2 (secondary): 2 MB centred on the midpoint.
+      #   • device_size-4096 (tertiary): last 40 MB.
+      # Always runs unconditionally: storage-setup runs before the node joins,
+      # so no active Rook OSD exists on this drive.
       ansible.builtin.shell: |
         wipefs -af /dev/{{ worker_raw_nvme }}
-        # Zero start
+        # Zero start — clears primary at offset 0
         dd if=/dev/zero of=/dev/{{ worker_raw_nvme }} bs=4M count=10 conv=fsync
-        # Zero end
         SECTORS=$(blockdev --getsz /dev/{{ worker_raw_nvme }})
+        MID=$(( SECTORS / 2 - 2048 ))
+        # Zero 2 MB around midpoint — clears secondary at device_size/2
+        dd if=/dev/zero of=/dev/{{ worker_raw_nvme }} bs=512 count=4096 seek=$MID conv=fsync
+        # Zero last 40 MB — clears tertiary at device_size-4096
         dd if=/dev/zero of=/dev/{{ worker_raw_nvme }} bs=512 count=81920 seek=$(( SECTORS - 81920 )) conv=fsync
       args:
         executable: /bin/bash
