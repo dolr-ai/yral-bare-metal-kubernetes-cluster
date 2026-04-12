@@ -11,6 +11,10 @@ resources:
   - service-longhorn-ui.yaml
   - deployment-ceph-dashboard.yaml
   - service-ceph-dashboard.yaml
+  - ceph-dashboard-token.sops.yaml
+  - nginx-ceph-dashboard-configmap.yaml
+  - nginx-ceph-dashboard-deployment.yaml
+  - nginx-ceph-dashboard-service.yaml
   - deployment-headlamp.yaml
   - service-headlamp.yaml
   - deployment-dashboard.yaml

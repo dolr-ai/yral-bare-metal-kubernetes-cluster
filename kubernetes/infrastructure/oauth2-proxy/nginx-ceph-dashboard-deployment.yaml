@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-ceph-dashboard
+  namespace: oauth2-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-ceph-dashboard
+  template:
+    metadata:
+      labels:
+        app: nginx-ceph-dashboard
+    spec:
+      # Init container: substitute ${CEPH_DASHBOARD_TOKEN} placeholder in the
+      # nginx config template with the actual JWT from the secret, then write
+      # the final nginx.conf to a shared emptyDir volume.
+      initContainers:
+        - name: render-config
+          image: alpine:3.20
+          command:
+            - sh
+            - -c
+            - |
+              TOKEN=$(cat /secrets/ceph-token/token)
+              awk -v token="$TOKEN" '{gsub(/\${CEPH_DASHBOARD_TOKEN}/, token); print}' \
+                /config/nginx.conf.tmpl > /rendered/nginx.conf
+          volumeMounts:
+            - name: config-template
+              mountPath: /config
+              readOnly: true
+            - name: rendered-config
+              mountPath: /rendered
+            - name: ceph-token
+              mountPath: /secrets/ceph-token
+              readOnly: true
+      containers:
+        - name: nginx
+          image: nginx:1.29.8-alpine
+          command:
+            - nginx
+            - -g
+            - daemon off;
+            - -c
+            - /etc/nginx/nginx.conf
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          volumeMounts:
+            - name: rendered-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            # Ceph dashboard returns 302 to /dashboard on root; treat that as ready
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 30
+      volumes:
+        - name: config-template
+          configMap:
+            name: nginx-ceph-dashboard
+        - name: rendered-config
+          emptyDir: {}
+        - name: ceph-token
+          secret:
+            secretName: ceph-dashboard-token
