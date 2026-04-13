@@ -82,3 +82,4 @@ After migration is complete, ensure Rook-Ceph is the default StorageClass and th
 
 - Update AGENTS.md after the migration is done and remove redundant sections
 - Ceph volume backups
+- Reevaluate if it's possible to have same region replication with ceph that was not possible with Longhorn. So, the primary volume replica should be on the same node as the workload pod and the secondary replica should be in the same region but not necessarily on the same node. This is to ensure low latency for the primary replica while still having redundancy within the same region. Check if ceph supports this kind of topology-aware replication and if it can be configured to meet this requirement.
