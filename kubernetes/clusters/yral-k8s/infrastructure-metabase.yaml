@@ -12,8 +12,3 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  ignoreDifferences:
-    - group: ""
-      kind: PersistentVolumeClaim
-      jsonPointers:
-        - /spec/volumeName
