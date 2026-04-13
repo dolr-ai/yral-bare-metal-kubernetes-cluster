@@ -29,8 +29,50 @@ spec:
   storage:
     type: persistent-claim
     size: 250Gi
+    # Actual storage class on existing PVCs (Strimzi ignores class changes for live pools)
+    class: longhorn
+    # deleteClaim: true so PVCs are removed when this pool is deleted after ceph migration
+    deleteClaim: true
+  template:
+    pod:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: topology.kubernetes.io/region
+                    operator: In
+                    values:
+                      - falkenstein
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    strimzi.io/cluster: kafka-cluster
+                topologyKey: topology.kubernetes.io/zone
+---
+# Replacement KafkaNodePool for Kafka migration from Longhorn to Ceph.
+# Once all partition replicas are confirmed on this pool's brokers (via
+# kafka-reassign-partitions), the old 'combined' pool above will be removed.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: combined-ceph
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  replicas: 3
+  roles:
+    - controller
+    - broker
+  storage:
+    type: persistent-claim
+    size: 250Gi
     class: ceph-block-1replica
-    deleteClaim: false
+    deleteClaim: true
   template:
     pod:
       affinity:
