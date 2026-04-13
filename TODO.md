@@ -81,3 +81,4 @@ The key never leaves the cluster and is encrypted at rest inside etcd (Kubernete
 After migration is complete, ensure Rook-Ceph is the default StorageClass and that the Longhorn StorageClass is not default, to ensure new volumes are provisioned on Ceph by default.
 
 - Update AGENTS.md after the migration is done and remove redundant sections
+- Ceph volume backups
