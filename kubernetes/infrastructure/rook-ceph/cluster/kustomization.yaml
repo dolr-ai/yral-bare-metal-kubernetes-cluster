@@ -4,3 +4,4 @@ resources:
   - cephcluster.yaml
   - cephblockpool.yaml
   - storageclass-rbd.yaml
+  - storageclass-kafka.yaml

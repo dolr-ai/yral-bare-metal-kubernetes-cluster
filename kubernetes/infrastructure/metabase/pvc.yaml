@@ -8,7 +8,7 @@ metadata:
   name: metabase-data
   namespace: metabase
 spec:
-  storageClassName: longhorn
+  storageClassName: ceph-block
   accessModes:
     - ReadWriteOnce
   resources:
