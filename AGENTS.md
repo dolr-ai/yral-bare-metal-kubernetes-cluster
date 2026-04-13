@@ -873,7 +873,22 @@ ceph-volume inventory checks `'ceph' in partlabel` and marks any match as "Used 
 
 **PVC data migration procedure (Longhorn → Ceph):**
 
-For each workload with a Longhorn PVC, perform this sequence. The procedure uses a temporary migration PVC and a rsync Job to avoid downtime. The hardest part is rebinding a StatefulSet's PVC to the new Ceph PV.
+**First, determine whether the data actually needs migrating:**
+
+- **Regenerable data** (caches, downloaded files, indexes that rebuild on startup): just update `storageClassName: ceph-block` in git and let Flux do the work. The correct procedure is:
+  1. Suspend the Flux kustomization (`flux suspend kustomization <name>`)
+  2. Scale the workload to 0
+  3. Delete the old Longhorn PVC imperatively (`kubectl delete pvc <name> -n <ns>`)
+  4. Resume the Flux kustomization — Flux provisions a fresh ceph-block PVC and the workload repopulates it on startup
+  5. Scale back up and validate
+
+  Examples: `geoip-db` (re-downloaded by init container), any PVC whose data is derived from an external source.
+
+- **Irreplaceable data** (databases, application state, user-uploaded content): use the rsync procedure below.
+
+**CRITICAL — never pin `volumeName` in git manifests.** When Flux applies a PVC with `volumeName` set, it permanently couples the manifest to a specific PV. If that PV is ever replaced (node reprovision, migration, restore), the manifest must be updated again. Instead: after a migration, the git manifest must contain only `storageClassName` — Flux will dynamically provision a new PV. The only exception is an in-progress rebind step that is immediately followed by removing `volumeName` from git.
+
+For workloads with irreplaceable data, perform this sequence. The procedure uses a temporary migration PVC and a rsync Job to avoid downtime. The hardest part is rebinding a StatefulSet's PVC to the new Ceph PV.
 
 ```bash
 # Example: migrating Loki's 600 Gi PVC (storage-loki-0)
