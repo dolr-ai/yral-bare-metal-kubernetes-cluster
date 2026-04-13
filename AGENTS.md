@@ -873,6 +873,28 @@ ceph-volume inventory checks `'ceph' in partlabel` and marks any match as "Used 
 
 **PVC data migration procedure (Longhorn → Ceph):**
 
+**Step 0 — Trigger a Longhorn backup before any migration:**
+
+Before touching any PVC (regenerable or irreplaceable), manually trigger a Longhorn backup of the volume so there is a recent recovery point:
+
+```bash
+# Substitute <volume-name> with the Longhorn volume name (same as the PVC name)
+kubectl create -n longhorn-system -f - <<EOF
+apiVersion: longhorn.io/v1beta2
+kind: Backup
+metadata:
+  generateName: pre-migration-
+spec:
+  snapshotName: ""   # empty = Longhorn creates a fresh snapshot first
+  volumeName: <volume-name>
+EOF
+
+# Wait for the backup to complete (Status.State should become "Completed")
+kubectl get backup -n longhorn-system -l longhornvolume=<volume-name> --watch
+```
+
+Only proceed with the migration steps once the backup shows `State: Completed`.
+
 **First, determine whether the data actually needs migrating:**
 
 - **Regenerable data** (caches, downloaded files, indexes that rebuild on startup): just update `storageClassName: ceph-block` in git and let Flux do the work. The correct procedure is:
