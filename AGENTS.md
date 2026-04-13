@@ -837,19 +837,33 @@ kubectl apply -f https://raw.githubusercontent.com/rook/rook/v1.19.3/deploy/exam
 ```
 
 **Worker node migration sequence:**
-Workers are reprovisioned one at a time using the existing `remove-node.yml` → `add-worker.yml` playbooks. No new playbook is needed. Run:
-```bash
-# Reprovision a worker (30-60 min per node)
-ansible-playbook ansible/playbooks/operations/remove-node.yml -e target_host=worker-N
-ansible-playbook ansible/playbooks/operations/add-worker.yml -e target_host=worker-N
-# Verify the new OSDs are UP before moving to the next worker:
-kubectl exec -n rook-ceph deploy/rook-ceph-tools -- ceph osd status
-```
+Workers are reprovisioned **strictly in order of worker number** (worker-1, worker-2, … worker-35), one at a time. This ensures nothing is missed and progress is easy to track. No batching, no skipping ahead.
+
+For each worker, follow this exact procedure:
+
+1. **Check for Longhorn replicas** on the worker:
+   ```bash
+   kubectl get replicas.longhorn.io -n longhorn-system \
+     -o jsonpath='{range .items[?(@.spec.nodeID=="worker-N")]}{.spec.volumeName}{"\n"}{end}' | sort -u
+   ```
+
+2. **If replicas exist** — migrate each PVC to `ceph-block` first (see PVC data migration procedure below), validate the migrated data, then delete the old Longhorn PVC and confirm the Longhorn volume is gone. Only proceed to step 3 once all replicas on this worker are migrated and removed.
+
+3. **Remove and reprovision** using the existing playbooks:
+   ```bash
+   ansible-playbook ansible/playbooks/operations/remove-node.yml -e target_host=worker-N
+   ansible-playbook ansible/playbooks/operations/add-worker.yml -e target_host=worker-N
+   ```
+
+4. **Verify OSDs are up** before moving to the next worker:
+   ```bash
+   kubectl exec -n rook-ceph deploy/rook-ceph-tools -- ceph osd tree | grep worker-N
+   ```
 
 The cluster is usable for PVC provisioning once **3 OSD nodes** are online (mons achieve quorum and the block pool has enough replicated copies). Wait for `ceph status` to show `HEALTH_OK` or `HEALTH_WARN` (not `HEALTH_ERR`) before provisioning test volumes.
 
-**Batch-1 status (workers 1–3): COMPLETE as of April 2026.**
-Workers 1, 2, 3 are reprovisioned with the correct disk layout. Each has 2 OSDs — 6 total, ~2.7 TB total raw, ~1.3 TB usable at 2× replication. The remaining 32 workers (batch-2) still need reprovisioning.
+**Reprovision status (as of April 2026):**
+Workers 1–9 are reprovisioned with the correct disk layout (50 GB OS partition + Ceph OSD partition on nvme0n1 + nvme1n1 whole disk). Each has 2 OSDs. Workers 10–35 still need reprovisioning.
 
 **ceph_bluestore signature wipe — important operational note:**
 `wipefs -af` does not clear `ceph_bluestore` signatures. blkid detects bluestore by reading raw data at byte 0 of the device, not via the standard wipefs signature table. The `storage-setup` role now runs `dd if=/dev/zero of=<device> bs=4M count=10 conv=fsync` after wipefs on both OSD devices (nvme0n1p3 and nvme1n1), guaranteeing that udevadm/blkid see a blank device on every reprovision. If you see a fresh OSD prepare job log the device as "contains a filesystem ceph_bluestore" and skip it, this dd step was not run — reprovision the worker again.
