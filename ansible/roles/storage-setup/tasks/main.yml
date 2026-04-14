@@ -234,40 +234,11 @@
           Total Ceph capacity on this node: ~950 GB.
 
 # ---------------------------------------------------------------------------
-# CONTROL PLANE PATH — btrfs expansion + Longhorn data path
+# CONTROL PLANE PATH — btrfs expansion
 
-- name: "[control-plane] Prepare Longhorn data directory and expand btrfs"
+- name: "[control-plane] Expand btrfs"
   when: "'worker_nodes' not in group_names"
   block:
-    # NOTE: Remove the next three tasks once Longhorn is fully removed.
-    - name: "[control-plane] Create Longhorn data directory"
-      ansible.builtin.file:
-        path: /var/lib/longhorn
-        state: directory
-        owner: root
-        group: root
-        mode: "0755"
-
-    - name: "[control-plane] Disable btrfs Copy-on-Write for Longhorn data directory"
-      # nodatacow can only be set on an empty directory on btrfs; the attribute is
-      # inherited by all files created inside it.
-      # Expected lsattr output: ---------------C-- /var/lib/longhorn
-      ansible.builtin.command: chattr +C /var/lib/longhorn
-      register: chattr_result
-      changed_when: chattr_result.rc == 0
-      failed_when: chattr_result.rc != 0
-
-    - name: "[control-plane] Verify nodatacow is set on Longhorn data directory"
-      ansible.builtin.command: lsattr -d /var/lib/longhorn
-      register: lsattr_result
-      changed_when: false
-
-    - name: "[control-plane] Assert nodatacow flag is present"
-      ansible.builtin.assert:
-        that: "'C' in lsattr_result.stdout"
-        fail_msg: "nodatacow (chattr +C) was not set on /var/lib/longhorn — Longhorn volumes will suffer double-CoW performance degradation on btrfs"
-        success_msg: "nodatacow confirmed on /var/lib/longhorn: {{ lsattr_result.stdout }}"
-
     # Expand btrfs to the second drive so the full ~1 TB of NVMe capacity is
     # available for ephemeral storage, kubelet image cache, and containerd.
     - name: "[control-plane] Get list of all disk devices"

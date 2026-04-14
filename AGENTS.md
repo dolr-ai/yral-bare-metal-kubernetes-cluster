@@ -145,7 +145,7 @@ Used for cluster Day-2 operations. Each operation is a single play calling one r
 1. `init-control-plane.yml` - Bootstrap first control plane (hardcoded to control-plane-1, chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → cluster-init → node-labels → helm → gateway-api-crds → cilium)
 2. `add-control-plane.yml` - Add control plane for HA (chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → control-plane-join → node-labels). Cilium DaemonSet deploys automatically via the existing installation.
 3. `add-worker.yml` - Add worker node (chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → worker-join → node-labels)
-4. `remove-node.yml` - Remove node from cluster (chains: `longhorn-evict` → `node-remove`). `longhorn-evict` sets `evictionRequested=true` on all Longhorn disks and waits up to 30 min (polling every 30s) for all replicas to migrate off before `node-remove` drains and deletes the node. **Not applied in `upgrade-worker.yml`** — `upgrade-worker` does not delete the node object at all (see below), so there is nothing to evict from.
+4. `remove-node.yml` - Remove node from cluster (chains: `node-remove`). Longhorn has been decommissioned, so `longhorn-evict` is no longer part of this operation.
 5. `upgrade-control-plane.yml` - Upgrade control plane node(s): cordon → drain → kubeadm reset → reboot → rejoin → verify. Accepts `-e target_host=<node>` for single node or runs all serially.
 6. `upgrade-worker.yml` - Upgrade worker node(s): cordon → drain → delete → reboot → rejoin → verify. Accepts `-e target_host=<node>` for single node or runs all serially.
 
@@ -621,9 +621,11 @@ kubectl delete pod -n kube-system <cilium-pod-on-affected-cp>
 
 **Key insight:** Cilium on worker nodes (where the workload pods live) is not the issue — the staleness is on the *control plane* Cilium pods that receive API traffic destinated for webhooks. Always check all CPs, not just the workers.
 
-### Longhorn CSI and btrfs Storage
+### Longhorn CSI and btrfs Storage (Historical)
 
-Longhorn is the cluster's default CSI provider (`storageClassName: longhorn`). All PVCs that don't request a specific StorageClass will be provisioned by Longhorn. Prometheus persistent storage uses it; all future stateful workloads should too.
+Longhorn has been decommissioned after the Ceph migration. This section is retained as historical context for prior incidents and decisions.
+
+Before the Ceph migration, Longhorn was the cluster's default CSI provider (`storageClassName: longhorn`).
 
 **btrfs CoW conflict — critical:**
 
@@ -680,7 +682,7 @@ If in doubt, use `longhorn`. Document the specific reason when choosing `longhor
 
 **NFS / RWX volumes:**
 
-`nfs-common` is installed on all nodes via the `base-system` role. Longhorn RWX (ReadWriteMany) volumes work by creating a `longhorn-share-manager` pod that runs an in-cluster NFS server; the kubelet uses `nfs-common` userspace tools to mount that NFS export into pods. No conflicts with Cilium + WireGuard — pod-to-pod NFS traffic (port 2049) travels inside the encrypted Cilium mesh. The `storage-network-for-rwx-volume-enabled: false` Longhorn setting correctly routes RWX traffic over the standard pod network.
+`nfs-common` and rpcbind masking were removed from the `base-system` role after Longhorn decommissioning because they were only required for Longhorn RWX share-manager mounts.
 
 **Longhorn version and placement model:**
 
@@ -770,7 +772,7 @@ for name in to_patch:
 
 ### Rook/Ceph — Distributed Block Storage
 
-The cluster is migrating from Longhorn to **Rook/Ceph** as the primary CSI provider. Rook v1.19.3 + Ceph v20.2.1 (Tentacle). All new stateful workloads should use `storageClassName: ceph-block` once the migration is complete and Ceph is made the default StorageClass.
+The cluster has migrated from Longhorn to **Rook/Ceph** as the primary CSI provider. Rook v1.19.3 + Ceph v20.2.1 (Tentacle). `ceph-block` is the default StorageClass for new PVCs.
 
 **Why Ceph instead of Longhorn:**
 Longhorn caps each PVC at a single node's disk size. Ceph aggregates all OSD disks across the entire cluster into one logical pool; a PVC's maximum size is the total usable pool capacity (currently ~16.5 TB at 2× replication over 35 workers × 950 GB per worker).
@@ -1006,7 +1008,7 @@ kubectl rollout status statefulset $WORKLOAD -n $NAMESPACE --timeout=300s
 kubectl patch pv $CEPH_PV -p '{"spec":{"persistentVolumeReclaimPolicy":"Delete"}}'
 ```
 
-**PVCs to migrate (current inventory):**
+**PVC migration inventory (historical reference):**
 
 | Namespace | PVC | Size | Workload | Notes |
 |-----------|-----|------|----------|-------|
@@ -1018,14 +1020,13 @@ kubectl patch pv $CEPH_PV -p '{"spec":{"persistentVolumeReclaimPolicy":"Delete"}
 | bytebase | bytebase-postgres-data | 5 Gi | Bytebase StatefulSet | |
 | snowplow | geoip-db | 1 Gi | Snowplow | Tiny — migrate last |
 
-**Kafka note:** Kafka brokers use `longhorn-1replica` currently. After migration to Ceph, continue using a 1-replica pool. Either reuse the same `ceph-block` StorageClass with a separate `CephBlockPool` configured for `replicated.size: 1`, or apply Kafka's own replication factor guarantee directly. Decision: use `ceph-block` (2-replica pool) for simplicity — the write amplification concern (3 brokers × 2 Longhorn replicas) still applies, but at cluster scale the I/O is no longer cross-node per write (Ceph is in the same Falkenstein region as Kafka pods). If write amplification becomes measurable, create a `ceph-block-1replica` StorageClass pointing to a separate 1-replica pool.
+**Kafka note:** Kafka brokers currently use `ceph-block-1replica` on purpose. This remains an explicit exception because Kafka already provides stronger app-level replication (`replication.factor=3`, `min.insync.replicas=2`). The resulting Ceph health warning (`pool(s) have no replicas configured`) is expected while this pool exists.
 
-**Decommissioning Longhorn (after all PVCs migrated):**
-1. Make `ceph-block` the default StorageClass (flip annotations above).
-2. Remove `infrastructure-longhorn` from `kubernetes/clusters/yral-k8s/kustomization.yaml`.
-3. Suspend the Flux Kustomization first: `flux suspend kustomization infrastructure-longhorn`.
-4. Remove `storage-setup`'s Longhorn section for control planes (the `chattr +C` block and `/var/lib/longhorn` directory creation) — they are marked with "Remove once Longhorn is removed" comments.
-5. Remove `longhorn-evict` role invocation from `remove-node.yml` (no more Longhorn volumes to evict).
+**Decommissioning Longhorn status (completed):**
+1. `ceph-block` set as default StorageClass.
+2. `infrastructure-longhorn` removed from `kubernetes/clusters/yral-k8s/kustomization.yaml` and from cluster.
+3. `storage-setup` Longhorn-specific control-plane tasks removed.
+4. `remove-node.yml` no longer invokes `longhorn-evict`.
 
 ### Backup Strategy
 
