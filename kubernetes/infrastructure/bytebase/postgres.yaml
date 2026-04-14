@@ -13,6 +13,7 @@ metadata:
   namespace: bytebase
 spec:
   storageClassName: ceph-block
+  volumeName: pvc-89941193-973b-472f-9e40-238605d3035e
   accessModes:
     - ReadWriteOnce
   resources:
