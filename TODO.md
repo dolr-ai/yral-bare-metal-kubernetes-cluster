@@ -1,4 +1,4 @@
-- Disable ceph ui auth because it is already tackled by oauth2-proxy. 
+- Unable to log into Ceph UI with the credentials. Did something change?
 - Just to confirm, for control plane nodes, we are still using the entire 1 TB via joining 2 500GB drives using btrfs, right? No point wasting space on the control planes since they don't run Ceph OSDs
 - Snowplow bad events are human readable but the enriched events are not. Figure out why and decide if we want to keep it this way
 - We need to make it so that there are no entries in snowplow-bad. They should all go to snowplow-enriched. IF there are events in snowplow-bad, it means the enrichment process is failing for some reason and we need to investigate and fix it.
