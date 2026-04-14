@@ -1,19 +1,13 @@
 # StorageClass for Ceph RBD block volumes (RWO).
 #
-# MIGRATION STATUS: ceph-block is intentionally NOT set as the default
-# StorageClass while Longhorn PVCs are being migrated.  Once all workloads
-# have been moved to Ceph (see PVC migration procedure in AGENTS.md), set
-# storageclass.kubernetes.io/is-default-class: "true" and patch the Longhorn
-# StorageClass annotation to "false" in the Longhorn HelmRelease values.
-#
-# USE: Set storageClassName: ceph-block on new PVCs and StatefulSet
-# volumeClaimTemplates during the migration window.
+# DEFAULT: ceph-block is the primary StorageClass for all new PVCs.
+# All Longhorn PVCs have been migrated to ceph-block; Longhorn is no longer the default.
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: ceph-block
   annotations:
-    storageclass.kubernetes.io/is-default-class: "false"
+    storageclass.kubernetes.io/is-default-class: "true"
 provisioner: rook-ceph.rbd.csi.ceph.com
 parameters:
   clusterID: rook-ceph
