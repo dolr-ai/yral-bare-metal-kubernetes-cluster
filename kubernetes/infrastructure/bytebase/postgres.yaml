@@ -12,7 +12,7 @@ metadata:
   name: bytebase-postgres-data
   namespace: bytebase
 spec:
-  storageClassName: longhorn
+  storageClassName: ceph-block
   accessModes:
     - ReadWriteOnce
   resources:
