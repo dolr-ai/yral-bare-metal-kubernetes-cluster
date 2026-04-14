@@ -11,15 +11,12 @@
 - Clean up unused dns entries
 - symlink the devpod config to the .dotfiles repo
 - use ansible vault to manage secrets in the .dotfiles repo
-- encrypted volumes for longhorn
 - The lateral movement problem is the serious one. If any single pod is compromised (RCE via a vulnerable dependency, a misconfigured container, a supply chain attack), the attacker has unrestricted access to:
 
 ClickHouse — can read/write all analytics data, port 8123 open to every pod
 Kafka — can produce/consume any topic, including snowplow events
-Longhorn manager API — can manipulate volumes or extract data from snapshots
 All Prometheus/Grafana metrics — operational intelligence leakage
 The Kubernetes API itself indirectly via any misconfigured RBAC
-In your setup this is especially relevant because you have data infrastructure (ClickHouse, Kafka) and orchestration infrastructure (Longhorn, Flux) all on the same flat network as application pods.
 
 The noisy neighbour / accidental misconfiguration problem: A misconfigured pod (wrong namespace, wrong labels) can accidentally reach production databases. There's no enforcement boundary.
 
@@ -28,7 +25,6 @@ Honest answer: not all at once. Here's why this is hard for your specific cluste
 
 Monitoring scrapes everything — Prometheus needs ingress to every pod in every namespace on metrics ports. A blanket default-deny breaks this immediately if you don't enumerate every scrape target.
 
-Longhorn is deeply cross-namespace — the CSI driver, manager, instance-manager, and share-manager pods communicate heavily across longhorn-system, kube-system, and default. Their dependency graph is not trivial to express in policies.
 
 Strimzi explicitly disabled policy generation (generateNetworkPolicy: false) — meaning someone already decided the generated policies were problematic. You'd need to write Kafka network policies from scratch.
 
@@ -51,17 +47,10 @@ In short: your current state is a real security gap worth closing, but "apply de
 The key never leaves the cluster and is encrypted at rest inside etcd (Kubernetes API server encrypts Secrets at the etcd layer by default in kubeadm clusters).
 - Run this benchmark - https://github.com/aquasecurity/kube-bench
 - No notifications received for the dead node. We should have an alert for this. Set up a Grafana alert that notifies us when a node goes down, so we can investigate and fix it as soon as possible. This is critical for maintaining the health and availability of our cluster.
-- Cleanup longhorn when done with the entire migration
-    - Longhorn UI
-    - Longhorn S3 backups
-
-- MIGRATION STATUS: ceph-block is intentionally NOT set as the default StorageClass while Longhorn PVCs are being migrated.  Once all workloads have been moved to Ceph (see PVC migration procedure in AGENTS.md), set storageclass.kubernetes.io/is-default-class: "true" and patch the Longhorn StorageClass annotation to "false" in the Longhorn HelmRelease values.
-After migration is complete, ensure Rook-Ceph is the default StorageClass and that the Longhorn StorageClass is not default, to ensure new volumes are provisioned on Ceph by default.
 
 - Update AGENTS.md after the migration is done and remove redundant sections
 - Ceph volume backups
-- Reevaluate if it's possible to have same region replication with ceph that was not possible with Longhorn. So, the primary volume replica should be on the same node as the workload pod and the secondary replica should be in the same region but not necessarily on the same node. This is to ensure low latency for the primary replica while still having redundancy within the same region. Check if ceph supports this kind of topology-aware replication and if it can be configured to meet this requirement.
-- Since we have removed Longhorn from the cluster, we can also remove the nfs-common package, right? Also the rpcbind handling that we were doing, right? Confirm that there are no dependencies on nfs-common or rpcbind before removing them from the cluster. This will help to reduce the attack surface and remove unnecessary components from the cluster, improving security and maintainability.
+- Reevaluate if it's possible to have same region replication with ceph. So, the primary volume replica should be on the same node as the workload pod and the secondary replica should be in the same region but not necessarily on the same node. This is to ensure low latency for the primary replica while still having redundancy within the same region. Check if ceph supports this kind of topology-aware replication and if it can be configured to meet this requirement.
 - Decide what to do with the ceph-block-1replica pool. If it needs separate disks to be allocated, it doesn't solve our need. What we need is the ability to have 1 replica for certain volumes that don't require high durability, but we still want to use the same underlying storage pool (ceph-block) that has 2 replicas for other volumes. Check if ceph allows us to have different replication factors for different volumes within the same pool, or if we need to create a separate pool with 1 replica and manage it separately. If it doesn't allow, we want to get rid of this pool and just use the ceph-block pool for all volumes, even those that only require 1 replica, since it will still provide redundancy and durability without the need for a separate pool.
 - Depending on the above, the kafka storage class that is currently using the ceph-block-1replica pool may need to be updated to use the ceph-block pool instead, if we decide to get rid of the ceph-block-1replica pool. This will ensure that all Kafka volumes are using the same underlying storage pool with 2 replicas, providing better durability and redundancy for our Kafka data. If we keep the ceph-block-1replica pool, we can keep the Kafka storage class as is, but we need to ensure that it is properly documented which volumes should use which pool based on their durability requirements.
 - Depending on the above, we should also reduce the number of replicas for kafka since replication is already handled at the volume level by ceph. Having 2 replicas at the storage level and 3 replicas at the application level is redundant and doesn't provide additional durability benefits, while it does increase storage costs. We can reduce the number of Kafka replicas to 1 or 2, depending on our durability requirements, while still using the ceph-block pool with 2 replicas for the underlying storage. For scaling write throughput, we can rely on partitioning in Kafka rather than having multiple replicas at the application level, since the storage layer is already providing redundancy. This will help to optimize our storage costs while still maintaining durability and performance for our Kafka workloads.

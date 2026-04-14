@@ -1,7 +1,6 @@
 # StorageClass for Ceph RBD block volumes (RWO).
 #
 # DEFAULT: ceph-block is the primary StorageClass for all new PVCs.
-# All Longhorn PVCs have been migrated to ceph-block; Longhorn is no longer the default.
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -31,5 +30,4 @@ reclaimPolicy: Delete
 
 # WaitForFirstConsumer defers PV provisioning until the pod is scheduled,
 # ensuring the RBD image is created in the same topology zone as the pod.
-# This mirrors the Longhorn volumeBindingMode already in use.
 volumeBindingMode: WaitForFirstConsumer

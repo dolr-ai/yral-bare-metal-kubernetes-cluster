@@ -450,7 +450,7 @@
 - name: Restart kubelet and wait for Ready — one worker at a time (serial)
   # include_tasks loops are serial: restart worker-N, wait until Ready, then worker-N+1.
   # This prevents simultaneously restarting all NotReady workers and triggering further
-  # etcd/Longhorn disruption before the previous worker is confirmed healthy.
+  # etcd disruption before the previous worker is confirmed healthy.
   ansible.builtin.include_tasks: restart-worker-kubelet.yml
   loop: "{{ notready_workers.stdout_lines | default([]) }}"
   loop_control:

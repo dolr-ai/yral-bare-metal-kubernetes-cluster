@@ -145,7 +145,7 @@ Used for cluster Day-2 operations. Each operation is a single play calling one r
 1. `init-control-plane.yml` - Bootstrap first control plane (hardcoded to control-plane-1, chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → cluster-init → node-labels → helm → gateway-api-crds → cilium)
 2. `add-control-plane.yml` - Add control plane for HA (chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → control-plane-join → node-labels). Cilium DaemonSet deploys automatically via the existing installation.
 3. `add-worker.yml` - Add worker node (chains: provision → storage-setup → ssh-hardening → base-system → containerd → kubernetes → worker-join → node-labels)
-4. `remove-node.yml` - Remove node from cluster (chains: `node-remove`). Longhorn has been decommissioned, so `longhorn-evict` is no longer part of this operation.
+4. `remove-node.yml` - Remove node from cluster (chains: `node-remove`).
 5. `upgrade-control-plane.yml` - Upgrade control plane node(s): cordon → drain → kubeadm reset → reboot → rejoin → verify. Accepts `-e target_host=<node>` for single node or runs all serially.
 6. `upgrade-worker.yml` - Upgrade worker node(s): cordon → drain → delete → reboot → rejoin → verify. Accepts `-e target_host=<node>` for single node or runs all serially.
 
@@ -590,123 +590,6 @@ Whenever a worker is added in a **new Hetzner zone** (e.g., NBG1, a new FSN1 DC,
 
 **Rule:** `replicas` in `coredns-deployment-topology.yaml` must always be `>=` the number of distinct `topology.kubernetes.io/zone` values across all cluster nodes.
 
-### Cilium BPF Service Table Staleness After Worker Reprovision
-
-**Symptom:** Kubernetes admission webhooks return `context deadline exceeded` intermittently — typically after a worker node is removed and reprovisioned. Only some API requests fail (those routed to affected control planes), making the root cause non-obvious.
-
-**Root cause:** Cilium maintains per-node BPF service maps that translate ClusterIP → pod endpoint IPs. When a worker is reprovisioned, its pods get new IPs. In normal operation, Cilium on all nodes syncs from EndpointSlice events. Occasionally, one or more Cilium pods on control planes fail to reconcile, leaving stale pod IPs in their BPF maps. Requests routed through those API servers hit the dead pod IP → TCP timeout → webhook failure.
-
-**Diagnosis:**
-```bash
-# 1. Check the webhook's EndpointSlice for current pod IPs
-kubectl get endpointslices -n longhorn-system -l kubernetes.io/service-name=longhorn-admission-webhook
-
-# 2. Inspect the Cilium service table on each control plane for the webhook's ClusterIP
-# Get ClusterIP first:
-kubectl get svc -n longhorn-system longhorn-admission-webhook -o jsonpath='{.spec.clusterIP}'
-
-# On each CP, check the Cilium pod:
-CILIUM_POD=$(kubectl get pod -n kube-system -o wide --no-headers | grep <cp-node> | grep ^cilium | awk '{print $1}')
-kubectl exec -n kube-system $CILIUM_POD -- cilium service list | grep <ClusterIP>
-# Then inspect that service ID:
-kubectl exec -n kube-system $CILIUM_POD -- cilium service get <ID> --verbose
-# Look for backends — any IP not in the current EndpointSlice is stale
-```
-
-**Fix:** Restart the Cilium pod on each affected control plane to force a BPF map re-sync from EndpointSlices:
-```bash
-kubectl delete pod -n kube-system <cilium-pod-on-affected-cp>
-# Wait for it to become Running again, then verify backends are updated
-```
-
-**Key insight:** Cilium on worker nodes (where the workload pods live) is not the issue — the staleness is on the *control plane* Cilium pods that receive API traffic destinated for webhooks. Always check all CPs, not just the workers.
-
-### Longhorn CSI and btrfs Storage (Historical)
-
-Longhorn has been decommissioned after the Ceph migration. This section is retained as historical context for prior incidents and decisions.
-
-Before the Ceph migration, Longhorn was the cluster's default CSI provider (`storageClassName: longhorn`).
-
-**btrfs CoW conflict — critical:**
-
-Every Hetzner node uses btrfs as the root filesystem (expanded to two drives via `storage-setup`). btrfs applies Copy-on-Write (CoW) to all files by default. Longhorn implements its own CoW replication model. Running both simultaneously causes **double-CoW**:
-- Every Longhorn write triggers a btrfs CoW as well
-- Significant write amplification and I/O overhead
-- btrfs metadata fragmentation grows rapidly under Longhorn workloads
-- Apparent "out of space" errors even when free capacity exists (btrfs metadata exhaustion)
-
-**The fix: `nodatacow` on `/var/lib/longhorn`**
-
-The `chattr +C` attribute disables btrfs CoW for a directory tree. It must be set on `/var/lib/longhorn` while the directory is **empty** — before Longhorn's DaemonSet ever writes data there. Once set, all files created inside inherit nodatacow.
-
-This is applied in the `storage-setup` role, which runs during `add-worker.yml` and `init-control-plane.yml` — before the node joins the cluster and before Longhorn's DaemonSet schedules on it.
-
-**Verify on any node:**
-```bash
-lsattr -d /var/lib/longhorn
-# Expected: ---------------C-- /var/lib/longhorn
-```
-
-**Existing workers:** worker-2 was reprovisioned after this fix was added and has nodatacow correctly set. worker-1 was provisioned before this fix — it is being reprovisioned via `remove-node.yml` → `add-worker.yml` to apply nodatacow, RAID0, and the correct Longhorn storage reservation.
-
-**btrfs data profile:**
-
-The `storage-setup` role runs `btrfs balance start -dconvert=raid0 -mconvert=dup /` after adding the second drive:
-- `Data, RAID0` — chunks are striped across both NVMe drives for maximum sequential throughput and full combined capacity. No local redundancy, but Longhorn's `defaultReplicaCount: 2` provides cross-node redundancy.
-- `Metadata, DUP` — metadata is mirrored on both drives; a single bad metadata chunk does not corrupt the filesystem.
-
-worker-2 and all subsequently provisioned nodes are on RAID0. worker-1 is being reprovisioned to correct this.
-
-**Why not mdadm RAID0 + ext4?** Hetzner's `installimage` script supports configuring mdadm RAID0 before OS installation, which would give ext4-on-RAID0 with no CoW at all (Longhorn's preferred filesystem). The tradeoff: mdadm must be configured *in the installimage step* (the OS boots on the array), requiring a change to the `provision` role's installimage config. The current btrfs approach is post-install (OS is already on nvme0, storage-setup adds nvme1 to the pool), which is simpler. If all nodes are reprovisioned at the same time in the future, switching to mdadm RAID0 + ext4 + mounting `/var/lib/longhorn` on the array would eliminate the `nodatacow` workaround entirely and give marginally better raw I/O.
-
-**Longhorn replica count and StorageClass policy:**
-
-The default `longhorn` StorageClass uses 2 replicas (`defaultReplicaCount: 2`). **Always use `storageClassName: longhorn` (or omit it) for new PVCs.** This is the right choice for nearly all stateful workloads — databases, caches, object stores, and services that do not implement their own replication. Longhorn 2-replica tolerates a single node failure without data loss and without requiring the application to handle it.
-
-The `longhorn-1replica` StorageClass (defined in `storageclass-kafka.yaml`) exists exclusively for workloads where app-level replication is not just present but **strictly stronger** than what Longhorn provides, making Longhorn replication purely wasteful. Currently only Kafka meets this bar: with 3 brokers and `replication.factor=3`, Kafka can tolerate 2 of 3 node failures — Longhorn 2-replica only tolerates 1. Layering both gives 6× physical disk writes per produce request (3 brokers × 2 Longhorn replicas) with no additional durability benefit. Kafka's replication is the write path itself, not an optional redundancy layer on top of it.
-
-**This is not a pattern to copy.** All databases and stateful workloads that do not implement their own replication — including PostgreSQL, ClickHouse, Redis, and any future data stores — must use `longhorn` (2 replicas). These workloads rely entirely on Longhorn for durability; dropping to 1 replica gives zero fault tolerance for a single node failure.
-
-Only use `longhorn-1replica` when **all three** of the following are true:
-1. The application implements its own replication natively (not just backups or failover)
-2. App-level replication is strictly stronger than Longhorn 2-replica
-3. The write amplification from layering both is measurable and unacceptable
-
-If in doubt, use `longhorn`. Document the specific reason when choosing `longhorn-1replica`.
-
-**Storage reservation — two separate knobs:**
-
-`storageReservedPercentageForDefaultDisk: 5` (5% of each disk, ~48 Gi on 954 Gi nodes). This is the headroom Longhorn leaves for the OS, kubelet, and containerd image cache. Kubelet's default image GC (`imageGCHighThresholdPercent: 85`) automatically evicts unused container images before the disk fills, making a 2% reservation safe in practice. 5% is a conservative buffer on top of that. The global setting propagates to newly-registered disks; existing nodes have their `storageReserved` field written by the Longhorn node controller and will be updated on the next reconciliation cycle.
-
-`storageMinimalAvailablePercentage: 0` — a completely separate setting controlling the minimum *physical free space* that must remain after a volume expansion (enforced by the `validator.longhorn.io` admission webhook). The default is 25%, which conflicts with the 5% reservation strategy: a disk can have 452 GiB free yet still fail an expansion because 25% of 954 GiB = 238 GiB would remain below the floor. Since `storageReservedPercentageForDefaultDisk` already protects the host, this second guard is redundant and set to 0.
-
-**NFS / RWX volumes:**
-
-`nfs-common` and rpcbind masking were removed from the `base-system` role after Longhorn decommissioning because they were only required for Longhorn RWX share-manager mounts.
-
-**Longhorn version and placement model:**
-
-Current version: `1.11.1`.
-
-**Post-upgrade: engine image must be manually upgraded per-volume.** When the Longhorn HelmRelease chart version is bumped, the control plane (manager, CSI driver) upgrades automatically but existing attached volumes keep running on the old engine image — Longhorn deliberately does not auto-live-upgrade them to avoid a fleet-wide I/O blip. New volumes get the new image automatically. After any chart version bump, run:
-```bash
-NEW_IMAGE="docker.io/longhornio/longhorn-engine:v<new-version>"
-kubectl patch volumes.longhorn.io \
-  $(kubectl get volumes.longhorn.io -n longhorn-system --no-headers \
-    -o custom-columns='NAME:.metadata.name,IMAGE:.status.currentImage' \
-    | grep -v "$NEW_IMAGE" | awk '{print $1}' | tr '\n' ' ') \
-  -n longhorn-system --type=merge -p "{\"spec\":{\"image\":\"$NEW_IMAGE\"}}"
-```
-The correct field is `spec.image` (not `spec.engineImage`). The live upgrade causes a brief per-volume engine process restart but does not detach or interrupt I/O observable to pods.
-
-**Placement strategy — same-node primary replica, free secondary:**
-
-Longhorn's two replicas serve distinct purposes:
-- **Replica 1 (local)**: `dataLocality: best-effort` migrates one replica to the pod's node in the background after scheduling. This eliminates the network hop for writes — I/O goes directly to local NVMe. The kube-scheduler tends to return pods to the same node after restarts (resource stability), and the local replica reinforces that tendency. `WaitForFirstConsumer` defers PV binding until the pod is scheduled, so the local replica starts on the pod's node rather than needing to migrate after the fact.
-- **Replica 2 (remote)**: placed freely by Longhorn's scheduler — it may land on a different node, different zone, or different datacenter region. Cross-region replication is asynchronous and transparent to the application. The second replica provides datacenter-level durability at no cost to application write latency.
-
-No topology constraints are configured (`csiAllowedTopologyKeys`, `allowedTopologies`, and Volume CR `spec.nodeSelector` are intentionally absent). Longhorn's default zone anti-affinity spreads the two replicas across zones when possible — this is desirable for durability and left at its default.
-
 **Co-locating tightly-coupled pods (app + its database):**
 
 When a workload has a dedicated database that it talks to constantly (e.g. Bytebase + its Postgres), both pods must land in the same `topology.kubernetes.io/region` (helsinki or falkenstein). Cross-region pod-to-pod traffic adds ~10ms latency on every DB call, which is unacceptable for synchronous request paths.
@@ -724,58 +607,14 @@ affinity:
         topologyKey: topology.kubernetes.io/region
 ```
 
-This ensures tightly-coupled pods (e.g. an app and its database) share a zone, minimising pod-to-pod latency on the synchronous request path. Longhorn's `WaitForFirstConsumer` then binds the PVC to whichever node the pod lands on.
-
-`replicaAutoBalance: best-effort` is **permanently enabled** — this is required for Longhorn to remove excess replicas when `spec.numberOfReplicas` is reduced on an attached volume (without it, `cleanupAutoBalancedReplicas` returns immediately and extra replicas are never removed).
-
-**`disableRevisionCounter` — critical HelmRelease format requirement (Longhorn v1.11+):**
-
-Longhorn v1.11 changed the `disable-revision-counter` Setting's internal format from a plain boolean string to a per-engine-type JSON object: `{"v1":"true"}` or `{"v1":"false"}`. This change breaks naive HelmRelease values and causes a hard-to-diagnose salvage failure.
-
-**The bug:** Setting `disableRevisionCounter: "false"` (quoted string) in the HelmRelease is a non-empty string, which is *truthy* in Go templates. The chart renders the ConfigMap as `{"v1":"true"}` regardless. The correct value is `disableRevisionCounter: '{"v1":"false"}'` — the explicit JSON form.
-
-**Where each CR gets the flag:**
-- **Engine CR** `spec.revisionCounterDisabled` — written by the volume controller from the **global Setting CR** (`disable-revision-counter`). This is what controls the `--disableRevCounter` flag on the engine process.
-- **Replica** `--disableRevCounter` flag — derived from the **Volume CR** `spec.revisionCounterDisabled`, which is set at PVC creation time from the StorageClass parameter.
-
-**The salvage failure mode:** When a volume is faulted and re-attaches, Longhorn starts the engine with `--salvageRequested`. In salvage mode the engine checks `RevisionCounterDisabled` parity between itself and each replica. If the engine has `--disableRevCounter` (from Setting) but replicas do not (from Volume CR spec), every replica is immediately marked ERR with `"Revision Counter Disabled setting mismatch"` → `"cannot find any replica for salvage"` → both replicas get `failedAt` set → volume stays faulted in a rapid cycle.
-
-**Diagnosis commands:**
-```bash
-# Check global Setting (should be {"v1":"false"})
-kubectl get setting.longhorn.io disable-revision-counter -n longhorn-system -o jsonpath='{.value}'
-
-# Check Engine CRs (all should be False)
-kubectl get engines.longhorn.io -n longhorn-system -o json | \
-  python3 -c "import sys,json; d=json.load(sys.stdin); \
-  bad=[e['metadata']['name'] for e in d['items'] if e['spec'].get('revisionCounterDisabled')!=False]; \
-  print(f'{len(bad)} engines wrong'); [print(' ',n) for n in bad]"
-
-# Check instance-manager logs for the mismatch message
-kubectl logs -n longhorn-system <instance-manager-pod> --since=5m | grep "Revision Counter Disabled"
-```
-
-**After changing the global Setting, Engine CRs do NOT auto-reconcile immediately** — the volume controller reconciles them lazily. After any Setting change, patch all engines that still have the old value:
-```bash
-kubectl get engines.longhorn.io -n longhorn-system -o json | python3 -c "
-import sys, json, subprocess
-d = json.load(sys.stdin)
-to_patch = [e['metadata']['name'] for e in d['items'] if e['spec'].get('revisionCounterDisabled') == True]
-for name in to_patch:
-    subprocess.run(['kubectl','patch','engines.longhorn.io',name,'-n','longhorn-system',
-                    '--type=merge','-p','{\"spec\":{\"revisionCounterDisabled\":false}}'])
-    print(f'patched {name}')
-"
-```
-
-**Recovery if a volume is stuck in the salvage cycle:** See the "Cilium BPF Service Table Staleness" section pattern for diagnosis. Fix order: (1) patch the global Setting CR to `{"v1":"false"}`, (2) restart the longhorn-manager pod on the volume's ownerID node to flush its setting cache, (3) patch the Engine CR `spec.revisionCounterDisabled: false`, (4) clear `failedAt` on both replicas.
+This ensures tightly-coupled pods (e.g. an app and its database) share a zone, minimising pod-to-pod latency on the synchronous request path.
 
 ### Rook/Ceph — Distributed Block Storage
 
-The cluster has migrated from Longhorn to **Rook/Ceph** as the primary CSI provider. Rook v1.19.3 + Ceph v20.2.1 (Tentacle). `ceph-block` is the default StorageClass for new PVCs.
+The cluster uses **Rook/Ceph** as the primary CSI provider. Rook v1.19.3 + Ceph v20.2.1 (Tentacle). `ceph-block` is the default StorageClass for new PVCs.
 
-**Why Ceph instead of Longhorn:**
-Longhorn caps each PVC at a single node's disk size. Ceph aggregates all OSD disks across the entire cluster into one logical pool; a PVC's maximum size is the total usable pool capacity (currently ~16.5 TB at 2× replication over 35 workers × 950 GB per worker).
+**Why Ceph:**
+Ceph aggregates all OSD disks across the entire cluster into one logical pool; a PVC's maximum size is the total usable pool capacity (currently ~16.5 TB at 2× replication over 35 workers × 950 GB per worker).
 
 **Disk layout per worker node (post-reprovision):**
 
@@ -810,13 +649,8 @@ The split is necessary because the `CephCluster` CRD is installed by the Rook He
 - `ceph-block` StorageClass: RWO, `WaitForFirstConsumer`, `allowVolumeExpansion: true`.
 - **OSD encryption**: Intentionally disabled. `encryptedDevice: "true"` restricts Rook to whole-disk OSDs only — ceph-volume unconditionally rejects partitions in encrypted mode. Each worker provides one ~450 GB partition (`nvme0n1p3`) and one ~477 GB whole disk (`nvme1n1`) as separate OSDs, so encryption would silently drop half the capacity per worker. In-transit encryption is provided by Cilium WireGuard cluster-wide.
 
-**Default StorageClass transition:**
-`ceph-block` is intentionally **not** the default during migration. Once all Longhorn PVCs are migrated, flip both annotations:
-```bash
-kubectl patch storageclass ceph-block -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
-kubectl patch storageclass longhorn -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
-```
-Then update the Longhorn HelmRelease `persistence.defaultClass: false` and commit.
+**Default StorageClass:**
+`ceph-block` is the default StorageClass.
 
 **Monitoring Ceph cluster health:**
 ```bash
@@ -838,34 +672,7 @@ Deploy the Ceph toolbox for ad-hoc diagnostics:
 kubectl apply -f https://raw.githubusercontent.com/rook/rook/v1.19.3/deploy/examples/toolbox.yaml
 ```
 
-**Worker node migration sequence:**
-Workers are reprovisioned **strictly in order of worker number** (worker-1, worker-2, … worker-35), one at a time. This ensures nothing is missed and progress is easy to track. No batching, no skipping ahead.
-
-For each worker, follow this exact procedure:
-
-1. **Check for Longhorn replicas** on the worker:
-   ```bash
-   kubectl get replicas.longhorn.io -n longhorn-system \
-     -o jsonpath='{range .items[?(@.spec.nodeID=="worker-N")]}{.spec.volumeName}{"\n"}{end}' | sort -u
-   ```
-
-2. **If replicas exist** — migrate each PVC to `ceph-block` first (see PVC data migration procedure below), validate the migrated data, then delete the old Longhorn PVC and confirm the Longhorn volume is gone. Only proceed to step 3 once all replicas on this worker are migrated and removed.
-
-3. **Remove and reprovision** using the existing playbooks:
-   ```bash
-   ansible-playbook ansible/playbooks/operations/remove-node.yml -e target_host=worker-N
-   ansible-playbook ansible/playbooks/operations/add-worker.yml -e target_host=worker-N
-   ```
-
-4. **Verify OSDs are up** before moving to the next worker:
-   ```bash
-   kubectl exec -n rook-ceph deploy/rook-ceph-tools -- ceph osd tree | grep worker-N
-   ```
-
 The cluster is usable for PVC provisioning once **3 OSD nodes** are online (mons achieve quorum and the block pool has enough replicated copies). Wait for `ceph status` to show `HEALTH_OK` or `HEALTH_WARN` (not `HEALTH_ERR`) before provisioning test volumes.
-
-**Reprovision status (as of April 2026):**
-Workers 1–9 are reprovisioned with the correct disk layout (50 GB OS partition + Ceph OSD partition on nvme0n1 + nvme1n1 whole disk). Each has 2 OSDs. Workers 10–35 still need reprovisioning.
 
 **ceph_bluestore signature wipe — important operational note:**
 `wipefs -af` does not clear `ceph_bluestore` signatures. blkid detects bluestore by reading raw data at byte 0 of the device, not via the standard wipefs signature table. The `storage-setup` role now runs `dd if=/dev/zero of=<device> bs=4M count=10 conv=fsync` after wipefs on both OSD devices (nvme0n1p3 and nvme1n1), guaranteeing that udevadm/blkid see a blank device on every reprovision. If you see a fresh OSD prepare job log the device as "contains a filesystem ceph_bluestore" and skip it, this dd step was not run — reprovision the worker again.
@@ -873,160 +680,7 @@ Workers 1–9 are reprovisioned with the correct disk layout (50 GB OS partition
 **PARTLABEL must NOT contain "ceph" — important:**
 ceph-volume inventory checks `'ceph' in partlabel` and marks any match as "Used by ceph-disk", causing the OSD partition to be unconditionally skipped. The GPT partition on nvme0n1p3 MUST be labelled `rook-osd` (not `ceph-osd` or anything with "ceph"). This is enforced in `storage-setup` — do not change this label.
 
-**PVC data migration procedure (Longhorn → Ceph):**
-
-**Step 0 — Trigger a Longhorn backup before any migration:**
-
-Before touching any PVC (regenerable or irreplaceable), manually trigger a Longhorn backup of the volume so there is a recent recovery point:
-
-```bash
-# Substitute <volume-name> with the Longhorn volume name (same as the PVC name)
-kubectl create -n longhorn-system -f - <<EOF
-apiVersion: longhorn.io/v1beta2
-kind: Backup
-metadata:
-  generateName: pre-migration-
-spec:
-  snapshotName: ""   # empty = Longhorn creates a fresh snapshot first
-  volumeName: <volume-name>
-EOF
-
-# Wait for the backup to complete (Status.State should become "Completed")
-kubectl get backup -n longhorn-system -l longhornvolume=<volume-name> --watch
-```
-
-Only proceed with the migration steps once the backup shows `State: Completed`.
-
-**First, determine whether the data actually needs migrating:**
-
-- **Regenerable data** (caches, downloaded files, indexes that rebuild on startup): just update `storageClassName: ceph-block` in git and let Flux do the work. The correct procedure is:
-  1. Suspend the Flux kustomization (`flux suspend kustomization <name>`)
-  2. Scale the workload to 0
-  3. Delete the old Longhorn PVC imperatively (`kubectl delete pvc <name> -n <ns>`)
-  4. Resume the Flux kustomization — Flux provisions a fresh ceph-block PVC and the workload repopulates it on startup
-  5. Scale back up and validate
-
-  Examples: `geoip-db` (re-downloaded by init container), any PVC whose data is derived from an external source.
-
-- **Irreplaceable data** (databases, application state, user-uploaded content): use the rsync procedure below.
-
-**CRITICAL — never pin `volumeName` in git manifests.** When Flux applies a PVC with `volumeName` set, it permanently couples the manifest to a specific PV. If that PV is ever replaced (node reprovision, migration, restore), the manifest must be updated again. Instead: after a migration, the git manifest must contain only `storageClassName` — Flux will dynamically provision a new PV. The only exception is an in-progress rebind step that is immediately followed by removing `volumeName` from git.
-
-For workloads with irreplaceable data, perform this sequence. The procedure uses a temporary migration PVC and a rsync Job to avoid downtime. The hardest part is rebinding a StatefulSet's PVC to the new Ceph PV.
-
-```bash
-# Example: migrating Loki's 600 Gi PVC (storage-loki-0)
-NAMESPACE=loki
-OLD_PVC=storage-loki-0
-NEW_SIZE=600Gi
-WORKLOAD=loki  # StatefulSet name
-
-# 1. Scale the workload to 0 to quiesce writes
-kubectl scale statefulset $WORKLOAD -n $NAMESPACE --replicas=0
-kubectl wait pod -n $NAMESPACE -l app.kubernetes.io/name=loki --for=delete --timeout=120s
-
-# 2. Create a migration Ceph PVC
-kubectl apply -f - <<EOF
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: ${OLD_PVC}-migrate
-  namespace: $NAMESPACE
-spec:
-  storageClassName: ceph-block
-  accessModes: [ReadWriteOnce]
-  resources:
-    requests:
-      storage: $NEW_SIZE
-EOF
-
-# 3. Run rsync Job to copy data (replace image tag as needed)
-kubectl apply -f - <<EOF
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: migrate-${OLD_PVC}
-  namespace: $NAMESPACE
-spec:
-  template:
-    spec:
-      restartPolicy: Never
-      containers:
-        - name: rsync
-          image: alpine:3.20
-          command: [sh, -c, "apk add --no-cache rsync && rsync -avx --delete /src/ /dst/"]
-          volumeMounts:
-            - name: src
-              mountPath: /src
-            - name: dst
-              mountPath: /dst
-      volumes:
-        - name: src
-          persistentVolumeClaim:
-            claimName: $OLD_PVC
-        - name: dst
-          persistentVolumeClaim:
-            claimName: ${OLD_PVC}-migrate
-EOF
-kubectl wait job migrate-${OLD_PVC} -n $NAMESPACE --for=condition=complete --timeout=3600s
-kubectl delete job migrate-${OLD_PVC} -n $NAMESPACE
-
-# 4. Mark the Ceph PV as Retain so it survives PVC deletion
-CEPH_PV=$(kubectl get pvc ${OLD_PVC}-migrate -n $NAMESPACE -o jsonpath='{.spec.volumeName}')
-kubectl patch pv $CEPH_PV -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}'
-
-# 5. Delete both PVCs (the Longhorn PVC is reclaimed; the Ceph PV stays due to Retain)
-kubectl delete pvc $OLD_PVC -n $NAMESPACE
-kubectl delete pvc ${OLD_PVC}-migrate -n $NAMESPACE
-
-# After the second delete, the Ceph PV status goes to Released.
-# 6. Patch the Ceph PV to clear its claimRef (makes it Available for rebinding)
-kubectl patch pv $CEPH_PV -p '{"spec":{"claimRef":null}}'
-
-# 7. Create a new PVC with the ORIGINAL name, binding explicitly to the Ceph PV
-kubectl apply -f - <<EOF
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: $OLD_PVC
-  namespace: $NAMESPACE
-spec:
-  storageClassName: ceph-block
-  accessModes: [ReadWriteOnce]
-  resources:
-    requests:
-      storage: $NEW_SIZE
-  volumeName: $CEPH_PV
-EOF
-kubectl wait pvc $OLD_PVC -n $NAMESPACE --for=condition=Bound --timeout=60s
-
-# 8. Scale the workload back up and verify it starts cleanly
-kubectl scale statefulset $WORKLOAD -n $NAMESPACE --replicas=1
-kubectl rollout status statefulset $WORKLOAD -n $NAMESPACE --timeout=300s
-
-# 9. Restore the Ceph PV reclaim policy to Delete (normal behaviour)
-kubectl patch pv $CEPH_PV -p '{"spec":{"persistentVolumeReclaimPolicy":"Delete"}}'
-```
-
-**PVC migration inventory (historical reference):**
-
-| Namespace | PVC | Size | Workload | Notes |
-|-----------|-----|------|----------|-------|
-| loki | storage-loki-0 | 600 Gi | loki StatefulSet | Largest — migrate with care |
-| kafka | data-kafka-cluster-combined-0/1/2 | 250 Gi × 3 | Kafka StatefulSet (3 brokers) | App-level replication → use `ceph-block` (single Rook replica acceptable only if using a 1-replica CephBlockPool variant) |
-| clickhouse | data-volume-chi-analytics-events-0-0-0 | 200 Gi | ClickHouse | Follow immutable data ops pattern |
-| monitoring | prometheus-kube-prometheus-stack-prometheus-db-... | 100 Gi | Prometheus StatefulSet | Losing metrics history OK temporarily |
-| metabase | metabase-data | 10 Gi | Metabase Deployment | |
-| bytebase | bytebase-postgres-data | 5 Gi | Bytebase StatefulSet | |
-| snowplow | geoip-db | 1 Gi | Snowplow | Tiny — migrate last |
-
 **Kafka note:** Kafka brokers currently use `ceph-block-1replica` on purpose. This remains an explicit exception because Kafka already provides stronger app-level replication (`replication.factor=3`, `min.insync.replicas=2`). The resulting Ceph health warning (`pool(s) have no replicas configured`) is expected while this pool exists.
-
-**Decommissioning Longhorn status (completed):**
-1. `ceph-block` set as default StorageClass.
-2. `infrastructure-longhorn` removed from `kubernetes/clusters/yral-k8s/kustomization.yaml` and from cluster.
-3. `storage-setup` Longhorn-specific control-plane tasks removed.
-4. `remove-node.yml` no longer invokes `longhorn-evict`.
 
 ### Backup Strategy
 
@@ -1035,22 +689,19 @@ Two complementary backup mechanisms run in parallel — use both, they are not r
 | System | Scope | Storage path | Retention | Best for |
 |--------|-------|-------------|-----------|----------|
 | **Velero** | All k8s resource manifests + PV filesystem data (kopia) | `velero/backups/` | `ttl: 720h` (30d, self-managed) | Full cluster DR — restore entire namespace or cluster state |
-| **Longhorn native** | Incremental block-level volume snapshots | `longhorn/` | RecurringJob TTL (per-volume) | Per-volume point-in-time restores, faster than Velero for single-volume recovery |
 
 **S3 bucket:** `yral-bare-metal-kubernetes-cluster-control-plane-backup` on `hel1.your-objectstorage.com`
 
 **Bucket layout — named prefix per system:**
 ```
 yral-bare-metal-kubernetes-cluster-control-plane-backup/
-├── velero/      ← Velero (BSL prefix: velero)
-└── longhorn/    ← Longhorn native backup target suffix
+└── velero/      ← Velero (BSL prefix: velero)
 ```
 
 Each backup system uses its own named prefix in the bucket to prevent any possibility of collision. When adding a new backup system, always assign it a dedicated prefix.
 
 **Retention — each system manages its own:**
 - Velero: `schedule.ttl: 720h` (30 days) in the HelmRelease. Velero's GC controller deletes expired Backup objects *and* their S3 data automatically. No bucket lifecycle policy needed.
-- Longhorn: retention is configured per-volume via RecurringJob TTL settings. Longhorn incremental backups share blocks across snapshots — a bucket-level expiry policy would silently corrupt the backup chain by deleting base blocks still referenced by newer incremental backups. **Never set a bucket lifecycle policy on the `longhorn/` prefix.**
 
 No bucket lifecycle policy is configured on this bucket.
 
@@ -1309,7 +960,7 @@ Examples:
 
 At the role level, whenever a loop touches multiple nodes (e.g., restarting kubelets on several workers), use `include_tasks` rather than a plain `loop:` on a single task — `include_tasks` loops are inherently serial: each iteration completes before the next begins.
 
-Rationale: etcd quorum, Longhorn replica rebuilds, and DNS round-robin all require cluster stability between per-node operations. Running nodes in parallel risks quorum loss, data loss, or cascading failures.
+Rationale: etcd quorum and DNS round-robin both require cluster stability between per-node operations. Running nodes in parallel risks quorum loss, data loss, or cascading failures.
 
 **When a deployment step fails:**
 1. Investigate with read-only terminal commands to diagnose.

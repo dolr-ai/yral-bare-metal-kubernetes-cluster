@@ -10,7 +10,6 @@ spec:
   failureDomain: host
 
   replicated:
-    # 2 replicas matches the current Longhorn defaultReplicaCount of 2.
     # Tolerates 1-node failure with full data availability.
     # Raw capacity per TB of OSD pool: 2 TB raw → 1 TB usable.
     # With ~33 TB raw across 35 workers: ~16.5 TB usable.

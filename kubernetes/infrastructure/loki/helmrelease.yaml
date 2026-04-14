@@ -50,11 +50,7 @@ spec:
     singleBinary:
       replicas: 1
       persistence:
-        # Longhorn volume. StorageClass is longhorn (default, 1-replica) because the PVC
-        # already exists and spec.storageClassName is immutable on a bound PVC. The
-        # 2-replica requirement is enforced by patching the Longhorn Volume CR directly.
-        # Switch to longhorn-2replicas only when the PVC is deleted+recreated (e.g.
-        # when Loki gains distributed HA and migrates to object-store backend).
+        # PVC is pinned to Ceph block storage.
         storageClass: ceph-block
         size: 600Gi
       resources:
@@ -75,7 +71,7 @@ spec:
     backend:
       replicas: 0
 
-    # Disable bundled MinIO — using filesystem storage via Longhorn PVC
+    # Disable bundled MinIO — using filesystem storage via PVC
     minio:
       enabled: false
 

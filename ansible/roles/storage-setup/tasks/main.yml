@@ -12,12 +12,9 @@
 #     • Wipes the secondary NVMe drive clean — Rook uses this as OSD-B (~500 GB).
 #   Total per worker: ~950 GB Ceph block storage.
 #
-# CONTROL PLANES — btrfs expansion + Longhorn data path:
+# CONTROL PLANES — btrfs expansion:
 #   Control planes are not Ceph OSD nodes and keep the full-disk btrfs layout.
 #   nvme1n1 is joined into the btrfs RAID0 pool for maximum ephemeral/OS capacity.
-#   The Longhorn data directory is created with nodatacow to prevent double-CoW
-#   while Longhorn is still the CSI provider during the migration window.
-#   Remove the Longhorn section once the Longhorn → Rook/Ceph migration is complete.
 
 # ---------------------------------------------------------------------------
 # WORKER PATH — Ceph OSD disk preparation
@@ -383,7 +380,7 @@
                   #                   combined capacity and maximum sequential I/O.
                   # -mconvert=dup   : mirror metadata on both drives so a single bad
                   #                   metadata chunk does not corrupt the filesystem.
-                  # Longhorn/Rook provides cross-node redundancy; RAID0 here is safe.
+                  # Cross-node Ceph replication provides redundancy; RAID0 here is safe.
                   ansible.builtin.command: btrfs balance start -dconvert=raid0 -mconvert=dup /
                   async: 3600
                   poll: 30

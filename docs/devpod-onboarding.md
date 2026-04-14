@@ -48,7 +48,7 @@ devpod up <git-repo-url> --provider kubernetes --ide vscode
 
 ## Storage and Scheduling
 
-Workspace PVCs are provisioned by Longhorn with `dataLocality: best-effort`. The replica local to the node that last ran the pod is promoted, so pod restarts on the same node are fast. Cross-node rescheduling works but triggers a background replica migration.
+Workspace PVCs are provisioned by Ceph (`ceph-block`). Pods can restart on any worker node, and the volume is remounted by the RBD CSI driver.
 
 ## Resource Quotas
 

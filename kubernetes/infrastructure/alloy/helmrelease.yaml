@@ -90,7 +90,7 @@ spec:
             }
 
             // Fall back to the plain "app" pod label when app.kubernetes.io/name is
-            // absent (e.g. Flux controllers, Velero, Longhorn use plain app=<name>).
+            // absent (e.g. Flux controllers and Velero use plain app=<name>).
             // Joins current "app" and "__meta_kubernetes_pod_label_app" with ";"; the
             // regex only matches when app is still empty (leading ";").
             rule {

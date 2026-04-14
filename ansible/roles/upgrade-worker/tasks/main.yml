@@ -12,10 +12,9 @@
 #   4. Post-flight: verify node Ready
 #
 # NOTE: We deliberately do NOT run `kubectl delete node`. Deleting the node
-# object causes Longhorn to destroy replica.longhorn.io objects for that node,
-# forcing a full volume rebuild on rejoin. By keeping the node object alive
-# through the reboot, Longhorn simply resumes stopped replicas — no transfer,
-# no rebuild. This is the standard rolling-upgrade pattern used by GKE/EKS.
+# object unnecessarily disrupts scheduling and is not required for reboot-based
+# upgrades. Keeping the node object alive through the reboot is the standard
+# rolling-upgrade pattern used by GKE/EKS.
 #
 # serial: 1 in the playbook ensures only one worker is upgraded at a time,
 # keeping cluster capacity stable throughout a rolling upgrade.
@@ -101,35 +100,6 @@
       delegate_to: "{{ kubectl_delegate }}"
       changed_when: true
 
-    # Longhorn creates a PDB (minAvailable: 1) for each instance-manager pod.
-    # Each instance-manager is pinned to its own node and cannot reschedule
-    # elsewhere — so the eviction API permanently blocks drain. Deleting the
-    # PDB before drain is safe: the pod goes down with the node regardless, and
-    # Longhorn recreates the PDB automatically when the instance-manager
-    # restarts after reboot.
-    - name: Remove Longhorn instance-manager PDB for this node to allow drain
-      ansible.builtin.shell: |
-        pdb=$(kubectl get pdb -n longhorn-system -o json | python3 -c "
-        import sys, json
-        data = json.load(sys.stdin)
-        for p in data['items']:
-            sel = p.get('spec', {}).get('selector', {}).get('matchLabels', {})
-            if sel.get('longhorn.io/node') == '{{ inventory_hostname }}' and 'instance-manager' in p['metadata']['name']:
-                print(p['metadata']['name'])
-                break
-        ")
-        if [ -n "$pdb" ]; then
-          kubectl delete pdb "$pdb" -n longhorn-system
-          echo "deleted $pdb"
-        else
-          echo "no instance-manager PDB found for {{ inventory_hostname }}"
-        fi
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      delegate_to: "{{ kubectl_delegate }}"
-      changed_when: "'deleted' in result.stdout"
-      register: result
-
     # Wait until all PDBs covering pods on this node allow at least 1
     # disruption. This prevents draining a Kafka node when the Kafka cluster
     # is already degraded (e.g. another broker is still starting up).
@@ -181,10 +151,6 @@
       changed_when: true
 
     # ----- Reboot -----
-    # We do NOT run `kubectl delete node`. Deleting the node causes Longhorn
-    # to destroy replica.longhorn.io objects, forcing a full volume rebuild on
-    # rejoin. Keeping the node object alive through the reboot lets Longhorn
-    # resume stopped replicas without any data transfer.
 
     - name: Initiate reboot
       ansible.builtin.shell: sleep 3 && /usr/sbin/shutdown -r now
@@ -234,68 +200,6 @@
         KUBECONFIG: /etc/kubernetes/admin.conf
       delegate_to: "{{ kubectl_delegate }}"
       changed_when: true
-
-    # ----- Longhorn post-reboot health check -----
-    # Longhorn resumes stopped replicas on the rebooted node — no rebuild needed
-    # because the node object was never deleted and replica metadata is intact.
-    # Wait for disks to become schedulable and all volumes to return to healthy.
-
-    - name: Wait for Longhorn disk to re-register as schedulable
-      ansible.builtin.shell: |
-        kubectl get node.longhorn.io {{ inventory_hostname }} -n longhorn-system \
-          -o json 2>/dev/null | python3 -c "
-        import sys, json
-        d = json.load(sys.stdin)
-        disks = d.get('status', {}).get('diskStatus', {})
-        not_ready = [
-            k for k, v in disks.items()
-            if v.get('storageMaximum', 0) > 0
-            and not any(
-                c.get('type') == 'Schedulable' and c.get('status') == 'True'
-                for c in v.get('conditions', [])
-            )
-        ]
-        print(len(not_ready))
-        " 2>/dev/null || echo 1
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      register: longhorn_disk_state
-      until: longhorn_disk_state.stdout | trim | int == 0
-      retries: 60
-      delay: 10
-      changed_when: false
-      failed_when: false
-      delegate_to: "{{ kubectl_delegate }}"
-
-    - name: Wait for Longhorn volumes with replicas on this node to return to healthy state
-      ansible.builtin.shell: |
-        node_vols=$(kubectl get replicas.longhorn.io -n longhorn-system -o json | python3 -c "
-        import sys, json
-        d = json.load(sys.stdin)
-        vols = set(r['spec']['volumeName'] for r in d['items'] if r['spec'].get('nodeID') == '{{ inventory_hostname }}')
-        print('\n'.join(vols))
-        ")
-        if [ -z "$node_vols" ]; then echo 0; exit 0; fi
-        kubectl get volumes.longhorn.io -n longhorn-system -o json | python3 -c "
-        import sys, json
-        node_vols = set('''$node_vols'''.split())
-        d = json.load(sys.stdin)
-        degraded = [
-            v['metadata']['name'] for v in d['items']
-            if v['metadata']['name'] in node_vols
-            and v.get('status', {}).get('state') == 'attached'
-            and v.get('status', {}).get('robustness') not in ('healthy', 'unknown')
-        ]
-        print(len(degraded))
-        "
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      register: degraded_volumes
-      until: degraded_volumes.stdout | trim | int == 0
-      retries: 120
-      delay: 15
-      changed_when: false
-      delegate_to: "{{ kubectl_delegate }}"
 
 # ========== VERIFICATION ==========
 
