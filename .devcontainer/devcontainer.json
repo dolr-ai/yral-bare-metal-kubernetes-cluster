@@ -17,9 +17,9 @@
 		"ghcr.io/devcontainers-extra/features/sops:1": {},
 		"ghcr.io/devcontainers/features/aws-cli:1": {}
 	},
-	// Mount SSH agent socket from WSL host into container
+	// Use Docker Desktop's built-in SSH agent socket on macOS
 	"mounts": [
-		"type=bind,source=${env:HOME}/.ssh/agent.sock,target=/ssh-agent,consistency=cached",
+		"type=bind,source=/run/host-services/ssh-auth.sock,target=/ssh-agent",
 		"type=bind,source=${env:HOME}/.config/gh,target=/home/vscode/.config/gh,consistency=cached"
 	],
 	// Set SSH_AUTH_SOCK environment variable to point to mounted socket
