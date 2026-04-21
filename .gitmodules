@@ -1,3 +1,6 @@
 [submodule "apps/yral-mobile"]
 	path = apps/yral-mobile
 	url = https://github.com/dolr-ai/yral-mobile
+[submodule "apps/yral-backend-canister"]
+	path = apps/yral-backend-canister
+	url = https://github.com/dolr-ai/yral-backend-canister.git

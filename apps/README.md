@@ -32,4 +32,5 @@ git submodule update --init --recursive
 
 | Submodule | Source repo | Deployed at |
 |-----------|-------------|-------------|
-| _(none)_ | — | — |
+| `apps/yral-mobile/` | https://github.com/dolr-ai/yral-mobile | Not yet present in `kubernetes/apps/` |
+| `apps/yral-backend-canister/` | https://github.com/dolr-ai/yral-backend-canister | Not yet present in `kubernetes/apps/` |
