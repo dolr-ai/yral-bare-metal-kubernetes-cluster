@@ -48,7 +48,7 @@ spec:
           serviceAccountName: geoip-refresh
           containers:
             - name: kubectl
-              image: bitnami/kubectl@sha256:99060de12fa53cdd358daee69447697ce32705a01ecc6459460ca78ff0fe75f5
+              image: bitnami/kubectl:latest
               command:
                 - kubectl
                 - rollout
