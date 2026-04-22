@@ -642,6 +642,10 @@ kubernetes/infrastructure/rook-ceph/
 ```
 The split is necessary because the `CephCluster` CRD is installed by the Rook Helm chart. `wait: true` on the operator Kustomization ensures CRDs exist before the cluster CRs are applied.
 
+**Flux Kustomization `wait: false` on rook-ceph-cluster — intentional:**
+
+The `infrastructure-rook-ceph-cluster` Kustomization uses `wait: false` because CephCluster can remain in `Progressing` phase for extended periods during safe OSD update loops (e.g., when many OSDs are "not ok-to-stop"). A `wait: true` setting with a 30m timeout would block all dependent Kustomizations (loki, monitoring, bytebase, alloy) on this benign internal Ceph reconciliation. With `wait: false`, the Kustomization applies immediately, and Ceph's data plane remains healthy during the updates. This is safe because Rook's internal gating ensures PGs stay `active+clean` while OSDs are being updated; normal Flux-driven workload changes do not interfere with this process. **Do not change this to `wait: true`** — Ceph reconciliation is long-running by design and should not block the rest of the cluster.
+
 **Pool configuration:**
 - `replication.size: 2` — each block is written to 2 different OSD nodes.
 - `failureDomain: host` — replicas must land on different physical nodes.

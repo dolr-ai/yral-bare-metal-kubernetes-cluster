@@ -7,9 +7,10 @@ spec:
   interval: 1h
   path: ./kubernetes/infrastructure/rook-ceph/cluster
   prune: true
-  # Long timeout: CephCluster initialisation can take 10-20 min on first deploy
-  # while Rook bootstraps mons, reaches quorum, and brings up OSDs.
-  wait: true
+  # Ceph can remain in Progressing for extended periods during safe OSD update
+  # loops (e.g., when some OSDs are not ok-to-stop). Do not block dependent
+  # Kustomizations on this long-running internal state.
+  wait: false
   timeout: 30m
   dependsOn:
     # CephCluster CRD must exist before the CephCluster CR is applied.
