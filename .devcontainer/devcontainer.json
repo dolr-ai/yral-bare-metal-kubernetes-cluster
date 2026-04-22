@@ -15,7 +15,8 @@
 		"ghcr.io/goldsam/dev-container-features/flux2:1": {},
 		"ghcr.io/devcontainers-extra/features/age:1": {},
 		"ghcr.io/devcontainers-extra/features/sops:1": {},
-		"ghcr.io/devcontainers/features/aws-cli:1": {}
+		"ghcr.io/devcontainers/features/aws-cli:1": {},
+		"ghcr.io/devcontainers-extra/features/ripgrep:1": {}
 	},
 	// Use Docker Desktop's built-in SSH agent socket on macOS
 	"mounts": [
