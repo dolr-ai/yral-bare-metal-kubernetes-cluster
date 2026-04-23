@@ -87,7 +87,48 @@ The only legitimate guards in roles are:
 - **Correctness guards**: prevent a command from erroring when it would be a no-op (e.g., don't run `btrfs device add` if the device is already in the filesystem).
 - **Safety nets**: detect partial failures and recover (e.g., `kubeadm reset` when `admin.conf` exists but the API server is unreachable).
 
-### 2. Role-Based Architecture
+### 2b. Service Component Colocalization
+
+**Mandatory: All infrastructure and components related to a microservice must be colocated together — preferably in the same Kubernetes namespace.**
+
+Each microservice owns a dedicated namespace containing all its necessary components:
+- **Application deployment** (pods, StatefulSet, Deployment)
+- **Database** (CNPG Cluster, PostgreSQL or other persistent store)
+- **Secrets and ConfigMaps** (service credentials, configuration, database passwords)
+- **Network resources** (Services, NetworkPolicy, ReferenceGrants)
+- **Add-ons** (init jobs, sidecar containers, custom controllers specific to this service)
+
+**Rationale:**
+- **Ownership clarity**: each service owns and manages its entire dependency tree
+- **Lifecycle independence**: services can be added, updated, or removed without affecting others
+- **Blast radius control**: failures or misconfiguration are scoped to a single service namespace
+- **GitOps organization**: manifests are naturally grouped in `kubernetes/apps/<service>/` or `kubernetes/infrastructure/<service>/`
+
+**Exceptions — cross-namespace resources — are rare and explicit:**
+- **Shared infrastructure** (Cilium, cert-manager, monitoring): live in their own namespaces, managed by `kubernetes/infrastructure/`
+- **Auth proxies** (oauth2-proxy): one instance per protected service, in the service's namespace or a dedicated auth namespace
+- **Network policies across services**: use NetworkPolicy selectors scoped to specific services, avoid cluster-wide policies
+
+**Pattern — service namespace structure:**
+```
+kubernetes/
+├── apps/
+│   └── myservice/
+│       ├── namespace.yaml
+│       ├── postgres.yaml           # CNPG Cluster (if DB needed)
+│       ├── postgres-secret.sops.yaml # DB credentials, encrypted
+│       ├── deployment.yaml
+│       ├── service.yaml
+│       ├── kustomization.yaml
+│       └── README.md
+└── networking/
+    └── routes/
+        └── myservice.yaml          # HTTPRoute pointing to myservice/service
+```
+
+When adding a new service, create a new subdirectory with all its components grouped together. Never split a service's infrastructure across multiple unrelated namespaces.
+
+### 3. Role-Based Architecture
 - **Mandatory**: ALL business logic must live in roles
 - **Mandatory**: Roles must be atomic (single responsibility, no orchestration logic)
 - **Mandatory**: Roles NEVER call other roles (no `include_role` within roles)
@@ -685,6 +726,37 @@ The cluster is usable for PVC provisioning once **3 OSD nodes** are online (mons
 ceph-volume inventory checks `'ceph' in partlabel` and marks any match as "Used by ceph-disk", causing the OSD partition to be unconditionally skipped. The GPT partition on nvme0n1p3 MUST be labelled `rook-osd` (not `ceph-osd` or anything with "ceph"). This is enforced in `storage-setup` — do not change this label.
 
 **Kafka note:** Kafka brokers currently use `ceph-block-1replica` on purpose. This remains an explicit exception because Kafka already provides stronger app-level replication (`replication.factor=3`, `min.insync.replicas=2`). The resulting Ceph health warning (`pool(s) have no replicas configured`) is expected while this pool exists.
+
+### PostgreSQL Strategy (CloudNativePG)
+
+**Hard requirement: PostgreSQL is managed by CloudNativePG operator — no other Postgres deployment model is permitted.**
+
+CloudNativePG is the mandatory PostgreSQL operator for this cluster (follows Kubernetes-native-first principle: CRD-native operator extending Kubernetes API). It is the only approved path for adding relational database support to any service.
+
+**Deployment model — per-service, never shared:**
+- **Mandatory:** Each microservice gets a dedicated `postgresql.cnpg.io/v1 Cluster` resource
+- **Mandatory:** No cluster-wide shared Postgres instance for multiple services
+- **Rationale:** Decouples service lifecycles, enables independent scaling/backup/recovery, prevents cross-service blast radius
+- **Ownership:** Each service owns its DB manifests alongside its service manifests (`kubernetes/infrastructure/<service>/` or `kubernetes/apps/<service>/`)
+
+**Topology — service-specific choice:**
+Single-instance or High Availability (multi-replica) is decided per workload requirements (not cluster-wide policy). Document rationale in the Cluster CR comments.
+
+**Secrets — encrypted, never plaintext:**
+All application DB credentials must be committed as `*.sops.yaml` files and decrypted by Flux at apply time. No plaintext DB passwords in git.
+
+**Operator location:** `kubernetes/infrastructure/cloudnative-pg/` (Flux Kustomization: `infrastructure-cloudnative-pg`)
+
+**Version pin currently in use:** CloudNativePG operator `v1.29.0` (Helm chart `0.28.0`).
+
+**Workflow — adding a new service database:**
+1. Create a dedicated `Cluster` CR for that service (do not reuse another service's Postgres instance).
+2. Create a service-specific app credential Secret as `*.sops.yaml` (encrypted, never plaintext).
+3. Point the app to the service's `-rw` endpoint (`<cluster>-rw.<namespace>.svc.cluster.local`).
+4. For latency-sensitive app↔db paths, enforce same-region scheduling with required `podAffinity` on the database cluster label (`cnpg.io/cluster: <cluster-name>`).
+5. Ensure Flux dependency ordering includes `infrastructure-cloudnative-pg` before any manifests containing `postgresql.cnpg.io/*` resources.
+
+**Migration rule (existing service DB → CloudNativePG):** use additive cutover with rollback safety. Provision CNPG target, migrate data, validate application behavior, then retire legacy DB resources only after successful verification. This ensures zero data loss and enables fast rollback to the old database if issues occur during cutover.
 
 ### Backup Strategy
 

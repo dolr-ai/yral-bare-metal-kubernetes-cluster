@@ -1,83 +1,18 @@
-# PostgreSQL for Bytebase — internal only, no external access.
-# Bytebase v3+ dropped its embedded store and requires an external Postgres.
-# Single replica, no HA needed — Bytebase itself is the single source of truth.
-#
-# Region co-location: Bytebase uses podAffinity to land in the same
-# topology.kubernetes.io/region as this pod (matched via app=bytebase-postgres).
-# Do NOT remove the app label from the pod template — Bytebase's affinity depends on it.
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: bytebase-postgres-data
-  namespace: bytebase
-spec:
-  storageClassName: ceph-block
-  volumeName: pvc-89941193-973b-472f-9e40-238605d3035e
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 5Gi
----
-apiVersion: apps/v1
-kind: StatefulSet
+# Dedicated Postgres for Bytebase via CloudNativePG.
+# Single instance is intentional for current workload.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
 metadata:
   name: bytebase-postgres
   namespace: bytebase
 spec:
-  serviceName: bytebase-postgres
-  replicas: 1
-  selector:
-    matchLabels:
-      app: bytebase-postgres
-  template:
-    metadata:
-      labels:
-        app: bytebase-postgres
-    spec:
-      containers:
-        - name: postgres
-          image: postgres:16
-          env:
-            - name: POSTGRES_DB
-              value: bytebase
-            - name: POSTGRES_USER
-              value: bytebase
-            - name: POSTGRES_PASSWORD
-              value: bytebase
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
-          ports:
-            - containerPort: 5432
-          volumeMounts:
-            - name: data
-              mountPath: /var/lib/postgresql/data
-          readinessProbe:
-            exec:
-              command: ["pg_isready", "-U", "bytebase"]
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
-      volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: bytebase-postgres-data
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: bytebase-postgres
-  namespace: bytebase
-spec:
-  selector:
-    app: bytebase-postgres
-  ports:
-    - port: 5432
-      targetPort: 5432
+  instances: 1
+  storage:
+    size: 5Gi
+    storageClass: ceph-block
+  bootstrap:
+    initdb:
+      database: bytebase
+      owner: bytebase
+      secret:
+        name: bytebase-postgres-app

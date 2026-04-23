@@ -1,0 +1,31 @@
+# CloudNativePG operator
+#
+# Chart: cloudnative-pg/cloudnative-pg
+# Releases: https://github.com/cloudnative-pg/cloudnative-pg/releases
+#
+# User-selected operator version: v1.29.0 (chart 0.28.0)
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cloudnative-pg
+  namespace: cnpg-system
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: cloudnative-pg
+      version: "0.28.0"
+      sourceRef:
+        kind: HelmRepository
+        name: cloudnative-pg
+        namespace: cnpg-system
+  timeout: 10m
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    cleanupOnFail: true
+    remediation:
+      retries: 3

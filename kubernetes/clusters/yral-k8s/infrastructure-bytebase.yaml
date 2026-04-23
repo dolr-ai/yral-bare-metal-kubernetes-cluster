@@ -18,3 +18,4 @@ spec:
       name: sops-age
   dependsOn:
     - name: infrastructure-rook-ceph-cluster
+    - name: infrastructure-cloudnative-pg

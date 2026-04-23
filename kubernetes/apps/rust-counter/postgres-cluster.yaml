@@ -1,0 +1,17 @@
+# Dedicated Postgres for rust-counter (one-service-one-db pattern).
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: rust-counter-postgres
+  namespace: rust-counter
+spec:
+  instances: 1
+  storage:
+    size: 5Gi
+    storageClass: ceph-block
+  bootstrap:
+    initdb:
+      database: rust_counter
+      owner: rust_counter
+      secret:
+        name: rust-counter-postgres-app

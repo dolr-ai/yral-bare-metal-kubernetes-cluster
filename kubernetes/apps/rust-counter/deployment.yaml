@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rust-counter
+  namespace: rust-counter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rust-counter
+  template:
+    metadata:
+      labels:
+        app: rust-counter
+    spec:
+      containers:
+        - name: rust-counter
+          image: ghcr.io/dolr-ai/rust-counter:v0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: rust-counter-database-url
+                  key: DATABASE_URL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  cnpg.io/cluster: rust-counter-postgres
+              topologyKey: topology.kubernetes.io/region

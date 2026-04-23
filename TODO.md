@@ -57,3 +57,4 @@ The key never leaves the cluster and is encrypted at rest inside etcd (Kubernete
 - For subsequent migrations, instead of copying over live data and turning off the app temporarily, the preffered mechanism is to instead create another replica of the backing store, be it kafka or postgres, and then do a controlled failover to the new replica once it's fully synced. This way we can minimize downtime and avoid the risks associated with copying live data. Once, we're sure that the data is migrated, we point the app to the new replica and decommission the old one. Note this migration preference in AGENTS.md for future reference and to ensure that we follow best practices for migrations going forward.
 - Handle ceph snapshot backups to s3
 - Check if Hetzner has Ubuntu 26.04 and use that everywhere
+- cleanup the rust counter service when done testing cloudnative pg with it
