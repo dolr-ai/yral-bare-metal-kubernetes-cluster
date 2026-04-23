@@ -62,21 +62,6 @@ else
     echo "  SSH key setup skipped"
 fi
 
-# Check SSH Agent accessibility
-echo ""
-echo "Checking SSH Agent..."
-if ssh-add -l >/dev/null 2>&1; then
-    echo "✓ SSH Agent is accessible"
-    ssh-add -l | sed 's/^/  /'
-elif [ $? -eq 1 ]; then
-    echo "✓ SSH Agent is running but has no identities"
-    echo "  Run 'ssh-add ~/.ssh/id_ed25519' in WSL to add your key"
-else
-    echo "⚠ Warning: SSH agent not accessible"
-    echo "  Ensure agent is running in WSL with fixed socket at ~/.ssh/agent.sock"
-    echo "  See: https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster/blob/main/README.md#ssh-setup"
-fi
-
 # Extract cluster kubeconfig for local kubectl access
 echo ""
 echo "Setting up cluster kubeconfig..."

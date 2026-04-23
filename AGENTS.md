@@ -822,9 +822,23 @@ Ansible manages infrastructure *below* the Kubernetes API: OS provisioning, kube
 | Gateway / HTTPRoute | `kubernetes/networking/` | All services — internal tools go via oauth2-proxy backend, user-facing services directly |
 | Application workloads | `kubernetes/apps/` | Pure K8s objects |
 
-**Application source code — `apps/` git submodules:**
+**Application source code and deployment manifests — hard separation:**
 
-Application source repositories live as git submodules under `apps/`. Deployment manifests for those apps live under `kubernetes/apps/`. The two are intentionally decoupled — Flux reconciles manifests from `kubernetes/apps/` independently of whether the submodule is checked out.
+This repository is primarily for Kubernetes cluster/infrastructure operations and deployment manifests.
+
+All non-trivial application source code should live in dedicated external repositories and be brought into `apps/` as git submodules (`apps/<repo>/`).
+
+Only trivial or explicitly temporary source code may be kept directly in this repository, and that exception must be intentional and documented.
+
+Temporary validation apps (for example, app↔database connectivity checks) must include an explicit cleanup plan and be removed with their supporting Kubernetes resources after validation is complete.
+
+All Kubernetes deployment manifests and hosting configuration for those applications live under `kubernetes/apps/`.
+
+The two trees are intentionally decoupled:
+- `apps/` = external application repositories as submodules (plus rare trivial/temporary local code when explicitly allowed)
+- `kubernetes/apps/` = runtime manifests, Services, Deployments, routes, and cluster hosting configuration
+
+Flux reconciles manifests from `kubernetes/apps/` only; it does not consume source code directly from `apps/`.
 
 **Submodule operations must always be performed via `git submodule add` in the terminal — never via MCP tools or by creating/pushing files into the upstream repo.** Using MCP to mirror what `git submodule` does natively defeats the purpose of submodules and breaks standard git tooling.
 
@@ -895,11 +909,11 @@ All services are exposed through the Cilium Gateway API. Auth is layered in fron
 2. Add both to `kubernetes/infrastructure/oauth2-proxy/kustomization.yaml`
 3. Add an HTTPRoute in `kubernetes/networking/routes/` pointing to the oauth2-proxy Service (add a `ReferenceGrant` if the HTTPRoute and Service are in different namespaces)
 4. Add the new `https://<hostname>/oauth2/callback` to the authorized redirect URIs in the Google Cloud OAuth app
-5. **Add a card for the new URL in `kubernetes/apps/dashboard/configmap.yaml`** — the dashboard at `dashboard.yral.com` is the canonical list of all hosted services; every new visitable URL must appear there
+5. **Add a card for the new URL in `kubernetes/apps/dashboard/index.html`** — the dashboard at `dashboard.yral.com` is the canonical list of all hosted services; every new visitable URL must appear there
 6. Commit and push — Flux reconciles and the hostname is live immediately (wildcard DNS requires no Cloudflare changes)
 
 **Dashboard — `dashboard.yral.com`:**
-A dark-mode internal homepage listing every hosted UI on the cluster. It lives in `kubernetes/apps/dashboard/configmap.yaml` as a static HTML ConfigMap served by nginx. **Every time a new visitable URL is added to the cluster (or removed), update the dashboard ConfigMap in the same commit.**
+A dark-mode internal homepage listing every hosted UI on the cluster. Its source of truth is `kubernetes/apps/dashboard/index.html`, which is packaged into a ConfigMap via `configMapGenerator`. **Every time a new visitable URL is added to the cluster (or removed), update `index.html` in the same commit.**
 
 **The shared `oauth2-proxy-secrets` Secret** contains `client-id`, `client-secret`, and `cookie-secret`. All oauth2-proxy Deployments reference this same Secret via env vars. It lives in the `oauth2-proxy` namespace.
 
