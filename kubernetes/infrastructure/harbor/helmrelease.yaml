@@ -1,0 +1,96 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: harbor
+  namespace: harbor
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: harbor
+      version: "1.18.3"
+      sourceRef:
+        kind: HelmRepository
+        name: harbor
+        namespace: harbor
+  install:
+    crds: Create
+  upgrade:
+    crds: CreateReplace
+  values:
+    externalURL: https://harbor.yral.com
+    
+    # Expose core service internally for oauth2-proxy backend
+    expose:
+      type: ClusterIP
+      core:
+        servicePort: 80
+    
+    # Disable Harbor's built-in auth — oauth2-proxy provides authentication
+    # oauth2-proxy will handle authz/authn before reaching Harbor core
+    
+    # Storage backend for images
+    persistence:
+      enabled: true
+      resourceName: registry
+      storageClass: "ceph-block"
+      persistentVolumeClaim:
+        registry:
+          size: 50Gi
+        jobservice:
+          size: 10Gi
+        database:
+          size: 10Gi
+        redis:
+          size: 5Gi
+    
+    # Disable components not needed for temporary app registry
+    chartmuseum:
+      enabled: false
+    notary:
+      enabled: false
+    trivy:
+      enabled: false
+    
+    # Core Harbor settings
+    core:
+      replicas: 1
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+        limits:
+          cpu: 500m
+          memory: 1Gi
+    
+    registry:
+      replicas: 1
+      resources:
+        requests:
+          cpu: 50m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+    
+    jobservice:
+      replicas: 1
+      resources:
+        requests:
+          cpu: 50m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+    
+    database:
+      type: internal
+    
+    redis:
+      type: internal
+  
+  valuesFrom:
+    - kind: Secret
+      name: harbor-secrets
+      valuesKey: admin-password
+      targetPath: harborAdminPassword

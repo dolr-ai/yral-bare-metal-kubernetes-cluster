@@ -3,6 +3,8 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - secret.sops.yaml
+  - deployment-harbor.yaml
+  - service-harbor.yaml
   - deployment-hubble-ui.yaml
   - service-hubble-ui.yaml
   - deployment-grafana.yaml

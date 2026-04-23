@@ -11,4 +11,5 @@ resources:
   - metabase.yaml
   - bytebase.yaml
   - rust-counter.yaml
+  - harbor.yaml
 

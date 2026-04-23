@@ -106,7 +106,7 @@ Each microservice owns a dedicated namespace containing all its necessary compon
 
 **Exceptions — cross-namespace resources — are rare and explicit:**
 - **Shared infrastructure** (Cilium, cert-manager, monitoring): live in their own namespaces, managed by `kubernetes/infrastructure/`
-- **Auth proxies** (oauth2-proxy): one instance per protected service, in the service's namespace or a dedicated auth namespace
+- **Auth proxies** (oauth2-proxy, internal apps only): use the dedicated shared `oauth2-proxy` namespace. Deploy one oauth2-proxy Deployment/Service per protected app in that namespace, and keep Google OAuth credentials in the shared `oauth2-proxy-secrets` Secret (do not duplicate per app/namespace).
 - **Network policies across services**: use NetworkPolicy selectors scoped to specific services, avoid cluster-wide policies
 
 **Pattern — service namespace structure:**
@@ -839,6 +839,29 @@ The two trees are intentionally decoupled:
 - `kubernetes/apps/` = runtime manifests, Services, Deployments, routes, and cluster hosting configuration
 
 Flux reconciles manifests from `kubernetes/apps/` only; it does not consume source code directly from `apps/`.
+
+**Container registry strategy:**
+
+Container images are built and published from each application's own source repository.
+
+- For application repositories hosted on GitHub (including submodules under `apps/`), use GitHub Container Registry (GHCR) as the default image registry.
+- For temporary or local-in-this-repo apps that do not have a dedicated external source repository (for example validation apps), use Harbor hosted in this cluster.
+
+Kubernetes manifests in this repository reference pre-built images; image build pipelines live with the application source repositories, not in this infrastructure repository.
+
+**Harbor container registry (temporary apps only):**
+
+Harbor is the in-cluster registry for temporary/local apps that do not have an external GitHub source repository.
+
+- Canonical manifests: `kubernetes/infrastructure/harbor/` (Flux Kustomization: `infrastructure-harbor`)
+- Canonical operations doc: `kubernetes/infrastructure/harbor/README.md`
+- Keep AGENTS.md policy-level only; do not duplicate per-component operational runbooks here
+- Keep Harbor-specific credentials (for example Harbor admin password) in SOPS-encrypted Kubernetes Secrets under `kubernetes/infrastructure/harbor/`; shared oauth2-proxy Google credentials stay in `kubernetes/infrastructure/oauth2-proxy/secret.sops.yaml`
+
+**Temporary app policy:**
+- Temporary validation apps must include an explicit cleanup plan in their service README
+- After validation completes, remove the app namespace, manifests, and HTTPRoute from git
+- Also remove Harbor image and oauth2-proxy integration for that app
 
 **Submodule operations must always be performed via `git submodule add` in the terminal — never via MCP tools or by creating/pushing files into the upstream repo.** Using MCP to mirror what `git submodule` does natively defeats the purpose of submodules and breaks standard git tooling.
 

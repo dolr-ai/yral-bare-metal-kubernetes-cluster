@@ -36,6 +36,7 @@ resources:
   - infrastructure-clickhouse.yaml
   - infrastructure-bytebase.yaml
   - infrastructure-devpod.yaml
+  - infrastructure-harbor.yaml
   - networking.yaml
   - apps.yaml
 

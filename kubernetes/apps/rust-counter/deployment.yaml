@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: rust-counter
-          image: ghcr.io/dolr-ai/rust-counter:v0.1.0
+          image: harbor.yral.com/library/rust-counter:v0.1.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
