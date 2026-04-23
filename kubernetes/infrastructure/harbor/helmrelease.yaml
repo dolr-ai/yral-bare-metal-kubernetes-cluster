@@ -5,6 +5,7 @@ metadata:
   namespace: harbor
 spec:
   interval: 30m
+  timeout: 10m
   chart:
     spec:
       chart: harbor
@@ -16,6 +17,7 @@ spec:
   install:
     crds: Create
   upgrade:
+    force: true  # Recreate storage-backed Deployments cleanly when strategy changes for RWO PVCs.
     crds: CreateReplace
   values:
     externalURL: https://harbor.yral.com
@@ -57,12 +59,10 @@ spec:
     trivy:
       enabled: false
 
-    # Avoid RWO PVC multi-attach deadlocks for jobservice/registry rollouts.
+    # Harbor only templates updateStrategy.type for these PVC-backed Deployments.
+    # Use Recreate so the old pod releases the RWO volume before the new pod starts.
     updateStrategy:
-      type: RollingUpdate
-      rollingUpdate:
-        maxUnavailable: 1
-        maxSurge: 0
+      type: Recreate
 
     # Core Harbor settings
     core:
