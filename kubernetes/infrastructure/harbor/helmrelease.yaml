@@ -21,7 +21,7 @@ spec:
     
     # Expose core service internally for oauth2-proxy backend
     expose:
-      type: ClusterIP
+      type: clusterIP
       tls:
         enabled: false
         certSource: none

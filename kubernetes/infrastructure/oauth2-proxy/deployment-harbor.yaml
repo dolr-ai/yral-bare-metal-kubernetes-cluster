@@ -22,7 +22,7 @@ spec:
             - --google-group=developer-admin@gobazzinga.io
             - --google-admin-email=s@gobazzinga.io
             - --google-service-account-json=/etc/oauth2-proxy/service-account.json
-            - --upstream=http://harbor-core.harbor.svc.cluster.local
+            - --upstream=http://harbor.harbor.svc.cluster.local
             - --http-address=0.0.0.0:4180
             - --redirect-url=https://harbor.yral.com/oauth2/callback
             - --cookie-name=_oauth2_proxy_harbor
