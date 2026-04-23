@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: rust-counter
-          image: harbor.yral.com/library/rust-counter:v0.1.0
+          image: harbor.yral.com/library/rust-counter:v0.1.2
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

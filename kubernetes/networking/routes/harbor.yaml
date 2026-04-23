@@ -31,6 +31,22 @@ spec:
   hostnames:
     - harbor.yral.com
   rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /v2/
+      backendRefs:
+        - name: harbor
+          namespace: harbor
+          port: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /service/token
+      backendRefs:
+        - name: harbor
+          namespace: harbor
+          port: 80
     - backendRefs:
         - name: oauth2-proxy-harbor
           namespace: oauth2-proxy

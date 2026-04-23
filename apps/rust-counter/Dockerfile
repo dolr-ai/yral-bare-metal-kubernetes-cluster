@@ -1,11 +1,12 @@
-FROM rust:1.87-bookworm AS builder
+FROM docker.io/library/rust:1.88-bookworm AS builder
 WORKDIR /app
 
 COPY Cargo.toml Cargo.toml
+COPY Cargo.lock Cargo.lock
 COPY src src
-RUN cargo build --release
+RUN cargo build --release --locked
 
-FROM debian:bookworm-slim
+FROM docker.io/library/debian:bookworm-slim
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*

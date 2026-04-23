@@ -22,5 +22,5 @@ cargo run
 ## Build container image
 
 ```bash
-docker build -t ghcr.io/dolr-ai/rust-counter:v0.1.0 .
+docker build -t harbor.yral.com/library/rust-counter:v0.1.2 .
 ```

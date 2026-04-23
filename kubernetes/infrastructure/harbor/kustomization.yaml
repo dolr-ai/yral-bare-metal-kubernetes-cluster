@@ -6,6 +6,7 @@ namespace: harbor
 
 resources:
   - namespace.yaml
+  - reference-grant.yaml
   - helmrepository.yaml
   - helmrelease.yaml
   - harbor-admin-secret.sops.yaml
