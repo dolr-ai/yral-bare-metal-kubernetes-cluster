@@ -18,7 +18,6 @@ spec:
     crds: Create
   upgrade:
     force: true  # Recreate storage-backed Deployments cleanly when strategy changes for RWO PVCs.
-    crds: CreateReplace
   values:
     externalURL: https://harbor.yral.com
     
