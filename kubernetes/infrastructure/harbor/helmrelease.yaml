@@ -56,6 +56,11 @@ spec:
       enabled: false
     trivy:
       enabled: false
+
+    # RWO PVC-backed deployments (jobservice, registry) must use Recreate
+    # to avoid multi-attach deadlocks during rollout on ceph-block.
+    updateStrategy:
+      type: Recreate
     
     # Core Harbor settings
     core:
