@@ -26,6 +26,8 @@ spec:
       tls:
         enabled: false
         certSource: none
+        auto:
+          commonName: harbor.yral.com
       core:
         servicePort: 80
     
