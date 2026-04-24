@@ -1,3 +1,9 @@
 {
     "java.compile.nullAnalysis.mode": "automatic",
+    "remote.autoForwardPortsSource": "process",
+    "remote.portsAttributes": {
+        "11434": {
+            "autoForwardAction": "ignore"
+        }
+    }
 }

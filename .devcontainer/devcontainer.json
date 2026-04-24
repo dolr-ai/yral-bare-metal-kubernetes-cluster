@@ -19,15 +19,13 @@
 		"ghcr.io/devcontainers-extra/features/ripgrep:1": {},
 		"ghcr.io/devcontainers/features/rust:1": {}
 	},
+	// Make host.docker.internal resolve to the host machine (for Ollama, etc.)
+	"runArgs": ["--add-host=host.docker.internal:host-gateway"],
 	// Use Docker Desktop's built-in SSH agent socket on macOS
 	"mounts": [
 		"type=bind,source=/run/host-services/ssh-auth.sock,target=/ssh-agent",
 		"type=bind,source=${env:HOME}/.config/gh,target=/home/vscode/.config/gh,consistency=cached"
 	],
-	// Set SSH_AUTH_SOCK environment variable to point to mounted socket
-	"remoteEnv": {
-		"OLLAMA_HOST": "host.docker.internal:11434"
-	},
 	// Run post-create setup script
 	"postCreateCommand": ".devcontainer/post-create.sh"
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
