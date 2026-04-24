@@ -6,6 +6,8 @@ This document defines architectural patterns and constraints specific to this re
 
 **Git commits:** Never add a `Co-Authored-By: Claude` trailer to commit messages in this repository.
 
+**Terminal commands:** When running terminal commands that require waiting (e.g., for pod startup, Flux reconciliation, or service readiness), use short polling loops with a maximum sleep of 10 seconds per iteration. If progress is still being made after 10 seconds, re-run the check command rather than using a single long sleep. This keeps the terminal responsive and allows for early termination if the operation completes sooner.
+
 ## Core Architecture Principles
 
 ### 0. Kubernetes-Native First
