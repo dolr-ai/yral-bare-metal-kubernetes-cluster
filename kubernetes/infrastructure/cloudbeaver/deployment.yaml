@@ -22,8 +22,10 @@ spec:
             - |
               mkdir -p /opt/cloudbeaver/workspace/.data
               mkdir -p /opt/cloudbeaver/workspace/.dbeaver
+              mkdir -p /opt/cloudbeaver/workspace/GlobalConfiguration/.dbeaver
               cp /tmp/config/.cloudbeaver.runtime.conf /opt/cloudbeaver/workspace/.data/.cloudbeaver.runtime.conf
               cp /tmp/config/data-sources.json /opt/cloudbeaver/workspace/.dbeaver/data-sources.json
+              cp /tmp/config/data-sources.json /opt/cloudbeaver/workspace/GlobalConfiguration/.dbeaver/data-sources.json
           volumeMounts:
             - name: workspace
               mountPath: /opt/cloudbeaver/workspace
