@@ -16,6 +16,17 @@ spec:
       initContainers:
         - name: copy-config
           image: busybox:1.36
+          env:
+            - name: BYTEBASE_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cloudbeaver-db-passwords
+                  key: BYTEBASE_POSTGRES_PASSWORD
+            - name: RUST_COUNTER_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cloudbeaver-db-passwords
+                  key: RUST_COUNTER_POSTGRES_PASSWORD
           command:
             - sh
             - -c
@@ -24,8 +35,11 @@ spec:
               mkdir -p /opt/cloudbeaver/workspace/.dbeaver
               mkdir -p /opt/cloudbeaver/workspace/GlobalConfiguration/.dbeaver
               cp /tmp/config/.cloudbeaver.runtime.conf /opt/cloudbeaver/workspace/.data/.cloudbeaver.runtime.conf
-              cp /tmp/config/data-sources.json /opt/cloudbeaver/workspace/.dbeaver/data-sources.json
-              cp /tmp/config/data-sources.json /opt/cloudbeaver/workspace/GlobalConfiguration/.dbeaver/data-sources.json
+              # Template data-sources.json with actual passwords from env vars
+              sed -e "s|\${BYTEBASE_POSTGRES_PASSWORD}|${BYTEBASE_POSTGRES_PASSWORD}|g" \
+                  -e "s|\${RUST_COUNTER_POSTGRES_PASSWORD}|${RUST_COUNTER_POSTGRES_PASSWORD}|g" \
+                  /tmp/config/data-sources.json > /opt/cloudbeaver/workspace/.dbeaver/data-sources.json
+              cp /opt/cloudbeaver/workspace/.dbeaver/data-sources.json /opt/cloudbeaver/workspace/GlobalConfiguration/.dbeaver/data-sources.json
           volumeMounts:
             - name: workspace
               mountPath: /opt/cloudbeaver/workspace
