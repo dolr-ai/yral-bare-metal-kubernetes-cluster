@@ -32,6 +32,7 @@ resources:
   - infrastructure-kafka-connect.yaml
   - infrastructure-kafka-console.yaml
   - infrastructure-metabase.yaml
+  - infrastructure-cloudbeaver.yaml
   - infrastructure-clickhouse-operator.yaml
   - infrastructure-clickhouse.yaml
   - infrastructure-bytebase.yaml
