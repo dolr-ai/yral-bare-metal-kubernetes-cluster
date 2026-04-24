@@ -50,19 +50,19 @@ docker login harbor.yral.com
 
 ```bash
 # 1. Build the image from Dockerfile
-docker build -t rust-counter:v0.1.0 apps/rust-counter/
+docker build -t <app-name>:v0.1.0 apps/<app-name>/
 
 # 2. Log in to Harbor
 docker login harbor.yral.com
 
 # 3. Tag for Harbor registry
-docker tag rust-counter:v0.1.0 harbor.yral.com/library/rust-counter:v0.1.0
+docker tag <app-name>:v0.1.0 harbor.yral.com/library/<app-name>:v0.1.0
 
 # 4. Push to Harbor
-docker push harbor.yral.com/library/rust-counter:v0.1.0
+docker push harbor.yral.com/library/<app-name>:v0.1.0
 
 # 5. Reference the image in Kubernetes deployment manifests:
-# image: harbor.yral.com/library/rust-counter:v0.1.0
+# image: harbor.yral.com/library/<app-name>:v0.1.0
 ```
 
 ## Cleanup Policy
@@ -74,12 +74,12 @@ When a temporary validation app is no longer needed:
 3. Remove any oauth2-proxy configuration entries for that app
 4. Commit changes with message: `cleanup: remove <app-name> validation app after verification`
 
-Example cleanup for rust-counter:
+Example cleanup after validation:
 ```bash
 # Remove from git (after validation is complete)
-rm -rf kubernetes/apps/rust-counter/
-git rm kubernetes/networking/routes/rust-counter.yaml
-# Update kubernetes/networking/routes/kustomization.yaml to remove rust-counter.yaml
+rm -rf kubernetes/apps/<app-name>/
+git rm kubernetes/networking/routes/<app-name>.yaml
+# Update kubernetes/networking/routes/kustomization.yaml to remove <app-name>.yaml
 # Commit and push — Flux will reconcile and delete resources
 ```
 

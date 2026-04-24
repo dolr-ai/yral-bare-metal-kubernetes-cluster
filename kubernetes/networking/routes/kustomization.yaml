@@ -10,7 +10,6 @@ resources:
   - kafka-console.yaml
   - metabase.yaml
   - bytebase.yaml
-  - rust-counter.yaml
   - harbor.yaml
   - cloudbeaver.yaml
 

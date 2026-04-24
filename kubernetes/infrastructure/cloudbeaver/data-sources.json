@@ -17,23 +17,6 @@
         "closeIdleConnection": true
       },
       "auth-model": "native"
-    },
-    "postgres-rust-counter": {
-      "provider": "postgresql",
-      "driver": "postgres-jdbc",
-      "name": "Postgres - rust-counter",
-      "save-password": true,
-      "show-system-objects": false,
-      "configuration": {
-        "host": "rust-counter-postgres-rw.rust-counter.svc.cluster.local",
-        "port": "5432",
-        "database": "rust_counter",
-        "url": "jdbc:postgresql://rust-counter-postgres-rw.rust-counter.svc.cluster.local:5432/rust_counter?user=rust_counter&password=${RUST_COUNTER_POSTGRES_PASSWORD}",
-        "type": "prod",
-        "configurationType": "MANUAL",
-        "closeIdleConnection": true
-      },
-      "auth-model": "native"
     }
   }
 }

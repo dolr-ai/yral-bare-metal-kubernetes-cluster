@@ -3,4 +3,3 @@ kind: Kustomization
 # Add app subdirectories here as they are onboarded.
 resources:
   - dashboard
-  - rust-counter
