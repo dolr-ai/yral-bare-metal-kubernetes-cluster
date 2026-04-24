@@ -13,6 +13,23 @@ spec:
       labels:
         app: cloudbeaver
     spec:
+      initContainers:
+        - name: copy-config
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              mkdir -p /opt/cloudbeaver/workspace/.data
+              mkdir -p /opt/cloudbeaver/workspace/.dbeaver
+              cp /tmp/config/.cloudbeaver.runtime.conf /opt/cloudbeaver/workspace/.data/.cloudbeaver.runtime.conf
+              cp /tmp/config/data-sources.json /opt/cloudbeaver/workspace/.dbeaver/data-sources.json
+          volumeMounts:
+            - name: workspace
+              mountPath: /opt/cloudbeaver/workspace
+            - name: cloudbeaver-config
+              mountPath: /tmp/config
+              readOnly: true
       containers:
         - name: cloudbeaver
           image: dbeaver/cloudbeaver:26.0.3
@@ -33,14 +50,6 @@ spec:
           volumeMounts:
             - name: workspace
               mountPath: /opt/cloudbeaver/workspace
-            - name: cloudbeaver-config
-              mountPath: /opt/cloudbeaver/workspace/.dbeaver/data-sources.json
-              subPath: data-sources.json
-              readOnly: true
-            - name: cloudbeaver-config
-              mountPath: /opt/cloudbeaver/workspace/.data/.cloudbeaver.runtime.conf
-              subPath: .cloudbeaver.runtime.conf
-              readOnly: true
           resources:
             requests:
               cpu: 100m
