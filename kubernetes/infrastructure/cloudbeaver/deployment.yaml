@@ -51,12 +51,12 @@ spec:
           livenessProbe:
             tcpSocket:
               port: 8978
-            initialDelaySeconds: 60
+            initialDelaySeconds: 120
             periodSeconds: 20
           readinessProbe:
             tcpSocket:
               port: 8978
-            initialDelaySeconds: 30
+            initialDelaySeconds: 90
             periodSeconds: 15
       volumes:
         - name: workspace
