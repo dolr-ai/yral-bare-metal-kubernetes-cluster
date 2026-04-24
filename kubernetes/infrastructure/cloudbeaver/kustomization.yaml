@@ -14,3 +14,7 @@ resources:
   - pvc.yaml
   - deployment.yaml
   - service.yaml
+decryption:
+  provider: sops
+  secretRef:
+    name: sops-age
