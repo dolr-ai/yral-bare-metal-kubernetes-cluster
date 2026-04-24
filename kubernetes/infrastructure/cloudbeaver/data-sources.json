@@ -11,16 +11,12 @@
         "host": "bytebase-postgres-rw.bytebase.svc.cluster.local",
         "port": "5432",
         "database": "bytebase",
-        "url": "jdbc:postgresql://bytebase-postgres-rw.bytebase.svc.cluster.local:5432/bytebase",
+        "url": "jdbc:postgresql://bytebase-postgres-rw.bytebase.svc.cluster.local:5432/bytebase?user=bytebase&password=${BYTEBASE_POSTGRES_PASSWORD}",
         "type": "prod",
         "configurationType": "MANUAL",
         "closeIdleConnection": true
       },
-      "auth-model": "native",
-      "credentials": {
-        "user": "bytebase",
-        "password": "${BYTEBASE_POSTGRES_PASSWORD}"
-      }
+      "auth-model": "native"
     },
     "postgres-rust-counter": {
       "provider": "postgresql",
@@ -32,16 +28,12 @@
         "host": "rust-counter-postgres-rw.rust-counter.svc.cluster.local",
         "port": "5432",
         "database": "rust_counter",
-        "url": "jdbc:postgresql://rust-counter-postgres-rw.rust-counter.svc.cluster.local:5432/rust_counter",
+        "url": "jdbc:postgresql://rust-counter-postgres-rw.rust-counter.svc.cluster.local:5432/rust_counter?user=rust_counter&password=${RUST_COUNTER_POSTGRES_PASSWORD}",
         "type": "prod",
         "configurationType": "MANUAL",
         "closeIdleConnection": true
       },
-      "auth-model": "native",
-      "credentials": {
-        "user": "rust_counter",
-        "password": "${RUST_COUNTER_POSTGRES_PASSWORD}"
-      }
+      "auth-model": "native"
     }
   }
 }
