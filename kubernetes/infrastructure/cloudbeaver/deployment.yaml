@@ -49,16 +49,14 @@ spec:
               cpu: 250m
               memory: 256Mi
           livenessProbe:
-            httpGet:
-              path: /ping
+            tcpSocket:
               port: 8978
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
             periodSeconds: 20
           readinessProbe:
-            httpGet:
-              path: /ping
+            tcpSocket:
               port: 8978
-            initialDelaySeconds: 20
+            initialDelaySeconds: 30
             periodSeconds: 15
       volumes:
         - name: workspace
