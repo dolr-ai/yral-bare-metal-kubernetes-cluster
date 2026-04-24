@@ -34,7 +34,10 @@ spec:
               mkdir -p /opt/cloudbeaver/workspace/.data
               mkdir -p /opt/cloudbeaver/workspace/.dbeaver
               mkdir -p /opt/cloudbeaver/workspace/GlobalConfiguration/.dbeaver
-              cp /tmp/config/.cloudbeaver.runtime.conf /opt/cloudbeaver/workspace/.data/.cloudbeaver.runtime.conf
+              # Only copy runtime config if it doesn't exist (preserve setup state)
+              if [ ! -f /opt/cloudbeaver/workspace/.data/.cloudbeaver.runtime.conf ]; then
+                cp /tmp/config/.cloudbeaver.runtime.conf /opt/cloudbeaver/workspace/.data/.cloudbeaver.runtime.conf
+              fi
               # Template data-sources.json with actual passwords from env vars
               sed -e "s|\${BYTEBASE_POSTGRES_PASSWORD}|${BYTEBASE_POSTGRES_PASSWORD}|g" \
                   -e "s|\${RUST_COUNTER_POSTGRES_PASSWORD}|${RUST_COUNTER_POSTGRES_PASSWORD}|g" \
