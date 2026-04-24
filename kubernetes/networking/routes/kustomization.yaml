@@ -12,4 +12,5 @@ resources:
   - bytebase.yaml
   - rust-counter.yaml
   - harbor.yaml
+  - cloudbeaver.yaml
 

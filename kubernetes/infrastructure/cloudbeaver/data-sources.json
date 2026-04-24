@@ -1,0 +1,47 @@
+{
+  "folders": {},
+  "connections": {
+    "postgres-bytebase": {
+      "provider": "postgresql",
+      "driver": "postgres-jdbc",
+      "name": "Postgres - bytebase",
+      "save-password": true,
+      "show-system-objects": false,
+      "configuration": {
+        "host": "bytebase-postgres-rw.bytebase.svc.cluster.local",
+        "port": "5432",
+        "database": "bytebase",
+        "url": "jdbc:postgresql://bytebase-postgres-rw.bytebase.svc.cluster.local:5432/bytebase",
+        "type": "prod",
+        "configurationType": "MANUAL",
+        "closeIdleConnection": true
+      },
+      "auth-model": "native",
+      "credentials": {
+        "user": "bytebase",
+        "password": "${BYTEBASE_POSTGRES_PASSWORD}"
+      }
+    },
+    "postgres-rust-counter": {
+      "provider": "postgresql",
+      "driver": "postgres-jdbc",
+      "name": "Postgres - rust-counter",
+      "save-password": true,
+      "show-system-objects": false,
+      "configuration": {
+        "host": "rust-counter-postgres-rw.rust-counter.svc.cluster.local",
+        "port": "5432",
+        "database": "rust_counter",
+        "url": "jdbc:postgresql://rust-counter-postgres-rw.rust-counter.svc.cluster.local:5432/rust_counter",
+        "type": "prod",
+        "configurationType": "MANUAL",
+        "closeIdleConnection": true
+      },
+      "auth-model": "native",
+      "credentials": {
+        "user": "rust_counter",
+        "password": "${RUST_COUNTER_POSTGRES_PASSWORD}"
+      }
+    }
+  }
+}
