@@ -8,6 +8,76 @@ This document defines architectural patterns and constraints specific to this re
 
 **Terminal commands:** When running terminal commands that require waiting (e.g., for pod startup, Flux reconciliation, or service readiness), use short polling loops with a maximum sleep of 10 seconds per iteration. If progress is still being made after 10 seconds, re-run the check command rather than using a single long sleep. This keeps the terminal responsive and allows for early termination if the operation completes sooner.
 
+## Forbidden Imperative kubectl Commands
+
+**The following imperative mutative kubectl commands are STRICTLY PROHIBITED in the terminal. All cluster mutations must go through GitOps (Flux) or Ansible roles.**
+
+- ❌ `kubectl delete namespace <name>` — Use Flux prune by removing from git
+- ❌ `kubectl delete deployment <name>` — Use Flux prune by removing from git
+- ❌ `kubectl delete service <name>` — Use Flux prune by removing from git
+- ❌ `kubectl delete configmap <name>` — Use Flux prune by removing from git
+- ❌ `kubectl delete secret <name>` — Use Flux prune by removing from git
+- ❌ `kubectl delete pvc <name>` — Use Flux prune by removing from git
+- ❌ `kubectl delete pod <name>` — Only acceptable for CrashLoopBackOff recovery; prefer letting Deployment recreate
+- ❌ `kubectl delete kustomization <name>` — ALWAYS suspend first (`flux suspend kustomization <name>`), then remove from git
+- ❌ `kubectl apply -f <manifest>` — Only for non-Flux-managed resources (e.g., CoreDNS); never for Flux-managed state
+- ❌ `kubectl create -f <manifest>` — Never for Flux-managed resources
+- ❌ `kubectl patch <resource>` — Never for Flux-managed resources
+- ❌ `kubectl edit <resource>` — Never for Flux-managed resources
+- ❌ `kubectl scale deployment <name>` — Use git-managed replicas field
+- ❌ `kubectl set env deployment <name>` — Use git-managed env fields
+- ❌ `kubectl set image deployment <name>` — Use git-managed image fields
+- ❌ `kubectl rollout restart deployment <name>` — Use git-managed annotation or let Flux handle
+- ❌ `kubectl exec <pod> -- <command>` — Strictly prohibited for mutating node state
+- ❌ `kubectl cp <file> <pod>:<path>` — Strictly prohibited
+- ❌ `kubectl port-forward` — Only for local debugging, never for production access
+- ❌ `kubectl drain <node>` — Must be done via Ansible role (`node-drain` or `node-upgrade`)
+- ❌ `kubectl cordon <node>` — Must be done via Ansible role
+- ❌ `kubectl uncordon <node>` — Must be done via Ansible role
+- ❌ `kubectl taint <node>` — Must be done via Ansible role
+- ❌ `kubectl label <node>` — Must be done via Ansible role (`node-labels`)
+- ❌ `kubectl annotate <resource>` — Must be done via git
+- ❌ `kubectl replace -f <manifest>` — Never for Flux-managed resources
+- ❌ `kubectl expose deployment <name>` — Must be done via git-managed Service manifests
+- ❌ `kubectl autoscale deployment <name>` — Must be done via git-managed HPA manifests
+- ❌ `kubectl top <resource>` — Read-only, acceptable for diagnostics
+- ❌ `kubectl proxy` — Never for production access
+- ❌ `kubectl run <name>` — Must be done via git-managed Deployment/Job manifests
+- ❌ `kubectl debug <pod>` — Only for debugging, never for mutations
+- ❌ `kubectl wait <resource>` — Read-only, acceptable for scripts
+- ❌ `kubectl auth can-i` — Read-only, acceptable for verification
+- ❌ `kubectl certificate approve/deny` — Must be done via Ansible role
+- ❌ `kubectl cluster-info dump` — Read-only, acceptable for diagnostics
+- ❌ `kubectl config set-context` — Only for local kubeconfig management
+- ❌ `kubectl config set-cluster` — Only for local kubeconfig management
+- ❌ `kubectl config set-credentials` — Only for local kubeconfig management
+- ❌ `kubectl config rename-context` — Only for local kubeconfig management
+- ❌ `kubectl config delete-context` — Only for local kubeconfig management
+- ❌ `kubectl config use-context` — Only for local kubeconfig management
+- ❌ `kubectl config current-context` — Read-only, acceptable
+- ❌ `kubectl config view` — Read-only, acceptable
+- ❌ `kubectl config get-contexts` — Read-only, acceptable
+- ❌ `kubectl version` — Read-only, acceptable
+- ❌ `kubectl api-resources` — Read-only, acceptable
+- ❌ `kubectl api-versions` — Read-only, acceptable
+- ❌ `kubectl explain` — Read-only, acceptable
+- ❌ `kubectl get` — Read-only, acceptable
+- ❌ `kubectl describe` — Read-only, acceptable
+- ❌ `kubectl logs` — Read-only, acceptable
+- ❌ `kubectl events` — Read-only, acceptable
+- ❌ `kubectl diff` — Read-only, acceptable
+- ❌ `kubectl auth` — Read-only, acceptable
+
+**Allowed read-only commands:**
+- ✅ `kubectl get <resource>` — Status checks
+- ✅ `kubectl describe <resource>` — Debugging
+- ✅ `kubectl logs <pod>` — Debugging
+- ✅ `kubectl events` — Debugging
+- ✅ `kubectl top` — Resource monitoring
+- ✅ `kubectl diff` — Preview changes
+
+**Rule:** If a command changes cluster state (creates, deletes, updates, patches, scales, restarts, etc.), it MUST go through GitOps (commit to git, push, let Flux reconcile) or Ansible roles. No exceptions.
+
 ## Core Architecture Principles
 
 ### 0. Kubernetes-Native First
@@ -1103,6 +1173,76 @@ When in doubt:
 If a `HANDOFF.md` file exists in the repository root, **read it before starting any work**, then **delete it** once the context has been ingested and work is resumed.
 
 `HANDOFF.md` is created exclusively by the agent-handoff prompt — never by agents during normal workflows. Do not create or update `HANDOFF.md` as part of regular cluster operations.
+
+## Forbidden Imperative kubectl Commands (Summary)
+
+**The following imperative mutative kubectl commands are STRICTLY PROHIBITED in the terminal. All cluster mutations must go through GitOps (Flux) or Ansible roles.**
+
+- ❌ `kubectl delete namespace <name>` — Use Flux prune by removing from git
+- ❌ `kubectl delete deployment <name>` — Use Flux prune by removing from git
+- ❌ `kubectl delete service <name>` — Use Flux prune by removing from git
+- ❌ `kubectl delete configmap <name>` — Use Flux prune by removing from git
+- ❌ `kubectl delete secret <name>` — Use Flux prune by removing from git
+- ❌ `kubectl delete pvc <name>` — Use Flux prune by removing from git
+- ❌ `kubectl delete pod <name>` — Only acceptable for CrashLoopBackOff recovery; prefer letting Deployment recreate
+- ❌ `kubectl delete kustomization <name>` — ALWAYS suspend first (`flux suspend kustomization <name>`), then remove from git
+- ❌ `kubectl apply -f <manifest>` — Only for non-Flux-managed resources (e.g., CoreDNS); never for Flux-managed state
+- ❌ `kubectl create -f <manifest>` — Never for Flux-managed resources
+- ❌ `kubectl patch <resource>` — Never for Flux-managed resources
+- ❌ `kubectl edit <resource>` — Never for Flux-managed resources
+- ❌ `kubectl scale deployment <name>` — Use git-managed replicas field
+- ❌ `kubectl set env deployment <name>` — Use git-managed env fields
+- ❌ `kubectl set image deployment <name>` — Use git-managed image fields
+- ❌ `kubectl rollout restart deployment <name>` — Use git-managed annotation or let Flux handle
+- ❌ `kubectl exec <pod> -- <command>` — Strictly prohibited for mutating node state
+- ❌ `kubectl cp <file> <pod>:<path>` — Strictly prohibited
+- ❌ `kubectl port-forward` — Only for local debugging, never for production access
+- ❌ `kubectl drain <node>` — Must be done via Ansible role (`node-drain` or `node-upgrade`)
+- ❌ `kubectl cordon <node>` — Must be done via Ansible role
+- ❌ `kubectl uncordon <node>` — Must be done via Ansible role
+- ❌ `kubectl taint <node>` — Must be done via Ansible role
+- ❌ `kubectl label <node>` — Must be done via Ansible role (`node-labels`)
+- ❌ `kubectl annotate <resource>` — Must be done via git
+- ❌ `kubectl replace -f <manifest>` — Never for Flux-managed resources
+- ❌ `kubectl expose deployment <name>` — Must be done via git-managed Service manifests
+- ❌ `kubectl autoscale deployment <name>` — Must be done via git-managed HPA manifests
+- ❌ `kubectl top <resource>` — Read-only, acceptable for diagnostics
+- ❌ `kubectl proxy` — Never for production access
+- ❌ `kubectl run <name>` — Must be done via git-managed Deployment/Job manifests
+- ❌ `kubectl debug <pod>` — Only for debugging, never for mutations
+- ❌ `kubectl wait <resource>` — Read-only, acceptable for scripts
+- ❌ `kubectl auth can-i` — Read-only, acceptable for verification
+- ❌ `kubectl certificate approve/deny` — Must be done via Ansible role
+- ❌ `kubectl cluster-info dump` — Read-only, acceptable for diagnostics
+- ❌ `kubectl config set-context` — Only for local kubeconfig management
+- ❌ `kubectl config set-cluster` — Only for local kubeconfig management
+- ❌ `kubectl config set-credentials` — Only for local kubeconfig management
+- ❌ `kubectl config rename-context` — Only for local kubeconfig management
+- ❌ `kubectl config delete-context` — Only for local kubeconfig management
+- ❌ `kubectl config use-context` — Only for local kubeconfig management
+- ❌ `kubectl config current-context` — Read-only, acceptable
+- ❌ `kubectl config view` — Read-only, acceptable
+- ❌ `kubectl config get-contexts` — Read-only, acceptable
+- ❌ `kubectl version` — Read-only, acceptable
+- ❌ `kubectl api-resources` — Read-only, acceptable
+- ❌ `kubectl api-versions` — Read-only, acceptable
+- ❌ `kubectl explain` — Read-only, acceptable
+- ❌ `kubectl get` — Read-only, acceptable
+- ❌ `kubectl describe` — Read-only, acceptable
+- ❌ `kubectl logs` — Read-only, acceptable
+- ❌ `kubectl events` — Read-only, acceptable
+- ❌ `kubectl diff` — Read-only, acceptable
+- ❌ `kubectl auth` — Read-only, acceptable
+
+**Allowed read-only commands:**
+- ✅ `kubectl get <resource>` — Status checks
+- ✅ `kubectl describe <resource>` — Debugging
+- ✅ `kubectl logs <pod>` — Debugging
+- ✅ `kubectl events` — Debugging
+- ✅ `kubectl top` — Resource monitoring
+- ✅ `kubectl diff` — Preview changes
+
+**Rule:** If a command changes cluster state (creates, deletes, updates, patches, scales, restarts, etc.), it MUST go through GitOps (commit to git, push, let Flux reconcile) or Ansible roles. No exceptions.
 
 ## Maintaining AGENTS.md Over Time
 
