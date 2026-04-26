@@ -30,7 +30,10 @@ rules:
     resources: ["services"]
     verbs: ["get"]
   - apiGroups: [""]
-    resources: ["services/portforward"]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/portforward"]
     verbs: ["create"]
 ---
 # kafka namespace — Snowplow event delivery assertions
