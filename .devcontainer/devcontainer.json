@@ -15,12 +15,14 @@
 		"ghcr.io/goldsam/dev-container-features/flux2:1": {},
 		"ghcr.io/devcontainers-extra/features/age:1": {},
 		"ghcr.io/devcontainers-extra/features/sops:1": {},
-		"ghcr.io/devcontainers/features/aws-cli:1": {},
+		// "ghcr.io/devcontainers/features/aws-cli:1": {},
 		"ghcr.io/devcontainers-extra/features/ripgrep:1": {},
-		"ghcr.io/devcontainers/features/rust:1": {}
+		"ghcr.io/devcontainers/features/rust:1": {},
 	},
 	// Make host.docker.internal resolve to the host machine (for Ollama, etc.)
-	"runArgs": ["--add-host=host.docker.internal:host-gateway"],
+	"runArgs": [
+		"--add-host=host.docker.internal:host-gateway"
+	],
 	// Use Docker Desktop's built-in SSH agent socket on macOS
 	"mounts": [
 		"type=bind,source=/run/host-services/ssh-auth.sock,target=/ssh-agent",
