@@ -1,0 +1,25 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Ansible Vault: decrypt",
+            "type": "shell",
+            "command": "ansible-vault decrypt ansible/inventory/group_vars/all/vault.yml",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Ansible Vault: encrypt",
+            "type": "shell",
+            "command": "ansible-vault encrypt ansible/inventory/group_vars/all/vault.yml",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        }
+    ]
+}
