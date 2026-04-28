@@ -90,7 +90,7 @@ spec:
       # Brokers advertise kafka-broker-{3,4,5}.yral.com:9092 so clients reconnect via the Gateway.
       - name: external
         port: 9094
-        type: clusterip
+        type: cluster-ip
         tls: true
         authentication:
           type: scram-sha-512

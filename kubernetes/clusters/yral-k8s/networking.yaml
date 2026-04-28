@@ -14,5 +14,6 @@ spec:
     name: flux-system
   dependsOn:
     - name: infrastructure-cilium
+    - name: infrastructure-gateway-api-crds
     - name: infrastructure-cert-manager-issuers
     - name: infrastructure-oauth2-proxy

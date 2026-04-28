@@ -11,6 +11,7 @@ kind: Kustomization
 resources:
   - infrastructure-coredns.yaml
   - infrastructure-cilium.yaml
+  - infrastructure-gateway-api-crds.yaml
   - infrastructure-cert-manager.yaml
   - infrastructure-cert-manager-issuers.yaml
   - infrastructure-oauth2-proxy.yaml
