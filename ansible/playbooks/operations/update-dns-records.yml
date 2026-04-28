@@ -3,8 +3,7 @@
 # Run this any time to bring Cloudflare into sync with hosts.yml.
 #
 # Usage:
-#   ansible-playbook -i ansible/inventory/hosts.yml \
-#     ansible/playbooks/operations/update-dns-records.yml
+#   ansible-playbook ansible/playbooks/operations/update-dns-records.yml
 
 - name: Update Cloudflare DNS records to match inventory declarations
   hosts: all
