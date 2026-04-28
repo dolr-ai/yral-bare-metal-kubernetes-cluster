@@ -96,7 +96,7 @@ spec:
           type: scram-sha-512
         configuration:
           brokerCertChainAndKey:
-            secretName: kafka-external-tls
+            secretName: kafka-external-tls-v2
             certificate: tls.crt
             key: tls.key
           bootstrap:
