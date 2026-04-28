@@ -30,7 +30,7 @@ spec:
     - kafka-broker-3.yral.com
   rules:
     - backendRefs:
-        - name: kafka-cluster-kafka-external-3
+        - name: kafka-cluster-combined-ceph-3
           namespace: kafka
           port: 9094
 ---
@@ -48,7 +48,7 @@ spec:
     - kafka-broker-4.yral.com
   rules:
     - backendRefs:
-        - name: kafka-cluster-kafka-external-4
+        - name: kafka-cluster-combined-ceph-4
           namespace: kafka
           port: 9094
 ---
@@ -66,6 +66,6 @@ spec:
     - kafka-broker-5.yral.com
   rules:
     - backendRefs:
-        - name: kafka-cluster-kafka-external-5
+        - name: kafka-cluster-combined-ceph-5
           namespace: kafka
           port: 9094
