@@ -5,6 +5,8 @@ metadata:
   namespace: kafka
 spec:
   secretName: kafka-external-tls
+  privateKey:
+    encoding: PKCS8
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
