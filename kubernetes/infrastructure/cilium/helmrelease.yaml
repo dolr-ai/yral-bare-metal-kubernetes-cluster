@@ -112,6 +112,10 @@ spec:
 
     operator:
       replicas: 2
+      podAnnotations:
+        # Bumped 2026-04-28: force operator restart to initialize TLSRoute controller
+        # after experimentalChannel: true was enabled in the previous upgrade.
+        kubectl.kubernetes.io/restartedAt: "2026-04-28"
       resources:
         limits:
           cpu: 1000m
