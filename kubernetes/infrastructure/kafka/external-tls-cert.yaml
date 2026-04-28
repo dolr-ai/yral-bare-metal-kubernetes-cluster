@@ -1,0 +1,15 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kafka-external-tls
+  namespace: kafka
+spec:
+  secretName: kafka-external-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - kafka.yral.com
+    - kafka-broker-3.yral.com
+    - kafka-broker-4.yral.com
+    - kafka-broker-5.yral.com

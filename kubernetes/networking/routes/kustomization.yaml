@@ -12,4 +12,5 @@ resources:
   - bytebase.yaml
   - harbor.yaml
   - cloudbeaver.yaml
-
+  - kafka.yaml
+  - kafka-referencegrant.yaml

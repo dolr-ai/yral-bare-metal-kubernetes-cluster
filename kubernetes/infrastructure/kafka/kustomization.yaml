@@ -7,3 +7,4 @@ resources:
   - topics.yaml
   - users.yaml
   - user-passwords.sops.yaml
+  - external-tls-cert.yaml

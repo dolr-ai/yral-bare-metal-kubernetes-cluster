@@ -19,3 +19,4 @@
     - role: kubernetes
     - role: control-plane-join
     - role: node-labels
+    - role: cloudflare-dns

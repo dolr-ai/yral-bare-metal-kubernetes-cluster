@@ -1,0 +1,13 @@
+---
+- name: Create/update Cloudflare DNS A records for {{ inventory_hostname }}
+  community.general.cloudflare_dns:
+    api_token: "{{ cloudflare_api_token }}"
+    zone: "{{ cloudflare_zone_name }}"
+    record: "{{ item.hostname | regex_replace('\\.' + cloudflare_zone_name + '$', '') }}"
+    type: A
+    value: "{{ ansible_host }}"
+    proxied: "{{ item.proxied | default(false) }}"
+    state: present
+  loop: "{{ cloudflare_dns_records }}"
+  delegate_to: localhost
+  when: cloudflare_dns_records is defined and cloudflare_dns_records | length > 0

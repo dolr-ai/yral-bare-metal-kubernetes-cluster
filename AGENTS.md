@@ -645,7 +645,12 @@ Individual tasks within roles may declare `become: true` when `delegate_to: targ
   - control-plane-4: HEL1-DC6
   - control-plane-5: HEL1-DC7
 - **Control plane HA**: DNS round-robin (`kubernetes-api.yral.com` → 5 A records, TTL=Auto, DNS-only at Cloudflare)
-- **Cloudflare DNS lifecycle**: `node-remove` role deletes the outgoing CP's A record from Cloudflare **before** running `kubeadm reset`. `control-plane-join` role adds the new CP's A record after a successful join. This prevents worker kubelets from resolving to a decommissioned API server IP during the removal window. Config: `cloudflare_zone_id` and `cloudflare_api_token` in `vars.yml`/`vault.yml`.
+- **Cloudflare DNS lifecycle**:
+  - **`hosts.yml` is the single source of truth** for which hostnames point to which nodes. Every node declares a `cloudflare_dns_records` list.
+  - **`ansible/roles/cloudflare-dns/`** iterates that list and upserts A records via `community.general.cloudflare_dns` (`delegate_to: localhost`). Config: `cloudflare_api_token` (vault) and `cloudflare_zone_name: yral.com` (vars.yml).
+  - `add-worker.yml` and `add-control-plane.yml` both end with the `cloudflare-dns` role — DNS is set automatically when a node joins.
+  - `ansible/playbooks/operations/update-dns-records.yml` — standalone idempotent playbook to sync all DNS records on demand from inventory.
+  - `node-remove` role deletes the outgoing node's A records from Cloudflare **before** running `kubeadm reset`. `control-plane-join` role also manages `kubernetes-api.yral.com` and `*.yral.com` records via raw API calls (predates the new role; idempotent with it).
 - Cilium v1.19.1 CNI with WireGuard encryption
 - Serial: 1 for node operations (one node at a time)
 
@@ -973,15 +978,19 @@ The correct enforcement point for access control in this cluster is an in-cluste
 
 **Service DNS — wildcard covers all `*.yral.com` hostnames automatically:**
 
-A single Cloudflare wildcard A record (`*.yral.com`) points to every node's public IP (all 5 CPs + all workers), DNS-only (not proxied — TLS is terminated inside the cluster at Cilium Gateway). This means **adding a new HTTPRoute for any `<name>.yral.com` hostname requires no DNS changes** — the wildcard resolves it immediately to all node IPs.
+A Cloudflare wildcard A record (`*.yral.com`, **proxied / orange cloud**) points to every node's public IP (all 5 CPs + all workers). Cloudflare proxies HTTP/HTTPS traffic, and TLS is terminated inside the cluster at the Cilium Gateway. This means **adding a new HTTPRoute for any `<name>.yral.com` hostname requires no DNS changes** — the wildcard resolves it immediately to all node IPs.
 
 Rationale: Cilium runs a full WireGuard-encrypted mesh across all nodes. Traffic arriving at *any* node — worker or control plane — is correctly routed by Cilium's envoy to the pod running the service, regardless of which node it lands on. The wildcard + all-node IPs gives natural load distribution and fault tolerance: if a node is down, DNS clients retry other IPs.
 
-**To expose a new service: just commit the HTTPRoute.** No Cloudflare DNS step required. Flux reconciles the route and it is immediately reachable at `https://<name>.yral.com`.
+**To expose a new HTTP/HTTPS service: just commit the HTTPRoute.** No Cloudflare DNS step required. Flux reconciles the route and it is immediately reachable at `https://<name>.yral.com`.
 
-**The only hostname that is NOT covered by the wildcard** is `kubernetes-api.yral.com`, which uses explicit per-CP A records managed by the `node-remove` and `control-plane-join` roles. Do not add it to the wildcard — its records must track exactly which CP nodes are live.
+**Grey cloud (DNS-only) exception — Kafka:** `kafka.yral.com` and `kafka-broker-{3,4,5}.yral.com` are explicit grey cloud A records pointing to workers 1–5. Cloudflare proxy only handles HTTP/HTTPS ports; TCP 9092 must be unproxied. These entries live in the `cloudflare_dns_records` lists for workers 1–5 in `hosts.yml` and are set by the `cloudflare-dns` Ansible role.
 
-**When adding or removing a node**, no service hostname DNS updates are needed (the wildcard covers all nodes automatically). Only `kubernetes-api.yral.com` requires role-managed A record updates, which the existing roles already handle.
+**To expose a new non-HTTP TCP service** on a port outside Cloudflare's proxy range: add explicit grey-cloud entries to `cloudflare_dns_records` for the relevant nodes in `hosts.yml`, then run `update-dns-records.yml`.
+
+**`kubernetes-api.yral.com`** uses explicit per-CP grey cloud A records managed by the `node-remove` and `control-plane-join` roles. Do not add it to the wildcard — its records must track exactly which CP nodes are live.
+
+**When adding or removing a node**, the `cloudflare-dns` role (called at the end of `add-worker.yml` / `add-control-plane.yml`) and the `node-remove` role handle all DNS automatically per the node's `cloudflare_dns_records`.
 
 **Exposure model — all services go via the Cilium Gateway:**
 
@@ -1006,6 +1015,18 @@ All services are exposed through the Cilium Gateway API. Auth is layered in fron
 4. Add the new `https://<hostname>/oauth2/callback` to the authorized redirect URIs in the Google Cloud OAuth app
 5. **Add a card for the new URL in `kubernetes/apps/dashboard/index.html`** — the dashboard at `dashboard.yral.com` is the canonical list of all hosted services; every new visitable URL must appear there
 6. Commit and push — Flux reconciles and the hostname is live immediately (wildcard DNS requires no Cloudflare changes)
+
+**Kafka external access (TCP, not HTTP):**
+
+Kafka is exposed via TLSRoute (SNI passthrough) on port 9092 — not HTTPRoute, because Kafka is a TCP binary protocol, not HTTP.
+
+- **Why TLSRoute, not TCPRoute**: Kafka's two-phase protocol requires per-broker connections after bootstrap. TLSRoute routes each connection by the SNI hostname in the TLS ClientHello, giving each broker its own routable address. TCPRoute has no SNI and would randomly load-balance all connections to the same backend, causing `NOT_LEADER_FOR_PARTITION` errors.
+- **Traffic flow**: external client → `kafka.yral.com:9092` (grey cloud, DNS-only) → Cilium Gateway TLSRoute → Strimzi ClusterIP service → Kafka pod (TLS + SCRAM-SHA-512 terminated at broker)
+- **Endpoints**: bootstrap `kafka.yral.com:9092`; per-broker `kafka-broker-{3,4,5}.yral.com:9092`
+- **Client config**: `security.protocol=SASL_SSL`, `sasl.mechanism=SCRAM-SHA-512`
+- **TLS certificate**: `kafka-external-tls` Certificate in the `kafka` namespace (cert-manager, `letsencrypt-prod` ClusterIssuer), covering all four DNS names
+- **CI user**: `ci-e2e-reader` KafkaUser — read-only ACLs on `snowplow-raw` topic and `ci-e2e-assert-*` consumer groups; password in `kafka-user-passwords` Secret (SOPS-encrypted). Fetched by CI via the kubeconfig secret `KUBECONFIG_FOR_E2E_TESTS_BASE64`.
+- **DNS**: Kafka hostnames are grey cloud (DNS-only) — declared in `cloudflare_dns_records` on workers 1–5 in `hosts.yml`; Cloudflare proxy cannot handle TCP 9092.
 
 **Dashboard — `dashboard.yral.com`:**
 A dark-mode internal homepage listing every hosted UI on the cluster. Its source of truth is `kubernetes/apps/dashboard/index.html`, which is packaged into a ConfigMap via `configMapGenerator`. **Every time a new visitable URL is added to the cluster (or removed), update `index.html` in the same commit.**

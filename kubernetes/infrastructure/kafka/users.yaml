@@ -181,6 +181,45 @@ spec:
           - Describe
           - DescribeConfigs
 ---
+# ci-e2e-reader: minimal read-only user for CI E2E test assertions against snowplow-raw
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: ci-e2e-reader
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  authentication:
+    type: scram-sha-512
+    password:
+      valueFrom:
+        secretKeyRef:
+          name: kafka-user-passwords
+          key: ci-e2e-reader-password
+  authorization:
+    type: simple
+    acls:
+      - resource:
+          type: topic
+          name: snowplow-raw
+          patternType: literal
+        operations:
+          - Read
+          - Describe
+      - resource:
+          type: group
+          name: ci-e2e-assert-
+          patternType: prefix
+        operations:
+          - Read
+      - resource:
+          type: cluster
+          name: kafka-cluster
+          patternType: literal
+        operations:
+          - Describe
+---
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaUser
 metadata:

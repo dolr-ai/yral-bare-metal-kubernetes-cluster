@@ -1,0 +1,15 @@
+---
+# Idempotent playbook to sync all Cloudflare DNS A records from inventory declarations.
+# Run this any time to bring Cloudflare into sync with hosts.yml.
+#
+# Usage:
+#   ansible-playbook -i ansible/inventory/hosts.yml \
+#     ansible/playbooks/operations/update-dns-records.yml \
+#     --vault-password-file ansible/.vault_pass
+
+- name: Update Cloudflare DNS records to match inventory declarations
+  hosts: all
+  gather_facts: false
+  roles:
+    - role: cloudflare-dns
+      when: cloudflare_dns_records is defined and cloudflare_dns_records | length > 0

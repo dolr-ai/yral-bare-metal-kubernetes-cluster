@@ -19,3 +19,4 @@
     - role: kubernetes
     - role: worker-join
     - role: node-labels
+    - role: cloudflare-dns
