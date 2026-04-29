@@ -19,6 +19,7 @@
 		"ghcr.io/devcontainers-extra/features/ripgrep:1": {},
 		"ghcr.io/devcontainers/features/rust:1": {},
 		"ghcr.io/devcontainers-extra/features/direnv:1": {},
+		"ghcr.io/irfansofyana/devcontainer-features/kcat-apt:1": {}
 	},
 	// Make host.docker.internal resolve to the host machine (for Ollama, etc.)
 	"runArgs": [
