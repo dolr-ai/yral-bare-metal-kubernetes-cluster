@@ -11,8 +11,30 @@ echo "========================================="
 # Install system packages
 echo ""
 echo "Installing system packages..."
-sudo apt-get update -qq && sudo apt-get install -y -qq dnsutils
-echo "✓ Installed dnsutils (dig, nslookup, host)"
+sudo apt-get update -qq && sudo apt-get install -y -qq dnsutils unzip
+echo "✓ Installed dnsutils (dig, nslookup, host) + unzip"
+
+# Install rpk (Redpanda CLI) — Kafka-API compatible client, replaces unmaintained kcat.
+# Single static binary; pulled from latest GitHub release for the current arch.
+echo ""
+echo "Installing rpk..."
+if command -v rpk >/dev/null 2>&1; then
+    echo "✓ rpk already installed: $(rpk version 2>/dev/null | head -1)"
+else
+    case "$(uname -m)" in
+        x86_64)  RPK_ARCH=amd64 ;;
+        aarch64) RPK_ARCH=arm64 ;;
+        *)       echo "⚠ Unsupported arch $(uname -m) — skipping rpk install"; RPK_ARCH="" ;;
+    esac
+    if [ -n "$RPK_ARCH" ]; then
+        TMP=$(mktemp -d)
+        curl -fsSL "https://github.com/redpanda-data/redpanda/releases/latest/download/rpk-linux-${RPK_ARCH}.zip" -o "$TMP/rpk.zip"
+        sudo unzip -q -o "$TMP/rpk.zip" -d /usr/local/bin rpk
+        sudo chmod +x /usr/local/bin/rpk
+        rm -rf "$TMP"
+        echo "✓ Installed rpk to /usr/local/bin/rpk"
+    fi
+fi
 
 # Install Python packages
 echo ""
