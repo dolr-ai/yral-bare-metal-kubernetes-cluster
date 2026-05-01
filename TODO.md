@@ -59,3 +59,4 @@ The key never leaves the cluster and is encrypted at rest inside etcd (Kubernete
 - Check if Hetzner has Ubuntu 26.04 and use that everywhere
 - cleanup the rust counter service when done testing cloudnative pg with it
 - flux bootstrap instead of flux install. Currently flux tab on headlamp shows not bootstrapped
+- setup flux alerts and provider to google chat
