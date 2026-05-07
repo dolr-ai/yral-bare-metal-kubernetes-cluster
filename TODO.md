@@ -60,3 +60,5 @@ The key never leaves the cluster and is encrypted at rest inside etcd (Kubernete
 - cleanup the rust counter service when done testing cloudnative pg with it
 - flux bootstrap instead of flux install. Currently flux tab on headlamp shows not bootstrapped
 - setup flux alerts and provider to google chat
+- move the self hosted beszel to kubernetes
+- move the self hosted uptime kuma to kubernetes
