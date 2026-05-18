@@ -386,14 +386,14 @@ Kubernetes secrets that belong to cluster workloads (e.g. `cloudflare-api-token`
 
 | Secret | Stored in | Materialized by |
 |--------|-----------|-----------------|
-| Ansible/infra secrets (SSH keys, API passwords, kubeconfig, GitHub PAT) | `ansible-vault` (`vault.yml`) | `postCreate.sh` |
-| Age private key (Flux decryption root of trust) | `ansible-vault` (`vault.yml`) | `postCreate.sh` → `sops-age` Secret in `flux-system` |
+| Ansible/infra secrets (SSH keys, API passwords, kubeconfig, GitHub PAT) | `ansible-vault` (`vault.yml`) | `scripts/setup-local-env.sh` |
+| Age private key (Flux decryption root of trust) | `ansible-vault` (`vault.yml`) | `scripts/setup-local-env.sh` → `sops-age` Secret in `flux-system` |
 | Kubernetes workload secrets (cloudflare token, etc.) | SOPS-encrypted `*.sops.yaml` in `kubernetes/` | Flux (decrypts via `sops-age` key) |
 
 **Why this split:**
 - Ansible vault protects infrastructure-level secrets (pre-cluster-API)
 - SOPS protects cluster workload secrets (post-cluster-API, fully GitOps)
-- `postCreate.sh` only handles the bridge: it materializes the age key into the cluster so Flux can take over
+- `scripts/setup-local-env.sh` only handles the bridge: it materializes the age key into the cluster so Flux can take over
 
 **SOPS setup (one-time per cluster):**
 ```bash
@@ -413,8 +413,8 @@ ansible-vault edit ansible/inventory/group_vars/all/vault.yml
 # 4. Remove temp key file
 rm /tmp/age.key
 
-# 5. Source postCreate.sh to apply sops-age secret to cluster
-source .devcontainer/postCreate.sh
+# 5. Run setup script to apply sops-age secret to cluster
+bash scripts/setup-local-env.sh
 ```
 
 **Adding a new Kubernetes secret (SOPS workflow):**
@@ -597,19 +597,24 @@ Never silently pick "latest" or assume the most recent release — always get ex
 
 ### Hetzner Integration
 - Provisioning uses Hetzner Robot API + installimage script
-- SSH keys from vault, extracted by postCreate.sh
+- SSH keys from vault, extracted by `scripts/setup-local-env.sh`
 - Machine hostname passed to install script via environment variable
 
-### DevContainer Setup (`postCreate.sh`)
+### Local Environment Setup (`scripts/setup-local-env.sh`)
 
-`postCreate.sh` runs automatically on container creation and is the single source of truth for all environment bootstrapping. It handles:
-- Installing Python packages and Ansible collections
+`scripts/setup-local-env.sh` is the single source of truth for all local environment bootstrapping on macOS. Run it once on a new machine and re-run after vault changes. It is idempotent.
+
+It handles:
+- Installing system tools via Homebrew (direnv, kubectl, helm, flux, sops, age, gh, rpk)
+- Installing Python packages (`pip3`) and Ansible collections (`ansible-galaxy`)
 - Extracting the SSH private key (`vault_github_actions_ssh_private_key`) from vault to `~/.ssh/hetzner-ansible-key`
 - Writing `~/.kube/config` from `vault_kubeconfig`
-- Injecting `GITHUB_TOKEN` into `~/.bashrc`
-- Applying the `sops-age` secret to the cluster
+- Writing the age private key to `~/.config/sops/age/keys.txt` and applying the `sops-age` Secret to the cluster
+- Generating `.envrc` (gitignored) from vault — `direnv` scopes `GITHUB_TOKEN`, `CLOUDFLARE_API_TOKEN`, AWS credentials, and `KUBECONFIG` to this directory only
 
-**All secrets must be extracted in `postCreate.sh` using `yaml.safe_load` via Python** — not grep/sed. The vault file is at `ansible/inventory/group_vars/all/vault.yml`. Example pattern:
+**`.envrc` is gitignored and generated from vault** — never commit it. Re-run the script to refresh after vault changes.
+
+**All secrets must be extracted using `yaml.safe_load` via Python** — not grep/sed. The vault file is at `ansible/inventory/group_vars/all/vault.yml`. Example pattern:
 ```bash
 VALUE=$(ansible-vault view "$ANSIBLE_DIR/inventory/group_vars/all/vault.yml" 2>/dev/null | \
     python3 -c "
@@ -619,7 +624,7 @@ print(d.get('vault_my_secret', ''))
 ")
 ```
 
-**If the SSH key or any other secret is missing after a container rebuild, fix `postCreate.sh` — never extract secrets manually in the terminal.** The postCreate.sh script is the contract that makes the devcontainer self-contained; workarounds defeat that contract and will silently break for future agents.
+**If any secret is missing after running the script, fix `setup-local-env.sh` — never extract secrets manually in the terminal.** The script is the contract that makes the local environment self-contained; workarounds defeat that contract and will silently break for future engineers.
 
 ### `become` usage
 
@@ -867,6 +872,50 @@ The Altinity operator creates two services for the `analytics` installation:
 - `chi-analytics-events-0-0.clickhouse.svc.cluster.local` — the per-pod headless service, not for general use
 
 **Always use `clickhouse-analytics.clickhouse.svc.cluster.local:8123`** when connecting to ClickHouse from within the cluster (Metabase, backfill jobs, any tooling). `chi-analytics-events.clickhouse.svc.cluster.local` does not exist and will fail DNS resolution.
+
+### Vast.ai GPU Provisioning
+
+GPU instances for workloads like Ollama are provisioned via the `vastai-provision` role, not via Kubernetes.
+
+**Role and playbook:**
+- Role: `ansible/roles/vastai-provision/`
+- Playbook: `ansible/playbooks/operations/vastai-provision.yml`
+
+**Authentication:**
+- API key stored in vault as `vault_vastai_api_key`; indirection in `vars.yml` as `vastai_api_key`
+- The role calls `vastai set api-key` on each run — the key is never committed to git
+
+**SSH key — shared infrastructure keypair:**
+- The same SSH key used for Hetzner nodes (`~/.ssh/hetzner-ansible-key`, from `vault_github_actions_ssh_private_key`) is also attached to every Vast.ai instance
+- The public half is stored as plaintext in `vars.yml` as `github_actions_ssh_pub_key` (public keys are not secret)
+- To populate it: run `ssh-keygen -y -f ~/.ssh/hetzner-ansible-key` and paste the output into `vars.yml`
+- The role registers the key with the Vast.ai account on every run (idempotent — skip if already registered) and then explicitly attaches it to each created instance via the REST API
+
+**Replica placement for resilience:**
+- Always provision `vastai_num_replicas` (default: 2) instances
+- The role selects the top N cheapest distinct offers and creates one instance per offer — each replica lands on a different physical machine
+- Never reduce to 1 replica in production; services must survive one preemption
+
+**Key parameters (all overridable with `-e`):**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `vastai_image` | `vastai/ollama` | Docker image to boot |
+| `vastai_vram_min_gb` | `40` | Minimum combined VRAM across all GPUs (GB) |
+| `vastai_num_replicas` | `2` | Number of instances to provision |
+| `vastai_disk_gb` | `100` | Disk per instance (GB) |
+| `vastai_ssh` | `true` | Enable SSH on instance |
+| `vastai_direct` | `true` | Direct connection (bypasses Vast.ai proxy) |
+
+**Search behaviour:** All rental types (interruptible, on-demand, reserved) are searched together. Results are sorted by `dph_total` ascending so the cheapest option wins regardless of type. Set `vastai_num_replicas >= 2` to tolerate preemption of interruptible instances.
+
+**Adding a new workload profile:** Override variables at the playbook invocation; do not create a new playbook. For example, a 80 GB VRAM profile:
+```bash
+ansible-playbook ansible/playbooks/operations/vastai-provision.yml \
+  -e vastai_vram_min_gb=80 \
+  -e vastai_num_replicas=2 \
+  -e vastai_disk_gb=200
+```
 
 ### Inventory Structure
 - `control_plane` group: control plane hosts

@@ -20,6 +20,9 @@ ENV/
 .DS_Store
 Thumbs.db
 
+# direnv — generated from vault by scripts/setup-local-env.sh, never commit
+.envrc
+
 # Temporary files
 *.log
 *.tmp
