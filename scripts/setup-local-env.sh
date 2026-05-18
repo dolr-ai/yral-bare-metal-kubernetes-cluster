@@ -191,6 +191,18 @@ S3_SECRET_KEY=$(ansible-vault view "$ANSIBLE_DIR/inventory/group_vars/all/vault.
 direnv allow "$REPO_ROOT"
 echo "✓ .envrc generated and allowed — venv + secrets scoped to this directory via direnv"
 
+# Authenticate Vast.ai CLI — writes API key to ~/.config/vastai/api_key once
+echo ""
+echo "Authenticating Vast.ai CLI..."
+VASTAI_API_KEY=$(ansible-vault view "$ANSIBLE_DIR/inventory/group_vars/all/vault.yml" | \
+    python3 -c "import sys,yaml; d=yaml.safe_load(sys.stdin); print(d.get('vault_vastai_api_key',''))")
+if [ -n "$VASTAI_API_KEY" ]; then
+    vastai set api-key "$VASTAI_API_KEY"
+    echo "✓ Vast.ai API key configured"
+else
+    echo "⚠ vault_vastai_api_key not found in vault (add it when ready)"
+fi
+
 # Configure GitHub CLI to use SSH
 echo ""
 echo "Configuring GitHub CLI..."

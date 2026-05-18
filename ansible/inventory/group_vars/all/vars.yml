@@ -11,17 +11,25 @@ hetzner_robot_api_password: "{{ vault_hetzner_robot_api_password }}"  # Indirect
 hetzner_s3_access_key: "XO5X9A1W8AMHY3DSTKMS"
 hetzner_s3_secret_key: "{{ vault_hetzner_s3_secret_key }}"  # Indirection to vault
 
-# Kubernetes cluster admin kubeconfig (stored in vault, used by postCreate.sh)
+# Kubernetes cluster admin kubeconfig (stored in vault, used by scripts/setup-local-env.sh)
 kubeconfig: "{{ vault_kubeconfig }}"  # Indirection to vault
 
-# GitHub PAT for Flux bootstrap (stored in vault, exported as GITHUB_TOKEN by postCreate.sh)
+# GitHub PAT for Flux bootstrap (stored in vault, exported as GITHUB_TOKEN by scripts/setup-local-env.sh)
 github_flux_token: "{{ vault_github_flux_token }}"  # Indirection to vault
 
 # Age private key for Flux SOPS decryption
-# postCreate.sh creates k8s Secret 'sops-age' in flux-system namespace.
+# scripts/setup-local-env.sh creates k8s Secret 'sops-age' in flux-system namespace.
 # Flux uses this key to decrypt *.sops.yaml files from git (e.g. cloudflare-api-token).
 # To generate: age-keygen -o /tmp/age.key  (then store contents as vault_age_private_key)
 age_private_key: "{{ vault_age_private_key }}"  # Indirection to vault
+
+# Infrastructure SSH keypair — used for all node access (Hetzner and Vast.ai).
+# Private key is secret (vault); public key is plaintext (safe to commit).
+# scripts/setup-local-env.sh extracts the private key to ~/.ssh/hetzner-ansible-key.
+# ansible.cfg references that path as private_key_file for all remote plays.
+# To get the public key: ssh-keygen -y -f ~/.ssh/hetzner-ansible-key
+github_actions_ssh_private_key: "{{ vault_github_actions_ssh_private_key }}"  # Indirection to vault
+github_actions_ssh_pub_key: ""  # Plaintext — fill in with: ssh-keygen -y -f ~/.ssh/hetzner-ansible-key
 
 # Cloudflare DNS management for kubernetes-api round-robin A records
 # Used by node-remove and control-plane-join roles to update DNS on CP add/remove
@@ -30,3 +38,6 @@ cloudflare_zone_id: "f0e13310b0b3c66709f0debd5e3bbb10"
 cloudflare_zone_name: "yral.com"
 kubernetes_api_hostname: "kubernetes-api.yral.com"
 cloudflare_app_wildcard_hostname: "*.yral.com"  # Proxied wildcard served by cilium-envoy on all nodes
+
+# Vast.ai API key for GPU instance provisioning
+vastai_api_key: "{{ vault_vastai_api_key }}"  # Indirection to vault

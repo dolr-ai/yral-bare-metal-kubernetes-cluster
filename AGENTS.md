@@ -883,7 +883,7 @@ GPU instances for workloads like Ollama are provisioned via the `vastai-provisio
 
 **Authentication:**
 - API key stored in vault as `vault_vastai_api_key`; indirection in `vars.yml` as `vastai_api_key`
-- The role calls `vastai set api-key` on each run — the key is never committed to git
+- `scripts/setup-local-env.sh` calls `vastai set api-key` once during local setup (writes to `~/.config/vastai/api_key`) — the key is never committed to git
 
 **SSH key — shared infrastructure keypair:**
 - The same SSH key used for Hetzner nodes (`~/.ssh/hetzner-ansible-key`, from `vault_github_actions_ssh_private_key`) is also attached to every Vast.ai instance
