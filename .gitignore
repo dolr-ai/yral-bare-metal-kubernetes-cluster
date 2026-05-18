@@ -23,6 +23,9 @@ Thumbs.db
 # direnv — generated from vault by scripts/setup-local-env.sh, never commit
 .envrc
 
+# Python venv managed by uv
+.venv/
+
 # Temporary files
 *.log
 *.tmp

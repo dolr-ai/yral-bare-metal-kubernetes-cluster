@@ -605,8 +605,8 @@ Never silently pick "latest" or assume the most recent release — always get ex
 `scripts/setup-local-env.sh` is the single source of truth for all local environment bootstrapping on macOS. Run it once on a new machine and re-run after vault changes. It is idempotent.
 
 It handles:
-- Installing system tools via Homebrew (direnv, kubectl, helm, flux, sops, age, gh, rpk)
-- Installing Python packages (`pip3`) and Ansible collections (`ansible-galaxy`)
+- Installing system tools via Homebrew (direnv, kubectl, helm, flux, sops, age, gh, rpk, uv)
+- Syncing Python dependencies via `uv` (`pyproject.toml` → `.venv`) and installing Ansible collections (`ansible-galaxy`)
 - Extracting the SSH private key (`vault_github_actions_ssh_private_key`) from vault to `~/.ssh/hetzner-ansible-key`
 - Writing `~/.kube/config` from `vault_kubeconfig`
 - Writing the age private key to `~/.config/sops/age/keys.txt` and applying the `sops-age` Secret to the cluster

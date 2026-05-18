@@ -8,7 +8,7 @@
 # All files matching *.sops.yaml under kubernetes/ are encrypted with age.
 # The age public key below comes from the age keypair stored in ansible-vault.
 #
-# Initial setup (run once after devcontainer rebuild):
+# Initial setup (run once on a new machine):
 #   1. age-keygen -o /tmp/age.key
 #   2. Copy the public key line (# public key: age1...) from the output
 #   3. Replace the placeholder below with that public key
