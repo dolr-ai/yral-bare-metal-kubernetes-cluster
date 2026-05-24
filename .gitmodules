@@ -4,3 +4,6 @@
 [submodule "apps/yral-backend-canister"]
 	path = apps/yral-backend-canister
 	url = https://github.com/dolr-ai/yral-backend-canister.git
+[submodule "apps/saikat-api"]
+	path = apps/saikat-api
+	url = https://github.com/dolr-ai/saikat-api.git
