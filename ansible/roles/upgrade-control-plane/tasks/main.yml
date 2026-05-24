@@ -201,11 +201,9 @@
       delegate_to: localhost
 
     - name: Confirm SSH is responsive
-      # wait_for_connection uses Ansible's own SSH mechanism (private_key_file
-      # from ansible.cfg), which is correct in all environments including CI
-      # where there is no SSH agent. A bare `ssh` command without -i would fail
-      # with "Permission denied (publickey)" in CI because it cannot find the
-      # hetzner-ansible-key at a default SSH path.
+      # wait_for_connection uses Ansible's own SSH mechanism, which reads
+      # ~/.ssh/id_ed25519 (the default identity) — works in every environment
+      # including CI, no SSH agent needed.
       ansible.builtin.wait_for_connection:
         timeout: 300
         sleep: 5

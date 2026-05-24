@@ -111,7 +111,7 @@
 
     - name: Verify rescue system is booted
       ansible.builtin.shell: |
-        ssh -i /home/vscode/.ssh/hetzner-ansible-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 \
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 \
           root@{{ provision_server_ip }} \
           "test -f /root/.oldroot/nfs/install/installimage && echo 'rescue_ready'"
       register: provision_rescue_check
@@ -123,7 +123,7 @@
 
     - name: Detect drive type
       ansible.builtin.shell: |
-        ssh -i /home/vscode/.ssh/hetzner-ansible-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
           root@{{ provision_server_ip }} \
           "lsblk -d -o NAME 2>/dev/null"
       register: provision_drive_list
@@ -140,7 +140,7 @@
 
     - name: Run Ubuntu installation script
       ansible.builtin.shell: |
-        ssh -i /home/vscode/.ssh/hetzner-ansible-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
           root@{{ provision_server_ip }} \
           "curl -fsSL https://raw.githubusercontent.com/{{ provision_github_repository }}/main/scripts/install-ubuntu.sh | \
           MACHINE_HOSTNAME='{{ inventory_hostname }}' \
@@ -158,7 +158,7 @@
 
     - name: Reboot server into Ubuntu
       ansible.builtin.shell: |
-        ssh -i /home/vscode/.ssh/hetzner-ansible-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
           root@{{ provision_server_ip }} "reboot" || true
       changed_when: true
       delegate_to: localhost
@@ -174,7 +174,7 @@
 
     - name: Verify Ubuntu is running
       ansible.builtin.shell: |
-        ssh -i /home/vscode/.ssh/hetzner-ansible-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 \
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 \
           root@{{ provision_server_ip }} \
           "cat /etc/os-release | grep Ubuntu"
       register: provision_ubuntu_check

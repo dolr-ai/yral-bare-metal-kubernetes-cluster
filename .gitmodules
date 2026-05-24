@@ -1,9 +1,9 @@
 [submodule "apps/yral-mobile"]
 	path = apps/yral-mobile
-	url = https://github.com/dolr-ai/yral-mobile
+	url = git@github.com:dolr-ai/yral-mobile.git
 [submodule "apps/yral-backend-canister"]
 	path = apps/yral-backend-canister
-	url = https://github.com/dolr-ai/yral-backend-canister.git
+	url = git@github.com:dolr-ai/yral-backend-canister.git
 [submodule "apps/saikat-api"]
 	path = apps/saikat-api
-	url = https://github.com/dolr-ai/saikat-api.git
+	url = git@github.com:dolr-ai/saikat-api.git

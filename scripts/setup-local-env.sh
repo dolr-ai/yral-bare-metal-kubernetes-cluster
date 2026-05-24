@@ -97,7 +97,9 @@ if [ ! -f "$ANSIBLE_DIR/.vault_pass" ]; then
     exit 0
 fi
 
-# Extract SSH private key — ansible.cfg references ~/.ssh/hetzner-ansible-key as private_key_file
+# Extract SSH private key to the default SSH identity path so ssh, git, and
+# ansible all pick it up automatically without explicit -i flags or
+# private_key_file config. Single key for infra access and git operations.
 echo ""
 echo "Setting up SSH key..."
 SSH_KEY=$(ansible-vault view "$ANSIBLE_DIR/inventory/group_vars/all/vault.yml" | \
@@ -107,7 +109,7 @@ d = yaml.safe_load(sys.stdin)
 print(d.get('vault_github_actions_ssh_private_key', ''))
 ")
 if [ -n "$SSH_KEY" ]; then
-    SSH_KEY_FILE="$HOME/.ssh/hetzner-ansible-key"
+    SSH_KEY_FILE="$HOME/.ssh/id_ed25519"
     mkdir -p "$(dirname "$SSH_KEY_FILE")"
     printf '%s\n' "$SSH_KEY" > "$SSH_KEY_FILE"
     chmod 600 "$SSH_KEY_FILE"

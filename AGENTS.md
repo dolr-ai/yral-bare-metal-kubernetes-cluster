@@ -600,6 +600,17 @@ Never silently pick "latest" or assume the most recent release — always get ex
 - SSH keys from vault, extracted by `scripts/setup-local-env.sh`
 - Machine hostname passed to install script via environment variable
 
+### Operator and CI Parity Model
+
+This repo is operated under a **solo custody model**, not a team-shared one. Several design choices follow from this and must be preserved:
+
+- **Sole key holder**: only Saikat holds the infrastructure SSH private key (`vault_github_actions_ssh_private_key`, extracted to `~/.ssh/id_ed25519` — the default SSH identity path). No other engineers hold or use it. Threat-model the blast radius of this key as "Saikat's machines + CI runners", not "the team".
+- **Vault password is the only shared secret**: `ansible/.vault_pass` is the single knob that must be configured on both local dev and CI. Everything else materializes from the vault via `scripts/setup-local-env.sh`. Do not introduce new secrets that have to be set separately on local vs. CI — that breaks the symmetry.
+- **CI runs on macOS runners deliberately**: to mirror local dev exactly and eliminate "works on my machine" divergence. The same `setup-local-env.sh` bootstrap and the same Homebrew-installed tool versions run on both surfaces. Do not propose switching CI to Linux runners "for speed/cost" — it would break parity. When adding tooling, prefer Homebrew-installable versions; do not branch scripts on platform.
+- **Single SSH key for both infra access and git operations**: the infra SSH key (`vault_github_actions_ssh_private_key` → `~/.ssh/id_ed25519`) is registered on GitHub. Because it lives at the default SSH identity path, no `-i` flags or explicit `private_key_file` config are needed anywhere — `ssh`, `git`, and `ansible` all pick it up automatically. It authenticates `git` operations against this repo's `origin` and all submodules (`.gitmodules` URLs are all `git@github.com:...`). One key, one rotation surface, identical behavior on local and CI.
+- **Tokens are still required for API-level operations** (not git): `vault_github_flux_token` (exposed as `GITHUB_TOKEN` via direnv) is needed for `gh` CLI API calls and Flux bootstrap; GitHub Actions uses the built-in `GITHUB_TOKEN`; GHCR pushes use tokens. SSH is for `git` only.
+- **Flux's `GitRepository` stays on HTTPS+token**: the in-cluster Flux source uses `--token-auth` per the bootstrap step (see the Flux section below). Do not migrate Flux to SSH without also adding an identity to the `flux-system` secret — it would break the running controller. The infra SSH key is for git CLI on the operator's machines and CI, not for in-cluster Flux.
+
 ### Local Environment Setup (`scripts/setup-local-env.sh`)
 
 `scripts/setup-local-env.sh` is the single source of truth for all local environment bootstrapping on macOS. Run it once on a new machine and re-run after vault changes. It is idempotent.
@@ -607,7 +618,7 @@ Never silently pick "latest" or assume the most recent release — always get ex
 It handles:
 - Installing system tools via Homebrew (direnv, kubectl, helm, flux, sops, age, gh, rpk, uv)
 - Syncing Python dependencies via `uv` (`pyproject.toml` → `.venv`) and installing Ansible collections (`ansible-galaxy`)
-- Extracting the SSH private key (`vault_github_actions_ssh_private_key`) from vault to `~/.ssh/hetzner-ansible-key`
+- Extracting the SSH private key (`vault_github_actions_ssh_private_key`) from vault to `~/.ssh/id_ed25519` (the default SSH identity)
 - Writing `~/.kube/config` from `vault_kubeconfig`
 - Writing the age private key to `~/.config/sops/age/keys.txt` and applying the `sops-age` Secret to the cluster
 - Generating `.envrc` (gitignored) from vault — `direnv` scopes `GITHUB_TOKEN`, `CLOUDFLARE_API_TOKEN`, AWS credentials, and `KUBECONFIG` to this directory only
@@ -886,9 +897,9 @@ GPU instances for workloads like Ollama are provisioned via the `vastai-provisio
 - `scripts/setup-local-env.sh` calls `vastai set api-key` once during local setup (writes to `~/.config/vastai/api_key`) — the key is never committed to git
 
 **SSH key — shared infrastructure keypair:**
-- The same SSH key used for Hetzner nodes (`~/.ssh/hetzner-ansible-key`, from `vault_github_actions_ssh_private_key`) is also attached to every Vast.ai instance
+- The same SSH key used for Hetzner nodes (`~/.ssh/id_ed25519`, from `vault_github_actions_ssh_private_key`) is also attached to every Vast.ai instance
 - The public half is stored as plaintext in `vars.yml` as `github_actions_ssh_pub_key` (public keys are not secret)
-- To populate it: run `ssh-keygen -y -f ~/.ssh/hetzner-ansible-key` and paste the output into `vars.yml`
+- To populate it: run `ssh-keygen -y -f ~/.ssh/id_ed25519` and paste the output into `vars.yml`
 - The role registers the key with the Vast.ai account on every run (idempotent — skip if already registered) and then explicitly attaches it to each created instance via the REST API
 
 **Replica placement for resilience:**
