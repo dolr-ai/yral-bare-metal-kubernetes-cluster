@@ -23,7 +23,6 @@ resources:
   - infrastructure-cloudnative-pg.yaml
   - infrastructure-reloader.yaml
   - infrastructure-monitoring.yaml
-  - infrastructure-vpa.yaml
   - infrastructure-headlamp.yaml
   - infrastructure-loki.yaml
   - infrastructure-alloy.yaml

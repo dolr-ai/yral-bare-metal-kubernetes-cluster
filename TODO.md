@@ -63,3 +63,5 @@ The key never leaves the cluster and is encrypted at rest inside etcd (Kubernete
 - move the self hosted beszel to kubernetes
 - move the self hosted uptime kuma to kubernetes
 - Instead of beszel move all bare metal servers to grafana and prometheus node exporter and use grafana to monitor them instead of having a separate monitoring solution for the bare metal servers
+- Setup networking so that we specifically allowlist which pods can talk to each other
+- Remove ffmpeg@7 after done with offchain changes
