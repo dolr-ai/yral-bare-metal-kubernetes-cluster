@@ -20,6 +20,16 @@
                 "panel": "shared"
             },
             "problemMatcher": []
+        },
+        {
+            "label": "SSH to Ollama",
+            "type": "shell",
+            "command": "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 11899 root@205.196.17.122 -L 11434:localhost:11434",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
         }
     ]
 }

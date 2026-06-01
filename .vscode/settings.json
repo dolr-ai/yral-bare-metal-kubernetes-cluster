@@ -6,9 +6,9 @@
             "autoForwardAction": "ignore"
         }
     },
-    "chat.planAgent.defaultModel": "qwen3.6:latest (ollama)",
-    "inlineChat.defaultModel": "qwen3.6:latest (ollama)",
-    "chat.exploreAgent.defaultModel": "qwen3.6:latest (ollama)",
-    "chat.utilityModel": "ollama/qwen3.6:latest",
-    "chat.utilitySmallModel": "ollama/qwen3.6:latest"
+    "chat.planAgent.defaultModel": "qwen3.6:27b-bf16 (ollama)",
+    "inlineChat.defaultModel": "qwen3.6:27b-bf16 (ollama)",
+    "chat.exploreAgent.defaultModel": "qwen3.6:27b-bf16 (ollama)",
+    "chat.utilityModel": "ollama/qwen3.6:27b-bf16",
+    // "chat.utilitySmallModel": "ollama/qwen3.6:27b-bf16"
 }
