@@ -22,9 +22,9 @@
 [submodule "apps/yral-metadata"]
 	path = apps/yral-metadata
 	url = https://github.com/dolr-ai/yral-metadata.git
-[submodule "apps/yral-auth-v2"]
-	path = apps/yral-auth-v2
-	url = https://github.com/dolr-ai/yral-auth-v2.git
+[submodule "apps/yral-auth"]
+	path = apps/yral-auth
+	url = https://github.com/dolr-ai/yral-auth.git
 [submodule "apps/off-chain-agent"]
 	path = apps/off-chain-agent
 	url = https://github.com/dolr-ai/off-chain-agent.git

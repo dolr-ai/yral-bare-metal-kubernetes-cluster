@@ -40,5 +40,5 @@ git submodule update --init --recursive
 | `apps/website/` | https://github.com/dolr-ai/website | Not yet present in `kubernetes/apps/` |
 | `apps/yral-billing/` | https://github.com/dolr-ai/yral-billing | Not yet present in `kubernetes/apps/` |
 | `apps/yral-metadata/` | https://github.com/dolr-ai/yral-metadata | Not yet present in `kubernetes/apps/` |
-| `apps/yral-auth-v2/` | https://github.com/dolr-ai/yral-auth-v2 | Not yet present in `kubernetes/apps/` |
+| `apps/yral-auth/` | https://github.com/dolr-ai/yral-auth | Not yet present in `kubernetes/apps/` |
 | `apps/off-chain-agent/` | https://github.com/dolr-ai/off-chain-agent | Not yet present in `kubernetes/apps/` |
