@@ -9,22 +9,22 @@
 	url = git@github.com:dolr-ai/saikat-api.git
 [submodule "apps/yral-common"]
 	path = apps/yral-common
-	url = https://github.com/dolr-ai/yral-common.git
+	url = git@github.com:dolr-ai/yral-common.git
 [submodule "apps/hot-or-not-web-leptos-ssr"]
 	path = apps/hot-or-not-web-leptos-ssr
-	url = https://github.com/dolr-ai/hot-or-not-web-leptos-ssr.git
+	url = git@github.com:dolr-ai/hot-or-not-web-leptos-ssr.git
 [submodule "apps/website"]
 	path = apps/website
-	url = https://github.com/dolr-ai/website.git
+	url = git@github.com:dolr-ai/website.git
 [submodule "apps/yral-billing"]
 	path = apps/yral-billing
-	url = https://github.com/dolr-ai/yral-billing.git
+	url = git@github.com:dolr-ai/yral-billing.git
 [submodule "apps/yral-metadata"]
 	path = apps/yral-metadata
-	url = https://github.com/dolr-ai/yral-metadata.git
+	url = git@github.com:dolr-ai/yral-metadata.git
 [submodule "apps/yral-auth"]
 	path = apps/yral-auth
-	url = https://github.com/dolr-ai/yral-auth.git
+	url = git@github.com:dolr-ai/yral-auth.git
 [submodule "apps/off-chain-agent"]
 	path = apps/off-chain-agent
-	url = https://github.com/dolr-ai/off-chain-agent.git
+	url = git@github.com:dolr-ai/off-chain-agent.git
