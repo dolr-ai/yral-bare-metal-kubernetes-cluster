@@ -10,5 +10,11 @@
     "inlineChat.defaultModel": "qwen3.6:27b-mtp-bf16 (ollama)",
     "chat.exploreAgent.defaultModel": "qwen3.6:27b-mtp-bf16 (ollama)",
     "chat.utilityModel": "ollama/qwen3.6:27b-mtp-bf16",
+    "todo-tree.tree.scanMode": "workspace",
+    "todo-tree.tree.showBadges": true,
+    "todo-tree.tree.showCountsInTree": true,
     // "chat.utilitySmallModel": "ollama/qwen3.6:27b-mtp-bf16"
+    "rust-analyzer.linkedProjects": [
+        "./apps/yral-backend-canister/Cargo.toml",
+    ]
 }

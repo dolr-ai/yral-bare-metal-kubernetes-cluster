@@ -24,8 +24,8 @@
         {
             "label": "SSH to Ollama",
             "type": "shell",
-            // "command": "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@38.128.233.132 -p 16666",
-            "command": "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@38.128.233.132 -p 16666 -L 11434:localhost:11434 ",
+            // "command": "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@216.81.245.34 -p 11222",
+            "command": "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@216.81.245.34 -p 11222 -L 11434:localhost:11434 ",
             "presentation": {
                 "reveal": "always",
                 "panel": "new"

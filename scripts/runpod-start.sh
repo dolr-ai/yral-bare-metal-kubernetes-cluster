@@ -1,7 +1,10 @@
-curl -fsSL https://ollama.com/install.sh | bash;
-ollama pull qwen3.6:27b-bf16;
-export OLLAMA_CONTEXT_LENGTH=256000;
-export OLLAMA_MODELS=/workspace/models;
-export OLLAMA_NUM_PARALLEL=4;
-export OLLAMA_KEEP_ALIVE=-1;
-export OLLAMA_FLASH_ATTENTION=1;
+curl -fsSL https://ollama.com/install.sh | bash
+source ~/.bashrc
+sleep 5
+ollama serve &
+sleep 5
+ollama pull qwen3.6:27b-mtp-bf16
+ollama run qwen3.6:27b-mtp-bf16
+# OLLAMA_CONTEXT_LENGTH 256000
+# OLLAMA_MODELS /workspace/models
+# OLLAMA_KEEP_ALIVE -1
