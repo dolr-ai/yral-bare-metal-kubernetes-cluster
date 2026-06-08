@@ -6,15 +6,15 @@
             "autoForwardAction": "ignore"
         }
     },
-    "chat.planAgent.defaultModel": "qwen3.6:27b-mtp-bf16 (ollama)",
-    "inlineChat.defaultModel": "qwen3.6:27b-mtp-bf16 (ollama)",
-    "chat.exploreAgent.defaultModel": "qwen3.6:27b-mtp-bf16 (ollama)",
-    "chat.utilityModel": "ollama/qwen3.6:27b-mtp-bf16",
+    "chat.planAgent.defaultModel": "Qwen/Qwen3.6-27B (customendpoint)",
+    "inlineChat.defaultModel": "Qwen/Qwen3.6-27B (customendpoint)",
+    "chat.exploreAgent.defaultModel": "Qwen/Qwen3.6-27B (customendpoint)",
+    "chat.utilityModel": "customendpoint/Qwen/Qwen3.6-27B",
     "todo-tree.tree.scanMode": "workspace",
     "todo-tree.tree.showBadges": true,
     "todo-tree.tree.showCountsInTree": true,
     // "chat.utilitySmallModel": "ollama/qwen3.6:27b-mtp-bf16"
     "rust-analyzer.linkedProjects": [
         "./apps/yral-backend-canister/Cargo.toml",
-    ]
+    ],
 }
