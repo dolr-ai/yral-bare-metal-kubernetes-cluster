@@ -1,20 +1,9 @@
 {
-    "java.compile.nullAnalysis.mode": "automatic",
-    "remote.autoForwardPortsSource": "process",
-    "remote.portsAttributes": {
-        "11434": {
-            "autoForwardAction": "ignore"
-        }
-    },
-    "chat.planAgent.defaultModel": "Qwen/Qwen3.6-27B (customendpoint)",
-    "inlineChat.defaultModel": "Qwen/Qwen3.6-27B (customendpoint)",
-    "chat.exploreAgent.defaultModel": "Qwen/Qwen3.6-27B (customendpoint)",
-    "chat.utilityModel": "customendpoint/Qwen/Qwen3.6-27B",
     "todo-tree.tree.scanMode": "workspace",
     "todo-tree.tree.showBadges": true,
     "todo-tree.tree.showCountsInTree": true,
-    // "chat.utilitySmallModel": "ollama/qwen3.6:27b-mtp-bf16"
     "rust-analyzer.linkedProjects": [
         "./apps/yral-backend-canister/Cargo.toml",
     ],
+    // "github.copilot.selectedCompletionModel": "",
 }
