@@ -28,3 +28,6 @@
 [submodule "apps/off-chain-agent"]
 	path = apps/off-chain-agent
 	url = git@github.com:dolr-ai/off-chain-agent.git
+[submodule "apps/yral"]
+	path = apps/yral
+	url = git@github.com:dolr-ai/yral.git

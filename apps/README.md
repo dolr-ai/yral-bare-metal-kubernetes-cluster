@@ -16,8 +16,8 @@ Source code and deployment manifests are intentionally separated. The submodule 
 ## Adding a new application
 
 ```bash
-# 1. Add the submodule
-git submodule add https://github.com/<org>/<repo-name>.git apps/<repo-name>
+# 1. Add the submodule (SSH recommended)
+git submodule add git@github.com:<org>/<repo-name>.git apps/<repo-name>
 git add apps/<repo-name> .gitmodules
 git commit -m "feat: add <repo-name> submodule"
 ```
@@ -32,13 +32,14 @@ git submodule update --init --recursive
 
 | Submodule | Source repo | Deployed at |
 |-----------|-------------|-------------|
-| `apps/yral-mobile/` | https://github.com/dolr-ai/yral-mobile | Not yet present in `kubernetes/apps/` |
-| `apps/yral-backend-canister/` | https://github.com/dolr-ai/yral-backend-canister | Not yet present in `kubernetes/apps/` |
-| `apps/saikat-api/` | https://github.com/dolr-ai/saikat-api | Not yet present in `kubernetes/apps/` |
-| `apps/yral-common/` | https://github.com/dolr-ai/yral-common | Not yet present in `kubernetes/apps/` |
-| `apps/hot-or-not-web-leptos-ssr/` | https://github.com/dolr-ai/hot-or-not-web-leptos-ssr | Not yet present in `kubernetes/apps/` |
-| `apps/website/` | https://github.com/dolr-ai/website | Not yet present in `kubernetes/apps/` |
-| `apps/yral-billing/` | https://github.com/dolr-ai/yral-billing | Not yet present in `kubernetes/apps/` |
-| `apps/yral-metadata/` | https://github.com/dolr-ai/yral-metadata | Not yet present in `kubernetes/apps/` |
-| `apps/yral-auth/` | https://github.com/dolr-ai/yral-auth | Not yet present in `kubernetes/apps/` |
-| `apps/off-chain-agent/` | https://github.com/dolr-ai/off-chain-agent | Not yet present in `kubernetes/apps/` |
+| `apps/yral/` | git@github.com:dolr-ai/yral.git | Not yet present in `kubernetes/apps/` |
+| `apps/yral-mobile/` | git@github.com:dolr-ai/yral-mobile.git | Not yet present in `kubernetes/apps/` |
+| `apps/yral-backend-canister/` | git@github.com:dolr-ai/yral-backend-canister.git | Not yet present in `kubernetes/apps/` |
+| `apps/saikat-api/` | git@github.com:dolr-ai/saikat-api.git | Not yet present in `kubernetes/apps/` |
+| `apps/yral-common/` | git@github.com:dolr-ai/yral-common.git | Not yet present in `kubernetes/apps/` |
+| `apps/hot-or-not-web-leptos-ssr/` | git@github.com:dolr-ai/hot-or-not-web-leptos-ssr.git | Not yet present in `kubernetes/apps/` |
+| `apps/website/` | git@github.com:dolr-ai/website.git | Not yet present in `kubernetes/apps/` |
+| `apps/yral-billing/` | git@github.com:dolr-ai/yral-billing.git | Not yet present in `kubernetes/apps/` |
+| `apps/yral-metadata/` | git@github.com:dolr-ai/yral-metadata.git | Not yet present in `kubernetes/apps/` |
+| `apps/yral-auth/` | git@github.com:dolr-ai/yral-auth.git | Not yet present in `kubernetes/apps/` |
+| `apps/off-chain-agent/` | git@github.com:dolr-ai/off-chain-agent.git | Not yet present in `kubernetes/apps/` |
