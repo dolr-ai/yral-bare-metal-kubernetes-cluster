@@ -46,6 +46,8 @@ spec:
       containers:
         - name: kafka-bridge
           image: quay.io/strimzi/kafka-bridge:1.0.0
+          command:
+            - /opt/strimzi/bin/docker/kafka_bridge_run.sh
           env:
             # Kafka credentials (SCRAM-SHA-512, internal plain listener)
             - name: KAFKA_BRIDGE_PASSWORD
