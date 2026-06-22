@@ -58,8 +58,8 @@ spec:
             - /bin/sh
             - -c
             - |
-              envsubst < /tmp/template/application.properties > /tmp/output/application.properties
-              cp /tmp/output/application.properties /tmp/custom-config/application.properties
+              envsubst < /tmp/template/application.properties \
+                > /tmp/custom-config/application.properties
           env:
             - name: KAFKA_BRIDGE_PASSWORD
               valueFrom:
