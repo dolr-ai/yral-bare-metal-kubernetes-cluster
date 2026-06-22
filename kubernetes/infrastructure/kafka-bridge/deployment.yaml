@@ -48,7 +48,7 @@ spec:
           image: quay.io/strimzi/kafka-bridge:1.0.0
           args:
             - --config-file
-            - /opt/kafka/config/bridge.properties
+            - /opt/strimzi/config/application.properties
           env:
             # Kafka credentials (SCRAM-SHA-512, internal plain listener)
             - name: KAFKA_BRIDGE_PASSWORD
@@ -88,8 +88,8 @@ spec:
             periodSeconds: 30
           volumeMounts:
             - name: config
-              mountPath: /opt/kafka/config/bridge.properties
-              subPath: bridge.properties
+              mountPath: /opt/strimzi/config/application.properties
+              subPath: application.properties
       volumes:
         - name: config
           configMap:

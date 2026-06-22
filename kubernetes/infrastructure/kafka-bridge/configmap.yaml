@@ -3,9 +3,13 @@
 # Connects to internal Kafka cluster via SASL_PLAINTEXT (port 9092).
 # All internal traffic is encrypted by Cilium WireGuard at the network layer.
 #
-# Consumer instance timeout: 30s (fast rebalance if a client crashes without cleanup).
+# Consumer instance timeout: 30s (fast rebalance on crash).
 # Max consumer creators: 10 (max concurrent consumer instances).
 # Authentication: static bearer token (from KAFKA_BRIDGE_BEARER_TOKEN env var).
+#
+# Config format: application.properties (Strimzi Bridge v1.0.0).
+# Uses flat kafka.* prefix for shared Kafka client settings.
+# Env var substitution via $(VAR) is supported by the Bridge runtime.
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -13,29 +17,34 @@ metadata:
   name: kafka-bridge-config
   namespace: kafka
 data:
-  bridge.properties: |
-    # Admin client
-    admin.bootstrap.servers=kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
-    admin.security.protocol=SASL_PLAINTEXT
-    admin.sasl.mechanism=SCRAM-SHA-512
-    admin.sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username="kafka-bridge" password="$(KAFKA_BRIDGE_PASSWORD)";
+  application.properties: |
+    # Bridge identity
+    bridge.id=kafka-bridge
 
-    # Producer
-    producer.bootstrap.servers=kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
-    producer.security.protocol=SASL_PLAINTEXT
-    producer.sasl.mechanism=SCRAM-SHA-512
-    producer.sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username="kafka-bridge" password="$(KAFKA_BRIDGE_PASSWORD)";
+    # Apache Kafka common (shared by admin, producer, consumer)
+    kafka.bootstrap.servers=kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+    kafka.security.protocol=SASL_PLAINTEXT
+    kafka.sasl.mechanism=SCRAM-SHA-512
+    kafka.sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username="kafka-bridge" password="$(KAFKA_BRIDGE_PASSWORD)";
 
-    # Consumer
-    consumer.bootstrap.servers=kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
-    consumer.security.protocol=SASL_PLAINTEXT
-    consumer.sasl.mechanism=SCRAM-SHA-512
-    consumer.sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username="kafka-bridge" password="$(KAFKA_BRIDGE_PASSWORD)";
-    consumer.instance.timeout.ms=30000
-    consumers.max.creators=10
+    # Apache Kafka producer
+    kafka.producer.acks=all
+
+    # Apache Kafka consumer
+    kafka.consumer.auto.offset.reset=latest
+    kafka.consumer.instance.timeout.ms=30000
+    kafka.consumer.max.creators=10
 
     # HTTP listener
+    http.host=0.0.0.0
     http.port=8080
+
+    # HTTP management interface (health + metrics)
+    http.management.port=8081
+
+    # Enable consumer + producer
+    http.consumer.enabled=true
+    http.producer.enabled=true
 
     # Authentication
     authentication.type=static_token
