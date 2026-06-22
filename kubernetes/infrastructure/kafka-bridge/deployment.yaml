@@ -58,7 +58,9 @@ spec:
             - /bin/sh
             - -c
             - |
-              envsubst < /tmp/template/application.properties \
+              export KAFKA_BRIDGE_PASSWORD
+              cat /tmp/template/application.properties | \
+                sed "s|\$(KAFKA_BRIDGE_PASSWORD)|$KAFKA_BRIDGE_PASSWORD|g" \
                 > /tmp/custom-config/application.properties
           env:
             - name: KAFKA_BRIDGE_PASSWORD
