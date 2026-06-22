@@ -6,7 +6,8 @@
 # Version: 1.0.0 (latest stable, Kafka 4.2.0 client, Java 21)
 # Check: https://github.com/strimzi/strimzi-kafka-bridge/releases
 #
-# Authentication: static bearer token (X-Bearer-Token header).
+# Auth: The Bridge has no built-in HTTP authentication (per Strimzi docs).
+# External auth should be added via reverse proxy (oauth2-proxy, etc.) if needed.
 # Kafka auth: dedicated kafka-bridge KafkaUser with read-only ACLs on snowplow-enriched.
 #
 # Traffic path:
@@ -16,6 +17,10 @@
 #
 # Note: v1.0.0 moved /healthy, /ready, /metrics to management port 8081.
 # Probes use port 8081; HTTP API remains on port 8080.
+#
+# Note: The Strimzi Docker entrypoint copies the config file verbatim (no env var
+# expansion). An init container uses envsubst to expand $(KAFKA_BRIDGE_PASSWORD)
+# before the main container starts.
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -43,24 +48,42 @@ spec:
                     operator: In
                     values:
                       - falkenstein
-      containers:
-        - name: kafka-bridge
-          image: quay.io/strimzi/kafka-bridge:1.0.0
+      initContainers:
+        # The Strimzi Docker entrypoint copies the config file verbatim (no env var
+        # expansion). This init container expands $(VAR) placeholders using envsubst
+        # before the main container starts.
+        - name: config-init
+          image: busybox:1.37
           command:
-            - /opt/strimzi/bin/docker/kafka_bridge_run.sh
+            - /bin/sh
+            - -c
+            - |
+              envsubst < /tmp/template/application.properties > /tmp/output/application.properties
+              cp /tmp/output/application.properties /tmp/custom-config/application.properties
           env:
-            # Kafka credentials (SCRAM-SHA-512, internal plain listener)
             - name: KAFKA_BRIDGE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: kafka-user-passwords
                   key: kafka-bridge-password
-            # Bearer token for external client auth
-            - name: KAFKA_BRIDGE_BEARER_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: kafka-bridge-bearer-token
-                  key: token
+          volumeMounts:
+            - name: config-template
+              mountPath: /tmp/template
+              readOnly: true
+            - name: config
+              mountPath: /tmp/custom-config
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
+      containers:
+        - name: kafka-bridge
+          image: quay.io/strimzi/kafka-bridge:1.0.0
+          command:
+            - /opt/strimzi/bin/docker/kafka_bridge_run.sh
           ports:
             - containerPort: 8080
               name: http
@@ -90,6 +113,8 @@ spec:
               mountPath: /opt/strimzi/custom-config/application.properties
               subPath: application.properties
       volumes:
-        - name: config
+        - name: config-template
           configMap:
             name: kafka-bridge-config
+        - name: config
+          emptyDir: {}

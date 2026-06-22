@@ -1,15 +1,11 @@
-# Kafka Bridge configuration
+# Kafka Bridge configuration template
 #
-# Connects to internal Kafka cluster via SASL_PLAINTEXT (port 9092).
-# All internal traffic is encrypted by Cilium WireGuard at the network layer.
+# This is a template — $(KAFKA_BRIDGE_PASSWORD) is expanded by an init container
+# using envsubst before the Bridge starts. The Strimzi Docker entrypoint does a
+# plain tee copy without env var expansion.
 #
-# Consumer instance timeout: 30s (fast rebalance on crash).
-# Max consumer creators: 10 (max concurrent consumer instances).
-# Authentication: static bearer token (from KAFKA_BRIDGE_BEARER_TOKEN env var).
-#
-# Config format: application.properties (Strimzi Bridge v1.0.0).
-# Uses flat kafka.* prefix for shared Kafka client settings.
-# Env var substitution via $(VAR) is supported by the Bridge runtime.
+# Note: The Bridge does NOT have built-in HTTP authentication.
+# Auth is handled at the edge (Cilium Gateway / reverse proxy).
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -18,7 +14,6 @@ metadata:
   namespace: kafka
 data:
   application.properties: |
-    # Bridge identity
     bridge.id=kafka-bridge
 
     # Apache Kafka common (shared by admin, producer, consumer)
@@ -45,7 +40,3 @@ data:
     # Enable consumer + producer
     http.consumer.enabled=true
     http.producer.enabled=true
-
-    # Authentication
-    authentication.type=static_token
-    authentication.token=$(KAFKA_BRIDGE_BEARER_TOKEN)
