@@ -1,0 +1,43 @@
+# Kafka Bridge HTTPRoute
+#
+# Exposes the Kafka Bridge at https://kafka-bridge.yral.com via orange cloud.
+# No DNS changes needed — *.yral.com wildcard covers this hostname.
+#
+# Authentication: bearer token (X-Bearer-Token header), validated by the Bridge itself.
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: kafka-bridge-redirect
+  namespace: kube-system
+spec:
+  parentRefs:
+    - name: web-gateway
+      namespace: kube-system
+      sectionName: http
+  hostnames:
+    - kafka-bridge.yral.com
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: kafka-bridge
+  namespace: kube-system
+spec:
+  parentRefs:
+    - name: web-gateway
+      namespace: kube-system
+      sectionName: https
+  hostnames:
+    - kafka-bridge.yral.com
+  rules:
+    - backendRefs:
+        - name: kafka-bridge
+          namespace: kafka
+          port: 8080

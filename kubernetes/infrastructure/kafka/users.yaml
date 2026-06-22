@@ -272,3 +272,47 @@ spec:
         operations:
           - Describe
           - DescribeConfigs
+---
+# kafka-bridge: read-only user for the Kafka Bridge HTTP REST API
+# Used by the kafka-bridge Deployment to connect to Kafka internally.
+# External clients authenticate via bearer token to the Bridge, not directly to Kafka.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: kafka-bridge
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  authentication:
+    type: scram-sha-512
+    password:
+      valueFrom:
+        secretKeyRef:
+          name: kafka-user-passwords
+          key: kafka-bridge-password
+  authorization:
+    type: simple
+    acls:
+      # Read enriched events (Bridge exposes via HTTP REST API)
+      - resource:
+          type: topic
+          name: snowplow-enriched
+          patternType: literal
+        operations:
+          - Read
+          - Describe
+      # Consumer groups created by the Bridge use the "bridge-" prefix
+      - resource:
+          type: group
+          name: bridge-
+          patternType: prefix
+        operations:
+          - Read
+      # Broker metadata fetches (required for consumer/producer initialization)
+      - resource:
+          type: cluster
+          name: kafka-cluster
+          patternType: literal
+        operations:
+          - Describe

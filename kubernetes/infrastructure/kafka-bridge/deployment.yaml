@@ -1,0 +1,93 @@
+# Kafka Bridge — stateless HTTP bridge to Kafka
+#
+# Provides an HTTP REST API for consuming from Kafka topics, allowing external
+# clients (e.g., Python/FastAPI services) to consume without a native Kafka client.
+#
+# Version: 1.0.0 (latest stable, Kafka 4.2.0 client, Java 21)
+# Check: https://github.com/strimzi/strimzi-kafka-bridge/releases
+#
+# Authentication: static bearer token (X-Bearer-Token header).
+# Kafka auth: dedicated kafka-bridge KafkaUser with read-only ACLs on snowplow-enriched.
+#
+# Traffic path:
+#   kafka-bridge.yral.com → Cloudflare (orange cloud) → Cilium Gateway (TLS term)
+#   → HTTPRoute → kafka-bridge Service → kafka-bridge Deployment
+#   → Kafka brokers (internal SASL_PLAINTEXT, port 9092)
+#
+# Note: v1.0.0 moved /healthy, /ready, /metrics to management port 8081.
+# Probes use port 8081; HTTP API remains on port 8080.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-bridge
+  namespace: kafka
+  labels:
+    app: kafka-bridge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-bridge
+  template:
+    metadata:
+      labels:
+        app: kafka-bridge
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: topology.kubernetes.io/region
+                    operator: In
+                    values:
+                      - falkenstein
+      containers:
+        - name: kafka-bridge
+          image: quay.io/strimzi/kafka-bridge:1.0.0
+          env:
+            # Kafka credentials (SCRAM-SHA-512, internal plain listener)
+            - name: KAFKA_BRIDGE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-user-passwords
+                  key: kafka-bridge-password
+            # Bearer token for external client auth
+            - name: KAFKA_BRIDGE_BEARER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-bridge-bearer-token
+                  key: token
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 8081
+              name: management
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthy
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          volumeMounts:
+            - name: config
+              mountPath: /opt/kafka/config/bridge.properties
+              subPath: bridge.properties
+      volumes:
+        - name: config
+          configMap:
+            name: kafka-bridge-config

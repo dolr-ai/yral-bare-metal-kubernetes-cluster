@@ -65,3 +65,4 @@ The key never leaves the cluster and is encrypted at rest inside etcd (Kubernete
 - Instead of beszel move all bare metal servers to grafana and prometheus node exporter and use grafana to monitor them instead of having a separate monitoring solution for the bare metal servers
 - Setup networking so that we specifically allowlist which pods can talk to each other
 - Remove ffmpeg@7 after done with offchain changes
+- Remove ci-e2e-reader KafkaUser if Kafka bridge serves our needs and have mobile app tests call the bridge instead of Kafka directly. Remove all associated Kafka native infrastructure that we added to support ci-e2e-reader

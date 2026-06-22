@@ -14,3 +14,5 @@ resources:
   - cloudbeaver.yaml
   - kafka.yaml
   - kafka-referencegrant.yaml
+  - kafka-bridge.yaml
+  - kafka-bridge-referencegrant.yaml
