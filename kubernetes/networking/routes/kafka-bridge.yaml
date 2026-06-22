@@ -3,7 +3,7 @@
 # Exposes the Kafka Bridge at https://kafka-bridge.yral.com via orange cloud.
 # No DNS changes needed — *.yral.com wildcard covers this hostname.
 #
-# Authentication: bearer token (X-Bearer-Token header), validated by the Bridge itself.
+# The Strimzi Cluster Operator creates the service as kafka-bridge-bridge-service.
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -38,6 +38,6 @@ spec:
     - kafka-bridge.yral.com
   rules:
     - backendRefs:
-        - name: kafka-bridge
+        - name: kafka-bridge-bridge-service
           namespace: kafka
           port: 8080

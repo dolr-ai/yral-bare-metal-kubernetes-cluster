@@ -1,0 +1,79 @@
+# Kafka Bridge — managed by Strimzi Cluster Operator via KafkaBridge CR
+#
+# Provides an HTTP REST API for consuming from Kafka topics, allowing external
+# clients (e.g., Python/FastAPI services) to consume without a native Kafka client.
+#
+# Version: 1.0.0 (latest stable, Kafka 4.2.0 client, Java 21)
+# Check: https://github.com/strimzi/strimzi-kafka-bridge/releases
+#
+# Auth: The Bridge has no built-in HTTP authentication (per Strimzi docs).
+# External auth should be added via reverse proxy (oauth2-proxy, etc.) if needed.
+# Kafka auth: dedicated kafka-bridge KafkaUser with read-only ACLs on snowplow-enriched.
+#
+# Traffic path:
+#   kafka-bridge.yral.com → Cloudflare (orange cloud) → Cilium Gateway (TLS term)
+#   → HTTPRoute → kafka-bridge-bridge-service Service → kafka-bridge Deployment
+#   → Kafka brokers (internal SASL_PLAINTEXT, port 9092)
+#
+# The Strimzi Cluster Operator manages:
+#   - kafka-bridge-bridge (Deployment)
+#   - kafka-bridge-bridge-service (Service, port 8080)
+#   - kafka-bridge-bridge-config (ConfigMap)
+#   - kafka-bridge-bridge (PodDisruptionBudget)
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaBridge
+metadata:
+  name: kafka-bridge
+  namespace: kafka
+spec:
+  replicas: 1
+
+  # Kafka cluster bootstrap (internal listener, SASL_PLAINTEXT on port 9092)
+  bootstrapServers: kafka-cluster-kafka-bootstrap:9092
+
+  # SCRAM-SHA-512 authentication to Kafka
+  # The kafka-bridge KafkaUser secret is created by the Strimzi User Operator
+  authentication:
+    type: scram-sha-512
+    username: kafka-bridge
+    passwordSecret:
+      secretName: kafka-bridge
+      password: password
+
+  # HTTP listener
+  http:
+    port: 8080
+
+  # Consumer defaults
+  consumer:
+    config:
+      auto.offset.reset: latest
+      max.poll.records: 500
+
+  # Producer defaults
+  producer:
+    config:
+      acks: all
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+  # Pod scheduling — pin to falkenstein region
+  template:
+    pod:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: topology.kubernetes.io/region
+                    operator: In
+                    values:
+                      - falkenstein
