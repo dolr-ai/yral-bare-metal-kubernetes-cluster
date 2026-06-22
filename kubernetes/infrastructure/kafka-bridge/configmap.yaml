@@ -10,7 +10,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: kafka-bridge
+  name: kafka-bridge-config
   namespace: kafka
 data:
   bridge.properties: |
