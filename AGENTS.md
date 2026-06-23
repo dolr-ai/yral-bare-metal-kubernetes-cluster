@@ -134,6 +134,8 @@ Velero only (full cluster DR, 30-day self-managed `ttl: 720h`). Named prefix `ve
 - Internal tools (no built-in auth): one `oauth2-proxy` Deployment/Service per app (in `oauth2-proxy` namespace). Shared `oauth2-proxy-secrets`.
 - Wildcard `*.yral.com` (orange cloud) + all-node A records = adding an HTTPRoute is sufficient; no DNS change needed.
 - Kafka: TLSRoute (SNI passthrough, per-broker hostnames), grey-cloud DNS only.
+- **ReferenceGrant (cross-namespace routes):** When an HTTPRoute/TLSRoute in namespace A references a Service in namespace B, a `ReferenceGrant` must exist in the **target** namespace (B) allowing it. Without it, Cilium Gateway silently returns HTTP 500 for all requests (`ResolvedRefs: False, RefNotPermitted`). Always add the ReferenceGrant in the same commit as the HTTPRoute when they span namespaces.
+
 - **NetworkPolicy rule:** Never rely on `fromCIDRSet`/`namespaceSelector`/`podSelector` for gateway-originated traffic (cilium-envoy runs hostNetwork; appears as node IP). Use an explicit ingress rule with only a `ports:` clause (app-level auth does the real enforcement).
 
 **Dashboard:** Update `kubernetes/apps/dashboard/index.html` on every new/removed visitable URL (in same commit).
