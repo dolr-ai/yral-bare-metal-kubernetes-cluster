@@ -3,7 +3,10 @@
 # Exposes the Kafka Bridge at https://kafka-bridge.yral.com via orange cloud.
 # No DNS changes needed — *.yral.com wildcard covers this hostname.
 #
-# The Strimzi Cluster Operator creates the service as kafka-bridge-bridge-service.
+# Traffic path:
+#   kafka-bridge.yral.com → Cilium Gateway (TLS term) → HTTPRoute → oauth2-proxy
+#   → validates Basic Auth → forwards to kafka-bridge-bridge-service (kafka ns)
+#
 # Single replica (no session affinity needed).
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -39,6 +42,6 @@ spec:
     - kafka-bridge.yral.com
   rules:
     - backendRefs:
-        - name: kafka-bridge-bridge-service
-          namespace: kafka
-          port: 8080
+        - name: oauth2-proxy-kafka-bridge
+          namespace: oauth2-proxy
+          port: 4180
