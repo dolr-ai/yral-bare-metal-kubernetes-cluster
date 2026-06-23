@@ -100,7 +100,8 @@ spec:
         operations:
           - Write
           - Describe
----
+
+
 # clickhouse-snowplow: consumer user for ClickHouse Kafka engine (reads snowplow-enriched → snowplow.events)
 ---
 apiVersion: kafka.strimzi.io/v1
