@@ -3,7 +3,6 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - secret.sops.yaml
-  - kafka-bridge-token.sops.yaml
   - deployment-harbor.yaml
   - service-harbor.yaml
   - deployment-hubble-ui.yaml
@@ -24,5 +23,4 @@ resources:
   - service-cloudbeaver.yaml
   - deployment-bytebase.yaml
   - service-bytebase.yaml
-  - kafka-bridge.sops.yaml
   - reference-grant.yaml
