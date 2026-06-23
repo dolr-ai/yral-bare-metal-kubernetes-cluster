@@ -27,7 +27,12 @@ metadata:
   name: kafka-bridge
   namespace: kafka
 spec:
-  replicas: 3
+  replicas: 1
+  # Note: single replica for consumers (stateful per-pod, affinity required).
+  # Producers are stateless and could use multiple replicas, but consumer
+  # instances are in-memory per-pod. Strimzi recommends 1 replica for
+  # consumer workloads. Multiple consumer clients can still run concurrently
+  # on a single bridge instance.
 
   # Kafka cluster bootstrap (internal listener, SASL_PLAINTEXT on port 9092)
   bootstrapServers: kafka-cluster-kafka-bootstrap:9092

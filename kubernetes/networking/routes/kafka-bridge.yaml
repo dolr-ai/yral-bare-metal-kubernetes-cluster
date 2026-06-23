@@ -4,6 +4,7 @@
 # No DNS changes needed — *.yral.com wildcard covers this hostname.
 #
 # The Strimzi Cluster Operator creates the service as kafka-bridge-bridge-service.
+# Single replica (no session affinity needed).
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
