@@ -24,6 +24,5 @@ resources:
   - service-cloudbeaver.yaml
   - deployment-bytebase.yaml
   - service-bytebase.yaml
-  - deployment-kafka-bridge.yaml
-  - service-kafka-bridge.yaml
+  - kafka-bridge.sops.yaml
   - reference-grant.yaml
