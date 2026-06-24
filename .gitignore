@@ -20,8 +20,8 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# direnv — generated from vault by scripts/setup-local-env.sh, never commit
-.envrc
+# Generated from vault by scripts/setup-local-env.sh, never commit
+.env
 
 # Python venv managed by uv
 .venv/

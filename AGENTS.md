@@ -141,7 +141,7 @@ Velero only (full cluster DR, 30-day self-managed `ttl: 720h`). Named prefix `ve
 **Dashboard:** Update `kubernetes/apps/dashboard/index.html` on every new/removed visitable URL (in same commit).
 
 ### Local Environment & Parity
-`scripts/setup-local-env.sh` is the single source of truth (tools, vault extraction to `~/.ssh/id_ed25519`, age key for SOPS, `.envrc`, kubeconfig). Re-run after vault changes. macOS CI for exact parity.
+`scripts/setup-local-env.sh` is the single source of truth (tools, vault extraction to `~/.ssh/id_ed25519`, age key for SOPS, `.env`/`.envrc`, kubeconfig). Re-run after vault changes. macOS CI for exact parity.
 
 ### GPU (Vast.ai)
 `vastai-provision` role + playbook (not Kubernetes). Always ≥2 replicas on distinct offers. Shared infra SSH key attached. Override vars at invocation (never new playbook).
