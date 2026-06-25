@@ -31,3 +31,6 @@
 [submodule "apps/yral"]
 	path = apps/yral
 	url = git@github.com:dolr-ai/yral.git
+[submodule "apps/saikat-data"]
+	path = apps/saikat-data
+	url = git@github.com:dolr-ai/saikat-data.git
