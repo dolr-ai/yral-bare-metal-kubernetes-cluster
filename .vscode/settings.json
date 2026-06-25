@@ -3,6 +3,7 @@
     "todo-tree.tree.showBadges": true,
     "todo-tree.tree.showCountsInTree": true,
     "rust-analyzer.linkedProjects": [
+        "./apps/off-chain-agent/Cargo.toml",
         "./apps/yral-backend-canister/Cargo.toml",
     ],
     // "github.copilot.selectedCompletionModel": "",
