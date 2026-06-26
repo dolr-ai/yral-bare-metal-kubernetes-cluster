@@ -4,9 +4,6 @@
 [submodule "apps/yral-backend-canister"]
 	path = apps/yral-backend-canister
 	url = git@github.com:dolr-ai/yral-backend-canister.git
-[submodule "apps/saikat-api"]
-	path = apps/saikat-api
-	url = git@github.com:dolr-ai/saikat-api.git
 [submodule "apps/yral-common"]
 	path = apps/yral-common
 	url = git@github.com:dolr-ai/yral-common.git
@@ -31,6 +28,3 @@
 [submodule "apps/yral"]
 	path = apps/yral
 	url = git@github.com:dolr-ai/yral.git
-[submodule "apps/saikat-data"]
-	path = apps/saikat-data
-	url = git@github.com:dolr-ai/saikat-data.git

@@ -35,7 +35,6 @@ git submodule update --init --recursive
 | `apps/yral/` | git@github.com:dolr-ai/yral.git | Not yet present in `kubernetes/apps/` |
 | `apps/yral-mobile/` | git@github.com:dolr-ai/yral-mobile.git | Not yet present in `kubernetes/apps/` |
 | `apps/yral-backend-canister/` | git@github.com:dolr-ai/yral-backend-canister.git | Not yet present in `kubernetes/apps/` |
-| `apps/saikat-api/` | git@github.com:dolr-ai/saikat-api.git | Not yet present in `kubernetes/apps/` |
 | `apps/yral-common/` | git@github.com:dolr-ai/yral-common.git | Not yet present in `kubernetes/apps/` |
 | `apps/hot-or-not-web-leptos-ssr/` | git@github.com:dolr-ai/hot-or-not-web-leptos-ssr.git | Not yet present in `kubernetes/apps/` |
 | `apps/website/` | git@github.com:dolr-ai/website.git | Not yet present in `kubernetes/apps/` |

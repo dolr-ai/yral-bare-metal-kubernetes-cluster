@@ -1,5 +1,5 @@
 [package]
-name = "task-runner"
+name = "task_runner"
 version = "0.1.0"
 edition = "2024"
 
@@ -7,3 +7,4 @@ edition = "2024"
 
 [dev-dependencies]
 anyhow = { workspace = true }
+reqwest = { workspace = true, features = ["blocking"] }
