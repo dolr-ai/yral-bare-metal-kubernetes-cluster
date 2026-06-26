@@ -1,5 +1,8 @@
 {
+  "dev": {
+    "run": "cargo run"
+  },
+  "module-path": "./apps/yral-database-spacetime",
   "database": "yral-database-spacetime-4lbo7",
-  "server": "maincloud",
-  "module-path": "./apps/yral-database-spacetime"
+  "server": "maincloud"
 }
