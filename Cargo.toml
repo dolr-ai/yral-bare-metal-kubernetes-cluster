@@ -1,0 +1,21 @@
+[workspace]
+resolver = "3"
+members = ["apps/yral-database-spacetime"]
+
+exclude = [
+    "apps/hot-or-not-web-leptos-ssr",
+    "apps/off-chain-agent",
+    "apps/website",
+    "apps/yral",
+    "apps/yral-auth",
+    "apps/yral-backend-canister",
+    "yral-billing",
+    "yral-common",
+    "yral-metadata",
+    "yral-mobile",
+]
+
+[workspace.dependencies]
+log = "0.4.33"
+spacetimedb = { version = "2.6.0" }
+spacetimedb-sdk = { version = "2.6.0" }

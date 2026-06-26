@@ -152,7 +152,7 @@ Velero only (full cluster DR, 30-day self-managed `ttl: 720h`). Named prefix `ve
 ### Ansible / Playbook Execution
 - `become` is globally false; remote plays SSH as root; localhost plays as vscode user.
 - Always run playbooks in foreground.
-- Never truncate output during runs (`tail`/`head` only for post-hoc analysis).
+- **Never truncate or filter terminal output during runs** — do not use `tail`, `head`, `grep`, pipes, or similar tools that cut off output. Run commands directly and let the full output stream so we can follow along together. `tail`/`head` only for post-hoc analysis after a run completes.
 - Short poll loops (≤10s sleep) when waiting.
 - Lint before PRs.
 
