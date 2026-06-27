@@ -55,3 +55,11 @@ fn publish_locally() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+#[ignore = "Publish to maincloud"]
+fn publish_to_maincloud() -> Result<()> {
+    Command::new("spacetime").arg("publish").spawn()?.wait()?;
+
+    Ok(())
+}
