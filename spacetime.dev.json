@@ -1,0 +1,5 @@
+{
+    "database": "yral-database-spacetime-4lbo7",
+    "module-path": "./apps/yral-database-spacetime",
+    "server": "local"
+}
