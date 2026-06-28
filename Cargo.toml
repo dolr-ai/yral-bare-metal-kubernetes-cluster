@@ -17,6 +17,7 @@ exclude = [
 
 [workspace.dependencies]
 anyhow = "1.0.103"
+hex = "0.4.3"
 log = "0.4.33"
 reqwest = "0.13.4"
 spacetimedb = { version = "2.6.0" }

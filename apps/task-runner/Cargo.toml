@@ -8,3 +8,4 @@ edition = "2024"
 [dev-dependencies]
 anyhow = { workspace = true }
 reqwest = { workspace = true, features = ["blocking"] }
+spacetimedb-sdk = { workspace = true }

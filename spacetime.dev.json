@@ -1,5 +1,11 @@
 {
     "database": "yral-database-spacetime-4lbo7",
+    "generate": [
+        {
+            "language": "rust",
+            "out-dir": "./apps/task-runner/src/bindings"
+        }
+    ],
     "module-path": "./apps/yral-database-spacetime",
     "server": "local"
 }
