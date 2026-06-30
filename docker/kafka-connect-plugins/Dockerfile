@@ -10,7 +10,7 @@
 #
 # Built by GitHub Actions (.github/workflows/build-kafka-connect-plugins.yml)
 # and pushed to ghcr.io/dolr-ai/kafka-connect-plugins:latest
-FROM quay.io/strimzi/kafka:0.51.0-kafka-4.2.0
+FROM quay.io/strimzi/kafka:1.1.0-kafka-4.3.0
 
 ARG CONNECTOR_VERSION=12.1.0
 
