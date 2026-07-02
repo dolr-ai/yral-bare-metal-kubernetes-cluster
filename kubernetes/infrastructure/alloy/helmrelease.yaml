@@ -47,8 +47,12 @@ spec:
           memory: 512Mi
         limits:
           # VPA upper: 314m / 1.15Gi — previous 512Mi limit was below VPA target (524Mi)
+          # Control-plane Alloy pods hit ~1.13Gi due to API server / etcd / scheduler
+          # log volume. Raised from 1536Mi to 2048Mi to give headroom. The start_time
+          # filter on loki.source.kubernetes also reduces memory by preventing
+          # historical log replay on reconnect.
           cpu: 400m
-          memory: 1536Mi
+          memory: 2048Mi
 
       configMap:
         content: |
@@ -110,9 +114,22 @@ spec:
           // Use the Kubernetes API log endpoint — avoids filesystem glob issues
           // that occur when a DaemonSet pod tries to read log files for pods
           // running on other nodes via /var/log/pods/*.
+          //
+          // start_time ensures we only fetch recent logs (last 1h). Without this,
+          // the API endpoint returns the entire log history of each pod. For pods
+          // that have been running for weeks, this floods Loki with entries that have
+          // timestamps far older than reject_old_samples_max_age, causing:
+          //   - HTTP 400 "timestamp too old" errors from Loki
+          //   - "final error sending batch, no retries left, dropping data" in Alloy
+          //   - Memory pressure from buffering large historical log batches
+          // The start_time is evaluated on each pod watch reconnect, not just once.
           loki.source.kubernetes "pods" {
             targets    = discovery.relabel.pod_logs.output
             forward_to = [loki.write.loki.receiver]
+
+            // Only fetch logs from the last hour — prevents replaying weeks
+            // of historical logs on every stream open / reconnect.
+            start_time = time.now() - 1 * 60 * 60
           }
 
           // Push logs to Loki (internal cluster DNS)

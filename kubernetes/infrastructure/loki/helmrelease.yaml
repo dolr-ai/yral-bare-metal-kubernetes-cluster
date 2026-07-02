@@ -35,6 +35,12 @@ spec:
         volume_enabled: true
         # Retain logs for 30 days; compactor enforces deletion.
         retention_period: 720h
+        # Reject log entries with timestamps older than 7 days. This is the
+        # default but set explicitly so it's visible. Alloy's start_time filter
+        # should prevent old entries from being sent, but this acts as a safety
+        # net and produces cleaner error messages than the default.
+        reject_old_samples: true
+        reject_old_samples_max_age: 168h
       storage:
         type: filesystem
       schemaConfig:
