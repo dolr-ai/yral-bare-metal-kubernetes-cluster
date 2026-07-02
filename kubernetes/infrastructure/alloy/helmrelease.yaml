@@ -115,21 +115,34 @@ spec:
           // that occur when a DaemonSet pod tries to read log files for pods
           // running on other nodes via /var/log/pods/*.
           //
-          // start_time ensures we only fetch recent logs (last 1h). Without this,
-          // the API endpoint returns the entire log history of each pod. For pods
-          // that have been running for weeks, this floods Loki with entries that have
-          // timestamps far older than reject_old_samples_max_age, causing:
-          //   - HTTP 400 "timestamp too old" errors from Loki
+          // The API endpoint returns the ENTIRE log history of each pod (from
+          // the first log line), not just new logs since the last read. For
+          // long-running pods (weeks/months), this replays old logs on every
+          // stream open or reconnect. Loki rejects entries older than
+          // reject_old_samples_max_age (168h) with HTTP 400, causing:
           //   - "final error sending batch, no retries left, dropping data" in Alloy
           //   - Memory pressure from buffering large historical log batches
-          // The start_time is evaluated on each pod watch reconnect, not just once.
+          //   - Error storm in Loki ingester
+          //
+          // The loki.process stage below drops entries older than 1h before
+          // they reach loki.write, preventing the 400 errors at the source.
           loki.source.kubernetes "pods" {
             targets    = discovery.relabel.pod_logs.output
+            forward_to = [loki.process.filter_old.receiver]
+          }
+
+          // Drop log entries with timestamps older than 1 hour. This prevents
+          // the historical log replay from loki.source.kubernetes from reaching
+          // Loki and causing "timestamp too old" 400 errors. Only fresh logs
+          // are forwarded; old entries are silently dropped (counted in the
+          // loki_process_dropped_lines_total metric with reason "too_old").
+          loki.process "filter_old" {
             forward_to = [loki.write.loki.receiver]
 
-            // Only fetch logs from the last hour — prevents replaying weeks
-            // of historical logs on every stream open / reconnect.
-            start_time = time.now() - 1 * 60 * 60
+            stage.drop {
+              older_than          = "1h"
+              drop_counter_reason = "too_old"
+            }
           }
 
           // Push logs to Loki (internal cluster DNS)
