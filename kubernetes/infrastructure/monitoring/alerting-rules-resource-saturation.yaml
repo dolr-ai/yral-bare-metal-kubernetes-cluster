@@ -153,6 +153,14 @@ data:
             isPaused: false
 
           # ─── OOM Kill ────────────────────────────────────────────────────────────
+          # Detects NEW OOM kills by checking that the restart count increased
+          # within the last 5 minutes AND the last termination reason was OOMKilled.
+          # Using kube_pod_container_status_restarts_total with a 5m lookback
+          # ensures the alert only fires on fresh OOMs and auto-resolves once
+          # the restart count stops increasing. The previous query
+          # (last_terminated_reason{reason="OOMKilled"}) is a persistent gauge
+          # that never resets — it caused perpetual stale alerts for any pod
+          # that was ever OOMKilled, even weeks after the event.
           - uid: container-oom-killed
             title: Container OOMKilled
             condition: C
@@ -167,11 +175,18 @@ data:
                     type: prometheus
                     uid: prometheus
                   editorMode: code
+                  # Join restart count with last_terminated_reason to only
+                  # alert when a container that was OOMKilled has a restart
+                  # count that increased in the last 5 minutes.
                   expr: |
-                    kube_pod_container_status_last_terminated_reason{
-                      reason="OOMKilled",
-                      namespace!=""
-                    }
+                    (
+                      kube_pod_container_status_restarts_total{namespace!=""}
+                    -
+                      kube_pod_container_status_restarts_total{namespace!=""} offset 5m
+                    ) > 0
+                    * on(namespace, pod, container, uid)
+                    group_left(reason)
+                    kube_pod_container_status_last_terminated_reason{reason="OOMKilled"}
                   refId: A
               - refId: B
                 relativeTimeRange:
