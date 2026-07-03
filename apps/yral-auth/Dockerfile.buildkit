@@ -33,9 +33,8 @@ RUN curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/downloa
 # need to ensure they're installed in the builder image)
 RUN rustup target add x86_64-unknown-linux-musl wasm32-unknown-unknown
 
-# Create a symlink for the musl linker (cargo expects x86_64-linux-musl-gcc)
-# Use -f in case it already exists (musl-tools may create it)
-RUN ln -sf /usr/bin/musl-gcc /usr/bin/x86_64-linux-musl-gcc
+# The musl linker symlink (x86_64-linux-musl-gcc → musl-gcc) already exists
+# in the rust:1.88-bookworm image after installing musl-tools.
 
 WORKDIR /app
 
