@@ -1,0 +1,22 @@
+# Flux ImageUpdateAutomation — writes the latest image tag selected by
+# the yral-auth ImagePolicy back into the Deployment manifest in git.
+#
+# This creates a commit on the main branch whenever a new image tag is
+# detected, updating the image: field in deployment.yaml.
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageUpdateAutomation
+metadata:
+  name: yral-auth
+  namespace: flux-system
+spec:
+  interval: 5m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  git:
+    push:
+      branch: main
+  update:
+    path: ./kubernetes/apps/yral-auth
+    strategy: Setters

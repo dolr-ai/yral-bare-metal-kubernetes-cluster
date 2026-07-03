@@ -16,3 +16,4 @@ resources:
   - kafka-referencegrant.yaml
   - kafka-bridge.yaml
   - kafka-bridge-referencegrant.yaml
+  - yral-auth.yaml

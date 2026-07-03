@@ -1,0 +1,512 @@
+use axum::{
+    http::HeaderMap,
+    response::{IntoResponse, Response},
+    Extension, Form, Json,
+};
+use candid::Principal;
+use ic_agent::{
+    identity::{Delegation, Secp256k1Identity, SignedDelegation},
+    Identity,
+};
+use sha2::{Digest, Sha256};
+use std::sync::Arc;
+use url::Url;
+use web_time::Duration;
+use yral_types::delegated_identity::DelegatedIdentityWire;
+
+use crate::{
+    api::ai_accounts::get_ai_accounts_for_principal,
+    context::server::ServerCtx,
+    kv::{
+        dragonfly_kv::{format_to_dragonfly_key, KEY_PREFIX},
+        KVStore,
+    },
+    oauth::{
+        client_validation::{ClientIdValidator, OAuthClientType, ValidationRes},
+        jwt::{
+            generate::{generate_access_token_and_id_token_jwt, generate_refresh_token_jwt},
+            AuthCodeClaims, RefreshTokenClaims,
+        },
+        AuthGrantQuery, PartialOIDCConfig, TokenGrantError, TokenGrantErrorKind, TokenGrantRes,
+        TokenGrantResult,
+    },
+    utils::{
+        identity::generate_random_identity_and_save,
+        server_url::{self, get_server_url_from_headers, get_server_url_from_request},
+        time::current_epoch,
+    },
+};
+
+async fn verify_client_secret(
+    ctx: &ServerCtx,
+    client_id: &str,
+    client_secret: Option<String>,
+    redirect_uri: Option<&Url>,
+) -> Result<ValidationRes, TokenGrantError> {
+    ctx.validator
+        .full_validation(
+            &ctx.jwk_pairs.client_tokens.decoding_key,
+            client_id,
+            redirect_uri,
+            client_secret.as_deref(),
+        )
+        .await
+        .map_err(|e| TokenGrantError {
+            error: TokenGrantErrorKind::InvalidClient,
+            error_description: e.to_string(),
+        })
+}
+
+impl IntoResponse for TokenGrantResult {
+    fn into_response(self) -> Response {
+        match self {
+            Self::Ok(res) => Json(res).into_response(),
+            Self::Err(e) => {
+                let status_code = e.error.status_code();
+                let mut res = Json(e).into_response();
+                *res.status_mut() = status_code;
+                res
+            }
+        }
+    }
+}
+
+pub async fn handle_well_known_jwks(Extension(ctx): Extension<Arc<ServerCtx>>) -> Response {
+    Json(ctx.jwk_pairs.well_known_jwks.clone()).into_response()
+}
+
+pub async fn handle_oidc_configuration(headers: HeaderMap) -> Response {
+    let server_url = server_url::get_server_url_from_headers(&headers);
+    let jwks_uri = format!("{}/.well-known/jwks.json", server_url);
+
+    Json(PartialOIDCConfig { jwks_uri }).into_response()
+}
+
+pub async fn healthz() -> Response {
+    Json(serde_json::json!({"status": "ok"})).into_response()
+}
+
+pub async fn handle_oauth_token_grant(
+    Extension(ctx): Extension<Arc<ServerCtx>>,
+    headers: HeaderMap,
+    Form(req): Form<AuthGrantQuery>,
+) -> Response {
+    let server_url = get_server_url_from_headers(&headers);
+    let res = match req {
+        AuthGrantQuery::AuthorizationCode {
+            code,
+            redirect_uri,
+            code_verifier,
+            client_id,
+            client_secret,
+        } => {
+            handle_authorization_code_grant(
+                &ctx,
+                code,
+                redirect_uri,
+                code_verifier,
+                client_id,
+                client_secret,
+                &server_url,
+            )
+            .await
+        }
+        AuthGrantQuery::RefreshToken {
+            refresh_token,
+            client_id,
+            client_secret,
+        } => {
+            handle_refresh_token_grant(&ctx, refresh_token, client_id, client_secret, &server_url)
+                .await
+        }
+        AuthGrantQuery::ClientCredentials {
+            client_id,
+            client_secret,
+        } => handle_client_credentials_grant(&ctx, client_id, client_secret, &server_url).await,
+    };
+
+    match res {
+        Ok(grant) => Json(grant).into_response(),
+        Err(e) => {
+            let status_code = e.error.status_code();
+            let mut res = Json(e).into_response();
+            *res.status_mut() = status_code;
+            res
+        }
+    }
+}
+
+fn delegate_identity(from: &impl Identity, max_age: Duration) -> DelegatedIdentityWire {
+    let mut rng = rand::thread_rng();
+    let to_secret = k256::SecretKey::random(&mut rng);
+    let to_secret_jwk = to_secret.to_jwk();
+    let to_identity = Secp256k1Identity::from_private_key(to_secret);
+    let expiry = current_epoch() + max_age;
+    let delegation = Delegation {
+        pubkey: to_identity.public_key().unwrap(),
+        expiration: expiry.as_nanos() as u64,
+        targets: None,
+    };
+    let sig = from.sign_delegation(&delegation).unwrap();
+    let signed_delegation = SignedDelegation {
+        delegation,
+        signature: sig.signature.unwrap(),
+    };
+
+    let mut delegation_chain = from.delegation_chain();
+    delegation_chain.push(signed_delegation);
+
+    DelegatedIdentityWire {
+        from_key: sig.public_key.unwrap(),
+        to_secret: to_secret_jwk,
+        delegation_chain,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn generate_access_token_with_identity(
+    ctx: &ServerCtx,
+    identity: Secp256k1Identity,
+    client_id: &str,
+    nonce: Option<String>,
+    is_anonymous: bool,
+    res: ValidationRes,
+    email: Option<String>,
+    ai_account_delegated_identities: Vec<DelegatedIdentityWire>,
+    server_url: &str,
+) -> TokenGrantRes {
+    let delegated_identity = delegate_identity(&identity, res.access_max_age);
+    let user_principal = identity.sender().unwrap();
+
+    let (access_token, id_token) = generate_access_token_and_id_token_jwt(
+        &ctx.jwk_pairs.auth_tokens.encoding_key,
+        user_principal,
+        delegated_identity,
+        client_id,
+        nonce.clone(),
+        is_anonymous,
+        res.access_max_age,
+        email.clone(),
+        ai_account_delegated_identities,
+        server_url,
+    );
+    let refresh_token = generate_refresh_token_jwt(
+        &ctx.jwk_pairs.auth_tokens.encoding_key,
+        user_principal,
+        client_id,
+        nonce,
+        is_anonymous,
+        res.refresh_max_age,
+        email,
+        server_url,
+    );
+
+    TokenGrantRes::new(access_token, id_token, refresh_token)
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn generate_access_token(
+    ctx: &ServerCtx,
+    user_principal: Principal,
+    client_id: &str,
+    nonce: Option<String>,
+    is_anonymous: bool,
+    validation_res: ValidationRes,
+    email: Option<String>,
+    server_url: &str,
+) -> Result<TokenGrantRes, TokenGrantError> {
+    let identity_jwk = ctx
+        .kv_store
+        .read(format_to_dragonfly_key(
+            KEY_PREFIX,
+            &user_principal.to_text(),
+        ))
+        .await
+        .map_err(|e| TokenGrantError {
+            error: TokenGrantErrorKind::ServerError,
+            error_description: e.to_string(),
+        })?
+        .ok_or_else(|| TokenGrantError {
+            error: TokenGrantErrorKind::ServerError,
+            error_description: format!("unknown principal {user_principal}"),
+        })?;
+
+    let sk = k256::SecretKey::from_jwk_str(&identity_jwk).map_err(|_| TokenGrantError {
+        error: TokenGrantErrorKind::ServerError,
+        error_description: "invalid identity in store?!".into(),
+    })?;
+    let id = Secp256k1Identity::from_private_key(sk);
+
+    let ai_accounts = get_ai_accounts_for_principal(ctx, user_principal)
+        .await
+        .map_err(|e| TokenGrantError {
+            error: TokenGrantErrorKind::ServerError,
+            error_description: format!("Failed to fetch AI accounts: {}", e),
+        })?;
+    let ai_account_delegated_identities: Vec<DelegatedIdentityWire> = ai_accounts
+        .into_iter()
+        .map(|a| a.delegated_identity)
+        .collect();
+
+    let grant = generate_access_token_with_identity(
+        ctx,
+        id,
+        client_id,
+        nonce,
+        is_anonymous,
+        validation_res,
+        email,
+        ai_account_delegated_identities,
+        server_url,
+    );
+
+    Ok(grant)
+}
+
+async fn handle_authorization_code_grant(
+    ctx: &ServerCtx,
+    code: String,
+    redirect_uri: Url,
+    code_verifier: String,
+    client_id: String,
+    client_secret: Option<String>,
+    server_url: &str,
+) -> Result<TokenGrantRes, TokenGrantError> {
+    // Set Sentry context for this grant flow
+    crate::middleware::sentry_user::add_tag("grant_type", "authorization_code");
+    crate::middleware::sentry_user::add_tag("client_id", &client_id);
+
+    let validation_res =
+        verify_client_secret(ctx, &client_id, client_secret, Some(&redirect_uri)).await?;
+
+    let mut validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::ES256);
+    validation.set_audience(&[&client_id]);
+    validation.set_issuer(&[server_url]);
+
+    let auth_code = jsonwebtoken::decode::<AuthCodeClaims>(
+        &code,
+        &ctx.jwk_pairs.auth_tokens.decoding_key,
+        &validation,
+    )
+    .map_err(|e| TokenGrantError {
+        error: TokenGrantErrorKind::InvalidGrant,
+        error_description: e.to_string(),
+    })?;
+
+    let code_claims = auth_code.claims;
+
+    // Set user context for tracking
+    crate::middleware::sentry_user::set_user_context(code_claims.sub);
+    if code_claims.ext_redirect_uri != redirect_uri {
+        return Err(TokenGrantError {
+            error: TokenGrantErrorKind::InvalidGrant,
+            error_description: "Invalid redirect URI".to_string(),
+        });
+    }
+
+    let mut verifier_hash = Sha256::new();
+    verifier_hash.update(code_verifier.as_bytes());
+    let verifier_hash: [u8; 32] = verifier_hash.finalize().into();
+    if verifier_hash != code_claims.ext_code_challenge_s256.0 {
+        return Err(TokenGrantError {
+            error: TokenGrantErrorKind::InvalidGrant,
+            error_description: "Invalid code verifier".to_string(),
+        });
+    }
+
+    let grant = generate_access_token(
+        ctx,
+        code_claims.sub,
+        &client_id,
+        code_claims.nonce.clone(),
+        false,
+        validation_res,
+        code_claims.ext_email,
+        server_url,
+    )
+    .await?;
+
+    Ok(grant)
+}
+
+async fn handle_refresh_token_grant(
+    ctx: &ServerCtx,
+    refresh_token: String,
+    client_id: String,
+    client_secret: Option<String>,
+    server_url: &str,
+) -> Result<TokenGrantRes, TokenGrantError> {
+    // Set Sentry context for this grant flow
+    crate::middleware::sentry_user::add_tag("grant_type", "refresh_token");
+    crate::middleware::sentry_user::add_tag("client_id", &client_id);
+
+    let validation_res = verify_client_secret(ctx, &client_id, client_secret, None).await?;
+
+    let mut validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::ES256);
+    validation.set_audience(&[&client_id]);
+    validation.set_issuer(&[server_url, "https://auth.yral.com", "https://auth.dolr.ai"]);
+
+    let refresh_token = jsonwebtoken::decode::<RefreshTokenClaims>(
+        &refresh_token,
+        &ctx.jwk_pairs.auth_tokens.decoding_key,
+        &validation,
+    )
+    .map_err(|e| TokenGrantError {
+        error: TokenGrantErrorKind::InvalidGrant,
+        error_description: e.to_string(),
+    })?;
+
+    let refresh_claims = refresh_token.claims;
+
+    // Set user context for tracking
+    crate::middleware::sentry_user::set_user_context(refresh_claims.sub);
+
+    let grant = generate_access_token(
+        ctx,
+        refresh_claims.sub,
+        &client_id,
+        None,
+        refresh_claims.ext_is_anonymous,
+        validation_res,
+        refresh_claims.ext_email,
+        server_url,
+    )
+    .await?;
+
+    Ok(grant)
+}
+
+fn backend_service_principal_lookup_key(client_id: &str) -> String {
+    format!("internal-login-{client_id}")
+}
+
+async fn client_credentials_grant_for_backend(
+    ctx: &ServerCtx,
+    client_id: String,
+    res: ValidationRes,
+) -> Result<TokenGrantRes, TokenGrantError> {
+    // Set Sentry tag for backend service type
+    crate::middleware::sentry_user::add_tag("client_type", "backend_service");
+
+    let server_url = match get_server_url_from_request().await {
+        Ok(url) => url,
+        Err(e) => {
+            return Err(TokenGrantError {
+                error: TokenGrantErrorKind::ServerError,
+                error_description: e.to_string(),
+            });
+        }
+    };
+
+    let internal_key = backend_service_principal_lookup_key(&client_id);
+    let princ_res = ctx
+        .kv_store
+        .read(format_to_dragonfly_key(KEY_PREFIX, &internal_key))
+        .await
+        .map_err(|e| TokenGrantError {
+            error: TokenGrantErrorKind::ServerError,
+            error_description: e.to_string(),
+        })?
+        .map(Principal::from_text)
+        .transpose()
+        .map_err(|_| TokenGrantError {
+            error: TokenGrantErrorKind::ServerError,
+            error_description: "Invalid principal in KV".to_string(),
+        })?;
+
+    if let Some(principal) = princ_res {
+        // Set user context for existing backend service principal
+        crate::middleware::sentry_user::set_user_context(principal);
+        return generate_access_token(
+            ctx,
+            principal,
+            &client_id,
+            None,
+            false,
+            res,
+            None,
+            &server_url,
+        )
+        .await;
+    }
+
+    let identity = generate_random_identity_and_save(&ctx.kv_store)
+        .await
+        .map_err(|e| TokenGrantError {
+            error: TokenGrantErrorKind::ServerError,
+            error_description: e.to_string(),
+        })?;
+    let principal = identity.sender().unwrap();
+
+    // Set user context for new backend service principal
+    crate::middleware::sentry_user::set_user_context(principal);
+
+    ctx.kv_store
+        .write(
+            format_to_dragonfly_key(KEY_PREFIX, &internal_key),
+            principal.to_text(),
+        )
+        .await
+        .map_err(|e| TokenGrantError {
+            error: TokenGrantErrorKind::ServerError,
+            error_description: e.to_string(),
+        })?;
+
+    let grant = generate_access_token_with_identity(
+        ctx,
+        identity,
+        &client_id,
+        None,
+        false,
+        res,
+        None,
+        Vec::new(),
+        &server_url,
+    );
+
+    Ok(grant)
+}
+
+async fn handle_client_credentials_grant(
+    ctx: &ServerCtx,
+    client_id: String,
+    client_secret: Option<String>,
+    server_url: &str,
+) -> Result<TokenGrantRes, TokenGrantError> {
+    // Set Sentry context for this grant flow
+    crate::middleware::sentry_user::add_tag("grant_type", "client_credentials");
+    crate::middleware::sentry_user::add_tag("client_id", &client_id);
+
+    let validation_res = verify_client_secret(ctx, &client_id, client_secret, None).await?;
+    if validation_res.kind == OAuthClientType::BackendService {
+        return client_credentials_grant_for_backend(ctx, client_id, validation_res).await;
+    }
+
+    let identity = generate_random_identity_and_save(&ctx.kv_store)
+        .await
+        .map_err(|e| TokenGrantError {
+            error: TokenGrantErrorKind::ServerError,
+            error_description: e.to_string(),
+        })?;
+
+    // Set user context for anonymous identity
+    crate::middleware::sentry_user::set_user_context_with_metadata(
+        identity.sender().unwrap(),
+        None,
+        true,
+    );
+
+    let grant = generate_access_token_with_identity(
+        ctx,
+        identity,
+        &client_id,
+        None,
+        true,
+        validation_res,
+        None,
+        Vec::new(),
+        server_url,
+    );
+
+    Ok(grant)
+}

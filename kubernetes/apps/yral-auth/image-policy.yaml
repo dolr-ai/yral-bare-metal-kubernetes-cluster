@@ -1,0 +1,16 @@
+# Flux ImagePolicy — selects the latest image tag for yral-auth.
+#
+# Policy: alphabetical descending, picks the last tag when sorted.
+# Works with timestamp-based or SHA-based tags from Shipwright BuildRuns.
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: yral-auth
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: yral-auth
+  policy:
+    alphabetical:
+      order: desc

@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: yral-auth-config
+  namespace: yral-auth
+data:
+  PORT: "8080"
+  APP_ENV: "production"
+
+  # Google OAuth (public client ID)
+  GOOGLE_CLIENT_ID: "804814798298-taifmq3k6olk9bjr1cqb9gfnp1mssqqb.apps.googleusercontent.com"
+
+  # Apple OAuth (public identifiers)
+  APPLE_CLIENT_ID: "com.yral.yral-auth"
+  APPLE_TEAM_ID: "2UL556KNXC"
+  APPLE_KEY_ID: "9DWVYWDYD8"
+
+  # JWT public keys (not secrets — used for verification by other services)
+  JWT_PUB_EC_PEM: |
+    -----BEGIN PUBLIC KEY-----
+    MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEoqN3/0RNfrnrnYGxKBgy/qHnmITr
+    +6ucjxStx7tjA30QJZlWzo0atxmY8y9dUR+eKQI0SnbQds4xLEU8+JGm8Q==
+    -----END PUBLIC KEY-----
+
+  CLIENT_JWT_PUB_ED_PEM: |
+    -----BEGIN PUBLIC KEY-----
+    MCowBQYDK2VwAyEAKpZNfPOONR9AXiaGmHv8AHemm4SNK0uh+mf523ho5KU=
+    -----END PUBLIC KEY-----

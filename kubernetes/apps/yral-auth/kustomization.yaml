@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - deployment.yaml
+  - service.yaml
+  - reference-grant.yaml
+  - harbor-pull-secret.sops.yaml
+  - secrets.sops.yaml
+  - github-clone-secret.sops.yaml
+  - build.yaml
+  - image-repository.yaml
+  - image-policy.yaml
+  - image-update-automation.yaml
+  - harbor-scan-secret.sops.yaml

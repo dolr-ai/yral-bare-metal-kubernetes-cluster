@@ -1,0 +1,16 @@
+# Flux ImageRepository — scans Harbor for new image tags on the
+# yral-auth/yral-auth repository.
+#
+# The harbor-scan-secret (in flux-system namespace) provides credentials
+# for scanning the private Harbor registry.
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: yral-auth
+  namespace: flux-system
+spec:
+  image: harbor.yral.com/yral-auth/yral-auth
+  interval: 1m
+  secretRef:
+    name: harbor-scan-secret

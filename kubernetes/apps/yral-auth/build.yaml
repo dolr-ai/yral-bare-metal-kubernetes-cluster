@@ -1,0 +1,41 @@
+# Shipwright Build CR for yral-auth.
+#
+# Defines how to build the yral-auth image from source using BuildKit.
+# Source: the monorepo (dolr-ai/yral-bare-metal-kubernetes-cluster) at apps/yral-auth/
+# Strategy: buildkit (ClusterBuildStrategy, rootless BuildKit v0.31.1)
+# Output: harbor.yral.com/yral-auth/yral-auth
+#
+# BuildRuns are created manually (or via Shipwright Triggers in the future):
+#   kubectl -n yral-auth apply -f <buildrun.yaml>
+# Or using the shp CLI:
+#   shp build run yral-auth --namespace yral-auth
+---
+apiVersion: shipwright.io/v1beta1
+kind: Build
+metadata:
+  name: yral-auth
+  namespace: yral-auth
+spec:
+  source:
+    type: Git
+    git:
+      url: https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git
+      revision: main
+      cloneSecret: github-clone-secret
+    contextDir: apps/yral-auth
+  strategy:
+    name: buildkit
+    kind: ClusterBuildStrategy
+  paramValues:
+    - name: dockerfile
+      value: Dockerfile.buildkit
+    - name: cache
+      value: registry
+  output:
+    image: harbor.yral.com/yral-auth/yral-auth:latest
+    pushSecret: harbor-pull-secret
+  retention:
+    succeededLimit: 3
+    failedLimit: 3
+    ttlAfterSucceeded: 1h
+    ttlAfterFailed: 24h

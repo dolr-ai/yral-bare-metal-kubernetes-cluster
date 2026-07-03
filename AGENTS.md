@@ -138,7 +138,7 @@ Velero only (full cluster DR, 30-day self-managed `ttl: 720h`). Named prefix `ve
 
 - **NetworkPolicy rule:** Never rely on `fromCIDRSet`/`namespaceSelector`/`podSelector` for gateway-originated traffic (cilium-envoy runs hostNetwork; appears as node IP). Use an explicit ingress rule with only a `ports:` clause (app-level auth does the real enforcement).
 
-**Dashboard:** Update `kubernetes/apps/dashboard/index.html` on every new/removed visitable URL (in same commit).
+**Dashboard:** Update `kubernetes/apps/dashboard/index.html` only for internal tools (oauth2-proxy-gated or otherwise internal). Public/user-facing services are NOT listed on the dashboard.
 
 ### Local Environment & Parity
 `scripts/setup-local-env.sh` is the single source of truth (tools, vault extraction to `~/.ssh/id_ed25519`, age key for SOPS, `.env`/`.envrc`, kubeconfig). Re-run after vault changes. macOS CI for exact parity.
@@ -161,6 +161,21 @@ Bootstrap with `--token-auth --components-extra=image-reflector-controller,image
 Webhook receiver for near-real-time reconcile on push.
 `dependsOn` for ordering.
 Manual apply order only before bootstrap (and only for non-Flux resources).
+
+### Image Registry (Harbor)
+In-cluster Harbor at `harbor.yral.com` is the registry for custom-built app images (NOT bootstrap infra images — those stay on GHCR/quay.io for disaster recovery).
+
+**Simplicity over fine-grained access control:** This is a single-contributor repo/cluster. Use the Harbor admin credentials directly for CI pushes, Flux image scanning, and pod image pulls. Store as a SOPS-encrypted `kubernetes.io/dockerconfigjson` Secret (e.g., `harbor-pull.sops.yaml`) in each app namespace. Admin password lives in `kubernetes/infrastructure/harbor/harbor-admin-secret.sops.yaml`.
+- Every namespace pulling from Harbor must have an `imagePullSecrets` reference in the Deployment/StatefulSet spec pointing to that Secret.
+- Use Flux `ImageRepository` + `ImagePolicy` + `ImageUpdateAutomation` for automatic tag updates from Harbor into git manifests.
+
+### Image Building (Shipwright + BuildKit)
+In-cluster image building via Shipwright (CRD-native operator, CNCF Sandbox) wrapping BuildKit (rootless). Tekton Pipelines is the execution engine. Triggered by Flux on git push — no external CI needed for building app images.
+
+- Shipwright operator in `kubernetes/infrastructure/shipwright/`, Tekton in `kubernetes/infrastructure/tekton-pipelines/` (raw release YAML committed to repo, gotk-components.yaml style).
+- Define a `Build` + `BuildRun` CR per app (source: git, strategy: buildkit ClusterBuildStrategy, output: Harbor).
+- BuildKit runs rootless (non-privileged, UID 1000) — no `privileged: true` needed.
+- Pin versions: Tekton v1.12.2 LTS (Shipwright v0.20.3 supports v1.3/v1.6/v1.9/v1.12 — NOT v1.14+), Shipwright v0.20.3, BuildKit v0.31.1.
 
 ## Questions for Agents (When in Doubt)
 

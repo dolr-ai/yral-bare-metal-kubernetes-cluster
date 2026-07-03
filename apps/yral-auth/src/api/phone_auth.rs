@@ -1,0 +1,243 @@
+use std::{ops::Add, sync::Arc, time::Duration};
+
+use axum_extra::extract::{cookie::Cookie, PrivateCookieJar};
+use candid::Principal;
+use leptos::prelude::expect_context;
+use leptos_axum::{extract_with_state, ResponseOptions};
+use rand::Rng;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use url::Url;
+
+use crate::{
+    api::identity_provider::{
+        principal_from_login_hint_or_generate_and_save, try_extract_principal_from_oauth_sub,
+    },
+    context::{
+        message_delivery_service::{MessageDeliveryError, MessageDeliveryService},
+        server::ServerCtx,
+    },
+    error::AuthErrorKind,
+    oauth::{jwt::generate::generate_code_grant_jwt, AuthQuery, SupportedOAuthProviders},
+    page::oauth_login::verify_phone_auth::VerifyPhoneOtpRequest,
+    utils::{cookies::set_cookies, server_url::get_server_url_from_request, time::current_epoch},
+};
+
+pub const OTP_COOKIE_NAME: &str = "otp_token";
+pub const AUTH_CLIENT_QUERY_COOKIE_NAME: &str = "auth_client_query";
+
+#[derive(Serialize, Deserialize)]
+struct OneTimePassCodeClaim {
+    pub phone_number: String,
+    pub code_hash_s256: Vec<u8>,
+    pub exp: u64,
+}
+
+pub async fn generate_otp_and_set_cookie(
+    server_context: &ServerCtx,
+    phone_number: String,
+    auth_client_query: AuthQuery,
+) -> Result<(), AuthErrorKind> {
+    let private_cookie_jar: PrivateCookieJar = extract_with_state(&server_context.cookie_key)
+        .await
+        .map_err(|e| AuthErrorKind::Unexpected(e.to_string()))?;
+
+    let token = send_authorization_code_for_phone_number(
+        server_context.message_delivery_service.as_ref(),
+        phone_number.clone(),
+    )
+    .await?;
+
+    let otp_cookie = Cookie::build((OTP_COOKIE_NAME, token.clone()))
+        .http_only(true)
+        .secure(true)
+        .path("/")
+        .same_site(axum_extra::extract::cookie::SameSite::None)
+        .build();
+
+    let auth_client_query_raw = serde_json::to_string(&auth_client_query)
+        .map_err(|e| AuthErrorKind::Unexpected(e.to_string()))?;
+
+    let client_auth_query_cookie =
+        Cookie::build((AUTH_CLIENT_QUERY_COOKIE_NAME, auth_client_query_raw))
+            .http_only(true)
+            .secure(true)
+            .path("/")
+            .same_site(axum_extra::extract::cookie::SameSite::None)
+            .build();
+
+    let cookie = private_cookie_jar.add(otp_cookie);
+    let cookie = cookie.add(client_auth_query_cookie);
+
+    let resp: ResponseOptions = expect_context();
+
+    set_cookies(&resp, cookie);
+
+    Ok(())
+}
+
+/// Sends an OTP to `phone_number` via `delivery_service` and returns the
+/// serialised [`OneTimePassCodeClaim`] token that should be stored in the
+/// encrypted cookie.
+///
+/// Accepts `&dyn MessageDeliveryService` so the caller (and tests) can inject
+/// any implementation without needing a full [`ServerCtx`].
+pub(crate) async fn send_authorization_code_for_phone_number(
+    delivery_service: &dyn MessageDeliveryService,
+    phone_number: String,
+) -> Result<String, AuthErrorKind> {
+    let one_time_passcode: u32 = rand::thread_rng().gen_range(100000..999999);
+
+    println!("Sending OTP {one_time_passcode} to phone number {phone_number}");
+
+    let mut hasher = Sha256::new();
+    hasher.update(one_time_passcode.to_string().as_bytes());
+
+    let otp_hash = hex::encode(hasher.finalize());
+
+    let expiry = current_epoch().add(Duration::from_secs(300)); // OTP valid for 5 minutes
+
+    let otp_claim = OneTimePassCodeClaim {
+        phone_number: phone_number.clone(),
+        code_hash_s256: otp_hash.as_bytes().to_vec(),
+        exp: expiry.as_nanos() as u64,
+    };
+
+    let token =
+        serde_json::to_string(&otp_claim).map_err(|e| AuthErrorKind::Unexpected(e.to_string()))?;
+
+    //TODO: send OTP to user via SMS gateway
+    delivery_service
+        .send_message(&phone_number, &one_time_passcode.to_string())
+        .await
+        .map_err(|e| match e {
+            MessageDeliveryError::InvalidRecipient => AuthErrorKind::InvalidPhoneNumber,
+            _ => AuthErrorKind::Unexpected(format!("Failed to send OTP: {e}")),
+        })?;
+
+    Ok(token)
+}
+
+/// Pure verification of an OTP claim token.
+///
+/// Checks phone-number match, expiry, and SHA-256 hash of `code` against the
+/// stored hash.  This function has no side-effects and is designed to be
+/// called from both the production handler and tests.
+pub(crate) fn verify_otp_token(
+    otp_token_raw: &str,
+    phone_number: &str,
+    code: &str,
+) -> Result<(), AuthErrorKind> {
+    let otp_token = serde_json::from_str::<OneTimePassCodeClaim>(otp_token_raw).map_err(|_| {
+        AuthErrorKind::Unexpected("failed to deserialize otp token claims".to_owned())
+    })?;
+
+    if otp_token.phone_number != phone_number {
+        return Err(AuthErrorKind::PhoneMismatch);
+    }
+
+    if otp_token.exp < current_epoch().as_nanos() as u64 {
+        return Err(AuthErrorKind::ExpiredOtp);
+    }
+
+    let mut hasher = Sha256::new();
+    hasher.update(code.as_bytes());
+    let code_hash = hex::encode(hasher.finalize());
+
+    if code_hash.as_bytes() != otp_token.code_hash_s256 {
+        return Err(AuthErrorKind::InvalidOtp);
+    }
+
+    Ok(())
+}
+
+pub async fn verify_phone_one_time_passcode(
+    server_context: &Arc<ServerCtx>,
+    verify_request: VerifyPhoneOtpRequest,
+) -> Result<(String, Url), AuthErrorKind> {
+    let server_url = get_server_url_from_request()
+        .await
+        .map_err(|e| AuthErrorKind::Unexpected(e.to_string()))?;
+
+    let mut private_cookie_jar: PrivateCookieJar = extract_with_state(&server_context.cookie_key)
+        .await
+        .map_err(|e| AuthErrorKind::Unexpected(e.to_string()))?;
+    let otp_cookie = private_cookie_jar
+        .get(OTP_COOKIE_NAME)
+        .ok_or(AuthErrorKind::OtpCookieNotFound)?;
+    let auth_client_query_raw = private_cookie_jar
+        .get(AUTH_CLIENT_QUERY_COOKIE_NAME)
+        .ok_or(AuthErrorKind::AuthClientCookieNotFound)?
+        .value()
+        .to_string();
+
+    let auth_client_query: AuthQuery =
+        serde_json::from_str(&auth_client_query_raw).map_err(|e| {
+            AuthErrorKind::Unexpected(format!("failed to deserialize auth client query: {e}"))
+        })?;
+    if !auth_client_query.state.eq(&verify_request.client_state) {
+        return Err(AuthErrorKind::Unexpected("state token mismatch".to_owned()));
+    }
+
+    let otp_token_raw_str = otp_cookie.value().to_owned();
+
+    verify_otp_token(
+        &otp_token_raw_str,
+        &verify_request.phone_number,
+        &verify_request.code,
+    )?;
+
+    let provider = SupportedOAuthProviders::Phone;
+
+    //TODO: add client code grant and clear the cookies.
+    let user_principal: Principal = if let Some(user_principal) =
+        try_extract_principal_from_oauth_sub(
+            provider,
+            &server_context.kv_store,
+            &verify_request.phone_number,
+            None,
+        )
+        .await?
+    {
+        Principal::from_text(user_principal)
+            .map_err(|_e| AuthErrorKind::Unexpected("Invalid principal from kv".to_owned()))?
+    } else {
+        let user_principal = principal_from_login_hint_or_generate_and_save(
+            provider,
+            &server_context.kv_store,
+            &verify_request.phone_number,
+            auth_client_query.login_hint.clone(),
+            None,
+        )
+        .await?;
+        user_principal
+    };
+
+    let mut redirect_uri = auth_client_query.redirect_uri.clone();
+    let client_state = auth_client_query.state.clone();
+
+    let token = generate_code_grant_jwt(
+        &server_context.jwk_pairs.auth_tokens.encoding_key,
+        user_principal,
+        &server_url,
+        auth_client_query,
+        None,
+    );
+
+    private_cookie_jar = private_cookie_jar.remove(OTP_COOKIE_NAME);
+    private_cookie_jar = private_cookie_jar.remove(AUTH_CLIENT_QUERY_COOKIE_NAME);
+
+    let response_options: ResponseOptions = expect_context();
+    set_cookies(&response_options, private_cookie_jar);
+
+    redirect_uri
+        .query_pairs_mut()
+        .clear()
+        .append_pair("code", token.as_str())
+        .append_pair("state", client_state.as_str());
+    Ok((token, redirect_uri))
+}
+
+#[cfg(test)]
+#[path = "phone_auth_tests.rs"]
+mod tests;

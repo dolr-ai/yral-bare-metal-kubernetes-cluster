@@ -1,0 +1,48 @@
+# yral-auth HTTPRoute
+#
+# Exposes the yral-auth authentication service at auth.yral.com — a public
+# user-facing endpoint providing OAuth/OIDC login, phone auth, JWT issuance,
+# and the Leptos SSR web UI.
+#
+# No oauth2-proxy: this is a public authentication service (users sign in
+# directly). TLS is terminated by the Cilium Gateway (web-gateway in
+# kube-system) using the wildcard *.yral.com certificate.
+# The ReferenceGrant in the yral-auth namespace allows this HTTPRoute to
+# reference yral-auth:8080 as a backend.
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: yral-auth-redirect
+  namespace: kube-system
+spec:
+  parentRefs:
+    - name: web-gateway
+      namespace: kube-system
+      sectionName: http
+  hostnames:
+    - auth.yral.com
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: yral-auth
+  namespace: kube-system
+spec:
+  parentRefs:
+    - name: web-gateway
+      namespace: kube-system
+      sectionName: https
+  hostnames:
+    - auth.yral.com
+  rules:
+    - backendRefs:
+        - name: yral-auth
+          namespace: yral-auth
+          port: 8080
