@@ -1,0 +1,33 @@
+# Certificate for the Shipwright webhook server.
+# The webhook pod mounts this as a TLS secret at /etc/webhook/certs.
+# Without it, the webhook pod stays in ContainerCreating (MountVolume failed).
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: shipwright-build-selfsigned
+  namespace: shipwright-build
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: shipwright-build-webhook-cert
+  namespace: shipwright-build
+spec:
+  secretName: shipwright-build-webhook-cert
+  duration: 8760h
+  renewBefore: 720h
+  issuerRef:
+    name: shipwright-build-selfsigned
+    kind: Issuer
+  dnsNames:
+    - shp-build-webhook
+    - shp-build-webhook.shipwright-build
+    - shp-build-webhook.shipwright-build.svc
+    - shp-build-webhook.shipwright-build.svc.cluster.local
+    - shipwright-build-webhook
+    - shipwright-build-webhook.shipwright-build
+    - shipwright-build-webhook.shipwright-build.svc
+    - shipwright-build-webhook.shipwright-build.svc.cluster.local
