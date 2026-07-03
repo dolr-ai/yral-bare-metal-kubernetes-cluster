@@ -1,27 +1,27 @@
 [submodule "apps/yral-mobile"]
 	path = apps/yral-mobile
-	url = git@github.com:dolr-ai/yral-mobile.git
+	url = https://github.com/dolr-ai/yral-mobile.git
 [submodule "apps/yral-backend-canister"]
 	path = apps/yral-backend-canister
-	url = git@github.com:dolr-ai/yral-backend-canister.git
+	url = https://github.com/dolr-ai/yral-backend-canister.git
 [submodule "apps/yral-common"]
 	path = apps/yral-common
-	url = git@github.com:dolr-ai/yral-common.git
+	url = https://github.com/dolr-ai/yral-common.git
 [submodule "apps/hot-or-not-web-leptos-ssr"]
 	path = apps/hot-or-not-web-leptos-ssr
-	url = git@github.com:dolr-ai/hot-or-not-web-leptos-ssr.git
+	url = https://github.com/dolr-ai/hot-or-not-web-leptos-ssr.git
 [submodule "apps/website"]
 	path = apps/website
-	url = git@github.com:dolr-ai/website.git
+	url = https://github.com/dolr-ai/website.git
 [submodule "apps/yral-billing"]
 	path = apps/yral-billing
-	url = git@github.com:dolr-ai/yral-billing.git
+	url = https://github.com/dolr-ai/yral-billing.git
 [submodule "apps/yral-metadata"]
 	path = apps/yral-metadata
-	url = git@github.com:dolr-ai/yral-metadata.git
+	url = https://github.com/dolr-ai/yral-metadata.git
 [submodule "apps/off-chain-agent"]
 	path = apps/off-chain-agent
-	url = git@github.com:dolr-ai/off-chain-agent.git
+	url = https://github.com/dolr-ai/off-chain-agent.git
 [submodule "apps/yral"]
 	path = apps/yral
-	url = git@github.com:dolr-ai/yral.git
+	url = https://github.com/dolr-ai/yral.git
