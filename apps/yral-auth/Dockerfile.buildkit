@@ -62,6 +62,7 @@ ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
 ENV LEPTOS_ENV="PROD"
 ENV LEPTOS_HASH_FILES="true"
 ENV LEPTOS_TAILWIND_VERSION="v4.0.15"
+ENV LEPTOS_BIN_TARGET_TRIPLE="x86_64-unknown-linux-musl"
 
 # Build the app — produces the musl binary + WASM/JS/CSS site assets
 RUN cargo leptos build --release --lib-features release-lib --bin-features release-bin
