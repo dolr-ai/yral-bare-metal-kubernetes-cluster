@@ -161,6 +161,7 @@ Bootstrap with `--token-auth --components-extra=image-reflector-controller,image
 Webhook receiver for near-real-time reconcile on push.
 `dependsOn` for ordering.
 Manual apply order only before bootstrap (and only for non-Flux resources).
+**No manual `flux reconcile` needed** — the webhook receiver triggers reconciliation within seconds of a git push. Only use `flux reconcile` if the webhook is down or for debugging.
 
 ### Image Registry (Harbor)
 In-cluster Harbor at `harbor.yral.com` is the registry for custom-built app images (NOT bootstrap infra images — those stay on GHCR/quay.io for disaster recovery).
