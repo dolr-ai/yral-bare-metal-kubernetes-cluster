@@ -34,7 +34,8 @@ RUN curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/downloa
 RUN rustup target add x86_64-unknown-linux-musl wasm32-unknown-unknown
 
 # Create a symlink for the musl linker (cargo expects x86_64-linux-musl-gcc)
-RUN ln -s /usr/bin/musl-gcc /usr/bin/x86_64-linux-musl-gcc
+# Use -f in case it already exists (musl-tools may create it)
+RUN ln -sf /usr/bin/musl-gcc /usr/bin/x86_64-linux-musl-gcc
 
 WORKDIR /app
 
