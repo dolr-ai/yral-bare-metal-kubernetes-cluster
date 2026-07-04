@@ -17,7 +17,19 @@ RUN curl --proto '=https' --tlsv1.3 -LsSf https://github.com/leptos-rs/cargo-lep
 RUN rustup target add wasm32-unknown-unknown
 
 WORKDIR /app
-COPY . .
+
+# Copy only the files needed for the build (not target/, .env, etc.)
+COPY Cargo.toml Cargo.lock ./
+COPY src/ ./src/
+COPY style/ ./style/
+COPY public/ ./public/
+COPY tailwind.config.js ./
+COPY package.json pnpm-lock.yaml ./
+COPY rust-toolchain.toml ./
+COPY task_runner/ ./task_runner/
+
+# Install JS dependencies (tailwindcss)
+RUN npm install
 
 # Build the app
 RUN cargo leptos build --release -vv
