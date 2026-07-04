@@ -68,3 +68,5 @@ The key never leaves the cluster and is encrypted at rest inside etcd (Kubernete
 - Remove ci-e2e-reader KafkaUser if Kafka bridge serves our needs and have mobile app tests call the bridge instead of Kafka directly. Remove all associated Kafka native infrastructure that we added to support ci-e2e-reader
 - Instead of TSV, should we move to json or something else?
 - Remove goldilocks completely. I seem to have seen a goldilocks-alloy container
+- Remove yral-auth specific task runner and use the global task runner for everything
+- Remove the library/rust-counter image from harbor

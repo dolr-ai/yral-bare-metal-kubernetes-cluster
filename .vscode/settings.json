@@ -6,10 +6,10 @@
         "./apps/yral-backend-canister/Cargo.toml",
         "./apps/yral-database-spacetime/Cargo.toml"
     ],
-    "todo-tree.tree.scanMode": "workspace",
-    "todo-tree.tree.showBadges": true,
-    "todo-tree.tree.showCountsInTree": true,
     "vs-kubernetes": {
         "vs-kubernetes.crd-code-completion": "enabled"
     },
+    "better-todo-tree.tree.scanMode": "workspace",
+    "better-todo-tree.tree.showBadges": true,
+    "better-todo-tree.tree.showCountsInTree": true,
 }
