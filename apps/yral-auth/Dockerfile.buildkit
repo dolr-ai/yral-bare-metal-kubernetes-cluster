@@ -25,7 +25,6 @@ COPY style/ ./style/
 COPY public/ ./public/
 COPY tailwind.config.js ./
 COPY package.json pnpm-lock.yaml ./
-COPY rust-toolchain.toml ./
 COPY task_runner/ ./task_runner/
 
 # Install JS dependencies (tailwindcss)
