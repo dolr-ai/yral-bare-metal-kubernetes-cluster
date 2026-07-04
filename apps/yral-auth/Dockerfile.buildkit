@@ -1,84 +1,40 @@
-# Multi-stage Dockerfile for building yral-auth from source in-cluster (Shipwright/BuildKit).
-#
-# Uses Alpine as the builder so musl is the NATIVE toolchain — this produces
-# truly static binaries that run on scratch. No cross-compilation needed.
+# Multi-stage Dockerfile for building yral-auth from source (Shipwright/BuildKit).
+# Follows the official Leptos SSR deployment guide:
+# https://book.leptos.dev/deployment/ssr.html\#creating-a-containerfile
 #
 # Build context: apps/yral-auth/ (set by Shipwright spec.source.contextDir)
 
 # ── Stage 1: Build ──────────────────────────────────────────────────────────
 FROM rust:1.88-alpine AS builder
 
-# Install build dependencies
-RUN apk add --no-cache \
-    musl-dev \
-    pkgconfig \
-    openssl-dev \
-    openssl-libs-static \
-    nodejs \
-    npm \
-    git \
-    curl
+RUN apk update && \
+    apk add --no-cache bash curl npm libc-dev binaryen git
 
-# Install cargo-binstall + cargo-leptos
-RUN curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-musl.tgz -o /tmp/cargo-binstall.tgz && \
-    tar -xzf /tmp/cargo-binstall.tgz -C /usr/local/bin && \
-    chmod +x /usr/local/bin/cargo-binstall && \
-    rm /tmp/cargo-binstall.tgz && \
-    cargo binstall cargo-leptos --version 0.3.2 --no-confirm
+# Install cargo-leptos via official installer
+RUN curl --proto '=https' --tlsv1.3 -LsSf https://github.com/leptos-rs/cargo-leptos/releases/latest/download/cargo-leptos-installer.sh | sh
 
-# Add wasm target (musl is already the default on Alpine)
+# Add the WASM target
 RUN rustup target add wasm32-unknown-unknown
 
 WORKDIR /app
+COPY . .
 
-# Copy Cargo.toml + Cargo.lock first for better layer caching
-COPY Cargo.toml Cargo.lock ./
+# Build the app
+RUN cargo leptos build --release -vv
 
-# Copy the source code
-COPY src/ ./src/
-COPY style/ ./style/
-COPY public/ ./public/
-COPY tailwind.config.js ./
-COPY package.json ./
-COPY rust-toolchain.toml ./
-COPY task_runner/ ./task_runner/
-
-# Install JS dependencies (tailwindcss)
-# TODO: Revert to the default npm registry
-RUN npm install --registry https://registry.npmmirror.com
-
-# Set Leptos environment variables for the build
-ENV LEPTOS_OUTPUT_NAME="yral-auth"
-ENV LEPTOS_SITE_ROOT="target/site"
-ENV LEPTOS_SITE_PKG_DIR="pkg"
-ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
-ENV LEPTOS_ENV="PROD"
-ENV LEPTOS_HASH_FILES="true"
-ENV LEPTOS_TAILWIND_VERSION="v4.0.15"
-ENV GIT_SSL_CAINFO=/etc/ssl/certs/ca-certificates.crt
-ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
-ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
-
-# Build the app — on Alpine, the default target IS x86_64-unknown-linux-musl
-# so the binary is natively static. No LEPTOS_BIN_TARGET_TRIPLE needed.
-RUN cargo leptos build --release --lib-features release-lib --bin-features release-bin
-
-# ── Stage 2: Runtime (scratch — musl binary is fully static on Alpine) ────
-FROM scratch
+# ── Stage 2: Runtime ───────────────────────────────────────────────────────
+FROM rust:1.88-alpine AS runtime
 
 WORKDIR /app
 
-# Copy the built binary
-COPY --from=builder /app/target/release/yral-auth .
-COPY --from=builder /app/target/release/hash.txt .
+# Copy the server binary
+COPY --from=builder /app/target/release/yral-auth /app/
 
-# Copy the Leptos site assets (WASM, JS, CSS)
-COPY --from=builder /app/target/site ./site
+# Copy the site assets (JS/WASM/CSS)
+COPY --from=builder /app/target/site /app/site
 
-# Copy CA certificates (app makes HTTPS calls to Google, Apple, WhatsApp, etc.)
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-
-# Set Leptos environment variables (runtime config baked into image)
+# Set required env variables
+ENV RUST_LOG="info"
 ENV LEPTOS_OUTPUT_NAME="yral-auth"
 ENV LEPTOS_SITE_ROOT="site"
 ENV LEPTOS_SITE_PKG_DIR="pkg"
@@ -89,4 +45,4 @@ ENV APP_ENV="production"
 
 EXPOSE 8080
 
-ENTRYPOINT ["/app/yral-auth"]
+CMD ["/app/yral-auth"]
