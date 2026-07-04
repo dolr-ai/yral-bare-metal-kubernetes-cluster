@@ -1,59 +1,92 @@
 # Multi-stage Dockerfile for building yral-auth from source (Shipwright/BuildKit).
-# Follows the official Leptos SSR deployment guide:
-# https://book.leptos.dev/deployment/ssr.html\#creating-a-containerfile
-#
 # Build context: apps/yral-auth/ (set by Shipwright spec.source.contextDir)
 
 # ── Stage 1: Build ──────────────────────────────────────────────────────────
-FROM rust:1.88-alpine AS builder
+FROM rust:latest AS builder
 
-RUN apk update && \
-    apk add --no-cache bash curl npm libc-dev binaryen git
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends musl-tools && rm -rf /var/lib/apt/lists/*
 
-# Install cargo-leptos via official installer
-RUN curl --proto '=https' --tlsv1.3 -LsSf https://github.com/leptos-rs/cargo-leptos/releases/latest/download/cargo-leptos-installer.sh | sh
+# # Install Node.js (for tailwindcss via cargo-leptos)
+# RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+#     apt-get install -y nodejs && \
+#     rm -rf /var/lib/apt/lists/*
 
-# Add the WASM target
-RUN rustup target add wasm32-unknown-unknown
+# # Install pnpm
+# RUN npm install -g pnpm
 
-WORKDIR /app
+# # Install cargo-binstall + cargo-leptos
+# RUN curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-musl.tgz -o /tmp/cargo-binstall.tgz && \
+#     tar -xzf /tmp/cargo-binstall.tgz -C /usr/local/bin && \
+#     chmod +x /usr/local/bin/cargo-binstall && \
+#     rm /tmp/cargo-binstall.tgz && \
+#     cargo binstall cargo-leptos --version 0.3.2 --no-confirm
 
-# Copy only the files needed for the build (not target/, .env, etc.)
-COPY Cargo.toml Cargo.lock ./
-COPY src/ ./src/
-COPY style/ ./style/
-COPY public/ ./public/
-COPY tailwind.config.js ./
-COPY package.json pnpm-lock.yaml ./
-COPY task_runner/ ./task_runner/
+# # Add musl target + wasm target
+# RUN rustup target add x86_64-unknown-linux-musl wasm32-unknown-unknown
 
-# Install JS dependencies (tailwindcss)
-RUN npm install
+# # Create a symlink for the musl linker (cargo expects x86_64-linux-musl-gcc)
+# RUN ln -sf /usr/bin/musl-gcc /usr/bin/x86_64-linux-musl-gcc
 
-# Build the app
-RUN cargo leptos build --release -vv
+# WORKDIR /app
 
-# ── Stage 2: Runtime ───────────────────────────────────────────────────────
-FROM rust:1.88-alpine AS runtime
+# # Copy Cargo.toml + Cargo.lock first for better layer caching
+# COPY Cargo.toml Cargo.lock ./
 
-WORKDIR /app
+# # Copy the source code
+# COPY src/ ./src/
+# COPY style/ ./style/
+# COPY public/ ./public/
+# COPY tailwind.config.js ./
+# COPY package.json pnpm-lock.yaml ./
+# COPY .cargo/ ./.cargo/
+# COPY rust-toolchain.toml ./
+# COPY task_runner/ ./task_runner/
 
-# Copy the server binary
-COPY --from=builder /app/target/release/yral-auth /app/
+# # Install JS dependencies (tailwindcss)
+# RUN pnpm install --frozen-lockfile || pnpm install
 
-# Copy the site assets (JS/WASM/CSS)
-COPY --from=builder /app/target/site /app/site
+# # Set Leptos environment variables for the build
+# ENV LEPTOS_OUTPUT_NAME="yral-auth"
+# ENV LEPTOS_SITE_ROOT="target/site"
+# ENV LEPTOS_SITE_PKG_DIR="pkg"
+# ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
+# ENV LEPTOS_ENV="PROD"
+# ENV LEPTOS_HASH_FILES="true"
+# ENV LEPTOS_TAILWIND_VERSION="v4.0.15"
+# ENV LEPTOS_BIN_TARGET_TRIPLE="x86_64-unknown-linux-musl"
+# ENV RUSTFLAGS="-C target-feature=+crt-static"
 
-# Set required env variables
-ENV RUST_LOG="info"
-ENV LEPTOS_OUTPUT_NAME="yral-auth"
-ENV LEPTOS_SITE_ROOT="site"
-ENV LEPTOS_SITE_PKG_DIR="pkg"
-ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
-ENV LEPTOS_ENV="PROD"
-ENV LEPTOS_HASH_FILES="true"
-ENV APP_ENV="production"
+# # Build the app
+# RUN cargo leptos build --release --lib-features release-lib --bin-features release-bin
 
-EXPOSE 8080
+# # ── Stage 2: Runtime (scratch) ─────────────────────────────────────────────
+# FROM scratch
 
-CMD ["/app/yral-auth"]
+# WORKDIR /app
+
+# # Copy the built binary
+# COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/yral-auth .
+# COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/hash.txt .
+
+# # Copy the Leptos site assets (WASM, JS, CSS)
+# COPY --from=builder /app/target/site ./site
+
+# # Copy CA certificates (app makes HTTPS calls to Google, Apple, WhatsApp, etc.)
+# COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
+# # Set Leptos environment variables (runtime config baked into image)
+# ENV LEPTOS_OUTPUT_NAME="yral-auth"
+# ENV LEPTOS_SITE_ROOT="site"
+# ENV LEPTOS_SITE_PKG_DIR="pkg"
+# ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
+# ENV LEPTOS_ENV="PROD"
+# ENV LEPTOS_HASH_FILES="true"
+# ENV APP_ENV="production"
+
+# EXPOSE 8080
+
+# ENTRYPOINT ["/app/yral-auth"]
+
+# Temporary: just verify the builder works
+RUN echo "Builder works!" && rustc --version && cargo --version
