@@ -1,26 +1,23 @@
 # Multi-stage Dockerfile for building yral-auth from source in-cluster (Shipwright/BuildKit).
 #
-# Replaces the old deploy/Dockerfile which expected pre-built artifacts.
-# This Dockerfile runs the full cargo-leptos build inside the container.
+# Uses Alpine as the builder so musl is the NATIVE toolchain — this produces
+# truly static binaries that run on scratch. No cross-compilation needed.
 #
 # Build context: apps/yral-auth/ (set by Shipwright spec.source.contextDir)
-# Build command: cargo leptos build --release --lib-features release-lib --bin-features release-bin
 
 # ── Stage 1: Build ──────────────────────────────────────────────────────────
-FROM rust:1.88-bookworm AS builder
+FROM rust:1.88-alpine AS builder
 
-# Install system dependencies for musl cross-compilation + Node.js for tailwind
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    musl-tools \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Node.js 22 (for tailwindcss via cargo-leptos)
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
-    apt-get install -y nodejs && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install pnpm (for tailwindcss dependencies)
-RUN npm install -g pnpm
+# Install build dependencies
+RUN apk add --no-cache \
+    musl-dev \
+    pkgconfig \
+    openssl-dev \
+    openssl-libs-static \
+    nodejs \
+    npm \
+    git \
+    curl
 
 # Install cargo-binstall + cargo-leptos
 RUN curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-musl.tgz -o /tmp/cargo-binstall.tgz && \
@@ -29,12 +26,8 @@ RUN curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/downloa
     rm /tmp/cargo-binstall.tgz && \
     cargo binstall cargo-leptos --version 0.3.2 --no-confirm
 
-# Add musl target + wasm target (rust-toolchain.toml specifies these but we
-# need to ensure they're installed in the builder image)
-RUN rustup target add x86_64-unknown-linux-musl wasm32-unknown-unknown
-
-# The musl linker symlink (x86_64-linux-musl-gcc → musl-gcc) already exists
-# in the rust:1.88-bookworm image after installing musl-tools.
+# Add wasm target (musl is already the default on Alpine)
+RUN rustup target add wasm32-unknown-unknown
 
 WORKDIR /app
 
@@ -46,13 +39,13 @@ COPY src/ ./src/
 COPY style/ ./style/
 COPY public/ ./public/
 COPY tailwind.config.js ./
-COPY package.json pnpm-lock.yaml ./
-COPY .cargo/ ./.cargo/
+COPY package.json ./
 COPY rust-toolchain.toml ./
 COPY task_runner/ ./task_runner/
 
 # Install JS dependencies (tailwindcss)
-RUN pnpm install --frozen-lockfile || pnpm install
+# TODO: Revert to the default npm registry
+RUN npm install --registry https://registry.npmmirror.com
 
 # Set Leptos environment variables for the build
 ENV LEPTOS_OUTPUT_NAME="yral-auth"
@@ -62,20 +55,19 @@ ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
 ENV LEPTOS_ENV="PROD"
 ENV LEPTOS_HASH_FILES="true"
 ENV LEPTOS_TAILWIND_VERSION="v4.0.15"
-ENV LEPTOS_BIN_TARGET_TRIPLE="x86_64-unknown-linux-musl"
-ENV RUSTFLAGS="-C target-feature=+crt-static"
 
-# Build the app — produces the musl binary + WASM/JS/CSS site assets
+# Build the app — on Alpine, the default target IS x86_64-unknown-linux-musl
+# so the binary is natively static. No LEPTOS_BIN_TARGET_TRIPLE needed.
 RUN cargo leptos build --release --lib-features release-lib --bin-features release-bin
 
-# ── Stage 2: Runtime (scratch — musl binary is fully static) ───────────────
+# ── Stage 2: Runtime (scratch — musl binary is fully static on Alpine) ────
 FROM scratch
 
 WORKDIR /app
 
 # Copy the built binary
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/yral-auth .
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/hash.txt .
+COPY --from=builder /app/target/release/yral-auth .
+COPY --from=builder /app/target/release/hash.txt .
 
 # Copy the Leptos site assets (WASM, JS, CSS)
 COPY --from=builder /app/target/site ./site

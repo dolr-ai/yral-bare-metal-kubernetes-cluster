@@ -152,7 +152,7 @@ Velero only (full cluster DR, 30-day self-managed `ttl: 720h`). Named prefix `ve
 ### Ansible / Playbook Execution
 - `become` is globally false; remote plays SSH as root; localhost plays as vscode user.
 - Always run playbooks in foreground.
-- **Never truncate or filter terminal output during runs** — do not use `tail`, `head`, `grep`, pipes, or similar tools that cut off output. Run commands directly and let the full output stream so we can follow along together. `tail`/`head` only for post-hoc analysis after a run completes.
+- **Never truncate or filter terminal output during runs** — do not use `tail`, `head`, `grep`, pipes, or similar tools that cut off output. Run commands directly and let the full output stream so we can follow along together. `tail`/`head` only for post-hoc analysis after a run completes. This applies to `docker build`, `kubectl logs`, and all other long-running commands — stream full output, don't pipe through filters.
 - Short poll loops (≤10s sleep) when waiting.
 - Lint before PRs.
 
@@ -177,6 +177,10 @@ In-cluster image building via Shipwright (CRD-native operator, CNCF Sandbox) wra
 - Define a `Build` + `BuildRun` CR per app (source: git, strategy: buildkit ClusterBuildStrategy, output: Harbor).
 - BuildKit runs rootless (non-privileged, UID 1000) — no `privileged: true` needed.
 - Pin versions: Tekton v1.12.2 LTS (Shipwright v0.20.3 supports v1.3/v1.6/v1.9/v1.12 — NOT v1.14+), Shipwright v0.20.3, BuildKit v0.31.1.
+
+**Test locally before deploying:** Always build and run container images locally (`container build -f Dockerfile.buildkit -t test/yral-auth .` + `container run --env-file .env -p 8080:8080 test/yral-auth`) to validate the binary starts and the health endpoint responds before triggering a Shipwright BuildRun. This dramatically reduces the dev loop time compared to waiting for a full in-cluster build to discover runtime failures.
+
+**Container runtime:** Use Apple's native `container` CLI (not Docker Desktop) for local container tasks — `container build`, `container run`, `container logs`. Start the container system first with `container system start`.
 
 ## Questions for Agents (When in Doubt)
 
