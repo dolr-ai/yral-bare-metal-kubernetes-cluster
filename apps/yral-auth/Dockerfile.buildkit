@@ -63,14 +63,13 @@ ENV LEPTOS_ENV="PROD"
 ENV LEPTOS_HASH_FILES="true"
 ENV LEPTOS_TAILWIND_VERSION="v4.0.15"
 ENV LEPTOS_BIN_TARGET_TRIPLE="x86_64-unknown-linux-musl"
+ENV RUSTFLAGS="-C target-feature=+crt-static"
 
 # Build the app — produces the musl binary + WASM/JS/CSS site assets
 RUN cargo leptos build --release --lib-features release-lib --bin-features release-bin
 
-# ── Stage 2: Runtime ────────────────────────────────────────────────────────
-FROM alpine:3.19
-
-RUN apk add --no-cache ca-certificates wget
+# ── Stage 2: Runtime (scratch — musl binary is fully static) ───────────────
+FROM scratch
 
 WORKDIR /app
 
@@ -80,6 +79,9 @@ COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/hash.txt .
 
 # Copy the Leptos site assets (WASM, JS, CSS)
 COPY --from=builder /app/target/site ./site
+
+# Copy CA certificates (app makes HTTPS calls to Google, Apple, WhatsApp, etc.)
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
 # Set Leptos environment variables (runtime config baked into image)
 ENV LEPTOS_OUTPUT_NAME="yral-auth"
