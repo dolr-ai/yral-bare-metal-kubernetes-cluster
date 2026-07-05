@@ -32,7 +32,9 @@ spec:
     - name: cache
       value: registry
   output:
-    image: harbor.yral.com/yral-auth/yral-auth:latest
+    # Push via internal Service URL to bypass Cloudflare's 100MB upload limit.
+    # Pulls still use harbor.yral.com (Cloudflare-proxied) — only uploads are limited.
+    image: harbor.harbor.svc.cluster.local:80/yral-auth/yral-auth:latest
     pushSecret: harbor-pull-secret
   retention:
     succeededLimit: 3

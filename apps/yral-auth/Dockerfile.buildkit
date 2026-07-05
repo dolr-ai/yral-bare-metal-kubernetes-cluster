@@ -5,7 +5,7 @@
 FROM rust:latest AS builder
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends musl-tools && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends musl-tools
 
 # # Install Node.js (for tailwindcss via cargo-leptos)
 # RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
