@@ -15,12 +15,12 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
 # # Install pnpm
 # RUN npm install -g pnpm
 
-# # Install cargo-binstall + cargo-leptos
-# RUN curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-musl.tgz -o /tmp/cargo-binstall.tgz && \
-#     tar -xzf /tmp/cargo-binstall.tgz -C /usr/local/bin && \
-#     chmod +x /usr/local/bin/cargo-binstall && \
-#     rm /tmp/cargo-binstall.tgz && \
-#     cargo binstall cargo-leptos --version 0.3.2 --no-confirm
+# Install cargo-binstall + cargo-leptos
+RUN curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-musl.tgz -o /tmp/cargo-binstall.tgz && \
+    tar -xzf /tmp/cargo-binstall.tgz -C /usr/local/bin && \
+    chmod +x /usr/local/bin/cargo-binstall && \
+    rm /tmp/cargo-binstall.tgz && \
+    cargo binstall cargo-leptos --version 0.3.2 --no-confirm
 
 # # Add musl target + wasm target
 # RUN rustup target add x86_64-unknown-linux-musl wasm32-unknown-unknown
