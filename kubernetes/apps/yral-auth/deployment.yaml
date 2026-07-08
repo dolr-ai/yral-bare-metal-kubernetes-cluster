@@ -25,6 +25,7 @@ spec:
       containers:
         - name: yral-auth
           image: harbor.yral.com/yral-auth/yral-auth:latest # {"$imagepolicy": "flux-system:yral-auth"}
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
               name: http
