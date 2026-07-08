@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "task_runner"]
+members = ["."]
 resolver = "2"
 
 [package]
