@@ -4,16 +4,13 @@
 # ── Stage 1: Build ──────────────────────────────────────────────────────────
 FROM rust:latest AS builder
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends musl-tools
+# Install build dependencies (git needed for CARGO_NET_GIT_FETCH_WITH_CLI)
+RUN apt-get update && apt-get install -y --no-install-recommends musl-tools git
 
 # Install Node.js (for tailwindcss via cargo-leptos)
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
-
-# # Install pnpm
-# RUN npm install -g pnpm
 
 # Install cargo-binstall + cargo-leptos
 RUN curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-musl.tgz -o /tmp/cargo-binstall.tgz && \
@@ -22,71 +19,67 @@ RUN curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/downloa
     rm /tmp/cargo-binstall.tgz && \
     cargo binstall cargo-leptos --version 0.3.2 --no-confirm
 
-# # Add musl target + wasm target
-# RUN rustup target add x86_64-unknown-linux-musl wasm32-unknown-unknown
+# Add musl target + wasm target
+RUN rustup target add x86_64-unknown-linux-musl wasm32-unknown-unknown
 
-# # Create a symlink for the musl linker (cargo expects x86_64-linux-musl-gcc)
-# RUN ln -sf /usr/bin/musl-gcc /usr/bin/x86_64-linux-musl-gcc
+# Create a symlink for the musl linker (cargo expects x86_64-linux-musl-gcc)
+RUN ln -sf /usr/bin/musl-gcc /usr/bin/x86_64-linux-musl-gcc
 
-# WORKDIR /app
+WORKDIR /app
 
-# # Copy Cargo.toml + Cargo.lock first for better layer caching
-# COPY Cargo.toml Cargo.lock ./
+# Copy Cargo.toml + Cargo.lock first for better layer caching
+COPY Cargo.toml Cargo.lock ./
 
-# # Copy the source code
-# COPY src/ ./src/
-# COPY style/ ./style/
-# COPY public/ ./public/
-# COPY tailwind.config.js ./
-# COPY package.json pnpm-lock.yaml ./
-# COPY .cargo/ ./.cargo/
-# COPY rust-toolchain.toml ./
-# COPY task_runner/ ./task_runner/
+# Copy the source code
+COPY src/ ./src/
+COPY style/ ./style/
+COPY public/ ./public/
+COPY tailwind.config.js ./
+COPY package.json ./
+COPY .cargo/ ./.cargo/
+COPY rust-toolchain.toml ./
+COPY task_runner/ ./task_runner/
 
-# # Install JS dependencies (tailwindcss)
-# RUN pnpm install --frozen-lockfile || pnpm install
+# Install JS dependencies (tailwindcss)
+RUN npm install
 
-# # Set Leptos environment variables for the build
-# ENV LEPTOS_OUTPUT_NAME="yral-auth"
-# ENV LEPTOS_SITE_ROOT="target/site"
-# ENV LEPTOS_SITE_PKG_DIR="pkg"
-# ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
-# ENV LEPTOS_ENV="PROD"
-# ENV LEPTOS_HASH_FILES="true"
-# ENV LEPTOS_TAILWIND_VERSION="v4.0.15"
-# ENV LEPTOS_BIN_TARGET_TRIPLE="x86_64-unknown-linux-musl"
-# ENV RUSTFLAGS="-C target-feature=+crt-static"
+# Set Leptos environment variables for the build
+ENV LEPTOS_OUTPUT_NAME="yral-auth"
+ENV LEPTOS_SITE_ROOT="target/site"
+ENV LEPTOS_SITE_PKG_DIR="pkg"
+ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
+ENV LEPTOS_ENV="PROD"
+ENV LEPTOS_TAILWIND_VERSION="v4.0.15"
+ENV LEPTOS_BIN_TARGET_TRIPLE="x86_64-unknown-linux-musl"
 
-# # Build the app
-# RUN cargo leptos build --release --lib-features release-lib --bin-features release-bin
+# Use git CLI for fetching git deps (libgit2 has SSL issues with large repos like dfinity/ic)
+ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
 
-# # ── Stage 2: Runtime (scratch) ─────────────────────────────────────────────
-# FROM scratch
+# Build the app
+RUN cargo leptos build --release --lib-features release-lib --bin-features release-bin
 
-# WORKDIR /app
+# ── Stage 2: Runtime (scratch) ─────────────────────────────────────────────
+FROM scratch
 
-# # Copy the built binary
-# COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/yral-auth .
-# COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/hash.txt .
+WORKDIR /app
 
-# # Copy the Leptos site assets (WASM, JS, CSS)
-# COPY --from=builder /app/target/site ./site
+# Copy the built binary
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/yral-auth .
 
-# # Copy CA certificates (app makes HTTPS calls to Google, Apple, WhatsApp, etc.)
-# COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+# Copy the Leptos site assets (WASM, JS, CSS)
+COPY --from=builder /app/target/site ./site
 
-# # Set Leptos environment variables (runtime config baked into image)
-# ENV LEPTOS_OUTPUT_NAME="yral-auth"
-# ENV LEPTOS_SITE_ROOT="site"
-# ENV LEPTOS_SITE_PKG_DIR="pkg"
-# ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
-# ENV LEPTOS_ENV="PROD"
-# ENV LEPTOS_HASH_FILES="true"
-# ENV APP_ENV="production"
+# Copy CA certificates (app makes HTTPS calls to Google, Apple, WhatsApp, etc.)
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
-# EXPOSE 8080
+# Set Leptos environment variables (runtime config baked into image)
+ENV LEPTOS_OUTPUT_NAME="yral-auth"
+ENV LEPTOS_SITE_ROOT="site"
+ENV LEPTOS_SITE_PKG_DIR="pkg"
+ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
+ENV LEPTOS_ENV="PROD"
+ENV APP_ENV="production"
 
-# ENTRYPOINT ["/app/yral-auth"]
+EXPOSE 8080
 
-# Temporary: just verify the builder works
-RUN echo "Builder works!" && rustc --version && cargo --version
+ENTRYPOINT ["/app/yral-auth"]
