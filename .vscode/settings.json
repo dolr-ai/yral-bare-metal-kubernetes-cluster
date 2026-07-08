@@ -13,10 +13,4 @@
     "better-todo-tree.tree.showBadges": true,
     "better-todo-tree.tree.showCountsInTree": true,
     "chat.tools.terminal.enableAutoApprove": true,
-    "chat.tools.terminal.autoApprove": {
-        "/^git\\s+commit\\b/i": false,
-        "/^git\\s+push\\b/i": false,
-        "rm": false,
-        "rmdir": false,
-    },
 }
