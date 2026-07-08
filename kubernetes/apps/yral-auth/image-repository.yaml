@@ -12,5 +12,6 @@ metadata:
 spec:
   image: harbor.yral.com/yral-auth/yral-auth
   interval: 1m
+  provider: docker
   secretRef:
     name: harbor-scan-secret
