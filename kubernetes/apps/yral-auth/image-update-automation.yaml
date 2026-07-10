@@ -22,8 +22,6 @@ spec:
       messageTemplate: |
         chore: update yral-auth image tag
 
-        Image: {{ .Repository }}
-        Policy: yral-auth
         Files:
         {{ range $filename, $_ := .Updated.Files -}}
         - {{ $filename }}
