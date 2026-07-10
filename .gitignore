@@ -26,6 +26,9 @@ Thumbs.db
 # Python venv managed by uv
 .venv/
 
+# mise local overrides (secrets, machine-specific)
+mise.local.toml
+
 # Temporary files
 *.log
 *.tmp

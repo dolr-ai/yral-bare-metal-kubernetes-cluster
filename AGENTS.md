@@ -143,7 +143,9 @@ Velero only (full cluster DR, 30-day self-managed `ttl: 720h`). Named prefix `ve
 **Dashboard:** Update `kubernetes/apps/dashboard/index.html` only for internal tools (oauth2-proxy-gated or otherwise internal). Public/user-facing services are NOT listed on the dashboard.
 
 ### Local Environment & Parity
-`scripts/setup-local-env.sh` is the single source of truth (tools, vault extraction to `~/.ssh/id_ed25519`, age key for SOPS, `.env`/`.envrc`, kubeconfig). Re-run after vault changes. macOS CI for exact parity.
+`scripts/setup-local-env.sh` is the single source of truth (tools, vault extraction to `~/.ssh/id_ed25519`, age key for SOPS, `.env`, kubeconfig). Re-run after vault changes. macOS CI for exact parity.
+
+**mise (not direnv)** for env var management and tool versioning. `mise.toml` (committed) loads `.env` (gitignored, generated from vault) via `_.file = '.env'`. App-specific `mise.toml` files in each `apps/` subdirectory. Secrets never in `mise.toml` — use `_.file = '.env'` or `mise.local.toml` (gitignored).
 
 ### GPU (Vast.ai)
 `vastai-provision` role + playbook (not Kubernetes). Always ≥2 replicas on distinct offers. Shared infra SSH key attached. Override vars at invocation (never new playbook).
@@ -180,9 +182,9 @@ In-cluster image building via Shipwright (CRD-native operator, CNCF Sandbox) wra
 - BuildKit runs rootless (non-privileged, UID 1000) — no `privileged: true` needed.
 - Pin versions: Tekton v1.12.2 LTS (Shipwright v0.20.3 supports v1.3/v1.6/v1.9/v1.12 — NOT v1.14+), Shipwright v0.20.3, BuildKit v0.31.1.
 
-**Test locally before deploying:** Always build and run container images locally (`container build -f Dockerfile.buildkit -t test/yral-auth .` + `container run --env-file .env -p 8080:8080 test/yral-auth`) to validate the binary starts and the health endpoint responds before triggering a Shipwright BuildRun. This dramatically reduces the dev loop time compared to waiting for a full in-cluster build to discover runtime failures.
+**Test locally before deploying:** Always build and run container images locally (`container build -f Dockerfile.buildkit -t test/yral-auth .` + `container run --platform linux/amd64 --env-file .env -p 8080:8080 test/yral-auth`) to validate the binary starts and the health endpoint responds before triggering a Shipwright BuildRun. This dramatically reduces the dev loop time compared to waiting for a full in-cluster build to discover runtime failures.
 
-**Container runtime:** Use Apple's native `container` CLI (not Docker Desktop) for local container tasks — `container build`, `container run`, `container logs`. Start the container system first with `container system start`.
+**Container runtime:** Use Apple's native `container` CLI (not Docker Desktop) for local container tasks — `container build`, `container run`, `container logs`. Start the container system first with `container system start`. Log into Harbor locally with `echo "$HARBOR_PASS" | container registry login harbor.yral.com -u admin --password-stdin`. Use `--platform linux/amd64` with `container run` to run the exact same x86_64 images that run in the cluster — this ensures parity between local testing and production.
 
 ## Questions for Agents (When in Doubt)
 
