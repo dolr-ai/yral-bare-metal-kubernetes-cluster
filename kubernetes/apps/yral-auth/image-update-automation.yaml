@@ -23,7 +23,7 @@ spec:
         chore: update yral-auth image tag
 
         Files:
-        {{ range $filename, $_ := .Updated.Files -}}
+        {{ range $filename, $_ := .Changed.Files -}}
         - {{ $filename }}
         {{ end -}}
     push:
