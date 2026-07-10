@@ -21,11 +21,6 @@ spec:
         email: fluxcdbot@users.noreply.github.com
       messageTemplate: |
         chore: update yral-auth image tag
-
-        Files:
-        {{ range $filename, $_ := .Changed.Files -}}
-        - {{ $filename }}
-        {{ end -}}
     push:
       branch: main
   update:
