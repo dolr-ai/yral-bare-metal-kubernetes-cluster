@@ -57,6 +57,14 @@ else
 fi
 '''
 
+[tasks.ansible-vault-decrypt]
+description = "Decrypt ansible/inventory/group_vars/all/vault.yml for editing"
+run = "./.venv/bin/ansible-vault decrypt ansible/inventory/group_vars/all/vault.yml"
+
+[tasks.ansible-vault-encrypt]
+description = "Re-encrypt ansible/inventory/group_vars/all/vault.yml after editing"
+run = "./.venv/bin/ansible-vault encrypt ansible/inventory/group_vars/all/vault.yml"
+
 [tasks.setup]
 description = "Install system packages, repo toolchain, and Python tooling (secrets already in fnox.toml)"
 run = "mise bootstrap packages apply --yes && mise install && mise run bootstrap && echo 'Environment is ready'"
