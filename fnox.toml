@@ -21,10 +21,10 @@ recipients = [
 
 [secrets]
 # GitHub PAT for Flux (source: Ansible vault_github_flux_token)
-GITHUB_TOKEN = { provider = "age", if_missing = "error", description = "GitHub PAT for Flux" }
+GITHUB_TOKEN= { provider = "age", value = "YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IHNzaC1lZDI1NTE5IG5QMTlMdyBJekZHMy9ZemFTM2ZtM3VzYy9CS0krclovekZYclZDTENlZElnOTRpZjJRClFYTkJPK1U5Q0hOaVRhUHRHQUkwUm5NRHkzTml1QkQrYVphcHdmbnVXOUUKLT4gMXRhZjNoZGktZ3JlYXNlIHxifWl4ICdKdDAgTEM1ICYudDRnCmR0dFNVdmZXd2tHZElMdUo3TDNuRVdMOHZzR0RLL1NYZEwwbThCZwotLS0geHlJZUw4TEllTmtpRHN1bk9PMzlMSjczeFhjT0k1VXh2UjR2OG1kcWwrRQqVn+Sq4j4E/ey6419gt5frnwrURzAVJNptC1joygIkCAyW+inH+bUBmskgiEGWL8fn9nzrQsqWsUHD8sjXocUuEtvzR8uAsYt/Q9b7fsWWmThXlSfGViJTmVWSfcr2lPU31EOsiKYOLmHkm9BvW9WvYPeZj+4HAZlT9yKtIQ==", description = "GitHub PAT for Flux", if_missing = "error" }
 
 # Cloudflare API token for DNS management (source: vault_cloudflare_api_token)
-CLOUDFLARE_API_TOKEN = { provider = "age", if_missing = "error", description = "Cloudflare API token for DNS management" }
+CLOUDFLARE_API_TOKEN= { provider = "age", value = "YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IHNzaC1lZDI1NTE5IG5QMTlMdyAvMlZCY1ZqV1l4bElTOWdnRU0yYlQ3Yks2ZytiVDRzaThZSWhPYkZxUjBBCkFSWWhOOVBwRWtIWHhMRXN2YVVhTWkzcXZ0ejAyL2VFTDBMdnUzbzZxczQKLT4gVC1ncmVhc2UgMF5iZyEKVDVCQkV3dkFGQWdybTdUbnIydTZGOGZIRVdqSEcwUmtCUGUxV0dqL21ZL0s4eEZhCi0tLSBIeUNIZlpjSHZtdHJDUnIwYVlJMkt4YXV1ZUNOS1pHVU5yQm5OQlhOVldjCiWpPd1hjcfUH0b8rkNJ03WlfsQ+qTWrmLSDjWhhajt2e+831J8WEvqF4xWvohHWUmCUIgBmuskBa7A2ZtksTIfZT35ovnEEiw==", description = "Cloudflare API token for DNS management", if_missing = "error" }
 
 # Hetzner S3 secret key (source: vault_hetzner_s3_secret_key)
-AWS_SECRET_ACCESS_KEY = { provider = "age", if_missing = "error", description = "Hetzner S3 secret key" }
+AWS_SECRET_ACCESS_KEY= { provider = "age", value = "YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IHNzaC1lZDI1NTE5IG5QMTlMdyBUWmVjRGFnMjZtZFhHRFhtR3VJZzJZQUljUWJ2L2o4Tlg3ZDNVeWFpT1FrCjhjOVZHeUNLMnF5ODh3OFU4dUlhYWo5RDFkU2dIZ2xYU0owUnVUa2dMbXMKLT4gOmI2OX4oVywtZ3JlYXNlIEUiKHtgQSBbUVpIIiApfD0hCjlrR0tmVnlRQmZIUExQelFUd3NCbTB4cUZ0cm4wVzAzb3FwVGVwZStIT0dBUmFORGt5U0pYRC9DYTZVbkhKNm4KeVNINi8xcTNHWXJ1YlVEQWI4K2N2d2xNbWE2V0JYZXZrVThwY2l4dVJnUDdHWVlEMDhKSHN1cTlBS29ydE1GagpJQQotLS0gcXM4YUZjcFJUNDJEUUhKRmFqSEVmRkxFVjRtSFU3VWVnTi9SKzlmOGZzawrc+ALNlmXvcH3OecixYxvyinSZAbatsH9Nx6l6iNBrE9PR/AozEiT+jjWkllCpX1eEIkxsrprikjWuTzOaQiIIz9kOlmYkC7U=", description = "Hetzner S3 secret key", if_missing = "error" }

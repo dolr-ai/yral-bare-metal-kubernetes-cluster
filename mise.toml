@@ -57,45 +57,6 @@ else
 fi
 '''
 
-[tasks.secrets-import]
-description = "ONE-TIME migration: import secrets from Ansible vault into fnox (age-encrypted, committed to git). Not part of setup — run manually once."
-depends = ["bootstrap"]
-run = '''
-if [ -f ansible/.vault_pass ]; then
-  export ANSIBLE_VAULT_PASSWORD_FILE=ansible/.vault_pass
-  ./.venv/bin/python - <<'PY'
-import subprocess, yaml
-
-vault_path = 'ansible/inventory/group_vars/all/vault.yml'
-vault_pass = 'ansible/.vault_pass'
-result = subprocess.run(
-    ['./.venv/bin/ansible-vault', 'view', vault_path, '--vault-password-file', vault_pass],
-    check=True, capture_output=True, text=True
-)
-data = yaml.safe_load(result.stdout) or {}
-
-secrets = {
-    'GITHUB_TOKEN': data.get('vault_github_flux_token', ''),
-    'CLOUDFLARE_API_TOKEN': data.get('vault_cloudflare_api_token', ''),
-    'AWS_SECRET_ACCESS_KEY': data.get('vault_hetzner_s3_secret_key', ''),
-}
-
-for key, val in secrets.items():
-    if val:
-        subprocess.run(['fnox', 'set', key, val, '--provider', 'age'], check=True)
-        print(f"  ✓ {key} encrypted and stored in fnox.toml")
-    else:
-        print(f"  ⚠ {key} not found in vault, skipping")
-PY
-else
-  echo 'Vault password file not found at ansible/.vault_pass.'
-  echo 'Set secrets manually with fnox set:'
-  echo '  fnox set GITHUB_TOKEN --provider age'
-  echo '  fnox set CLOUDFLARE_API_TOKEN --provider age'
-  echo '  fnox set AWS_SECRET_ACCESS_KEY --provider age'
-fi
-'''
-
 [tasks.setup]
 description = "Install system packages, repo toolchain, and Python tooling (secrets already in fnox.toml)"
 run = "mise bootstrap packages apply --yes && mise install && mise run bootstrap && echo 'Environment is ready'"

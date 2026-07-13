@@ -145,7 +145,17 @@ Velero only (full cluster DR, 30-day self-managed `ttl: 720h`). Named prefix `ve
 ### Local Environment & Parity
 The repo uses a single monorepo-wide `mise.toml` at the repository root as the source of truth for tool versions and task orchestration. Avoid adding per-project `mise.toml` files unless there is a strong, documented reason.
 
-**mise (not direnv)** for env var management and tool versioning. The root `mise.toml` loads `.env` (gitignored, generated from vault) via `_.file = '.env'`. Plaintext environment values belong in the `mise.toml` `[env]` section; secrets stay out of version control and should be provided through `.env`, `mise.local.toml`, or a secret manager such as fnox.
+**mise (not direnv)** for env var management and tool versioning. Plaintext environment values belong in the `mise.toml` `[env]` section; secrets are managed by **fnox** (age-encrypted, committed to git in `fnox.toml`). No `.env` file is generated or loaded — `_.file = '.env'` was removed.
+
+**Secret management (fnox + age):**
+- `fnox.toml` at repo root defines the age provider and encrypted secret definitions. The encrypted ciphertext is safe to commit to git.
+- Provider: `age` with SSH ed25519 key. Recipient is the infra SSH public key (`github_actions_ssh_pub_key` in `ansible/inventory/group_vars/all/vars.yml`).
+- Private key: `vault_github_actions_ssh_private_key` from Ansible vault, extracted to `./.yral-infra-ed25519` (repo-root, gitignored) by `mise run bootstrap`. **Not** `~/.ssh/id_ed25519` — that's the user's personal key, which is a different key.
+- `FNOX_AGE_KEY_FILE = './.yral-infra-ed25519'` is set in `mise.toml [env]` — fnox picks it up automatically. No manual `export` needed.
+- Rotating a secret: `fnox set <KEY> --provider age` (re-encrypts in `fnox.toml`, commit the change).
+- Running commands with secrets: `fnox exec -- <command>`, or `fnox export -f env -o .env` for tools that need a file (e.g. `podman --env-file`).
+- Ansible vault remains the source for cluster ops secrets (roles consume `vault_*` vars directly). fnox replaced the old `generate-env` vault→`.env` pipeline for local dev.
+- `fnox.local.toml` is gitignored for machine-specific overrides.
 
 **Workflow tasks live in `mise.toml`, not bash scripts.** All setup, build, test, and run workflows are `mise` tasks (`mise tasks` to list). `scripts/setup-local-env.sh` is a thin `exec mise run setup` wrapper for compatibility only — do not add logic there. New workflow steps → new/updated `mise` task. Never create bespoke bash scripts for repo workflows.
 
