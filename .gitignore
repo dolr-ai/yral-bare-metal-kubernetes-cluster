@@ -20,10 +20,16 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Generated from vault by scripts/setup-local-env.sh, never commit
+# fnox local overrides (secrets, machine-specific)
+fnox.local.toml
+
+# Infra SSH private key (extracted from Ansible vault by mise run bootstrap)
+.yral-infra-ed25519
+
+# Generated .env (one-off from fnox export, e.g. yral-auth-image-run)
 .env
 
-# Python venv managed by uv
+# Python venv managed by mise (tasks.bootstrap)
 .venv/
 
 # mise local overrides (secrets, machine-specific)

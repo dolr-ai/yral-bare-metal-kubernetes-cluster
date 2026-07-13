@@ -2,29 +2,136 @@
 # Run from the repository root; this drives the local toolchain for the whole workspace.
 
 [tools]
-node = "latest"
-python = "latest"
-podman = "latest"
-kubectl = "latest"
-helm = "latest"
-flux2 = "latest"
-sops = "latest"
 age = "latest"
-rust = "stable"
 cargo-binstall = "latest"
+flux2 = "latest"
+fnox = "latest"
 gh = "latest"
+helm = "latest"
+kubectl = "latest"
+node = "latest"
+podman = "latest"
+python = "latest"
+rust = "stable"
+sops = "latest"
+
+# System packages — project-specific build dependencies (apt on Debian/Ubuntu).
+# Applied with: mise bootstrap packages apply --yes
+# OS-filtered — apt entries are ignored on macOS, brew entries on Linux, etc.
+# Machine-baseline packages (build-essential, curl, git, etc.) live in ~/.dotfiles/mise.linux.toml.
+[bootstrap.packages]
+"apt:libssl-dev" = "latest"
+"apt:musl-tools" = "latest"
+"apt:pkg-config" = "latest"
 
 [env]
-_.file = '.env'
 _.path = '.venv/bin'
 APP_ENV = 'development'
 LEPTOS_ENV = 'development'
+# fnox age decryption — private key extracted by mise run bootstrap
+FNOX_AGE_KEY_FILE = './.yral-infra-ed25519'
+# Plaintext (non-sensitive) values — declared directly, no .env file needed.
+AWS_ACCESS_KEY_ID = 'XO5X9A1W8AMHY3DSTKMS'
+AWS_ENDPOINT_URL = 'https://fsn1.your-objectstorage.com'
+AWS_DEFAULT_REGION = 'fsn1'
+KUBECONFIG = '~/.kube/config'
 
 [tasks.bootstrap]
-description = "Create a repo-local .venv and install Python automation tooling"
-run = "python -m venv .venv && ./.venv/bin/pip install --upgrade pip && ./.venv/bin/pip install ansible-core ansible-lint yamllint vastai && ./.venv/bin/ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections"
+description = "Create .venv, install Python tooling, and extract infra SSH key from vault"
+run = '''
+python -m venv .venv && ./.venv/bin/pip install --upgrade pip && ./.venv/bin/pip install ansible-core ansible-lint yamllint vastai && ./.venv/bin/ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections
+
+# Extract infra SSH private key from Ansible vault → ./.yral-infra-ed25519 (repo-local, gitignored)
+# Used by fnox (age provider) to decrypt secrets. Idempotent — skips if already present.
+if [ -f ansible/.vault_pass ] && [ ! -f .yral-infra-ed25519 ]; then
+  export ANSIBLE_VAULT_PASSWORD_FILE=ansible/.vault_pass
+  ./.venv/bin/ansible-vault view ansible/inventory/group_vars/all/vault.yml --vault-password-file ansible/.vault_pass | \
+    ./.venv/bin/python -c "import sys, yaml; print(yaml.safe_load(sys.stdin)['vault_github_actions_ssh_private_key'])" \
+    > .yral-infra-ed25519
+  chmod 600 .yral-infra-ed25519
+  echo '  ✓ Extracted infra SSH key to .yral-infra-ed25519'
+elif [ -f .yral-infra-ed25519 ]; then
+  echo '  ✓ Infra SSH key already at .yral-infra-ed25519'
+else
+  echo '  ⚠ Vault password file not found at ansible/.vault_pass — skipping infra SSH key extraction'
+fi
+'''
+
+[tasks.secrets-import]
+description = "ONE-TIME migration: import secrets from Ansible vault into fnox (age-encrypted, committed to git). Not part of setup — run manually once."
+depends = ["bootstrap"]
+run = '''
+if [ -f ansible/.vault_pass ]; then
+  export ANSIBLE_VAULT_PASSWORD_FILE=ansible/.vault_pass
+  ./.venv/bin/python - <<'PY'
+import subprocess, yaml
+
+vault_path = 'ansible/inventory/group_vars/all/vault.yml'
+vault_pass = 'ansible/.vault_pass'
+result = subprocess.run(
+    ['./.venv/bin/ansible-vault', 'view', vault_path, '--vault-password-file', vault_pass],
+    check=True, capture_output=True, text=True
+)
+data = yaml.safe_load(result.stdout) or {}
+
+secrets = {
+    'GITHUB_TOKEN': data.get('vault_github_flux_token', ''),
+    'CLOUDFLARE_API_TOKEN': data.get('vault_cloudflare_api_token', ''),
+    'AWS_SECRET_ACCESS_KEY': data.get('vault_hetzner_s3_secret_key', ''),
+}
+
+for key, val in secrets.items():
+    if val:
+        subprocess.run(['fnox', 'set', key, val, '--provider', 'age'], check=True)
+        print(f"  ✓ {key} encrypted and stored in fnox.toml")
+    else:
+        print(f"  ⚠ {key} not found in vault, skipping")
+PY
+else
+  echo 'Vault password file not found at ansible/.vault_pass.'
+  echo 'Set secrets manually with fnox set:'
+  echo '  fnox set GITHUB_TOKEN --provider age'
+  echo '  fnox set CLOUDFLARE_API_TOKEN --provider age'
+  echo '  fnox set AWS_SECRET_ACCESS_KEY --provider age'
+fi
+'''
+
+[tasks.setup]
+description = "Install system packages, repo toolchain, and Python tooling (secrets already in fnox.toml)"
+run = "mise bootstrap packages apply --yes && mise install && mise run bootstrap && echo 'Environment is ready'"
 
 [tasks.yral-auth-bootstrap]
-description = "Install yral-auth build prerequisites"
+description = "Install yral-auth build prerequisites (cargo-leptos, musl+wasm targets, npm deps)"
 depends = ["bootstrap"]
-run = "cargo binstall cargo-leptos --no-confirm"
+run = '''
+rustup target add wasm32-unknown-unknown x86_64-unknown-linux-musl
+cargo binstall cargo-leptos --no-confirm
+cd apps/yral-auth && npm install
+'''
+
+[tasks.yral-auth-build]
+description = "Build yral-auth (release, musl static binary + WASM client)"
+depends = ["yral-auth-bootstrap"]
+dir = "apps/yral-auth"
+run = "cargo leptos build --release --lib-features release-lib --bin-features release-bin"
+
+[tasks.yral-auth-run]
+description = "Run yral-auth locally (dev mode, port 8080)"
+depends = ["yral-auth-bootstrap"]
+dir = "apps/yral-auth"
+run = "cargo leptos watch --lib-features release-lib --bin-features release-bin"
+env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
+
+[tasks.yral-auth-test]
+description = "Run yral-auth tests"
+dir = "apps/yral-auth"
+run = "cargo test"
+
+[tasks.yral-auth-image]
+description = "Build the yral-auth container image locally (podman)"
+dir = "apps/yral-auth"
+run = "podman build -f Dockerfile.buildkit -t test/yral-auth --platform linux/amd64 ."
+
+[tasks.yral-auth-image-run]
+description = "Run the yral-auth container image locally (podman, port 8080)"
+run = "fnox export -f env -o .env && podman run --rm --env-file .env -p 8080:8080 test/yral-auth && rm -f .env"

@@ -147,6 +147,17 @@ The repo uses a single monorepo-wide `mise.toml` at the repository root as the s
 
 **mise (not direnv)** for env var management and tool versioning. The root `mise.toml` loads `.env` (gitignored, generated from vault) via `_.file = '.env'`. Plaintext environment values belong in the `mise.toml` `[env]` section; secrets stay out of version control and should be provided through `.env`, `mise.local.toml`, or a secret manager such as fnox.
 
+**Workflow tasks live in `mise.toml`, not bash scripts.** All setup, build, test, and run workflows are `mise` tasks (`mise tasks` to list). `scripts/setup-local-env.sh` is a thin `exec mise run setup` wrapper for compatibility only — do not add logic there. New workflow steps → new/updated `mise` task. Never create bespoke bash scripts for repo workflows.
+
+**Version locking:** `mise.lock` is committed. Bump tool versions explicitly in `mise.toml`, then `mise lock` to refresh the lockfile. Never use floating `"latest"` without a lockfile entry.
+
+**Declarative-only tooling (no imperative system installs):** The local environment must be fully reproducible from `mise.toml` alone — a Nix-like experience. Never run `sudo apt-get install`, `brew install`, or any imperative system package manager command to satisfy a build dependency. If a tool or library is needed:
+1. Check if mise provides it (add to `[tools]` in `mise.toml`).
+2. If it's a Rust/Cargo tool, install via `cargo binstall` in a mise task.
+3. If it's a system C library, linker, or other OS package, declare it in `[bootstrap.packages]` (e.g. `"apt:musl-tools" = "latest"`). mise handles the install via `mise bootstrap packages apply` — OS-filtered so apt entries are ignored on macOS, brew entries on Linux, etc. List entries alphabetically by key for easy scanning and editing.
+
+This ensures `mise bootstrap --yes && mise run setup` is the only command needed to go from a fresh machine to a working environment.
+
 ### GPU (Vast.ai)
 `vastai-provision` role + playbook (not Kubernetes). Always ≥2 replicas on distinct offers. Shared infra SSH key attached. Override vars at invocation (never new playbook).
 
@@ -182,9 +193,9 @@ In-cluster image building via Shipwright (CRD-native operator, CNCF Sandbox) wra
 - BuildKit runs rootless (non-privileged, UID 1000) — no `privileged: true` needed.
 - Pin versions: Tekton v1.12.2 LTS (Shipwright v0.20.3 supports v1.3/v1.6/v1.9/v1.12 — NOT v1.14+), Shipwright v0.20.3, BuildKit v0.31.1.
 
-**Test locally before deploying:** Always build and run container images locally (`container build -f Dockerfile.buildkit -t test/yral-auth .` + `container run --platform linux/amd64 --env-file .env -p 8080:8080 test/yral-auth`) to validate the binary starts and the health endpoint responds before triggering a Shipwright BuildRun. This dramatically reduces the dev loop time compared to waiting for a full in-cluster build to discover runtime failures.
+**Test locally before deploying:** Always build and run container images locally to validate the binary starts and the health endpoint responds before triggering a Shipwright BuildRun. This dramatically reduces the dev loop time compared to waiting for a full in-cluster build to discover runtime failures.
 
-**Container runtime:** Use Apple's native `container` CLI (not Docker Desktop) for local container tasks — `container build`, `container run`, `container logs`. Start the container system first with `container system start`. Log into Harbor locally with `echo "$HARBOR_PASS" | container registry login harbor.yral.com -u admin --password-stdin`. Use `--platform linux/amd64` with `container run` to run the exact same x86_64 images that run in the cluster — this ensures parity between local testing and production.
+**Container runtime:** Use `podman` (managed by the root `mise.toml`) for local container tasks — `podman build`, `podman run`, `podman logs`. The `mise run yral-auth-image` and `mise run yral-auth-image-run` tasks wrap the standard build/run flow. Use `--platform linux/amd64` with `podman run` to run the exact same x86_64 images that run in the cluster — this ensures parity between local testing and production. Log into Harbor locally with `echo "$HARBOR_PASS" | podman login harbor.yral.com -u admin --password-stdin`.
 
 ## Questions for Agents (When in Doubt)
 

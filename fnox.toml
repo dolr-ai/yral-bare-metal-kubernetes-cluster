@@ -1,0 +1,30 @@
+#:schema https://fnox.jdx.dev/schema.json
+
+# Secrets for local development — age-encrypted ciphertext, safe to commit.
+# Plaintext values are in mise.toml [env]; only secrets go here.
+#
+# One-time setup:
+#   1. mise run bootstrap  — extracts infra SSH key to .yral-infra-ed25519 (repo-local, gitignored)
+#   2. fnox set <KEY> --provider age  — encrypt each secret into this file
+#   3. Verify: fnox get GITHUB_TOKEN
+#
+# FNOX_AGE_KEY_FILE is set in mise.toml [env] (./.yral-infra-ed25519) — fnox picks it up automatically.
+
+[providers.age]
+type = "age"
+# Uses the infra SSH key (Ansible vault_github_actions_ssh_private_key).
+# The private key is extracted to ./.yral-infra-ed25519 (repo-local, gitignored) by mise run bootstrap.
+# To add team members, append their ssh-ed25519 public key and run: fnox reencrypt -p age
+recipients = [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIM/H7Jp2RgC1xtg1nyzpmhzOTmUz3n+PQPsk83BzUskg github-actions@yral.com",
+]
+
+[secrets]
+# GitHub PAT for Flux (source: Ansible vault_github_flux_token)
+GITHUB_TOKEN = { provider = "age", if_missing = "error", description = "GitHub PAT for Flux" }
+
+# Cloudflare API token for DNS management (source: vault_cloudflare_api_token)
+CLOUDFLARE_API_TOKEN = { provider = "age", if_missing = "error", description = "Cloudflare API token for DNS management" }
+
+# Hetzner S3 secret key (source: vault_hetzner_s3_secret_key)
+AWS_SECRET_ACCESS_KEY = { provider = "age", if_missing = "error", description = "Hetzner S3 secret key" }
