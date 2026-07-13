@@ -7,8 +7,6 @@ use yral_auth::{oauth::jwt::ClientSecretClaims, utils::time::current_epoch};
 const JWT_EXPIRY: Duration = Duration::from_secs(365 * 24 * 60 * 60);
 
 fn main() {
-    dotenvy::dotenv().unwrap();
-
     let client_id = env::var("CLIENT_ID").expect("Specify `CLIENT_ID` to generate JWT");
     let jwt_pem = env::var("CLIENT_JWT_ED_PEM").expect("`CLIENT_JWT_ED_PEM` is required!");
     let jwt_enc = jsonwebtoken::EncodingKey::from_ed_pem(jwt_pem.as_bytes())

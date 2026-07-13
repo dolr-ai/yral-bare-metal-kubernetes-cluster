@@ -103,8 +103,6 @@ async fn main() {
     // Generate the list of routes in your Leptos App
     let routes = generate_route_list(App);
 
-    dotenvy::dotenv().ok();
-
     let ctx = Arc::new(ServerCtx::new().await);
 
     // Start background JWK refresh task for Google OAuth

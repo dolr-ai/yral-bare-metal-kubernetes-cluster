@@ -24,7 +24,7 @@ RUN curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/downloa
     tar -xzf /tmp/cargo-binstall.tgz -C /usr/local/bin && \
     chmod +x /usr/local/bin/cargo-binstall && \
     rm /tmp/cargo-binstall.tgz && \
-    cargo binstall cargo-leptos --version 0.3.2 --no-confirm
+    cargo binstall cargo-leptos --no-confirm
 
 WORKDIR /app
 
