@@ -10,6 +10,7 @@ gh = "latest"
 helm = "latest"
 kubectl = "latest"
 node = "latest"
+pitchfork = "latest"
 python = "latest"
 rust = "stable"
 sops = "latest"
@@ -90,11 +91,9 @@ run = "cargo leptos build --release --lib-features release-lib --bin-features re
 env = { LEPTOS_BIN_TARGET_TRIPLE = "x86_64-unknown-linux-musl" }
 
 [tasks.yral-auth-run]
-description = "Run yral-auth locally (dev mode, port 8080)"
-depends = ["yral-auth-bootstrap"]
-dir = "apps/yral-auth"
-run = "cargo leptos watch --lib-features release-lib --bin-features release-bin"
-env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
+description = "Run yral-auth locally via pitchfork (release binary, port 8080)"
+depends = ["yral-auth-build"]
+run = "pitchfork start yral-auth --force"
 
 [tasks.yral-auth-test]
 description = "Run yral-auth tests"
@@ -107,10 +106,10 @@ dir = "apps/yral-auth"
 run = "podman build -f Dockerfile.buildkit -t test/yral-auth --platform linux/amd64 ."
 
 [tasks.yral-auth-image-run]
-description = "Run the yral-auth container image locally (podman, port 8080)"
-dir = "apps/yral-auth"
-run = '''
-mise env --flat > .env && fnox export -f env >> .env && \
-  podman run --rm --env-file .env -p 8080:8080 test/yral-auth; \
-  rm -f .env
-'''
+description = "Run the yral-auth container image locally via pitchfork (podman, port 8080)"
+depends = ["yral-auth-image"]
+run = "pitchfork start yral-auth-container --force"
+
+[tasks.yral-auth-stop]
+description = "Stop yral-auth dev server or container via pitchfork"
+run = "pitchfork stop yral-auth yral-auth-container"

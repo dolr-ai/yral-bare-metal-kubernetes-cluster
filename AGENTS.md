@@ -161,6 +161,8 @@ The repo uses a single monorepo-wide `mise.toml` at the repository root as the s
 
 **Prefer mise tasks over raw tooling commands.** Don't run `cargo leptos build`, `podman build`, `npm install`, etc. directly — use the corresponding `mise run` task instead (e.g. `mise run yral-auth-build`, `mise run yral-auth-image`). This ensures env vars from `[env]` and fnox secrets are loaded, `depends` chains run, and the workflow is reproducible. If a needed workflow doesn't exist as a mise task, create one rather than running the raw command.
 
+**Long-running processes (dev servers, containers) managed by pitchfork.** `pitchfork.toml` at the repo root defines daemons with ready checks, restart policies, and automatic cleanup. Use `mise run yral-auth-run` (which calls `pitchfork start`) instead of running a server directly — pitchfork ensures the process is tracked, health-checked, and cleanly stopped when you exit. Daemons use `mise = true` (pitchfork's built-in mise integration wraps commands with `mise x --`) and `dir` to load per-app `mise.toml [env]`. Secrets are injected via `fnox exec` inside the daemon command. Stop with `mise run yral-auth-stop` or `pitchfork stop --all`.
+
 **Version locking:** `mise.lock` is committed. Bump tool versions explicitly in `mise.toml`, then `mise lock` to refresh the lockfile. Never use floating `"latest"` without a lockfile entry.
 
 **Declarative-only tooling (no imperative system installs):** The local environment must be fully reproducible from `mise.toml` alone — a Nix-like experience. Never run `sudo apt-get install`, `brew install`, or any imperative system package manager command to satisfy a build dependency. If a tool or library is needed:

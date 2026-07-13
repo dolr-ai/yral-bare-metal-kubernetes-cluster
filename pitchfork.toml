@@ -1,0 +1,50 @@
+#:schema https://pitchfork.jdx.dev/schema.json
+
+# Process manager for long-running dev daemons.
+# Uses pitchfork's built-in mise integration (mise = true) to wrap commands
+# with `mise x --`, which activates tools and env vars from mise.toml.
+# Secrets are injected via `fnox exec` inside the command.
+#
+# Usage:
+#   pitchfork start yral-auth          # start the dev server
+#   pitchfork stop yral-auth           # stop it
+#   pitchfork list                     # see all daemons
+#   pitchfork logs yral-auth --tail     # follow logs
+#   pitchfork start --all              # start everything
+#   pitchfork stop --all               # stop everything
+
+# ── yral-auth dev server (release binary) ──────────────────────────────────
+# Runs the pre-built musl binary with env vars from mise + secrets from fnox.
+# Build first with: mise run yral-auth-build
+# dir ensures mise x -- loads the per-app mise.toml [env] (plaintext values).
+# fnox exec loads secrets from fnox.toml (age-encrypted).
+
+[daemons.yral-auth]
+run = "exec fnox exec -- ./target/x86_64-unknown-linux-musl/release/yral-auth"
+dir = "apps/yral-auth"
+mise = true
+ready_http = "http://localhost:8080/healthz"
+stop_signal = "SIGINT"
+env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
+
+# ── yral-auth container (podman) ───────────────────────────────────────────
+# Runs the container image with env vars passed through from mise + fnox.
+# Build first with: mise run yral-auth-image
+
+[daemons.yral-auth-container]
+run = '''
+exec podman run --rm \
+  -e APP_ENV -e GOOGLE_CLIENT_ID -e GOOGLE_CLIENT_SECRET \
+  -e APPLE_CLIENT_ID -e APPLE_TEAM_ID -e APPLE_KEY_ID -e APPLE_AUTH_KEY_PEM \
+  -e JWT_EC_PEM -e JWT_PUB_EC_PEM \
+  -e CLIENT_JWT_ED_PEM -e CLIENT_JWT_PUB_ED_PEM \
+  -e COOKIE_KEY -e WHATSAPP_API_KEY \
+  -e DRAGONFLY_REDIS_STORE_PASSWORD -e DRAGONFLY_REDIS_STORE_HOSTS \
+  -e DRAGONFLY_REDIS_STORE_CA_CERT -e DRAGONFLY_REDIS_STORE_CLIENT_CERT \
+  -e DRAGONFLY_REDIS_STORE_CLIENT_KEY \
+  -p 8080:8080 test/yral-auth
+'''
+dir = "apps/yral-auth"
+mise = true
+ready_http = "http://localhost:8080/healthz"
+stop_signal = "SIGINT"

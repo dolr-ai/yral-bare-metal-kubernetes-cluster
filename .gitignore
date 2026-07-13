@@ -29,6 +29,9 @@ fnox.local.toml
 # Generated .env (one-off from fnox export, e.g. yral-auth-image-run)
 .env
 
+# pitchfork local overrides (machine-specific)
+pitchfork.local.toml
+
 # Python venv managed by mise (tasks.bootstrap)
 .venv/
 
