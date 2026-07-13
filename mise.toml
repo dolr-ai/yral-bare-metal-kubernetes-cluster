@@ -36,7 +36,7 @@ FNOX_AGE_KEY_FILE = '{{config_root}}/.yral-infra-ed25519'
 AWS_ACCESS_KEY_ID = 'XO5X9A1W8AMHY3DSTKMS'
 AWS_ENDPOINT_URL = 'https://fsn1.your-objectstorage.com'
 AWS_DEFAULT_REGION = 'fsn1'
-KUBECONFIG = '~/.kube/config'
+KUBECONFIG = '{{env.HOME}}/.kube/config'
 
 [tasks.bootstrap]
 description = "Create .venv, install Python tooling, and extract infra SSH key from vault"
@@ -59,6 +59,20 @@ elif [ -f .yral-infra-ed25519 ]; then
   echo '  ✓ Infra SSH key already at .yral-infra-ed25519'
 else
   echo '  ⚠ Vault password file not found at ansible/.vault_pass — skipping infra SSH key extraction'
+fi
+
+# Extract kubeconfig from Ansible vault → ~/.kube/config (idempotent — skips if already present)
+if [ -f ansible/.vault_pass ] && [ ! -f ~/.kube/config ]; then
+  export ANSIBLE_VAULT_PASSWORD_FILE=ansible/.vault_pass
+  ./.venv/bin/ansible-vault view ansible/inventory/group_vars/all/vault.yml --vault-password-file ansible/.vault_pass | \
+    ./.venv/bin/python -c "import sys, yaml; print(yaml.safe_load(sys.stdin)['vault_kubeconfig'])" \
+    > ~/.kube/config
+  chmod 600 ~/.kube/config
+  echo '  ✓ Extracted kubeconfig to ~/.kube/config'
+elif [ -f ~/.kube/config ]; then
+  echo '  ✓ Kubeconfig already at ~/.kube/config'
+else
+  echo '  ⚠ Vault password file not found — skipping kubeconfig extraction'
 fi
 '''
 
@@ -85,7 +99,6 @@ cd apps/yral-auth && npm install
 
 [tasks.yral-auth-build]
 description = "Build yral-auth (release, musl static binary + WASM client)"
-depends = ["yral-auth-bootstrap"]
 dir = "apps/yral-auth"
 run = "cargo leptos build --release --lib-features release-lib --bin-features release-bin"
 env = { LEPTOS_BIN_TARGET_TRIPLE = "x86_64-unknown-linux-musl" }
