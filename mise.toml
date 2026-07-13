@@ -41,6 +41,9 @@ description = "Create .venv, install Python tooling, and extract infra SSH key f
 run = '''
 python -m venv .venv && ./.venv/bin/pip install --upgrade pip && ./.venv/bin/pip install ansible-core ansible-lint yamllint vastai && ./.venv/bin/ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections
 
+# Initialize git submodules (app source repos)
+git submodule update --init --recursive
+
 # Extract infra SSH private key from Ansible vault → ./.yral-infra-ed25519 (repo-local, gitignored)
 # Used by fnox (age provider) to decrypt secrets. Idempotent — skips if already present.
 if [ -f ansible/.vault_pass ] && [ ! -f .yral-infra-ed25519 ]; then
