@@ -143,9 +143,9 @@ Velero only (full cluster DR, 30-day self-managed `ttl: 720h`). Named prefix `ve
 **Dashboard:** Update `kubernetes/apps/dashboard/index.html` only for internal tools (oauth2-proxy-gated or otherwise internal). Public/user-facing services are NOT listed on the dashboard.
 
 ### Local Environment & Parity
-`scripts/setup-local-env.sh` is the single source of truth (tools, vault extraction to `~/.ssh/id_ed25519`, age key for SOPS, `.env`, kubeconfig). Re-run after vault changes. macOS CI for exact parity.
+The repo uses a single monorepo-wide `mise.toml` at the repository root as the source of truth for tool versions and task orchestration. Avoid adding per-project `mise.toml` files unless there is a strong, documented reason.
 
-**mise (not direnv)** for env var management and tool versioning. `mise.toml` (committed) loads `.env` (gitignored, generated from vault) via `_.file = '.env'`. App-specific `mise.toml` files in each `apps/` subdirectory. Secrets never in `mise.toml` — use `_.file = '.env'` or `mise.local.toml` (gitignored).
+**mise (not direnv)** for env var management and tool versioning. The root `mise.toml` loads `.env` (gitignored, generated from vault) via `_.file = '.env'`. Plaintext environment values belong in the `mise.toml` `[env]` section; secrets stay out of version control and should be provided through `.env`, `mise.local.toml`, or a secret manager such as fnox.
 
 ### GPU (Vast.ai)
 `vastai-provision` role + playbook (not Kubernetes). Always ≥2 replicas on distinct offers. Shared infra SSH key attached. Override vars at invocation (never new playbook).

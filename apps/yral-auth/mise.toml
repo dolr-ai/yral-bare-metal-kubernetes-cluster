@@ -1,5 +1,5 @@
-[tools]
-node = "22"
+# This repository uses the root monorepo mise configuration.
+# Keep this file intentionally minimal so it does not shadow the root toolchain.
 
 [env]
 _.file = '.env'

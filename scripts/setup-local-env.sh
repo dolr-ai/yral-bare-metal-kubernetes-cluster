@@ -1,217 +1,86 @@
-#!/bin/bash
-# Local environment setup for macOS.
-# Idempotent — safe to re-run after vault changes or on a new machine.
-# Run from anywhere: bash scripts/setup-local-env.sh
-#
-# What this does:
-#   - Installs system tools via brew (mise, kubectl, helm, flux, sops, age, gh, rpk, uv)
-#   - Syncs Python deps via uv (ansible-core, ansible-lint, yamllint) into .venv
-#   - Installs Ansible collections (ansible-galaxy)
-#   - Extracts secrets from vault: SSH key, kubeconfig, age key, env vars
-#   - Generates .env (gitignored) with secrets; mise.toml (committed) loads it via mise
+#!/usr/bin/env bash
+set -euo pipefail
 
-set -e
-
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ANSIBLE_DIR="$REPO_ROOT/ansible"
+VENV_BIN="$REPO_ROOT/.venv/bin"
+
+export PATH="$VENV_BIN:$PATH"
+
+cd "$REPO_ROOT"
 
 echo "========================================="
-echo "Local Environment Setup"
+echo "Monorepo mise bootstrap"
 echo "========================================="
 
-# Require Homebrew — all system-level tools are managed via brew
-echo ""
-echo "Checking Homebrew..."
-if ! command -v brew >/dev/null 2>&1; then
-    echo "✗ Homebrew not found. Install from https://brew.sh and re-run."
-    exit 1
-fi
-echo "✓ Homebrew available"
+echo "Installing repo-managed toolchain via mise..."
+mise install
+mise trust -a || true
 
-# System tools via brew
-echo ""
-echo "Installing brew packages..."
-brew_install() {
-    local pkg="$1"
-    local cmd="${2:-$1}"
-    if command -v "$cmd" >/dev/null 2>&1; then
-        echo "✓ $pkg already installed"
-    else
-        brew install "$pkg"
-        echo "✓ $pkg installed"
-    fi
-}
+echo "Bootstrapping Python and automation tooling..."
+mise run bootstrap
 
-brew_install uv
-brew_install mise
-brew_install kubectl
-brew_install helm
-brew_install fluxcd/tap/flux flux
-brew_install sops
-brew_install age age-keygen
-brew_install gh
+echo "✓ mise toolchain ready"
 
-if command -v rpk >/dev/null 2>&1; then
-    echo "✓ rpk already installed: $(rpk version 2>/dev/null | head -1)"
-else
-    brew install redpanda-data/tap/redpanda
-    echo "✓ rpk installed"
-fi
-
-# Add mise hook to shell profiles — idempotent via sentinel markers.
-# Only the hook goes in the profile (no secrets); secrets live in .env loaded by mise.
-echo ""
-echo "Configuring mise shell hook..."
-for ENTRY in "zsh:.zshrc" "bash:.bashrc"; do
-    SHELL_BIN="${ENTRY%%:*}"
-    RC="$HOME/${ENTRY##*:}"
-    touch "$RC"
-    sed -i '' '/# BEGIN mise-hook/,/# END mise-hook/d' "$RC"
-    printf '\n# BEGIN mise-hook\neval "$(mise activate %s)"\n# END mise-hook\n' "$SHELL_BIN" >> "$RC"
-done
-echo "✓ mise hook added to ~/.zshrc and ~/.bashrc"
-
-# Python deps via uv — creates/updates .venv in repo root
-echo ""
-echo "Syncing Python dependencies via uv..."
-uv sync --project "$REPO_ROOT"
-echo "✓ Python dependencies synced into .venv"
-
-# Activate the venv for the remainder of this script so that ansible-vault,
-# ansible-galaxy, and python3 all resolve from the venv.
-# shellcheck disable=SC1091
-source "$REPO_ROOT/.venv/bin/activate"
-echo "✓ .venv activated"
-
-# Ansible collections — ecosystem-specific, use ansible-galaxy from the venv
-echo ""
-echo "Installing Ansible collections..."
-ansible-galaxy collection install -r "$ANSIBLE_DIR/requirements.yml" -p "$ANSIBLE_DIR/collections"
-echo "✓ Ansible collections installed"
-
-# Everything below requires the vault password file
 if [ ! -f "$ANSIBLE_DIR/.vault_pass" ]; then
-    echo ""
     echo "⚠ Vault password file not found at $ANSIBLE_DIR/.vault_pass"
-    echo "  Place the vault password there and re-run to complete setup."
+    echo "  Add it there and re-run to continue with vault-backed setup."
     exit 0
 fi
 
-# Extract SSH private key to the default SSH identity path so ssh, git, and
-# ansible all pick it up automatically without explicit -i flags or
-# private_key_file config. Single key for infra access and git operations.
-echo ""
-echo "Setting up SSH key..."
-SSH_KEY=$(ansible-vault view "$ANSIBLE_DIR/inventory/group_vars/all/vault.yml" | \
-    python3 -c "
-import sys, yaml
-d = yaml.safe_load(sys.stdin)
-print(d.get('vault_github_actions_ssh_private_key', ''))
-")
-if [ -n "$SSH_KEY" ]; then
-    SSH_KEY_FILE="$HOME/.ssh/id_ed25519"
-    mkdir -p "$(dirname "$SSH_KEY_FILE")"
-    printf '%s\n' "$SSH_KEY" > "$SSH_KEY_FILE"
-    chmod 600 "$SSH_KEY_FILE"
-    echo "✓ SSH key extracted to $SSH_KEY_FILE"
-    ssh-add "$SSH_KEY_FILE" 2>/dev/null && echo "✓ SSH key added to agent" || true
-else
-    echo "⚠ vault_github_actions_ssh_private_key not found in vault"
-fi
-
-# Extract kubeconfig — standard location used by kubectl
-echo ""
-echo "Setting up kubeconfig..."
-mkdir -p ~/.kube
-ansible-vault view "$ANSIBLE_DIR/inventory/group_vars/all/vault.yml" | \
-    python3 -c "
-import sys, yaml
-d = yaml.safe_load(sys.stdin)
-kubeconfig = d.get('vault_kubeconfig', '')
-if kubeconfig:
-    print(kubeconfig.rstrip())
-" > ~/.kube/config
-if [ -s ~/.kube/config ]; then
-    chmod 600 ~/.kube/config
-    echo "✓ Kubeconfig written to ~/.kube/config"
-else
-    rm -f ~/.kube/config
-    echo "⚠ Kubeconfig not found in vault (cluster may not be initialized yet)"
-fi
-
-# Extract age private key — SOPS standard location; also applied to cluster for Flux
-echo ""
-echo "Setting up age key for SOPS..."
-AGE_PRIVATE_KEY=$(ansible-vault view "$ANSIBLE_DIR/inventory/group_vars/all/vault.yml" | \
-    python3 -c "
-import sys, yaml
-d = yaml.safe_load(sys.stdin)
-print(d.get('vault_age_private_key', ''))
-")
-if [ -n "$AGE_PRIVATE_KEY" ]; then
-    mkdir -p "$HOME/.config/sops/age"
-    printf '%s\n' "$AGE_PRIVATE_KEY" > "$HOME/.config/sops/age/keys.txt"
-    chmod 600 "$HOME/.config/sops/age/keys.txt"
-    echo "✓ Age key written to ~/.config/sops/age/keys.txt"
-    kubectl create secret generic sops-age \
-        --namespace flux-system \
-        --from-literal=age.agekey="$AGE_PRIVATE_KEY" \
-        --dry-run=client -o yaml | kubectl apply -f - && \
-        echo "✓ sops-age secret applied in flux-system namespace" || \
-        echo "⚠ Could not apply sops-age secret (cluster may not be reachable yet)"
-else
-    echo "⚠ vault_age_private_key not found in vault"
-fi
-
-# Generate .env from vault — secrets live here; mise.toml (committed) loads it via mise.
-# .env is gitignored; re-run this script after vault changes to refresh.
+# Generate .env from Ansible vault values.
 echo ""
 echo "Generating .env from vault..."
-GITHUB_FLUX_TOKEN=$(ansible-vault view "$ANSIBLE_DIR/inventory/group_vars/all/vault.yml" | \
-    python3 -c "import sys,yaml; d=yaml.safe_load(sys.stdin); print(d.get('vault_github_flux_token',''))")
-CF_TOKEN=$(ansible-vault view "$ANSIBLE_DIR/inventory/group_vars/all/vault.yml" | \
-    python3 -c "import sys,yaml; d=yaml.safe_load(sys.stdin); print(d.get('vault_cloudflare_api_token',''))")
-S3_SECRET_KEY=$(ansible-vault view "$ANSIBLE_DIR/inventory/group_vars/all/vault.yml" | \
-    python3 -c "import sys,yaml; d=yaml.safe_load(sys.stdin); print(d.get('vault_hetzner_s3_secret_key',''))")
-
-# .env — secrets only (loaded by mise via _.file = '.env' in mise.toml)
-{
-    echo "# Generated by scripts/setup-local-env.sh — do not edit by hand, do not commit."
-    echo "# Re-run the script to refresh after vault changes."
-    echo ""
-    printf "GITHUB_TOKEN=%q\n"           "$GITHUB_FLUX_TOKEN"
-    printf "CLOUDFLARE_API_TOKEN=%q\n"   "$CF_TOKEN"
-    printf "AWS_ACCESS_KEY_ID=%q\n"       "XO5X9A1W8AMHY3DSTKMS"
-    printf "AWS_SECRET_ACCESS_KEY=%q\n"  "$S3_SECRET_KEY"
-    printf "AWS_ENDPOINT_URL=%q\n"        "https://fsn1.your-objectstorage.com"
-    printf "AWS_DEFAULT_REGION=%q\n"      "fsn1"
-    printf "KUBECONFIG=%q\n"              "$HOME/.kube/config"
-} > "$REPO_ROOT/.env"
-
-mise trust "$REPO_ROOT"
-echo "✓ .env (secrets) generated; mise.toml (committed) loads it via mise"
-
-# Authenticate Vast.ai CLI — writes API key to ~/.config/vastai/api_key once
-echo ""
-echo "Authenticating Vast.ai CLI..."
-VASTAI_API_KEY=$(ansible-vault view "$ANSIBLE_DIR/inventory/group_vars/all/vault.yml" | \
-    python3 -c "import sys,yaml; d=yaml.safe_load(sys.stdin); print(d.get('vault_vastai_api_key',''))")
-if [ -n "$VASTAI_API_KEY" ]; then
-    vastai set api-key "$VASTAI_API_KEY"
-    echo "✓ Vast.ai API key configured"
+ANSIBLE_VAULT_PASSWORD_FILE="$ANSIBLE_DIR/.vault_pass"
+if [ ! -f "$ANSIBLE_VAULT_PASSWORD_FILE" ]; then
+    echo "⚠ Vault password file not found at $ANSIBLE_VAULT_PASSWORD_FILE"
+    echo "  Skipping .env generation."
 else
-    echo "⚠ vault_vastai_api_key not found in vault (add it when ready)"
-fi
+    export ANSIBLE_VAULT_PASSWORD_FILE
+    ./.venv/bin/python - <<'PY'
+import os
+import subprocess
+from pathlib import Path
+import yaml
 
-# Configure GitHub CLI to use SSH
-echo ""
-echo "Configuring GitHub CLI..."
-gh config set git_protocol ssh --host github.com 2>/dev/null || true
-echo "✓ GitHub CLI configured to use SSH protocol"
+repo_root = Path.cwd()
+ansible_dir = repo_root / 'ansible'
+vault_path = ansible_dir / 'inventory' / 'group_vars' / 'all' / 'vault.yml'
+vault_password_file = ansible_dir / '.vault_pass'
+
+cmd = [
+    str(repo_root / '.venv' / 'bin' / 'ansible-vault'),
+    'view',
+    str(vault_path),
+    '--vault-password-file',
+    str(vault_password_file),
+]
+result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+data = yaml.safe_load(result.stdout) or {}
+
+env_path = repo_root / '.env'
+items = {
+    'GITHUB_TOKEN': data.get('vault_github_flux_token', ''),
+    'CLOUDFLARE_API_TOKEN': data.get('vault_cloudflare_api_token', ''),
+    'AWS_ACCESS_KEY_ID': 'XO5X9A1W8AMHY3DSTKMS',
+    'AWS_SECRET_ACCESS_KEY': data.get('vault_hetzner_s3_secret_key', ''),
+    'AWS_ENDPOINT_URL': 'https://fsn1.your-objectstorage.com',
+    'AWS_DEFAULT_REGION': 'fsn1',
+    'KUBECONFIG': os.path.expanduser('~/.kube/config'),
+}
+
+with env_path.open('w', encoding='utf-8') as fh:
+    fh.write('# Generated by scripts/setup-local-env.sh — do not edit by hand, do not commit.\n')
+    fh.write('# Re-run the script to refresh after vault changes.\n\n')
+    for key, value in items.items():
+        fh.write(f'{key}={value}\n')
+PY
+    echo "✓ .env generated"
+fi
 
 echo ""
 echo "========================================="
-echo "✓ Setup complete!"
-echo "  Reopen your terminal (or run: source ~/.zshrc)"
-echo "  Then cd into the repo — mise will load secrets from .env and add .venv/bin to PATH."
+echo "✓ Setup complete"
+echo "  Run 'mise install' or 'mise run bootstrap' as needed."
+echo "  Secrets are sourced from .env via the repo mise config."
 echo "========================================="
