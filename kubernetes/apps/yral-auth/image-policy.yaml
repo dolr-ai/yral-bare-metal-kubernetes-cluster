@@ -4,7 +4,7 @@
 # Tags are timestamp-based (YYYYMMDD.HHMMSS) from Shipwright BuildRuns.
 # Timestamps sort correctly in alphabetical descending order.
 ---
-apiVersion: image.toolkit.fluxcd.io/v1beta2
+apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImagePolicy
 metadata:
   name: yral-auth
