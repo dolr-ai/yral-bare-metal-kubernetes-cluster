@@ -72,3 +72,4 @@ The key never leaves the cluster and is encrypted at rest inside etcd (Kubernete
 - Remove the library/rust-counter image from harbor
 - Move all env to mise instead of direnv
 - Move task runners to mise? Check and decide
+- Automatic BuildRun creation on git push. Shipwright Triggers v0.20.0 is installed but its GitHub webhook handler is not implemented yet (WIP per SHIP-0031). The controller only supports Tekton PipelineRun/CustomRun triggers. Options: (1) use Tekton Triggers to receive GitHub webhooks → create PipelineRuns → Shipwright CustomRun controller creates BuildRuns, (2) write a small in-cluster webhook service that creates BuildRun CRs directly. The Shipwright Triggers controller, Service, HTTPRoute, and NetworkPolicy are already deployed — just the webhook handler is missing from the binary.
