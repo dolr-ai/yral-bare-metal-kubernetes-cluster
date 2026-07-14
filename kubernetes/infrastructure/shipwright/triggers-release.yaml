@@ -189,7 +189,7 @@ spec:
   type: ClusterIP
   ports:
     - port: 80
-      targetPort: http
+      targetPort: webhook
       protocol: TCP
       name: http
   selector:
