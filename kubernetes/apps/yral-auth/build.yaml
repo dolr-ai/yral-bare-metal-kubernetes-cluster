@@ -38,7 +38,7 @@ spec:
     - name: dockerfile
       value: Dockerfile.buildkit
     - name: cache
-      value: disabled
+      value: registry
   output:
     image: harbor.yral.com/yral-auth/yral-auth
     # BuildRuns override the tag with a timestamp (YYYYMMDD.HHMMSS).
