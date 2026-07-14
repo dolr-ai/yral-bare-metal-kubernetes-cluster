@@ -414,7 +414,7 @@ pub async fn init_new_dragonfly_redis(
     client_cert_bytes: Vec<u8>,
     client_key_bytes: Vec<u8>,
 ) -> Result<Arc<DragonflyPool>, KVError> {
-    rustls::crypto::ring::default_provider()
+    rustls::crypto::aws_lc_rs::default_provider()
         .install_default()
         .ok();
 
@@ -473,7 +473,7 @@ pub async fn init_new_dragonfly_redis(
 }
 
 pub async fn init_dragonfly_redis_for_test() -> Result<Arc<DragonflyPool>, KVError> {
-    rustls::crypto::ring::default_provider()
+    rustls::crypto::aws_lc_rs::default_provider()
         .install_default()
         .ok();
 

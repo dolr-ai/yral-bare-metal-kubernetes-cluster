@@ -12,6 +12,7 @@ kubectl = "latest"
 node = "latest"
 pitchfork = "latest"
 python = "latest"
+redis = "latest"
 rust = "stable"
 sops = "latest"
 
