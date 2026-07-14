@@ -5,10 +5,9 @@
 # Strategy: buildkit (ClusterBuildStrategy, rootless BuildKit v0.31.1)
 # Output: harbor.yral.com/yral-auth/yral-auth
 #
-# BuildRuns are created manually (or via Shipwright Triggers in the future):
-#   kubectl -n yral-auth apply -f <buildrun.yaml>
-# Or using the shp CLI:
-#   shp build run yral-auth --namespace yral-auth
+# BuildRuns are created automatically by Shipwright Triggers on git push to main.
+# The trigger matches GitHub Push events on the main branch.
+# Manual BuildRuns can also be created if needed.
 ---
 apiVersion: shipwright.io/v1beta1
 kind: Build
@@ -23,6 +22,15 @@ spec:
       revision: main
       cloneSecret: github-clone-secret
     contextDir: apps/yral-auth
+  trigger:
+    when:
+      - name: push-to-main
+        type: GitHub
+        github:
+          events:
+            - Push
+          branches:
+            - main
   strategy:
     name: buildkit
     kind: ClusterBuildStrategy

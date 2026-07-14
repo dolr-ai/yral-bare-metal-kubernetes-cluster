@@ -3,4 +3,7 @@ kind: Kustomization
 resources:
   - webhook-certificate.yaml
   - release.yaml
+  - triggers-release.yaml
+  - triggers-httproute.yaml
+  - triggers-networkpolicy.yaml
   - clusterbuildstrategy-buildkit.yaml
