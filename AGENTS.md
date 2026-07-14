@@ -190,7 +190,9 @@ Bootstrap with `--token-auth --components-extra=image-reflector-controller,image
 Webhook receiver for near-real-time reconcile on push.
 `dependsOn` for ordering.
 Manual apply order only before bootstrap (and only for non-Flux resources).
-**No manual `flux reconcile` needed** — the webhook receiver triggers reconciliation within seconds of a git push. Only use `flux reconcile` if the webhook is down or for debugging.
+**No manual `flux reconcile` or forced reconciliation** — the webhook receiver triggers reconciliation within seconds of a git push. Forcing reconciliation with `fluxcd.io/reconcile-at` annotations creates race conditions with the ImageUpdateAutomation controller (which commits image tag updates back to git). These concurrent reconciliations can overwrite each other's commits, causing git history divergence and lost changes. **After pushing to git, wait. Do not force reconcile.** The webhook + interval (1m) will handle it. Only use `flux reconcile` if the webhook is confirmed down (check GitHub webhook delivery status) or for explicit debugging — never as a shortcut to speed things up.
+
+**Health check stalls:** When a Deployment is in `Failed`/`CrashLoopBackOff` status, Flux's `apps` kustomization health check will report unhealthy and may not apply new revisions. This is by design. Do not force reconcile or suspend/resume kustomizations to work around it. Instead, fix the root cause (the crashing pod) — build a new image with the fix, let the ImagePolicy/IUA pipeline update the tag in git, and push. Once pods come up healthy, Flux resumes normal operation automatically.
 
 ### Image Registry (Harbor)
 In-cluster Harbor at `harbor.yral.com` is the registry for custom-built app images (NOT bootstrap infra images — those stay on GHCR/quay.io for disaster recovery).
