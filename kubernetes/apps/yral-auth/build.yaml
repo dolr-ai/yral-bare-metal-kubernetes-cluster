@@ -32,10 +32,10 @@ spec:
     - name: cache
       value: registry
   output:
-    image: harbor.yral.com/yral-auth/yral-auth:latest
-    # BuildRuns override the tag with a timestamp (YYYYMMDD.HHMMSS) so
-    # Flux ImagePolicy (semver desc) can pick the newest image.
-    # e.g.: kubectl create -f buildrun.yaml with spec.output.image tag override
+    image: harbor.yral.com/yral-auth/yral-auth
+    # BuildRuns override the tag with a timestamp (YYYYMMDD.HHMMSS).
+    # Flux ImagePolicy (alphabetical desc) picks the newest tag.
+    # No :latest tag — only timestamp tags are used.
     pushSecret: harbor-pull-secret
   retention:
     succeededLimit: 3

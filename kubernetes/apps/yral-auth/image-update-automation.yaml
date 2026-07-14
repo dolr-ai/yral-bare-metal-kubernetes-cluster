@@ -4,7 +4,7 @@
 # This creates a commit on the main branch whenever a new image tag is
 # detected, updating the image: field in deployment.yaml.
 ---
-apiVersion: image.toolkit.fluxcd.io/v1beta2
+apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageUpdateAutomation
 metadata:
   name: yral-auth

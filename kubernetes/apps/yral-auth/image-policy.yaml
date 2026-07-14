@@ -3,8 +3,9 @@
 # Policy: alphabetical descending, picks the newest tag.
 # Tags are timestamp-based (YYYYMMDD.HHMMSS) from Shipwright BuildRuns.
 # Timestamps sort correctly in alphabetical descending order.
+# No :latest tag — only timestamp tags are produced by BuildRuns.
 ---
-apiVersion: image.toolkit.fluxcd.io/v1beta2
+apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImagePolicy
 metadata:
   name: yral-auth
@@ -16,4 +17,4 @@ spec:
     alphabetical:
       order: desc
   filterTags:
-    pattern: '^2026[0-9]{4}\.[0-9]{6}$'
+    pattern: '^[0-9]{8}\.[0-9]{6}$'

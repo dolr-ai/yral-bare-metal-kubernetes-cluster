@@ -72,3 +72,4 @@ The key never leaves the cluster and is encrypted at rest inside etcd (Kubernete
 - Remove the library/rust-counter image from harbor
 - Move all env to mise instead of direnv
 - Move task runners to mise? Check and decide
+- Install Shipwright Triggers v0.20.0 for automatic BuildRun creation on git push. Currently BuildRuns must be created manually. Steps: (1) install triggers controller in shipwright-build namespace, commit to kubernetes/infrastructure/shipwright/, (2) expose webhook endpoint via Cilium Gateway + HTTPRoute (e.g. shipwright-triggers.yral.com), (3) add GitHub webhook in the cluster repo pointing to the Triggers endpoint, (4) update Build CRs with spec.trigger.when for GitHub Push events on main branch. This benefits all apps built via Shipwright, not just yral-auth.
