@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - dashboard
   - yral-auth
+  - yral-legacy
