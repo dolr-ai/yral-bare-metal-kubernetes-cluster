@@ -36,9 +36,14 @@ git submodule update --init --recursive
 | `apps/yral-mobile/` | git@github.com:dolr-ai/yral-mobile.git | — |
 | `apps/yral-backend-canister/` | git@github.com:dolr-ai/yral-backend-canister.git | — |
 | `apps/yral-common/` | git@github.com:dolr-ai/yral-common.git | — |
-| `apps/yral-legacy/` | (in-repo, formerly hot-or-not-web-leptos-ssr) | `legacy.yral.com` |
 | `apps/website/` | git@github.com:dolr-ai/website.git | — |
 | `apps/yral-billing/` | git@github.com:dolr-ai/yral-billing.git | — |
 | `apps/yral-metadata/` | git@github.com:dolr-ai/yral-metadata.git | — |
-| `apps/yral-auth/` | git@github.com:dolr-ai/yral-auth.git | `auth.yral.com` |
 | `apps/off-chain-agent/` | git@github.com:dolr-ai/off-chain-agent.git | — |
+
+## In-repo applications (not submodules)
+
+| App | Deployed at |
+|-----|-------------|
+| `apps/yral-auth/` | `auth.yral.com` |
+| `apps/yral-legacy/` | `legacy.yral.com` |
