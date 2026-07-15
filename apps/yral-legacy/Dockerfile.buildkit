@@ -2,15 +2,20 @@
 # Build context: apps/yral-legacy/ (set by Shipwright spec.source.contextDir)
 
 # ── Stage 1: Build ──────────────────────────────────────────────────────────
-FROM rust:nightly AS builder
+FROM rust:latest AS builder
+
+# Install the specific nightly toolchain from rust-toolchain.toml
+COPY rust-toolchain.toml /tmp/rust-toolchain.toml
+RUN rustup toolchain install nightly-2025-06-15 --profile default --component rust-src \
+    --target x86_64-unknown-linux-musl --target wasm32-unknown-unknown && \
+    rustup default nightly-2025-06-15
 
 # Install build dependencies (git, musl, mold linker)
 RUN apt-get update && apt-get install -y --no-install-recommends musl-tools git mold clang && \
     rm -rf /var/lib/apt/lists/*
 
-# Add musl target + wasm target (nightly already has the toolchain)
-RUN rustup target add x86_64-unknown-linux-musl wasm32-unknown-unknown && \
-    rustup component add rust-src
+# Add musl target + wasm target (installed with toolchain above)
+# rustup component add rust-src (installed with toolchain above)
 
 # Install cargo-binstall + cargo-leptos
 RUN curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-musl.tgz -o /tmp/cargo-binstall.tgz && \
