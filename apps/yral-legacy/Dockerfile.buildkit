@@ -10,8 +10,8 @@ RUN rustup toolchain install nightly-2025-06-15 --profile default --component ru
     --target x86_64-unknown-linux-musl --target wasm32-unknown-unknown && \
     rustup default nightly-2025-06-15
 
-# Install build dependencies (git, musl, mold linker)
-RUN apt-get update && apt-get install -y --no-install-recommends musl-tools git mold clang && \
+# Install build dependencies (git, musl, mold linker, protobuf compiler)
+RUN apt-get update && apt-get install -y --no-install-recommends musl-tools git mold clang protobuf-compiler && \
     rm -rf /var/lib/apt/lists/*
 
 # Add musl target + wasm target (installed with toolchain above)
