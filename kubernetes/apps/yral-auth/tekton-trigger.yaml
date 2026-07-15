@@ -73,10 +73,9 @@ spec:
     - name: commit-sha
       value: $(body.after)
 ---
-# TriggerTemplate creates a BuildRun with a timestamped output image tag.
-# The tag format (YYYYMMDD.HHMMSS) matches the Flux ImagePolicy filter.
-# This bypasses Shipwright Triggers and creates the BuildRun directly,
-# giving us full control over the output image tag.
+# TriggerTemplate creates a BuildRun that uses the Build's output image (:latest).
+# Every build overwrites :latest with a new digest. Flux detects the digest
+# change and updates the deployment — no tag management needed.
 apiVersion: triggers.tekton.dev/v1beta1
 kind: TriggerTemplate
 metadata:
@@ -89,7 +88,7 @@ spec:
     - name: revision
       description: The Git ref (e.g. refs/heads/main)
     - name: commit-sha
-      description: The commit SHA, used as the image tag
+      description: The commit SHA
   resourcetemplates:
     - apiVersion: shipwright.io/v1beta1
       kind: BuildRun
@@ -102,8 +101,6 @@ spec:
       spec:
         build:
           name: yral-auth
-        output:
-          image: harbor.yral.com/yral-auth/yral-auth:$(tt.params.commit-sha)
 ---
 # EventListener receives GitHub push events and creates BuildRuns.
 apiVersion: triggers.tekton.dev/v1beta1

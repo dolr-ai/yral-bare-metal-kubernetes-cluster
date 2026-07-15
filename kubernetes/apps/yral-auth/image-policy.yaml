@@ -1,9 +1,8 @@
-# Flux ImagePolicy — selects the latest image tag for yral-auth.
+# Flux ImagePolicy — selects the :latest tag for yral-auth.
 #
-# Policy: alphabetical descending, picks the newest tag.
-# Tags are Git commit SHAs (40 hex chars) from Shipwright BuildRuns
-# triggered by Tekton EventListener on git push.
-# Full SHAs sort correctly in alphabetical descending order.
+# Every Shipwright BuildRun overwrites the :latest tag with a new digest.
+# Flux detects the digest change and updates the deployment automatically.
+# This is the simplest approach — no timestamp or SHA tags to manage.
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImagePolicy
@@ -17,4 +16,4 @@ spec:
     alphabetical:
       order: desc
   filterTags:
-    pattern: '^[0-9a-f]{40}$'
+    pattern: '^latest$'
