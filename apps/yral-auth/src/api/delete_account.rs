@@ -109,7 +109,20 @@ pub async fn clear_session_principal() -> Result<(), ServerFnError> {
         .await
         .map_err(|e| ServerFnError::new(format!("Failed to extract cookie jar: {e:?}")))?;
 
-    let jar = jar.remove(DELETE_ACCOUNT_SESSION_COOKIE);
+    // Build an explicit removal cookie with matching Path to ensure the browser
+    // deletes the original cookie. Browsers require Path to match.
+    let removal_cookie = Cookie::build((
+        DELETE_ACCOUNT_SESSION_COOKIE,
+        "",
+    ))
+        .same_site(SameSite::Lax)
+        .secure(true)
+        .path("/")
+        .max_age(Duration::ZERO)
+        .http_only(true)
+        .build();
+
+    let jar = jar.add(removal_cookie);
     let resp: ResponseOptions = expect_context();
     let resp_jar = jar.into_response();
     for cookie in resp_jar

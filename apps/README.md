@@ -32,13 +32,13 @@ git submodule update --init --recursive
 
 | Submodule | Source repo | Deployed at |
 |-----------|-------------|-------------|
-| `apps/yral/` | git@github.com:dolr-ai/yral.git | Not yet present in `kubernetes/apps/` |
-| `apps/yral-mobile/` | git@github.com:dolr-ai/yral-mobile.git | Not yet present in `kubernetes/apps/` |
-| `apps/yral-backend-canister/` | git@github.com:dolr-ai/yral-backend-canister.git | Not yet present in `kubernetes/apps/` |
-| `apps/yral-common/` | git@github.com:dolr-ai/yral-common.git | Not yet present in `kubernetes/apps/` |
-| `apps/yral-legacy/` | (formerly hot-or-not-web-leptos-ssr, now in-repo) | Not yet present in `kubernetes/apps/` |
-| `apps/website/` | git@github.com:dolr-ai/website.git | Not yet present in `kubernetes/apps/` |
-| `apps/yral-billing/` | git@github.com:dolr-ai/yral-billing.git | Not yet present in `kubernetes/apps/` |
-| `apps/yral-metadata/` | git@github.com:dolr-ai/yral-metadata.git | Not yet present in `kubernetes/apps/` |
-| `apps/yral-auth/` | git@github.com:dolr-ai/yral-auth.git | Not yet present in `kubernetes/apps/` |
-| `apps/off-chain-agent/` | git@github.com:dolr-ai/off-chain-agent.git | Not yet present in `kubernetes/apps/` |
+| `apps/yral/` | git@github.com:dolr-ai/yral.git | — |
+| `apps/yral-mobile/` | git@github.com:dolr-ai/yral-mobile.git | — |
+| `apps/yral-backend-canister/` | git@github.com:dolr-ai/yral-backend-canister.git | — |
+| `apps/yral-common/` | git@github.com:dolr-ai/yral-common.git | — |
+| `apps/yral-legacy/` | (in-repo, formerly hot-or-not-web-leptos-ssr) | `legacy.yral.com` |
+| `apps/website/` | git@github.com:dolr-ai/website.git | — |
+| `apps/yral-billing/` | git@github.com:dolr-ai/yral-billing.git | — |
+| `apps/yral-metadata/` | git@github.com:dolr-ai/yral-metadata.git | — |
+| `apps/yral-auth/` | git@github.com:dolr-ai/yral-auth.git | `auth.yral.com` |
+| `apps/off-chain-agent/` | git@github.com:dolr-ai/off-chain-agent.git | — |

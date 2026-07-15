@@ -228,9 +228,13 @@ fn DeleteAccountPopup(show_popup: RwSignal<bool>) -> impl IntoView {
 fn AuthenticatedContent(principal: String) -> impl IntoView {
     let show_popup = RwSignal::new(false);
     let sign_out_action = Action::new(move |&()| async move {
-        sign_out().await.ok();
+        if let Err(e) = sign_out().await {
+            log::error!("Sign out failed: {e:?}");
+        }
+        // Force a full page reload to clear any cached session state
+        // (Leptos Resources are not automatically invalidated on navigation)
         let nav = leptos_router::hooks::use_navigate();
-        nav("/account", Default::default());
+        nav("/account", NavigateOptions { replace: true, ..Default::default() });
     });
 
     view! {
