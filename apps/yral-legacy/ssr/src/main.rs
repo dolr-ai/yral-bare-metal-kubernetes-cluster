@@ -6,15 +6,15 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use axum::{routing::get, Router};
-use hot_or_not_web_leptos_ssr::fallback::file_and_error_handler;
+use yral_legacy::fallback::file_and_error_handler;
 use sentry_tower::{NewSentryLayer, SentryHttpLayer};
 use state::server::AppState;
 use tower::ServiceBuilder;
 use tracing::instrument;
 use utils::host::is_host_or_origin_from_preview_domain;
 
-use hot_or_not_web_leptos_ssr::app::shell;
-use hot_or_not_web_leptos_ssr::{app::App, init::AppStateBuilder};
+use yral_legacy::app::shell;
+use yral_legacy::{app::App, init::AppStateBuilder};
 use http::{header, HeaderName, Method};
 use leptos::prelude::*;
 use leptos_axum::handle_server_fns_with_context;
@@ -285,7 +285,7 @@ fn setup_telemetry() -> Option<(
             exporter: telemetry_axum::Exporter::OtlpTracesOnly, // Traces with embedded logs to Jaeger
             otlp_endpoint: otlp_endpoint.clone(),
             service_name: "yral_ssr".to_string(),
-            level: "info,yral_ssr=debug,tower_http=info,hot_or_not_web_leptos_ssr=debug"
+            level: "info,yral_ssr=debug,tower_http=info,yral_legacy=debug"
                 .to_string(),
             propagate: true, // Enable trace propagation for distributed tracing
             ..Default::default()
@@ -306,7 +306,7 @@ fn setup_telemetry() -> Option<(
                 let telemetry_config = telemetry_axum::Config {
                     exporter: telemetry_axum::Exporter::Stdout,
                     service_name: "yral_ssr".to_string(),
-                    level: "info,yral_ssr=debug,tower_http=info,hot_or_not_web_leptos_ssr=debug"
+                    level: "info,yral_ssr=debug,tower_http=info,yral_legacy=debug"
                         .to_string(),
                     ..Default::default()
                 };
@@ -330,7 +330,7 @@ fn setup_telemetry() -> Option<(
         let telemetry_config = telemetry_axum::Config {
             exporter: telemetry_axum::Exporter::Stdout,
             service_name: "yral_ssr".to_string(),
-            level: "info,yral_ssr=debug,tower_http=info,hot_or_not_web_leptos_ssr=debug"
+            level: "info,yral_ssr=debug,tower_http=info,yral_legacy=debug"
                 .to_string(),
             ..Default::default()
         };
