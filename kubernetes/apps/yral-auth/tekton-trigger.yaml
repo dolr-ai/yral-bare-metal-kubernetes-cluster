@@ -89,9 +89,7 @@ spec:
     - name: revision
       description: The Git ref (e.g. refs/heads/main)
     - name: commit-sha
-      description: The commit SHA
-    - name: timestamp
-      description: Timestamp for the image tag (YYYYMMDD.HHMMSS), added by CEL interceptor
+      description: The commit SHA, used as the image tag
   resourcetemplates:
     - apiVersion: shipwright.io/v1beta1
       kind: BuildRun
@@ -105,7 +103,7 @@ spec:
         build:
           name: yral-auth
         output:
-          image: harbor.yral.com/yral-auth/yral-auth:$(tt.params.timestamp)
+          image: harbor.yral.com/yral-auth/yral-auth:$(tt.params.commit-sha)
 ---
 # EventListener receives GitHub push events and creates BuildRuns.
 apiVersion: triggers.tekton.dev/v1beta1
@@ -129,11 +127,3 @@ spec:
           params:
             - name: filter
               value: "body.ref == 'refs/heads/main'"
-        - name: add-timestamp
-          ref:
-            name: cel
-          params:
-            - name: overlays
-              value:
-                - key: timestamp
-                  expression: "now().Format('20060102.150405')"
