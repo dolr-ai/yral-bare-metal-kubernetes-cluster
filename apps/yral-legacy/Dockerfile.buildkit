@@ -1,0 +1,82 @@
+# Multi-stage Dockerfile for building yral-legacy from source (Shipwright/BuildKit).
+# Build context: apps/yral-legacy/ (set by Shipwright spec.source.contextDir)
+
+# ── Stage 1: Build ──────────────────────────────────────────────────────────
+FROM rust:nightly AS builder
+
+# Install build dependencies (git, musl, mold linker)
+RUN apt-get update && apt-get install -y --no-install-recommends musl-tools git mold clang && \
+    rm -rf /var/lib/apt/lists/*
+
+# Add musl target + wasm target (nightly already has the toolchain)
+RUN rustup target add x86_64-unknown-linux-musl wasm32-unknown-unknown && \
+    rustup component add rust-src
+
+# Install cargo-binstall + cargo-leptos
+RUN curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-musl.tgz -o /tmp/cargo-binstall.tgz && \
+    tar -xzf /tmp/cargo-binstall.tgz -C /usr/local/bin && \
+    chmod +x /usr/local/bin/cargo-binstall && \
+    rm /tmp/cargo-binstall.tgz && \
+    cargo binstall cargo-leptos --no-confirm
+
+# Install Node.js for tailwindcss
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy Cargo.toml + Cargo.lock first for better layer caching
+COPY Cargo.toml Cargo.lock ./
+
+# Copy the workspace members
+COPY ssr/ ./ssr/
+COPY telemetry_axum/ ./telemetry_axum/
+COPY .cargo/ ./.cargo/
+COPY rust-toolchain.toml ./
+COPY tailwind.config.js ./
+COPY package.json ./
+COPY pnpm-lock.yaml ./
+
+# Install JS dependencies (tailwindcss)
+RUN npm install
+
+# Set Leptos environment variables for the build
+ENV LEPTOS_OUTPUT_NAME="yral-legacy"
+ENV LEPTOS_SITE_ROOT="target/site"
+ENV LEPTOS_SITE_PKG_DIR="pkg"
+ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
+ENV LEPTOS_ENV="PROD"
+ENV LEPTOS_BIN_TARGET_TRIPLE="x86_64-unknown-linux-musl"
+
+# Use git CLI for fetching git deps (libgit2 has SSL issues with large repos like dfinity/ic)
+ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
+
+# Build the app (uses bin-profile-release=prod-release from Cargo.toml metadata)
+RUN cargo leptos build --release
+
+# ── Stage 2: Runtime (scratch) ─────────────────────────────────────────────
+FROM scratch
+
+WORKDIR /app
+
+# Copy the built binary
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/prod-release/yral-legacy .
+
+# Copy the Leptos site assets (WASM, JS, CSS)
+COPY --from=builder /app/target/site ./site
+
+# Copy CA certificates (app makes HTTPS calls to external services)
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
+# Set Leptos environment variables (runtime config baked into image)
+ENV LEPTOS_OUTPUT_NAME="yral-legacy"
+ENV LEPTOS_SITE_ROOT="site"
+ENV LEPTOS_SITE_PKG_DIR="pkg"
+ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
+ENV LEPTOS_ENV="PROD"
+ENV LEPTOS_HASH_FILES="true"
+
+EXPOSE 8080
+
+ENTRYPOINT ["/app/yral-legacy"]

@@ -1,0 +1,28 @@
+{
+    "rust-analyzer.cargo.features": "all",
+    "rust-analyzer.check.features": "all",
+    "rust-analyzer.procMacro.ignored": {
+        "leptos_macro": [
+            // optional:
+            "component",
+            "server"
+        ],
+    },
+    "emmet.includeLanguages": {
+        "rust": "html",
+        "*.rs": "html"
+    },
+    "tailwindCSS.includeLanguages": {
+        "rust": "html",
+        "*.rs": "html"
+    },
+    "files.associations": {
+        "*.rs": "rust"
+    },
+    "editor.quickSuggestions": {
+        "other": "on",
+        "comments": "on",
+        "strings": true
+    },
+    "postman.settings.dotenv-detection-notification-visibility": false,
+}

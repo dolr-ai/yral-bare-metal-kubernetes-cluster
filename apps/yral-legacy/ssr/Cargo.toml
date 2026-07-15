@@ -1,0 +1,393 @@
+[package]
+name = "yral-legacy"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+hon-worker-common.workspace = true
+axum = { workspace = true, optional = true }
+console_error_panic_hook = { workspace = true }
+console_log = { workspace = true }
+leptos = { workspace = true, features = ["nightly"] }
+leptos_axum = { workspace = true, optional = true }
+leptos_meta = { workspace = true, optional = true }
+leptos_router = { workspace = true, optional = true }
+log = { workspace = true }
+simple_logger = { workspace = true }
+tokio = { workspace = true, optional = true }
+tower = { workspace = true, optional = true }
+tower-http = { workspace = true, optional = true }
+wasm-bindgen = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true, optional = true }
+http = { workspace = true }
+serde.workspace = true
+candid.workspace = true
+ic-agent = { workspace = true }
+ic-base-types = { workspace = true }
+icp-ledger = { workspace = true }
+futures = { workspace = true }
+leptos-use = { workspace = true }
+codee = { workspace = true }
+reqwest = { workspace = true }
+serde_bytes.workspace = true
+hex = { workspace = true }
+leptos_icons = { workspace = true }
+icondata = { workspace = true }
+gloo = { workspace = true }
+once_cell = { workspace = true }
+web-time.workspace = true
+k256 = { workspace = true }
+icondata_core = { workspace = true }
+serde_json = { workspace = true }
+crc32fast = { workspace = true }
+uts2ts = { workspace = true }
+rand_chacha = { workspace = true, optional = true }
+web-sys = { workspace = true, optional = true }
+circular-buffer = { workspace = true }
+redb = { workspace = true, optional = true }
+enum_dispatch = { workspace = true, optional = true }
+axum-extra = { workspace = true, optional = true }
+openidconnect = { workspace = true, optional = true }
+dotenv = { workspace = true, optional = true }
+redis = { workspace = true, optional = true }
+bb8 = { workspace = true, optional = true }
+bb8-redis = { workspace = true, optional = true }
+gob-cloudflare = { workspace = true, optional = true }
+gloo-utils = { workspace = true }
+hmac = { workspace = true, optional = true }
+wasm-bindgen-futures = { workspace = true }
+testcontainers = { workspace = true, optional = true }
+yral-testcontainers = { workspace = true, optional = true }
+sns-validation = { workspace = true }
+js-sys = { workspace = true }
+tonic = { workspace = true }
+prost = { workspace = true }
+priority-queue = { workspace = true }
+rust_decimal = { workspace = true }
+speedate = { workspace = true, optional = true }
+urlencoding = { workspace = true }
+yral-types = { workspace = true }
+yral-canisters-client = { workspace = true }
+yral-canisters-common = { workspace = true }
+ic-certification = { workspace = true }
+ciborium = { workspace = true }
+yral-metadata-client = { workspace = true, optional = true }
+yral-metadata-types = { workspace = true, optional = true }
+uuid = { workspace = true, features = ["v4", "js"] }
+regex = { workspace = true, optional = true }
+tonic-build = { workspace = true }
+anyhow = { workspace = true }
+send_wrapper = { workspace = true }
+indexmap.workspace = true
+sentry-tracing = { workspace = true, optional = true }
+tracing-log = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, optional = true }
+tracing-futures = { workspace = true, optional = true }
+sentry = { workspace = true, optional = true }
+sentry-tower = { workspace = true, optional = true }
+telemetry_axum = { workspace = true, optional = true }
+opentelemetry_sdk = { workspace = true, optional = true }
+jsonwebtoken = { workspace = true, optional = true }
+videogen-common = { workspace = true }
+
+# local deps
+auth = { workspace = true }
+consts = { workspace = true }
+utils.workspace = true
+state.workspace = true
+component.workspace = true
+page.workspace = true
+
+[dev-dependencies]
+
+
+[build-dependencies]
+tonic-build = { workspace = true }
+anyhow = { workspace = true }
+[features]
+hydrate = [
+    "leptos/hydrate",
+    "leptos_meta",
+    "leptos_router",
+    "ic-agent/wasm-bindgen",
+    "dep:web-sys",
+    "reqwest/native-tls",
+    "tonic/codegen",
+    "speedate",
+    "send_wrapper/futures",
+    "consts/hydrate",
+    "utils/hydrate",
+    "state/hydrate",
+    "component/hydrate",
+    "page/hydrate",
+    "yral-canisters-common/js",
+]
+ssr = [
+    "dep:axum",
+    "dep:tokio",
+    "dep:tower",
+    "dep:tower-http",
+    "dep:leptos_axum",
+    "leptos/ssr",
+    "leptos_meta/ssr",
+    "leptos_router/ssr",
+    "dep:tracing",
+    "leptos-use/ssr",
+    "leptos-use/axum",
+    "reqwest/rustls-tls",
+    "dep:redis",
+    "yral-canisters-common/rustls-tls",
+    "dep:redb",
+    "dep:enum_dispatch",
+    "axum-extra",
+    "dep:dotenv",
+    "bb8",
+    "bb8-redis",
+    "hmac",
+    "tonic/tls",
+    "tonic/tls-webpki-roots",
+    "tonic/transport",
+    "tonic-build/transport",
+    "speedate",
+    "dep:regex",
+    "consts/ssr",
+    "utils/ssr",
+    "state/ssr",
+    "component/ssr",
+    "page/ssr",
+    "auth/ssr",
+    "dep:sentry-tracing",
+    "dep:tracing-log",
+    "dep:tracing-subscriber",
+    "dep:tracing-futures",
+    "dep:sentry",
+    "dep:sentry-tower",
+    # "enable-otlp",
+]
+# Fetch mock referral history instead of history via canister
+mock-referral-history = [
+    "dep:rand_chacha",
+    "k256/arithmetic",
+    "consts/mock-referral-history",
+    "utils/mock-referral-history",
+    "state/mock-referral-history",
+    "component/mock-referral-history",
+    "page/mock-referral-history",
+]
+
+
+local-bin = [
+    "ssr",
+    "redis-kv",
+    "backend-admin",
+    "dep:testcontainers",
+    "dep:yral-testcontainers",
+    "yral-canisters-common/local",
+    "dep:yral-metadata-client",
+    "dep:yral-metadata-types",
+    "dep:rand_chacha",
+    "consts/local-bin",
+    "utils/local-bin",
+    "state/local-bin",
+    "component/local-bin",
+    "page/local-bin",
+]
+mock-history = [
+    "mock-referral-history",
+    "mock-wallet-history",
+    "consts/mock-history",
+    "utils/mock-history",
+    "state/mock-history",
+    "component/mock-history",
+    "page/mock-history",
+]
+oauth-ssr = [
+    "dep:openidconnect",
+    "dep:jsonwebtoken",
+    "consts/oauth-ssr",
+    "utils/oauth-ssr",
+    "state/oauth-ssr",
+    "component/oauth-ssr",
+    "page/oauth-ssr",
+    "auth/oauth-ssr",
+]
+oauth-hydrate = [
+    "consts/oauth-hydrate",
+    "utils/oauth-hydrate",
+    "state/oauth-hydrate",
+    "component/oauth-hydrate",
+    "page/oauth-hydrate",
+]
+redis-kv = [
+    "consts/redis-kv",
+    "utils/redis-kv",
+    "state/redis-kv",
+    "component/redis-kv",
+    "page/redis-kv",
+]
+cloudflare = [
+    "dep:gob-cloudflare",
+    "consts/cloudflare",
+    "utils/cloudflare",
+    "state/cloudflare",
+    "component/cloudflare",
+    "page/cloudflare",
+]
+backend-admin = [
+    "consts/backend-admin",
+    "utils/backend-admin",
+    "state/backend-admin",
+    "component/backend-admin",
+    "page/backend-admin",
+]
+ga4 = ["consts/ga4", "utils/ga4", "state/ga4", "component/ga4", "page/ga4"]
+mock-wallet-history = [
+    "dep:rand_chacha",
+    "consts/mock-wallet-history",
+    "utils/mock-wallet-history",
+    "state/mock-wallet-history",
+    "component/mock-wallet-history",
+    "page/mock-wallet-history",
+]
+qstash = [
+    "consts/qstash",
+    "utils/qstash",
+    "state/qstash",
+    "component/qstash",
+    "page/qstash",
+]
+enable-otlp = ["dep:telemetry_axum", "dep:opentelemetry_sdk"]
+release-bin = [
+    "ssr",
+    "cloudflare",
+    "gob-cloudflare/rustls-tls",
+    "redis-kv",
+    "backend-admin",
+    "oauth-ssr",
+    "ga4",
+    "qstash",
+    "consts/release-bin",
+    "utils/release-bin",
+    "state/release-bin",
+    "component/release-bin",
+    "page/release-bin",
+]
+release-lib = [
+    "hydrate",
+    "cloudflare",
+    "redis-kv",
+    "backend-admin",
+    "dep:openidconnect",
+    "oauth-hydrate",
+    "ga4",
+    "consts/release-lib",
+    "utils/release-lib",
+    "state/release-lib",
+    "component/release-lib",
+    "page/release-lib",
+]
+local-lib = [
+    "hydrate",
+    "redis-kv",
+    "backend-admin",
+    "yral-canisters-common/local",
+    "consts/local-lib",
+    "utils/local-lib",
+    "state/local-lib",
+    "component/local-lib",
+    "page/local-lib",
+]
+
+[package.metadata.leptos]
+# The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name
+output-name = "yral-legacy"
+
+# The site root folder is where cargo-leptos generate all output. WARNING: all content of this folder will be erased on a rebuild. Use it in your server setup.
+site-root = "target/site"
+
+# The site-root relative folder where all compiled output (JS, WASM and CSS) is written
+# Defaults to pkg
+site-pkg-dir = "pkg"
+
+# [Optional] The source CSS file. If it ends with .sass or .scss then it will be compiled by dart-sass into CSS. The CSS is optimized by Lightning CSS before being written to <site-root>/<site-pkg>/app.css
+#style-file = "style/main.scss"
+
+# The tailwind input file.
+tailwind-input-file = "style/input.css"
+
+# The tailwind config file.
+tailwind-config-file = "tailwind.config.js"
+
+# Enables additional file hashes on outputted css, js, and wasm files
+#
+# Optional: Defaults to false. Can also be set with the LEPTOS_HASH_FILES=false env var
+hash-files = true
+
+# Assets source dir. All files found here will be copied and synchronized to site-root.
+# The assets-dir cannot have a sub directory with the same name/path as site-pkg-dir.
+#
+# Optional. Env: LEPTOS_ASSETS_DIR.
+assets-dir = "public"
+
+# The IP and port (ex: 127.0.0.1:3000) where the server serves the content. Use it in your server setup.
+site-addr = "127.0.0.1:3000"
+
+# The port to use for automatic reload monitoring
+reload-port = 3001
+
+# [Optional] Command to use when running end2end tests. It will run in the end2end dir.
+#   [Windows] for non-WSL use "npx.cmd playwright test"
+#   This binary name can be checked in Powershell with Get-Command npx
+end2end-cmd = "npx playwright test"
+end2end-dir = "end2end"
+
+#  The browserlist query used for optimizing the CSS.
+browserquery = "defaults"
+
+# Set by cargo-leptos watch when building with that tool. Controls whether autoreload JS will be included in the head
+watch = false
+
+# The environment Leptos will run in, usually either "DEV" or "PROD"
+env = "DEV"
+
+# The features to use when compiling the bin target
+#
+# Optional. Can be over-ridden with the command line parameter --bin-features
+bin-features = ["ssr"]
+
+# If the --no-default-features flag should be used when compiling the bin target
+#
+# Optional. Defaults to false.
+bin-default-features = false
+
+# The profile to use for the bin target when compiling for release
+#
+# Optional. Defaults to "release".
+bin-profile-release = "prod-release"
+
+# The profile to use for the bin target when compiling for debug
+#
+# Optional. Defaults to "debug".
+# bin-profile-dev = "bin-debug"
+
+# The features to use when compiling the lib target
+#
+# Optional. Can be over-ridden with the command line parameter --lib-features
+lib-features = ["hydrate"]
+
+# If the --no-default-features flag should be used when compiling the lib target
+#
+# Optional. Defaults to false.
+lib-default-features = false
+
+# The profile to use for the lib target when compiling for release
+#
+# Optional. Defaults to "release".
+lib-profile-release = "wasm-release"
+
+# Uncomment in local to disable erasing components
+disable-erase-components = true

@@ -3,7 +3,7 @@ resolver = "3"
 members = ["apps/task-runner", "apps/yral-database-spacetime"]
 
 exclude = [
-    "apps/hot-or-not-web-leptos-ssr",
+    "apps/yral-legacy",
     "apps/off-chain-agent",
     "apps/website",
     "apps/yral",
