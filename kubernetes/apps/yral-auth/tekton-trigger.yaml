@@ -73,9 +73,9 @@ spec:
     - name: commit-sha
       value: $(body.after)
 ---
-# TriggerTemplate creates a BuildRun that uses the Build's output image (:latest).
-# Every build overwrites :latest with a new digest. Flux detects the digest
-# change and updates the deployment — no tag management needed.
+# TriggerTemplate creates a BuildRun with the commit SHA as the image tag.
+# The SHA is unique per push, so Flux ImageRepository always detects it as
+# a new tag (unlike :latest where only the digest changes).
 apiVersion: triggers.tekton.dev/v1beta1
 kind: TriggerTemplate
 metadata:
@@ -88,7 +88,7 @@ spec:
     - name: revision
       description: The Git ref (e.g. refs/heads/main)
     - name: commit-sha
-      description: The commit SHA
+      description: The commit SHA, used as the image tag
   resourcetemplates:
     - apiVersion: shipwright.io/v1beta1
       kind: BuildRun
@@ -101,6 +101,8 @@ spec:
       spec:
         build:
           name: yral-auth
+        output:
+          image: harbor.yral.com/yral-auth/yral-auth:$(tt.params.commit-sha)
 ---
 # EventListener receives GitHub push events and creates BuildRuns.
 apiVersion: triggers.tekton.dev/v1beta1

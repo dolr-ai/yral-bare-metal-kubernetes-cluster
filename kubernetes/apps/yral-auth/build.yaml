@@ -6,8 +6,9 @@
 # Output: harbor.yral.com/yral-auth/yral-auth
 #
 # BuildRuns are created automatically by the Tekton EventListener on git push
-# to main. Every build overwrites the :latest tag. Flux ImagePolicy detects
-# the digest change and updates the deployment automatically.
+# to main. The EventListener overrides the output image tag with the Git
+# commit SHA (body.after from the GitHub push payload). Flux ImagePolicy
+# detects the new SHA tag and updates the deployment.
 #
 # Manual BuildRuns can also be created if needed.
 ---
@@ -33,7 +34,7 @@ spec:
     - name: cache
       value: registry
   output:
-    image: harbor.yral.com/yral-auth/yral-auth:latest
+    image: harbor.yral.com/yral-auth/yral-auth
     pushSecret: harbor-pull-secret
   retention:
     succeededLimit: 3
