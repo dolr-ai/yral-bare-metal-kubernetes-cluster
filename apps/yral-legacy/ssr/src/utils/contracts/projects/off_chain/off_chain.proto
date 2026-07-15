@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package off_chain;
+
+// Interface exported by the server.
+service OffChain {
+
+  rpc ReportPost(ReportPostRequest) returns (Empty) {}
+  
+}
+
+message ReportPostRequest {
+  string reporter_id = 1;
+  string publisher_id = 2;
+  string publisher_canister_id = 3;
+  string post_id = 4;
+  string video_id = 5;
+  string reason = 6;
+  string video_url = 7;
+}
+
+message Empty {}

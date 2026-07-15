@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package ml_feed;
+
+message PostItem {
+  uint32 post_id = 1;
+  string canister_id = 2;
+  string video_id = 3;
+}
+
+message PostItemResponse {
+  uint32 post_id = 1;
+  string canister_id = 2;
+}
+
+message PostItemResponseV1 {
+  uint32 post_id = 1;
+  string canister_id = 2;
+  float score = 3;
+}
+
+message FeedRequest {
+  string canister_id = 1;
+  repeated PostItem filter_posts = 2;
+  uint32 num_results = 3;
+}
+
+message FeedResponse { repeated PostItemResponse feed = 1; }
+message FeedResponseV1 { repeated PostItemResponseV1 feed = 1; }
+
+message VideoReportRequest {
+  string reportee_user_id = 1;
+  string reportee_canister_id = 2;
+  string video_canister_id = 3;
+  uint32 video_post_id = 4;
+  string video_id = 5;
+  string reason = 6;
+}
+
+message VideoReportResponse { bool success = 1; }
+
+message VideoReportRequestV3 {
+  string reportee_user_id = 1;
+  string video_id = 2;
+  string reason = 3;
+}
+
+message VideoReportResponseV3 { bool success = 1; }
+
+service MLFeed {
+  rpc get_feed(FeedRequest) returns (FeedResponse) {}
+  rpc get_feed_v1(FeedRequest) returns (FeedResponseV1) {}
+  rpc get_feed_clean(FeedRequest) returns (FeedResponse) {}
+  rpc get_feed_nsfw(FeedRequest) returns (FeedResponse) {}
+  rpc get_feed_coldstart(FeedRequest) returns (FeedResponse) {}
+  rpc get_feed_global_cache(FeedRequest) returns (FeedResponse) {}
+  rpc get_feed_global_nsfw(FeedRequest) returns (FeedResponse) {}
+  rpc get_feed_global_mixed(FeedRequest) returns (FeedResponse) {}
+  rpc report_video(VideoReportRequest) returns (VideoReportResponse) {}
+  rpc report_video_v3(VideoReportRequestV3) returns (VideoReportResponseV3) {}
+}
