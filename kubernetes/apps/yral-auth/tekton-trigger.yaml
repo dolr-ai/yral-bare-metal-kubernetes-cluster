@@ -90,6 +90,8 @@ spec:
       description: The Git ref (e.g. refs/heads/main)
     - name: commit-sha
       description: The commit SHA
+    - name: timestamp
+      description: Timestamp for the image tag (YYYYMMDD.HHMMSS), added by CEL interceptor
   resourcetemplates:
     - apiVersion: shipwright.io/v1beta1
       kind: BuildRun
@@ -131,9 +133,6 @@ spec:
           ref:
             name: cel
           params:
-            - name: overlays
-            - name: filter
-              value: "true"
             - name: overlays
               value:
                 - key: timestamp
