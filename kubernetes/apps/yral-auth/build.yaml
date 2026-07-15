@@ -5,9 +5,9 @@
 # Strategy: buildkit (ClusterBuildStrategy, rootless BuildKit v0.31.1)
 # Output: harbor.yral.com/yral-auth/yral-auth
 #
-# BuildRuns are created automatically by Shipwright Triggers when the Tekton
-# PipelineRun "yral-auth-build-trigger" succeeds. The flow is:
-#   GitHub push → Tekton EventListener → PipelineRun (noop) → Shipwright Triggers → BuildRun
+# BuildRuns are created automatically by the Tekton EventListener on git push
+# to main. The EventListener creates a BuildRun with a timestamped output tag
+# (YYYYMMDD.HHMMSS) that the Flux ImagePolicy picks up for deployment.
 #
 # Manual BuildRuns can also be created if needed.
 ---
@@ -24,14 +24,6 @@ spec:
       revision: main
       cloneSecret: github-clone-secret
     contextDir: apps/yral-auth
-  trigger:
-    when:
-      - name: pipeline-succeeded
-        type: Pipeline
-        objectRef:
-          name: yral-auth-build-trigger
-          status:
-            - Succeeded
   strategy:
     name: buildkit
     kind: ClusterBuildStrategy
