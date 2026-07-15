@@ -61,9 +61,9 @@ pub async fn sign_out() -> Result<(), ServerFnError> {
 
 /// Generates the OAuth redirect URL for self-service login.
 fn oauth_login_url() -> String {
-    use base64::{prelude::BASE64_URL_SAFE, Engine};
+    use base64::{prelude::BASE64_URL_SAFE_NO_PAD, Engine};
 
-    let code_challenge = BASE64_URL_SAFE.encode([0u8; 32]);
+    let code_challenge = BASE64_URL_SAFE_NO_PAD.encode([0u8; 32]);
     let state = format!(
         "{}",
         web_time::SystemTime::now()
