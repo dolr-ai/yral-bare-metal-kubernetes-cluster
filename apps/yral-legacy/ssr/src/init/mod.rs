@@ -121,15 +121,6 @@ fn init_admin_canisters() -> state::admin_canisters::AdminCanisters {
     }
 }
 
-#[cfg(feature = "qstash")]
-fn init_qstash_client() -> utils::qstash::QStashClient {
-    use utils::qstash::QStashClient;
-
-    let auth_token = env::var("QSTASH_TOKEN").expect("`QSTASH_TOKEN` is required!");
-
-    QStashClient::new(&auth_token)
-}
-
 pub struct AppStateRes {
     pub app_state: AppState,
     #[cfg(feature = "local-bin")]
@@ -219,8 +210,6 @@ impl AppStateBuilder {
             yral_auth_migration_key: init_yral_auth_migration_key(),
             #[cfg(feature = "ga4")]
             grpc_offchain_channel: init_grpc_offchain_channel().await,
-            #[cfg(feature = "qstash")]
-            qstash: init_qstash_client(),
             hon_worker_jwt: {
                 use state::server::HonWorkerJwt;
                 let jwt = env::var("HON_WORKER_JWT").expect("`HON_WORKER_JWT` is required!");

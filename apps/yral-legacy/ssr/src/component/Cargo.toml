@@ -191,7 +191,6 @@ mock-wallet-history = [
     "utils/mock-wallet-history",
     "state/mock-wallet-history",
 ]
-qstash = ["consts/qstash", "utils/qstash", "state/qstash"]
 release-bin = [
     "ssr",
     "cloudflare",
@@ -200,7 +199,6 @@ release-bin = [
     "backend-admin",
     "oauth-ssr",
     "ga4",
-    "qstash",
     "consts/release-bin",
     "utils/release-bin",
     "state/release-bin",

@@ -253,13 +253,6 @@ mock-wallet-history = [
     "component/mock-wallet-history",
     "page/mock-wallet-history",
 ]
-qstash = [
-    "consts/qstash",
-    "utils/qstash",
-    "state/qstash",
-    "component/qstash",
-    "page/qstash",
-]
 enable-otlp = ["dep:telemetry_axum", "dep:opentelemetry_sdk"]
 release-bin = [
     "ssr",
@@ -269,7 +262,6 @@ release-bin = [
     "backend-admin",
     "oauth-ssr",
     "ga4",
-    "qstash",
     "consts/release-bin",
     "utils/release-bin",
     "state/release-bin",

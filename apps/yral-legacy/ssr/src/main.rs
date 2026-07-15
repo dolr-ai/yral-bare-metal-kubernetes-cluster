@@ -45,8 +45,6 @@ pub async fn server_fn_handler(
             #[cfg(feature = "ga4")]
             provide_context(app_state.grpc_offchain_channel.clone());
 
-            #[cfg(feature = "qstash")]
-            provide_context(app_state.qstash.clone());
 
             provide_context(app_state.hon_worker_jwt.clone());
         },
@@ -74,8 +72,6 @@ pub async fn leptos_routes_handler(state: State<AppState>, req: Request<AxumBody
             #[cfg(feature = "ga4")]
             provide_context(app_state.grpc_offchain_channel.clone());
 
-            #[cfg(feature = "qstash")]
-            provide_context(app_state.qstash.clone());
 
             provide_context(app_state.hon_worker_jwt.clone());
         },

@@ -78,10 +78,7 @@ fn oauth_login_url() -> String {
         query
             .append_pair("response_type", "code")
             .append_pair("client_id", SELF_SERVICE_CLIENT_ID)
-            .append_pair(
-                "redirect_uri",
-                "https://auth.yral.com/account/callback",
-            )
+            .append_pair("redirect_uri", "https://auth.yral.com/account/callback")
             .append_pair("code_challenge", &code_challenge)
             .append_pair("code_challenge_method", "S256")
             .append_pair("state", &state)
@@ -234,7 +231,13 @@ fn AuthenticatedContent(principal: String) -> impl IntoView {
         // Force a full page reload to clear any cached session state
         // (Leptos Resources are not automatically invalidated on navigation)
         let nav = leptos_router::hooks::use_navigate();
-        nav("/account", NavigateOptions { replace: true, ..Default::default() });
+        nav(
+            "/account",
+            NavigateOptions {
+                replace: true,
+                ..Default::default()
+            },
+        );
     });
 
     view! {

@@ -161,7 +161,6 @@ cloudflare = ["dep:gob-cloudflare", "consts/cloudflare"]
 backend-admin = ["consts/backend-admin"]
 ga4 = ["consts/ga4"]
 mock-wallet-history = ["dep:rand_chacha", "consts/mock-wallet-history"]
-qstash = ["consts/qstash"]
 release-bin = [
     "ssr",
     "cloudflare",
@@ -170,7 +169,6 @@ release-bin = [
     "backend-admin",
     "oauth-ssr",
     "ga4",
-    "qstash",
     "consts/release-bin",
 ]
 release-lib = [

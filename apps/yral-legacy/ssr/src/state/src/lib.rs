@@ -42,8 +42,6 @@ pub mod server {
         pub yral_auth_migration_key: jsonwebtoken::EncodingKey,
         #[cfg(feature = "ga4")]
         pub grpc_offchain_channel: tonic::transport::Channel,
-        #[cfg(feature = "qstash")]
-        pub qstash: utils::qstash::QStashClient,
         pub hon_worker_jwt: HonWorkerJwt,
     }
 }

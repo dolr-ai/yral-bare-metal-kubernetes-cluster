@@ -209,7 +209,12 @@ In-cluster image building via Shipwright (CRD-native operator, CNCF Sandbox) wra
 - BuildKit runs rootless (non-privileged, UID 1000) — no `privileged: true` needed.
 - Pin versions: Tekton v1.12.2 LTS (Shipwright v0.20.3 supports v1.3/v1.6/v1.9/v1.12 — NOT v1.14+), Shipwright v0.20.3, BuildKit v0.31.1.
 
-**Test locally before deploying:** Always build and run container images locally to validate the binary starts and the health endpoint responds before triggering a Shipwright BuildRun. This dramatically reduces the dev loop time compared to waiting for a full in-cluster build to discover runtime failures.
+**Test locally before deploying (Hard Rule):** Always build and test code changes locally before pushing to git and deploying to production. This includes:
+1. **Compile locally** — `mise run <app>-build` to verify the code compiles.
+2. **Run locally** — `mise run <app>-run` (via pitchfork) to verify the app starts and the health endpoint responds.
+3. **Test the specific change** — manually verify the feature/fix works as expected via the local endpoint or browser.
+4. **Only then push** — once local testing passes, push to git and let the CI/CD pipeline build and deploy.
+Never push code changes to git without first verifying they compile and run locally. Waiting for an in-cluster Shipwright build to discover a compile error or runtime failure wastes 10+ minutes per iteration.
 
 **Container runtime:** Use `podman` (managed by the root `mise.toml`) for local container tasks — `podman build`, `podman run`, `podman logs`. The `mise run yral-auth-image` and `mise run yral-auth-image-run` tasks wrap the standard build/run flow. Use `--platform linux/amd64` with `podman run` to run the exact same x86_64 images that run in the cluster — this ensures parity between local testing and production. Log into Harbor locally with `echo "$HARBOR_PASS" | podman login harbor.yral.com -u admin --password-stdin`.
 

@@ -139,7 +139,6 @@ cloudflare = ["dep:gob-cloudflare"]
 backend-admin = []
 ga4 = []
 mock-wallet-history = ["dep:rand_chacha"]
-qstash = []
 release-bin = [
     "ssr",
     "cloudflare",
@@ -148,7 +147,6 @@ release-bin = [
     "backend-admin",
     "oauth-ssr",
     "ga4",
-    "qstash",
 ]
 release-lib = [
     "hydrate",
