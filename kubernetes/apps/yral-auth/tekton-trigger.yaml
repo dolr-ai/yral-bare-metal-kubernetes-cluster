@@ -17,7 +17,7 @@ rules:
     resources: ["pipelineruns", "pipelines"]
     verbs: ["create", "get", "list", "watch"]
   - apiGroups: ["triggers.tekton.dev"]
-    resources: ["triggerbindings", "triggertemplates", "eventlisteners"]
+    resources: ["triggerbindings", "triggertemplates", "eventlisteners", "triggers", "interceptors"]
     verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -33,6 +33,30 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: tekton-trigger-role
+---
+# ClusterRole for the Tekton EventListener — needs cluster-scope read access
+# to ClusterInterceptor and ClusterTriggerBinding resources.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tekton-trigger-clusterrole
+rules:
+  - apiGroups: ["triggers.tekton.dev"]
+    resources: ["clusterinterceptors", "clustertriggerbindings"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tekton-trigger-clusterbinding
+subjects:
+  - kind: ServiceAccount
+    name: tekton-trigger-sa
+    namespace: yral-auth
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-trigger-clusterrole
 ---
 # Trivial Pipeline that always succeeds — exists only to trigger
 # the Shipwright Triggers Pipeline trigger (PipelineRun → BuildRun).
