@@ -7,9 +7,6 @@
 [submodule "apps/yral-common"]
 	path = apps/yral-common
 	url = https://github.com/dolr-ai/yral-common.git
-[submodule "apps/hot-or-not-web-leptos-ssr"]
-	path = apps/hot-or-not-web-leptos-ssr
-	url = https://github.com/dolr-ai/hot-or-not-web-leptos-ssr.git
 [submodule "apps/website"]
 	path = apps/website
 	url = https://github.com/dolr-ai/website.git
