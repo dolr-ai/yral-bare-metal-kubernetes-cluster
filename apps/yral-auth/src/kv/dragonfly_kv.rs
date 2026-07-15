@@ -354,7 +354,8 @@ impl SentinelConnectionManager {
                         self.on_failover_detected().await;
                     }
                 }
-                "+sdown" => {
+                "+sdown" =>
+                {
                     #[allow(clippy::collapsible_match)]
                     if payload.contains("master") && payload.contains(&self.master_name) {
                         tracing::warn!(
@@ -414,7 +415,7 @@ pub async fn init_new_dragonfly_redis(
     client_cert_bytes: Vec<u8>,
     client_key_bytes: Vec<u8>,
 ) -> Result<Arc<DragonflyPool>, KVError> {
-    rustls::crypto::aws_lc_rs::default_provider()
+    rustls::crypto::ring::default_provider()
         .install_default()
         .ok();
 
@@ -473,7 +474,7 @@ pub async fn init_new_dragonfly_redis(
 }
 
 pub async fn init_dragonfly_redis_for_test() -> Result<Arc<DragonflyPool>, KVError> {
-    rustls::crypto::aws_lc_rs::default_provider()
+    rustls::crypto::ring::default_provider()
         .install_default()
         .ok();
 
