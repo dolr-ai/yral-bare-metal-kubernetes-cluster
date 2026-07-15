@@ -24,7 +24,7 @@ spec:
         - name: harbor-pull-secret
       containers:
         - name: yral-legacy
-          image: harbor.yral.com/yral-legacy/yral-legacy:7c50386dbdb1bb9c511930bbc35f46f4af8c5ceb # {"$imagepolicy": "flux-system:yral-legacy"}
+          image: harbor.yral.com/yral-legacy/yral-legacy:32545e0f11038c1810505f6db9ecc60de5f3f9cb # {"$imagepolicy": "flux-system:yral-legacy"}
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
