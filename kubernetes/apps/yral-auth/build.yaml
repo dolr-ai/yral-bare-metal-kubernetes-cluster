@@ -5,8 +5,10 @@
 # Strategy: buildkit (ClusterBuildStrategy, rootless BuildKit v0.31.1)
 # Output: harbor.yral.com/yral-auth/yral-auth
 #
-# BuildRuns are created automatically by Shipwright Triggers on git push to main.
-# The trigger matches GitHub Push events on the main branch.
+# BuildRuns are created automatically by Shipwright Triggers when the Tekton
+# PipelineRun "yral-auth-build-trigger" succeeds. The flow is:
+#   GitHub push → Tekton EventListener → PipelineRun (noop) → Shipwright Triggers → BuildRun
+#
 # Manual BuildRuns can also be created if needed.
 ---
 apiVersion: shipwright.io/v1beta1
@@ -24,13 +26,12 @@ spec:
     contextDir: apps/yral-auth
   trigger:
     when:
-      - name: push-to-main
-        type: GitHub
-        github:
-          events:
-            - Push
-          branches:
-            - main
+      - name: pipeline-succeeded
+        type: Pipeline
+        objectRef:
+          name: yral-auth-build-trigger
+          status:
+            - Succeeded
   strategy:
     name: buildkit
     kind: ClusterBuildStrategy

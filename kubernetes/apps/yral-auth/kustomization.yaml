@@ -14,3 +14,4 @@ resources:
   - image-policy.yaml
   - image-update-automation.yaml
   - harbor-scan-secret.sops.yaml
+  - tekton-trigger.yaml

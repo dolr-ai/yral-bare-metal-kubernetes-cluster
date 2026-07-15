@@ -1,11 +1,11 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: infrastructure-shipwright
+  name: infrastructure-tekton-triggers
   namespace: flux-system
 spec:
   interval: 1h
-  path: ./kubernetes/infrastructure/shipwright
+  path: ./kubernetes/infrastructure/tekton-triggers
   prune: true
   wait: true
   timeout: 5m
@@ -14,5 +14,3 @@ spec:
     name: flux-system
   dependsOn:
     - name: infrastructure-tekton-pipelines
-    - name: infrastructure-tekton-triggers
-    - name: infrastructure-cert-manager

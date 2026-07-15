@@ -42,6 +42,7 @@ resources:
   - infrastructure-devpod.yaml
   - infrastructure-harbor.yaml
   - infrastructure-tekton-pipelines.yaml
+  - infrastructure-tekton-triggers.yaml
   - infrastructure-shipwright.yaml
   - networking.yaml
   - apps.yaml

@@ -188,7 +188,7 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - port: 80
+    - port: 8080
       targetPort: webhook
       protocol: TCP
       name: http
@@ -243,7 +243,7 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: webhook
-              containerPort: 80
+              containerPort: 8080
               protocol: TCP
             - name: probe
               containerPort: 8081

@@ -1,0 +1,125 @@
+---
+# ServiceAccount for the Tekton EventListener.
+# Needs permissions to create PipelineRuns in the yral-auth namespace.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tekton-trigger-sa
+  namespace: yral-auth
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tekton-trigger-role
+  namespace: yral-auth
+rules:
+  - apiGroups: ["tekton.dev"]
+    resources: ["pipelineruns", "pipelines"]
+    verbs: ["create", "get", "list", "watch"]
+  - apiGroups: ["triggers.tekton.dev"]
+    resources: ["triggerbindings", "triggertemplates", "eventlisteners"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tekton-trigger-binding
+  namespace: yral-auth
+subjects:
+  - kind: ServiceAccount
+    name: tekton-trigger-sa
+    namespace: yral-auth
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tekton-trigger-role
+---
+# Trivial Pipeline that always succeeds — exists only to trigger
+# the Shipwright Triggers Pipeline trigger (PipelineRun → BuildRun).
+# The Shipwright Triggers controller watches for succeeded PipelineRuns
+# that match the Build's spec.trigger.when[].objectRef and creates a BuildRun.
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: yral-auth-build-trigger
+  namespace: yral-auth
+spec:
+  params:
+    - name: repo-url
+      type: string
+    - name: revision
+      type: string
+  tasks:
+    - name: noop
+      taskSpec:
+        steps:
+          - name: noop
+            image: busybox:latest
+            script: |
+              echo "Triggering Shipwright build for $(params.repo-url) @ $(params.revision)"
+---
+# TriggerBinding extracts fields from the GitHub push event payload.
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: github-push-binding
+  namespace: yral-auth
+spec:
+  params:
+    - name: repo-url
+      value: $(body.repository.html_url)
+    - name: revision
+      value: $(body.ref)
+---
+# TriggerTemplate creates a PipelineRun from the binding params.
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: yral-auth-build-trigger-template
+  namespace: yral-auth
+spec:
+  params:
+    - name: repo-url
+      description: The Git repository URL
+    - name: revision
+      description: The Git ref (e.g. refs/heads/main)
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1
+      kind: PipelineRun
+      metadata:
+        generateName: yral-auth-build-trigger-
+        namespace: yral-auth
+        labels:
+          app: yral-auth
+          trigger: github-push
+      spec:
+        pipelineRef:
+          name: yral-auth-build-trigger
+        params:
+          - name: repo-url
+            value: $(tt.params.repo-url)
+          - name: revision
+            value: $(tt.params.revision)
+---
+# EventListener receives GitHub push events via the HTTPRoute.
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: yral-auth-build-listener
+  namespace: yral-auth
+spec:
+  serviceAccountName: tekton-trigger-sa
+  triggers:
+    - name: github-push
+      bindings:
+        - kind: TriggerBinding
+          ref: github-push-binding
+      template:
+        ref: yral-auth-build-trigger-template
+      interceptors:
+        - name: filter-push-main
+          ref:
+            name: cel
+          params:
+            - name: filter
+              value: "body.ref == 'refs/heads/main'"
