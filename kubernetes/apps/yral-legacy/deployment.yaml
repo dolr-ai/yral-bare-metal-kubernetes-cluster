@@ -36,14 +36,14 @@ spec:
                 name: yral-legacy-secrets
           livenessProbe:
             httpGet:
-              path: /healthz
+              path: /
               port: 8080
             initialDelaySeconds: 10
             periodSeconds: 30
             failureThreshold: 5
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
