@@ -123,7 +123,7 @@ fn ReferLoaded(user_principal: Principal) -> impl IntoView {
             </HighlightedButton>
         </div>
 
-        <Show when=show_copied_popup>
+        <Show when=move || show_copied_popup.get()>
             <div class="flex absolute flex-col justify-center items-center z-4">
                 <span class="flex absolute top-28 flex-row justify-center items-center w-28 h-10 text-center rounded-md shadow-lg bg-white/90">
                     <p class="text-black">Link Copied!</p>
@@ -190,7 +190,7 @@ fn ReferView() -> impl IntoView {
             </div>
 
             <div class="relative z-10 flex flex-col gap-2 items-center px-4 w-full">
-                <Show when=logged_in fallback=|| view! { <ConnectLogin cta_location="refer" /> }>
+                <Show when=move || logged_in.get() fallback=|| view! { <ConnectLogin cta_location="refer" /> }>
                     <ReferCode />
                 </Show>
             </div>

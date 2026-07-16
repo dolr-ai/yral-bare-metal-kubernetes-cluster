@@ -117,7 +117,7 @@ pub fn PndWithdrawal() -> impl IntoView {
         },
     );
     let cents = RwSignal::new(TokenBalance::new(0usize.into(), 6));
-    let dolrs = move || cents().e8s;
+    let dolrs = move || cents.get().e8s;
     let formated_dolrs = move || {
         format!(
             "{}DOLR",
@@ -165,7 +165,7 @@ pub fn PndWithdrawal() -> impl IntoView {
             return Err(ServerFnError::new("Request failed"));
         }
 
-        let mix_formatted_cents = TokenBalance::new(cents().e8s, 6)
+        let mix_formatted_cents = TokenBalance::new(cents.get().e8s, 6)
             .humanize_float_truncate_to_dp(4)
             .parse::<u64>()
             .unwrap_or(0);
@@ -190,7 +190,7 @@ pub fn PndWithdrawal() -> impl IntoView {
             let nav = use_navigate();
             match res {
                 Ok(_) => {
-                    let cents = cents().e8s;
+                    let cents = cents.get().e8s;
                     nav(
                         &format!("/pnd/withdraw/success?cents={cents}"),
                         Default::default(),
@@ -198,7 +198,7 @@ pub fn PndWithdrawal() -> impl IntoView {
                 }
                 Err(err) => {
                     nav(
-                        &format!("/pnd/withdraw/failure?cents={}&err={err}", cents().e8s),
+                        &format!("/pnd/withdraw/failure?cents={}&err={err}", cents.get().e8s),
                         Default::default(),
                     );
                 }
@@ -243,7 +243,7 @@ pub fn PndWithdrawal() -> impl IntoView {
                                         />
                                     </div>
                                     <input
-                                        disabled=is_claiming
+                                        disabled=move || is_claiming.get()
                                         on:input=on_input
                                         type="text"
                                         inputmode="decimal"
@@ -278,9 +278,9 @@ pub fn PndWithdrawal() -> impl IntoView {
                                         details_res.get()?
                                     );
                                     let can_withdraw = TokenBalance::new(withdrawable, 0)
-                                        >= cents();
-                                    let no_input = cents().e8s == 0usize;
-                                    let is_claiming = is_claiming();
+                                        >= cents.get();
+                                    let no_input = cents.get().e8s == 0usize;
+                                    let is_claiming = is_claiming.get();
                                     let message = if no_input {
                                         "Enter Amount"
                                     } else {

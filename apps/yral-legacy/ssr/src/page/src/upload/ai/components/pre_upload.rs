@@ -160,25 +160,25 @@ fn AudioUploadSection(
                         class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     />
                     <div class="flex flex-col items-center justify-center p-12 bg-neutral-900 border border-neutral-800 rounded-lg hover:bg-neutral-800 transition-colors cursor-pointer">
-                        <Show
-                            when=move || uploaded_audio.get().is_some()
-                            fallback=move || view! {
+                        {move || match uploaded_audio.get() {
+                            Some(_) => view! {
+                                <div class="flex flex-col items-center gap-2">
+                                    <Icon icon=icondata::AiAudioFilled attr:class="text-green-500 text-3xl" />
+                                    <span class="text-green-500 text-sm">"Audio uploaded"</span>
+                                </div>
+                            }.into_any(),
+                            None => view! {
                                 <div class="flex flex-col items-center gap-3">
                                     <Icon icon=icondata::AiAudioOutlined attr:class="text-neutral-500 text-3xl" />
                                     <span class="text-neutral-500 text-sm">"Click to upload audio"</span>
                                 </div>
-                            }
-                        >
-                            <div class="flex flex-col items-center gap-2">
-                                <Icon icon=icondata::AiAudioFilled attr:class="text-green-500 text-3xl" />
-                                <span class="text-green-500 text-sm">"Audio uploaded"</span>
-                            </div>
-                        </Show>
+                            }.into_any(),
+                        }}
                     </div>
                 </div>
             </div>
         </Show>
-    }
+    }.into_any()
 }
 
 // Component for prompt section

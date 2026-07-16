@@ -66,25 +66,25 @@ pub fn NotificationToggle(
                     Ok(token) => match metaclient.register_device(cans.identity(), token).await {
                         Ok(_) => {
                             log::info!("Device registered successfully");
-                            set_notifs_enabled(true);
+                            set_notifs_enabled.set(true);
                         }
                         Err(e) => {
                             log::error!("Failed to register device: {e:?}");
-                            set_notifs_enabled(false);
+                            set_notifs_enabled.set(false);
                         }
                     },
                     Err(e) => {
                         log::error!("Failed to get FCM token: {e:?}");
-                        set_notifs_enabled(false);
+                        set_notifs_enabled.set(false);
                     }
                 },
                 Ok(false) => {
                     log::warn!("User did not grant notification permission");
-                    set_notifs_enabled(false);
+                    set_notifs_enabled.set(false);
                 }
                 Err(e) => {
                     log::error!("Failed to check notification permission: {e:?}");
-                    set_notifs_enabled(false);
+                    set_notifs_enabled.set(false);
                 }
             }
         } else if notifs_enabled_val {
@@ -94,13 +94,13 @@ pub fn NotificationToggle(
                     match metaclient.unregister_device(cans.identity(), token).await {
                         Ok(_) => {
                             log::info!("Device unregistered successfully");
-                            set_notifs_enabled(false);
+                            set_notifs_enabled.set(false);
                         }
                         Err(e) => {
                             // Check if it's a device not found error by examining the error message
                             if format!("{e:?}").contains("DeviceNotFound") {
                                 log::info!("Device not found, skipping unregister");
-                                set_notifs_enabled(false);
+                                set_notifs_enabled.set(false);
                             } else {
                                 log::error!("Failed to unregister device: {e:?}");
                             }
@@ -109,7 +109,7 @@ pub fn NotificationToggle(
                 }
                 Err(e) => {
                     log::warn!("Failed to get device token for unregister: {e:?}");
-                    set_notifs_enabled(false);
+                    set_notifs_enabled.set(false);
                 }
             }
         } else {
@@ -118,16 +118,16 @@ pub fn NotificationToggle(
                 Ok(token) => match metaclient.register_device(cans.identity(), token).await {
                     Ok(_) => {
                         log::info!("Device registered successfully");
-                        set_notifs_enabled(true);
+                        set_notifs_enabled.set(true);
                     }
                     Err(e) => {
                         log::error!("Failed to register device: {e:?}");
-                        set_notifs_enabled(false);
+                        set_notifs_enabled.set(false);
                     }
                 },
                 Err(e) => {
                     log::error!("Failed to get device token: {e:?}");
-                    set_notifs_enabled(false);
+                    set_notifs_enabled.set(false);
                 }
             }
         }

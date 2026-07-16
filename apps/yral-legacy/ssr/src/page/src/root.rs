@@ -114,7 +114,7 @@ pub fn YralRootPage() -> impl IntoView {
 
     let PostViewCtx { video_queue, .. } = expect_context();
 
-    let initial_posts = Resource::new(params, move |params_map| {
+    let initial_posts = Resource::new(move || params.get(), move |params_map| {
         async move {
             // we already have videos and can therefore avoid loading more posts
             if video_queue.with_untracked(|q| !q.is_empty()) {

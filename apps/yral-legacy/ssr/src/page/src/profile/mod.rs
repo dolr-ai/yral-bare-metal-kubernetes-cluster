@@ -69,12 +69,12 @@ impl Default for ProfilePostsContext {
 
 #[derive(Params, PartialEq, Clone)]
 struct ProfileParams {
-    id: UsernameOrPrincipal,
+    id: Option<UsernameOrPrincipal>,
 }
 
 #[derive(Params, Clone, PartialEq)]
 struct TabsParam {
-    tab: String,
+    tab: Option<String>,
 }
 
 // Smiley Game Stats data structure
@@ -580,7 +580,7 @@ fn FollowButton(
         <button
             on:click=move |_| on_click()
             class=button_class
-            disabled=is_loading
+            disabled=move || is_loading.get()
         >
             <span class="font-semibold text-sm text-neutral-50">
                 {button_text}
@@ -768,7 +768,7 @@ fn FollowersFollowingPopup(
     let following_provider = StoredValue::new(FollowingProvider::new(user_principal));
 
     let tab_class = move |tab_idx: usize| {
-        if active_tab() == tab_idx {
+        if active_tab.get() == tab_idx {
             "flex-1 py-2.5 text-sm font-semibold text-neutral-50 border-b-2 border-primary-600 text-center transition-all"
         } else {
             "flex-1 py-2.5 text-sm font-medium text-neutral-400 text-center cursor-pointer hover:text-neutral-300 transition-all"
@@ -810,7 +810,7 @@ fn FollowersFollowingPopup(
                 // Content
                 <div class="flex-1 overflow-y-auto">
                     <Show
-                        when=move || active_tab() == 0
+                        when=move || active_tab.get() == 0
                         fallback=move || {
                             // Following tab
                             view! {
@@ -882,8 +882,9 @@ fn ListSwitcher1(
     let tab = Signal::derive(move || {
         param
             .get()
-            .map(|t| t.tab)
-            .unwrap_or_else(move |_| "posts".to_string())
+            .ok()
+            .and_then(|t| t.tab)
+            .unwrap_or_else(|| "posts".to_string())
     });
 
     let auth = auth_state();
@@ -906,12 +907,12 @@ fn ListSwitcher1(
 
     view! {
         <div class="flex flex-col gap-y-12 justify-center pb-12 w-11/12 sm:w-6/12">
-            <Show when=move || current_tab() == 0>
+            <Show when=move || current_tab.get() == 0>
                 // Show UnlockProfile for non-logged-in users viewing their own profile
                 {
                     let username = username.clone();
                     move || {
-                        if is_own_profile.get() && !is_connected() {
+                        if is_own_profile.get() && !is_connected.get() {
                             view! { <UnlockProfile /> }.into_any()
                         } else {
                             view! { <ProfilePosts user_canister user_principal username=username.clone()/> }.into_any()
@@ -994,7 +995,7 @@ fn ProfileViewInner(user: ProfileDetails) -> impl IntoView {
                         }}
                     </p>
                     <div class="flex gap-5 items-center justify-end">
-                        <Show when=is_own_profile>
+                        <Show when=move || is_own_profile.get()>
                             {
                                 let nav_menu = nav_menu.clone();
                                 view! {
@@ -1138,7 +1139,7 @@ fn ProfileViewInner(user: ProfileDetails) -> impl IntoView {
                                         let nav = nav.clone();
                                         view! {
                                             // Show Edit Profile button for own profile ONLY if logged in with OAuth
-                                            <Show when=move || user_principal == authenticated_princ && is_connected()>
+                                            <Show when=move || user_principal == authenticated_princ && is_connected.get()>
                                                 <button
                                                     on:click={let nav = nav.clone(); move |ev: leptos::web_sys::MouseEvent| {
                                                         ev.prevent_default();
@@ -1156,7 +1157,7 @@ fn ProfileViewInner(user: ProfileDetails) -> impl IntoView {
                                         </Show>
                                         // Show Follow button for other profiles only if viewer is logged in
                                         <Show when=move || {
-                                            user_principal != authenticated_princ && is_connected()
+                                            user_principal != authenticated_princ && is_connected.get()
                                         }>
                                             <FollowAndAuthCanLoader
                                                 user_principal=user_principal
@@ -1191,7 +1192,7 @@ fn ProfileViewInner(user: ProfileDetails) -> impl IntoView {
                     user_principal=user_principal
                     username=username_or_fallback.clone()
                     initial_tab=popup_initial_tab.get_untracked()
-                    viewer_is_connected=is_connected()
+                    viewer_is_connected=is_connected.get()
                 />
             </Show>
         </div>
@@ -1209,7 +1210,7 @@ fn ProfilePageTitle() -> impl IntoView {
 #[component]
 pub fn LoggedInUserProfileView() -> impl IntoView {
     let tab_params = use_params::<TabsParam>();
-    let tab = move || tab_params.get().map(|p| p.tab).ok();
+    let tab = move || tab_params.get().ok().and_then(|p| p.tab);
     let auth = auth_state();
 
     view! {
@@ -1245,7 +1246,7 @@ pub fn ProfileView() -> impl IntoView {
     let param_id = move || {
         params.with(|p| {
             let ProfileParams { id, .. } = p.as_ref().ok()?;
-            Some(id.clone())
+            id.clone()
         })
     };
 

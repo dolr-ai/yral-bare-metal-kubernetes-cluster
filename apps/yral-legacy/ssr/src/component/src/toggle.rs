@@ -11,7 +11,7 @@ fn ToggleInner(
     view! {
         <label class="inline-flex relative z-0 items-center cursor-pointer">
             <input
-                checked=checked
+                checked=move || checked.get()
                 node_ref=node_ref
                 type="checkbox"
                 value=""

@@ -56,7 +56,7 @@ fn FormError<V: 'static + Send + Sync>(
         <Show when=move || res.with(|r| r.is_err())>
             <div class="flex flex-row gap-1 items-center w-full text-sm md:text-base">
                 <Icon attr:class="text-red-600" icon=icondata::AiInfoCircleOutlined />
-                <span class="text-white/60">{move || err().unwrap()}</span>
+                <span class="text-white/60">{move || err.get().unwrap()}</span>
             </div>
         </Show>
     }
@@ -220,7 +220,7 @@ fn TokenTransferInner(
     let valid = move || {
         amt_res.with(|r| matches!(r, Ok(Some(_))))
             && destination_res.with(|r| matches!(r, Ok(Some(_))))
-            && !sending()
+            && !sending.get()
     };
 
     let is_btc = info.name.to_lowercase() == "btc";
@@ -331,18 +331,21 @@ fn TokenTransferInner(
 pub fn TokenTransfer() -> impl IntoView {
     let params = use_params::<TokenParams>();
     let auth = auth_state();
-    let token_metadata_fetch = auth.derive_resource(params, |cans, params| {
+    let token_metadata_fetch = auth.derive_resource(move || params.get(), |cans, params| {
         send_wrap(async move {
             let Ok(params) = params else {
                 return Ok::<_, ServerFnError>(None);
             };
+            let Some(token_root) = params.token_root else {
+                return Ok(None);
+            };
             let meta = cans
-                .token_metadata_by_root_type(Some(cans.user_principal()), params.token_root.clone())
+                .token_metadata_by_root_type(Some(cans.user_principal()), token_root.clone())
                 .await
                 .ok()
                 .flatten();
 
-            Ok(meta.map(|m| (m, params.token_root, CanistersAuthWire::from(cans))))
+            Ok(meta.map(|m| (m, token_root, CanistersAuthWire::from(cans))))
         })
     });
 

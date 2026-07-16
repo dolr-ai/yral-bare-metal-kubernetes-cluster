@@ -166,9 +166,9 @@ fn NavIcon(
         // }
     };
     view! {
-        <a href=href on:click=on_click class="flex justify-center items-center">
+        <a href=move || href.get() on:click=on_click class="flex justify-center items-center">
             <Show
-                when=move || cur_selected()
+                when=move || cur_selected.get()
                 fallback=move || {
                     view! {
                         <div class="py-5">
@@ -229,7 +229,7 @@ fn UploadIcon(#[prop(into)] cur_selected: Signal<bool>) -> impl IntoView {
             class="flex justify-center items-center text-white rounded-full"
         >
             <Show
-                when=move || cur_selected()
+                when=move || cur_selected.get()
                 fallback=move || {
                     view! {
                         <Icon

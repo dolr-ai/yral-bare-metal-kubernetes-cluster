@@ -169,7 +169,7 @@ pub fn ScrollingPostView<
                             });
                         }
                         let show_video = Memo::new(move |_| {
-                            (queue_idx as i32 - current_idx() as i32) >= -2
+                            (queue_idx as i32 - current_idx.get() as i32) >= -2
                         });
                         let to_load = Memo::new(move |_| {
                             let cidx = current_idx.get() as i32;
@@ -177,7 +177,7 @@ pub fn ScrollingPostView<
                         });
                         view! {
                             <div node_ref=container_ref class="w-full h-full snap-always snap-end" class:hidden=move || post.get().is_none()>
-                                <Show when=show_video>
+                                <Show when=move || show_video.get()>
                                     <BgView video_queue idx=queue_idx>
                                         <VideoViewForQueue
                                             post
@@ -194,7 +194,7 @@ pub fn ScrollingPostView<
                     }
                 />
 
-                <Show when=queue_end>
+                <Show when=move || queue_end.get()>
                     <div class="flex relative top-0 left-0 justify-center items-center w-full h-full text-xl bg-inherit z-21 snap-always snap-end text-white/80">
                         <span>You have reached the end!</span>
                     </div>

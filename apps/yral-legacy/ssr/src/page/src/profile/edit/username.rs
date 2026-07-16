@@ -159,16 +159,16 @@ fn UsernameEditInner() -> impl IntoView {
                         <div class="w-full flex flex-row justify-start items-center gap-0.5">
                             <span class="text-neutral-400">@</span>
                             <input
-                                on:input=move |_| on_input()
+                                on:input=move |ev| new_username.set(event_target_value(&ev))
                                 node_ref=input_ref
                                 pattern="^([a-zA-Z0-9]){3,15}$"
-                                bind:value=new_username
+                                prop:value=move || new_username.get()
                                 class="text-white placeholder-neutral-600 w-full focus:outline-none peer"
                                 type="text"
                                 placeholder="Type user name"
                             />
                         </div>
-                        <Show when=changing_username>
+                        <Show when=move || changing_username.get()>
                             <div class="w-5 h-5">
                                 <SpinnerCircle />
                             </div>

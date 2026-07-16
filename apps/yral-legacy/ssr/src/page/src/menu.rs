@@ -159,7 +159,7 @@ pub fn Menu() -> impl IntoView {
     // Handle NSFW toggle
     let _ = leptos_use::use_event_listener(nsfw_toggle_ref, leptos::ev::change, move |_| {
         let new_value = !is_nsfw_enabled.get().unwrap_or(false);
-        set_nsfw_enabled(Some(new_value));
+        set_nsfw_enabled.set(Some(new_value));
 
         // Perform hard refresh to reload with new NSFW preference
         #[cfg(feature = "hydrate")]
@@ -238,7 +238,7 @@ pub fn Menu() -> impl IntoView {
                     //         })}
                     //     </Suspense>
                     // </a>
-                    <Show when=move || !is_connected()>
+                    <Show when=move || !is_connected.get()>
                         <div class="px-8 w-full md:w-4/12 xl:w-2/12">
                             <div class="w-full">
                                 <ConnectLogin />
@@ -292,7 +292,7 @@ pub fn Menu() -> impl IntoView {
                         icon=icondata::BiMessageDetailSolid
                         target="_blank"
                     />
-                    <Show when=is_connected>
+                    <Show when=move || is_connected.get()>
                         <a
                             href="https://auth.yral.com/account"
                             class="flex items-center justify-between w-full"

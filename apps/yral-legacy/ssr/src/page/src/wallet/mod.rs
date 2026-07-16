@@ -364,14 +364,14 @@ pub fn NotificationWalletImpl() -> impl IntoView {
                 .await
                 .unwrap();
             log::info!("Device unregistered successfully");
-            set_notifs_enabled(false)
+            set_notifs_enabled.set(false)
         } else {
             metaclient
                 .register_device(cans.identity(), token)
                 .await
                 .unwrap();
             log::info!("Device registered sucessfully");
-            set_notifs_enabled(true)
+            set_notifs_enabled.set(true)
         }
     });
 

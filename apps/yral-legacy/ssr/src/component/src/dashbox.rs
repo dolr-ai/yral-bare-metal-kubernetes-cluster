@@ -36,7 +36,7 @@ pub fn DashboxLoaded(text: String) -> impl IntoView {
                 <Icon attr:class="text-xl" icon=icondata::FaCopyRegular />
             </button>
         </div>
-        <Show when=show_copied_popup>
+        <Show when=move || show_copied_popup.get()>
             <div class="flex absolute flex-col justify-center items-center z-4">
                 <span class="flex absolute top-28 flex-row justify-center items-center w-28 h-10 text-center rounded-md shadow-lg bg-white/90">
                     <p class="text-black">Copied!</p>

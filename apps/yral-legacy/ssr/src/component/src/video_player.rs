@@ -25,11 +25,11 @@ pub fn VideoPlayer(
             <video
                 node_ref=node_ref
                 class="object-contain cursor-pointer h-dvh max-h-dvh transition duration-150"
-                poster=view_bg_url
-                src=view_video_url
+                poster=move || view_bg_url.get()
+                src=move || view_video_url.get()
                 loop
-                autoplay=autoplay
-                muted=muted
+                autoplay=move || autoplay.get()
+                muted=move || muted.get()
                 playsinline
                 disablepictureinpicture
                 disableremoteplayback

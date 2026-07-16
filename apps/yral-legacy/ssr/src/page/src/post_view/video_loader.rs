@@ -73,7 +73,7 @@ where
     });
 
     let uid = move || {
-        post_with_prev()
+        post_with_prev.get()
             .as_ref()
             .map(|q| q.get_quick_post_details().video_uid)
             .unwrap_or_default()
@@ -113,13 +113,13 @@ pub fn VideoView(
 ) -> impl IntoView {
     let post_for_uid = post;
     let uid = Memo::new(move |_| {
-        if !to_load() {
+        if !to_load.get() {
             return None;
         }
         post_for_uid.with(|p| p.as_ref().map(|p| p.video_uid.clone()))
     });
-    let view_bg_url = move || uid().map(bg_url);
-    let view_video_url = move || uid().map(mp4_url);
+    let view_bg_url = move || uid.get().map(bg_url);
+    let view_video_url = move || uid.get().map(mp4_url);
 
     // Preload the background image
     // This is a workaround to ensure the image is loaded before the video starts
@@ -139,14 +139,14 @@ pub fn VideoView(
     // Handles mute/unmute
     Effect::new(move |_| {
         let vid = _ref.get()?;
-        vid.set_muted(muted());
+        vid.set_muted(muted.get());
         Some(())
     });
 
     // Handles volume change
     Effect::new(move |_| {
         let vid = _ref.get()?;
-        vid.set_volume(volume());
+        vid.set_volume(volume.get());
         Some(())
     });
 
@@ -207,7 +207,7 @@ where
             return;
         };
 
-        let is_current = idx == current_idx();
+        let is_current = idx == current_idx.get();
         if !is_current {
             if is_playing.get_untracked() {
                 is_playing.set(false);
@@ -246,7 +246,7 @@ where
     });
 
     // Create a signal that tracks whether this video is current
-    let is_current_signal = Signal::derive(move || idx == current_idx());
+    let is_current_signal = Signal::derive(move || idx == current_idx.get());
 
     let high_priority = idx < 3;
 

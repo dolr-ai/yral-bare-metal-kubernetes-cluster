@@ -45,7 +45,7 @@ pub fn NotificationNudge(pop_up: RwSignal<bool>) -> impl IntoView {
                         .await
                         .unwrap();
                     log::info!("Device re-registered after ghost state");
-                    set_notifs_enabled(true);
+                    set_notifs_enabled.set(true);
                 }
                 Ok(false) => {
                     log::warn!("User did not grant notification permission after prompt");
@@ -62,11 +62,11 @@ pub fn NotificationNudge(pop_up: RwSignal<bool>) -> impl IntoView {
             match register_result {
                 Ok(_) => {
                     log::info!("Device registered successfully");
-                    set_notifs_enabled(true);
+                    set_notifs_enabled.set(true);
                 }
                 Err(e) => {
                     log::error!("Failed to register device: {e:?}");
-                    set_notifs_enabled(false);
+                    set_notifs_enabled.set(false);
                 }
             }
         }

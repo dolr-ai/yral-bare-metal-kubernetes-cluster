@@ -56,8 +56,8 @@ pub fn ModelDropdown(
                         />
                     </Show>
                     <div>
-                        <div class="text-white font-medium">{provider_name}</div>
-                        <div class="text-neutral-400 text-sm">{provider_description}</div>
+                        <div class="text-white font-medium">{move || provider_name.get()}</div>
+                        <div class="text-neutral-400 text-sm">{move || provider_description.get()}</div>
                     </div>
                 </div>
                 <Icon
@@ -69,7 +69,7 @@ pub fn ModelDropdown(
             </div>
 
             // Dropdown menu
-            <Show when=show_dropdown>
+            <Show when=move || show_dropdown.get()>
                 // max-h-[264px] is calculated for ~3 items (each item ~84px + padding)
                 <div class="absolute top-full left-0 right-0 mt-1 bg-[#212121] border border-neutral-800 rounded-lg shadow-lg z-50 py-1 max-h-[264px] overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-600 scrollbar-track-transparent">
                     <For
@@ -115,7 +115,7 @@ pub fn ModelDropdown(
                                     <div class=move || format!("w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center shrink-0 {}",
                                         if is_selected.get() { "border-pink-500 bg-pink-500" } else { "border-neutral-600" }
                                     )>
-                                        <Show when=is_selected>
+                                        <Show when=move || is_selected.get()>
                                             <div class="w-2 h-2 bg-white rounded-full"></div>
                                         </Show>
                                     </div>

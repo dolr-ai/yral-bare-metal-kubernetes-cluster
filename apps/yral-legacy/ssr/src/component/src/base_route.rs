@@ -75,7 +75,7 @@ fn CtxProvider(children: Children) -> impl IntoView {
         use_local_storage::<bool, FromToStringCodec>(ACCOUNT_CONNECTED_STORE);
     Effect::new(move |_| {
         if old_account_connected_store.get() {
-            set_new_account_connected_store(Some(true));
+            set_new_account_connected_store.set(Some(true));
             clear_from_storage();
         }
     });
@@ -123,7 +123,7 @@ fn CtxProvider(children: Children) -> impl IntoView {
             .inspect_err(|e| log::error!("Failed to migrate notification project: {e:?}"))
             .unwrap();
         log::info!("Migrated notification project");
-        set_migrated(true);
+        set_migrated.set(true);
     });
 
     Effect::new(move |_| {

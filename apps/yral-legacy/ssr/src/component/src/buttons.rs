@@ -146,9 +146,9 @@ pub fn GradientButton(
                     "bg-brand-gradient-disabled",
                     "cursor-disabled",
                 ],
-                move || disabled(),
+                move || disabled.get(),
             )
-            class=(["text-neutral-50", "bg-brand-gradient"], move || !disabled())
+            class=(["text-neutral-50", "bg-brand-gradient"], move || !disabled.get())
             class=format!("rounded-lg px-5 py-2 text-sm text-center font-bold {}", classes)
             on:click=on_click
         >

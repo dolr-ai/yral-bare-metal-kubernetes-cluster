@@ -7,14 +7,16 @@ use utils::event_streaming::events::ErrorEvent;
 
 #[derive(Clone, Params, PartialEq)]
 struct ServerErrParams {
-    err: String,
+    err: Option<String>,
 }
 
 impl ServerErrParams {
     fn map_to_err(&self) -> String {
-        match self.err.as_str() {
-            _ if self.err.contains("IC agent error") || self.err.contains("error running server function") || self.err.contains("Canister error") || self.err.contains("http fetch error") || self.err.contains("ServerError") || self.err.contains("TypeError") || self.err.contains("CanisterError") => "It looks like our system is taking a coffee break. Try again in a bit, and we'll have it back to work!".to_string(),
-            _ => self.err.clone(),
+        let err = self.err.clone().unwrap_or_default();
+        let err_ref = self.err.as_deref().unwrap_or_default();
+        match err.as_str() {
+            _ if err_ref.contains("IC agent error") || err_ref.contains("error running server function") || err_ref.contains("Canister error") || err_ref.contains("http fetch error") || err_ref.contains("ServerError") || err_ref.contains("TypeError") || err_ref.contains("CanisterError") => "It looks like our system is taking a coffee break. Try again in a bit, and we'll have it back to work!".to_string(),
+            _ => err,
         }
     }
 }
@@ -31,7 +33,7 @@ pub fn ServerErrorPage() -> impl IntoView {
 
     let error_str = params
         .get()
-        .map(|p| p.err.clone())
+        .map(|p| p.err.clone().unwrap_or_else(|| "Server Error".to_string()))
         .unwrap_or_else(|_| "Server Error".to_string());
 
     let error_str_clone = error_str.clone();
@@ -67,7 +69,7 @@ pub fn ErrorView(#[prop(into)] error: Signal<String>) -> impl IntoView {
             <img src="/img/common/error-logo.svg" />
             <h1 class="p-2 text-2xl font-bold text-white md:text-3xl">"oh no!"</h1>
             <div class="px-8 mb-4 w-full text-xs text-center resize-none md:w-2/3 md:text-sm lg:w-1/3 text-white/60">
-                {error}
+                {move || error.get()}
             </div>
             <button
                 on:click=move |_| go_back()

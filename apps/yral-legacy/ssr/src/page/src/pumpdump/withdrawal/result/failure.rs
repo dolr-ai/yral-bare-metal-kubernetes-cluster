@@ -6,13 +6,14 @@ use yral_canisters_common::utils::token::balance::TokenBalance;
 
 #[derive(Debug, PartialEq, Eq, Clone, Params)]
 struct FailureParams {
-    cents: Nat,
+    cents: Option<Nat>,
 }
 
 #[component]
 pub fn Failure() -> impl IntoView {
     let params = use_query::<FailureParams>();
     let FailureParams { cents } = try_or_redirect_opt!(params.get_untracked());
+    let cents = cents.unwrap_or_default();
     let formatted_cents = TokenBalance::new(cents.clone(), 6).humanize_float_truncate_to_dp(4);
     Some(view! {
         <div

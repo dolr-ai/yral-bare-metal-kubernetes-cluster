@@ -14,8 +14,8 @@ use utils::{bg_url, send_wrap};
 use yral_canisters_common::utils::posts::PostDetails;
 #[derive(Params, PartialEq, Clone)]
 struct PostParams {
-    canister_id: Principal,
-    post_id: String,
+    canister_id: Option<Principal>,
+    post_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,18 +69,20 @@ pub fn SinglePost() -> impl IntoView {
 
     let auth = auth_state();
 
-    let fetch_post = Resource::new(params, move |params| {
+    let fetch_post = Resource::new(move || params.get(), move |params| {
         send_wrap(async move {
             let params = params.map_err(|_| PostFetchError::Invalid)?;
+            let canister_id = params.canister_id.ok_or(PostFetchError::Invalid)?;
+            let post_id = params.post_id.ok_or(PostFetchError::Invalid)?;
             let unauth_cans = unauth_canisters();
             let post_uid = if let Some(canisters) = auth.auth_cans_if_available() {
                 canisters
-                    .get_post_details(params.canister_id, params.post_id.clone())
+                    .get_post_details(canister_id, post_id.clone())
                     .await
             } else {
                 let canisters = unauth_cans;
                 canisters
-                    .get_post_details(params.canister_id, params.post_id.clone())
+                    .get_post_details(canister_id, post_id.clone())
                     .await
             };
             post_uid

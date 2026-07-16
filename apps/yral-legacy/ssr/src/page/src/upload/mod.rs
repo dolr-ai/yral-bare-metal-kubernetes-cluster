@@ -39,10 +39,10 @@ fn PreUploadView(
     upload_file_actual_progress: WriteSignal<f64>,
 ) -> impl IntoView {
     let description_err = RwSignal::new(String::new());
-    let desc_err_memo = Memo::new(move |_| description_err());
+    let desc_err_memo = Memo::new(move |_| description_err.get());
     let hashtags = RwSignal::new(Vec::new());
     let hashtags_err = RwSignal::new(String::new());
-    let hashtags_err_memo = Memo::new(move |_| hashtags_err());
+    let hashtags_err_memo = Memo::new(move |_| hashtags_err.get());
     let file_blob = RwSignal::new(None::<FileWithUrl>);
     let desc = NodeRef::<Textarea>::new();
     let invalid_form = Memo::new(move |_| {
@@ -127,7 +127,7 @@ fn PreUploadView(
                     <Show when=move || {
                         description_err.with(|description_err| !description_err.is_empty())
                     }>
-                        <span class="text-sm text-red-500">{desc_err_memo()}</span>
+                        <span class="text-sm text-red-500">{desc_err_memo.get()}</span>
                     </Show>
                     <textarea
                         id="caption-input"
@@ -150,7 +150,7 @@ fn PreUploadView(
                         hashtags_err.with(|hashtags_err| !hashtags_err.is_empty())
                     }>
                         <span class="text-sm font-semibold text-red-500">
-                            {hashtags_err_memo()}
+                            {hashtags_err_memo.get()}
                         </span>
                     </Show>
                     <input

@@ -33,8 +33,8 @@ use yral_canisters_common::{utils::posts::PostDetails, Canisters};
 
 #[derive(Params, PartialEq, Clone)]
 struct PostParams {
-    canister_id: Principal,
-    post_id: String,
+    canister_id: Option<Principal>,
+    post_id: Option<String>,
 }
 
 #[derive(Clone, Default)]
@@ -200,14 +200,14 @@ pub fn CommonPostViewWithUpdates(
 
     let current_post_base = Memo::new(move |_| {
         video_queue.with(|q| {
-            let cur_idx = current_idx();
+            let cur_idx = current_idx.get();
             let details = q.get_index(cur_idx)?;
             Some((details.canister_id, details.post_id.clone()))
         })
     });
 
     Effect::new(move || {
-        let Some((canister_id, post_id)) = current_post_base() else {
+        let Some((canister_id, post_id)) = current_post_base.get() else {
             return;
         };
         current_post_params.set(Some(utils::types::PostParams {
@@ -434,16 +434,22 @@ pub fn PostView() -> impl IntoView {
     let canisters = unauth_canisters();
     let post_details_cache: PostDetailsCacheCtx = expect_context();
 
-    let fetch_first_video_uid = Resource::new(initial_canister_and_post, move |params| {
+    let fetch_first_video_uid = Resource::new(move || initial_canister_and_post.get(), move |params| {
         let canisters = canisters.clone();
         async move {
             let Some(params) = params else {
                 return Err(());
             };
+            let Some(canister_id) = params.canister_id else {
+                return Err(());
+            };
+            let Some(post_id) = params.post_id else {
+                return Err(());
+            };
             let cached_post = video_queue
                 .with_untracked(|q| q.get_index(current_idx.get_untracked()).cloned())
                 .filter(|post| {
-                    post.canister_id == params.canister_id && post.post_id == params.post_id
+                    post.canister_id == canister_id && post.post_id == post_id
                 });
             if let Some(post) = cached_post {
                 return Ok(Some(post));
@@ -452,14 +458,14 @@ pub fn PostView() -> impl IntoView {
             let post_nsfw_prob = post_details_cache
                 .post_details
                 .try_with_value(|p| {
-                    p.get(&(params.canister_id, params.post_id.clone()))
+                    p.get(&(canister_id, post_id.clone()))
                         .map(|i| i.nsfw_probability)
                 })
                 .flatten();
 
             match send_wrap(canisters.get_post_details_with_nsfw_info(
-                params.canister_id,
-                params.post_id.clone(),
+                canister_id,
+                post_id,
                 post_nsfw_prob,
             ))
             .await

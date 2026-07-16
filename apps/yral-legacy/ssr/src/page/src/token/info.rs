@@ -76,7 +76,7 @@ fn TokenInfoInner(
     let meta_c = meta.clone();
     let detail_toggle = RwSignal::new(false);
     let view_detail_icon = Signal::derive(move || {
-        if detail_toggle() {
+        if detail_toggle.get() {
             icondata::AiUpOutlined
         } else {
             icondata::AiDownOutlined
@@ -158,7 +158,7 @@ fn TokenInfoInner(
                             </div>
                         </button>
                     </div>
-                    <ShowAny when=detail_toggle>
+                    <ShowAny when=move || detail_toggle.get()>
                         <TokenDetails meta=meta_c.clone() />
                     </ShowAny>
                 </div>
@@ -199,7 +199,7 @@ fn TokenInfoInner(
 
 #[derive(Params, PartialEq, Clone, Serialize, Deserialize)]
 pub struct TokenKeyParam {
-    id: UsernameOrPrincipal,
+    id: Option<UsernameOrPrincipal>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -217,7 +217,7 @@ struct TokenInfoResponse {
 pub fn TokenInfo() -> impl IntoView {
     let params = use_params::<TokenInfoParams>();
     let id_param = use_params::<TokenKeyParam>();
-    let id = move || id_param.get().map(|p| p.id).ok();
+    let id = move || id_param.get().ok().and_then(|p| p.id);
 
     let auth = auth_state();
 
@@ -229,6 +229,9 @@ pub fn TokenInfo() -> impl IntoView {
                     Ok(p) => p,
                     Err(_) => return Ok::<_, ServerFnError>(None),
                 };
+                let Some(token_root) = params.token_root else {
+                    return Ok(None);
+                };
                 let key_principal = match id.as_ref() {
                     Some(UsernameOrPrincipal::Principal(p)) => Some(*p),
                     Some(UsernameOrPrincipal::Username(u)) => {
@@ -239,13 +242,12 @@ pub fn TokenInfo() -> impl IntoView {
                 };
 
                 let meta = cans
-                    .token_metadata_by_root_type(key_principal, params.token_root.clone())
+                    .token_metadata_by_root_type(key_principal, token_root.clone())
                     .await
                     .ok()
                     .flatten();
 
-                let token_root = &params.token_root;
-                let res = match (meta, token_root) {
+                let res = match (meta, &token_root) {
                     (Some(m), _) => Some(TokenInfoResponse {
                         meta: m,
                         root: token_root.clone(),

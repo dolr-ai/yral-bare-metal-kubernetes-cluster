@@ -56,7 +56,7 @@ fn Post(
             <div class="relative m-2 h-full rounded-md border aspect-9/16 border-white/20">
                 <a class="w-full h-full" href=profile_post_url on:click=move |_| video_click()>
                     <Show
-                        when=image_error
+                        when=move || image_error.get()
                         fallback=move || {
                             view! {
                                 <img

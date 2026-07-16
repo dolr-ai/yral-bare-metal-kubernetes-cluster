@@ -52,7 +52,7 @@ pub fn VideoDetailsOverlay(
         let _ = use_location().pathname.get();
         let track_video_id_for_impressions = track_video_id_for_impressions.clone();
         if let Some(global) = MixpanelGlobalProps::from_ev_ctx(ev_ctx) {
-            if Some(video_url()) == window().location().href().ok() {
+            if Some(video_url.get()) == window().location().href().ok() {
                 MixPanelEvent::track_video_impression(
                     global,
                     track_video_id_for_impressions,
@@ -86,7 +86,7 @@ pub fn VideoDetailsOverlay(
                 return;
             }
 
-            if !nsfw_enabled().unwrap_or(false) && !show_nsfw_permission() {
+            if !nsfw_enabled.get().unwrap_or(false) && !show_nsfw_permission.get() {
                 show_nsfw_permission.set(true);
                 if let Some(global) = MixpanelGlobalProps::from_ev_ctx_with_nsfw_info(ev_ctx, false)
                 {
@@ -98,7 +98,7 @@ pub fn VideoDetailsOverlay(
                     );
                 }
             } else {
-                if !nsfw_enabled().unwrap_or(false) && show_nsfw_permission() {
+                if !nsfw_enabled.get().unwrap_or(false) && show_nsfw_permission.get() {
                     show_nsfw_permission.set(false);
                     if let Some(global) =
                         MixpanelGlobalProps::from_ev_ctx_with_nsfw_info(ev_ctx, false)
@@ -112,9 +112,9 @@ pub fn VideoDetailsOverlay(
                             None,
                         );
                     }
-                    set_nsfw_enabled(Some(true));
+                    set_nsfw_enabled.set(Some(true));
                 } else {
-                    set_nsfw_enabled(Some(false));
+                    set_nsfw_enabled.set(Some(false));
                     if let Some(global) =
                         MixpanelGlobalProps::from_ev_ctx_with_nsfw_info(ev_ctx, false)
                     {
@@ -194,7 +194,7 @@ pub fn VideoDetailsOverlay(
                             let _ = click_nsfw.dispatch(());
                         }
                         src=move || {
-                            if nsfw_enabled().unwrap_or(false) {
+                            if nsfw_enabled.get().unwrap_or(false) {
                                 "/img/yral/nsfw/nsfw-toggle-on.webp"
                             } else {
                                 "/img/yral/nsfw/nsfw-toggle-off.webp"
@@ -244,7 +244,7 @@ fn ExpandableText(description: String) -> impl IntoView {
     view! {
         <span
             class="w-full text-xs md:text-sm lg:text-base"
-            class:truncate=truncated
+            class:truncate=move || truncated.get()
 
             on:click=move |_| truncated.update(|e| *e = !*e)
         >

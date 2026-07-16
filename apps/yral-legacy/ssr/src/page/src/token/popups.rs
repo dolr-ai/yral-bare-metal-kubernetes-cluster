@@ -13,7 +13,7 @@ fn SuccessPopup<ImgIV: IntoView, Img: Fn() -> ImgIV, TxtIV: IntoView, Txt: Fn() 
     view! {
         <div class="flex flex-col gap-6 items-center w-full h-full">
             {img()} <span class="text-base text-center text-neutral-400">{text()}</span>
-            <GradientLinkButton href=previous_link() classes="w-3/4">
+            <GradientLinkButton href=previous_link.get() classes="w-3/4">
                 {previous_text}
             </GradientLinkButton>
         </div>
@@ -47,7 +47,7 @@ fn ErrorPopup<HeadIV: IntoView, Head: Fn() -> HeadIV>(
                 Retry
             </button>
             <a
-                href=previous_link
+                href=move || previous_link.get()
                 class="py-3 w-full text-lg text-center text-black bg-white rounded-full border border-black md:text-xl"
             >
                 {previous_text}

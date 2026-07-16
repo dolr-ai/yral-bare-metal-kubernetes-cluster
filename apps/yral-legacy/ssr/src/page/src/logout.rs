@@ -30,12 +30,12 @@ pub fn Logout() -> impl IntoView {
                     match res {
                         Ok(id) => {
                             auth.set_new_identity(NewIdentity::new_without_username(id), false);
-                            set_notifs_enabled(false);
+                            set_notifs_enabled.set(false);
                             LogoutConfirmation.send_event(ev_ctx);
                             #[cfg(feature = "hydrate")]
                             {
                                 let device_id = uuid::Uuid::new_v4().to_string();
-                                set_device_id(device_id.clone());
+                                set_device_id.set(device_id.clone());
                                 MixpanelState::reset_device_id(device_id);
                             }
                             view! { <Redirect path="/menu" /> }

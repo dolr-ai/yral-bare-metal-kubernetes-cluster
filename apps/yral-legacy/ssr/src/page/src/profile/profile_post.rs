@@ -148,7 +148,7 @@ pub fn PostViewWithUpdatesProfile(
 
     let current_post_base = Memo::new(move |_| {
         video_queue.with(|q| {
-            let curr_index = current_index();
+            let curr_index = current_index.get();
             let details = q.get_index(curr_index);
             details.map(|d| (d.canister_id, d.post_id.clone()))
         })
@@ -210,7 +210,7 @@ fn ProfilePostBase<
         start_index.set(next_idx);
     }
 
-    let intial_post = Resource::new(canister_and_post, move |params| {
+    let intial_post = Resource::new(move || canister_and_post.get(), move |params| {
         let canisters = unauth_canisters();
         send_wrap(async move {
             let Some((canister_id, post_id)) = params else {
@@ -284,8 +284,8 @@ fn ProfilePostBase<
 
 #[derive(Params, PartialEq)]
 struct ProfileVideoParams {
-    canister_id: Principal,
-    post_id: String,
+    canister_id: Option<Principal>,
+    post_id: Option<String>,
 }
 
 #[derive(Params, PartialEq, Clone, Debug)]
@@ -301,7 +301,7 @@ pub fn ProfilePost() -> impl IntoView {
     let canister_and_post = Signal::derive(move || {
         params.with_untracked(|p| {
             let p = p.as_ref().ok()?;
-            Some((p.canister_id, p.post_id.clone()))
+            Some((p.canister_id?, p.post_id.clone()?))
         })
     });
 

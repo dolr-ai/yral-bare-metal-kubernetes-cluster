@@ -516,7 +516,7 @@ pub fn VideoUploader(
                 </p>
             </div>
         </div>
-        <Show when=published>
+        <Show when=move || published.get()>
             <PostUploadScreen />
         </Show>
     }.into_any()

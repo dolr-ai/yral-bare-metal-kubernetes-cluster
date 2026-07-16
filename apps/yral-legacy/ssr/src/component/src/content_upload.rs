@@ -25,7 +25,7 @@ fn YoutubeUploadInner(#[prop(optional)] url: String) -> impl IntoView {
         let delegated_identity = create_short_lived_delegated_identity(&cans);
         let content_seed_client: ContentSeedClient = expect_context();
         let res = content_seed_client
-            .upload_content(url_value(), delegated_identity)
+            .upload_content(url_value.get(), delegated_identity)
             .await;
         match res {
             Err(e) => e.to_string(),
@@ -82,14 +82,14 @@ pub fn YoutubeUpload(#[prop(optional)] url: String, user_principal: Principal) -
     let authorized_ctx: AuthorizedUserToSeedContent = expect_context();
     let authorized = authorized_ctx.0;
     let loaded = move || {
-        authorized()
+        authorized.get()
             .map(|(_, principal)| principal == user_principal)
             .unwrap_or_default()
     };
 
     view! {
         <Show when=loaded fallback=Spinner>
-            <Show when=move || authorized().map(|(a, _)| a).unwrap_or_default()>
+            <Show when=move || authorized.get().map(|(a, _)| a).unwrap_or_default()>
                 <YoutubeUploadInner url=url_s.get_value() />
             </Show>
         </Show>

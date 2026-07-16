@@ -18,12 +18,12 @@ fn FaqItem(#[prop(into)] header: String, #[prop(into)] content: String) -> impl 
             >
                 <span class="text-lg">{header}</span>
                 <div class="justify-self-end text-lg text-primary-600">
-                    <Show when=show fallback=|| view! { <Icon icon=icondata::AiPlusOutlined /> }>
+                    <Show when=move || show.get() fallback=|| view! { <Icon icon=icondata::AiPlusOutlined /> }>
                         <Icon icon=icondata::AiMinusOutlined />
                     </Show>
                 </div>
             </div>
-            <Show when=show>
+            <Show when=move || show.get()>
                 <div class="text-sm text-white/70">{content.clone()}</div>
             </Show>
         </div>
@@ -59,7 +59,7 @@ fn FaqView(
 ) -> impl IntoView {
     view! {
         <Show when=move || {
-            tab_idx == cur_tab()
+            tab_idx == cur_tab.get()
         }>
             {tab_content
                 .iter()
@@ -83,11 +83,11 @@ fn FaqSwitcher() -> impl IntoView {
         <div class="flex flex-row gap-6 mb-4">
             <FaqType
                 name="General"
-                onclick=move || set_cur_tab(Some("general".into()))
+                onclick=move || set_cur_tab.set(Some("general".into()))
                 init_checked=true
             />
-            <FaqType name="Tokens" onclick=move || set_cur_tab(Some("tokens".into())) />
-            <FaqType name="NFTs" onclick=move || set_cur_tab(Some("nfts".into())) />
+            <FaqType name="Tokens" onclick=move || set_cur_tab.set(Some("tokens".into())) />
+            <FaqType name="NFTs" onclick=move || set_cur_tab.set(Some("nfts".into())) />
         </div>
         <div class="flex flex-col gap-4 w-full">
             <FaqView tab_idx=0 cur_tab=current_tab tab_content=&items::GENERAL_ITEMS />

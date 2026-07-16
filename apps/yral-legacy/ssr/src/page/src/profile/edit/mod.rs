@@ -81,7 +81,8 @@ fn InputField(
                             class="w-full bg-transparent text-[14px] font-medium text-neutral-50 font-['Kumbh_Sans'] placeholder-neutral-400 outline-none resize-none"
                             placeholder=placeholder
                             rows=2
-                            bind:value=value
+                            prop:value=move || value.get()
+                            on:input=move |ev| value.set(event_target_value(&ev))
                         />
                     }.into_any()
                 } else {
@@ -91,7 +92,8 @@ fn InputField(
                             type=field_type
                             class="w-full bg-transparent text-[14px] font-medium text-neutral-50 font-['Kumbh_Sans'] placeholder-neutral-400 outline-none"
                             placeholder=placeholder
-                            bind:value=value
+                            prop:value=move || value.get()
+                            on:input=move |ev| value.set(event_target_value(&ev))
                         />
                     }.into_any()
                 }}
@@ -452,13 +454,13 @@ fn ProfileEditInner(
                             type="text"
                             pattern="^([a-zA-Z0-9]){3,15}$"
                             node_ref=username_input_ref
-                            on:input=move |_| on_username_input()
-                            bind:value=username
+                            on:input=move |ev| { username.set(event_target_value(&ev)); on_username_input() }
+                            prop:value=move || username.get()
                             class="w-full bg-transparent text-[14px] font-medium text-neutral-50 font-['Kumbh_Sans'] placeholder-neutral-400 outline-none peer"
                             placeholder="Enter username"
                         />
                         // Visual feedback indicators
-                        <Show when=username_changing>
+                        <Show when=move || username_changing.get()>
                             <div class="w-4 h-4 animate-spin rounded-full border-2 border-neutral-500 border-t-white" />
                         </Show>
                         <Show when=move || !username_changing.get() && username_changed_successfully.get()>

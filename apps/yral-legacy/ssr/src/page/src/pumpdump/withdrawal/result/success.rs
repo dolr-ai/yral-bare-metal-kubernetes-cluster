@@ -9,13 +9,14 @@ use yral_canisters_common::utils::token::balance::TokenBalance;
 
 #[derive(Debug, PartialEq, Eq, Clone, Params)]
 struct SuccessParams {
-    cents: Nat,
+    cents: Option<Nat>,
 }
 
 #[component]
 pub fn Success() -> impl IntoView {
     let params = use_query::<SuccessParams>();
     let SuccessParams { cents } = try_or_redirect_opt!(params.get_untracked());
+    let cents = cents.unwrap_or_default();
     let formatted_dolr = TokenBalance::new(cents.clone(), 8).humanize_float_truncate_to_dp(4);
     let formatted_cents = TokenBalance::new(cents.clone(), 6).humanize_float_truncate_to_dp(4);
 

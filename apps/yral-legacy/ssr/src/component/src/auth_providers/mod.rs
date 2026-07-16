@@ -131,7 +131,7 @@ fn LoginProvButton<Cb: Fn(ev::MouseEvent) + 'static>(
 
     view! {
         <button
-            disabled=move || ctx.processing.get().is_some() || disabled()
+            disabled=move || ctx.processing.get().is_some() || disabled.get()
             class=class
             on:click=move |ev| {
                 ctx.set_processing.set(Some(prov));

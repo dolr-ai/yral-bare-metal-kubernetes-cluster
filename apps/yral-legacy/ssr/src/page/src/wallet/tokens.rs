@@ -405,7 +405,7 @@ pub fn WithdrawSection(
     let auth_state = auth_state();
     let token_name_analytics = token_name.clone();
     let withdraw_handle = move |_| {
-        if !is_connected() {
+        if !is_connected.get() {
             show_login.set(true);
             return;
         }
@@ -582,7 +582,7 @@ pub fn FastWalletCard(
 
             <PopupOverlay show=pop_up>
                 <ShareContent
-                    share_link=format!("{base_url}{}", share_link())
+                    share_link=format!("{base_url}{}", share_link.get())
                     message=share_message()
                     show_popup=pop_up
                 />

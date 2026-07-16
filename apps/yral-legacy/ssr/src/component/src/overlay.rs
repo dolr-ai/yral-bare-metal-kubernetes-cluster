@@ -168,13 +168,13 @@ pub fn ActionTrackerPopup<
     let pending = action.pending();
     let action_value = action.value();
     let res = Signal::derive(move || {
-        if pending() {
+        if pending.get() {
             return None;
         }
         action_value.get()
     });
     let show_popup = Signal::derive(move || {
-        let show = (pending() || res.with(|r| r.is_some())) && !close();
+        let show = (pending.get() || res.with(|r| r.is_some())) && !close.get();
         close.set(false);
         show
     });
@@ -193,7 +193,7 @@ pub fn ActionTrackerPopup<
                 <div class=format!(
                     "px-4 pt-4 pb-12 mx-6 w-full lg:w-1/2 max-h-[65%] rounded-xl {}",
                     classes.read_value(),
-                )>{move || (modal_s.get_value())(res().unwrap())}</div>
+                )>{move || (modal_s.get_value())(res.get().unwrap())}</div>
             </Show>
         </ShadowOverlay>
     }

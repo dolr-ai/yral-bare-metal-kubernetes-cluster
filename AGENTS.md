@@ -84,6 +84,9 @@ When using a tool or library for the first time (or encountering a non-trivial c
 - Downgrade only if latest incompatible with current K8s (document reason).
 - Upgrade order: one CP at a time → workers → add-ons, one component at a time.
 
+### Latest Stable Preference
+When making changes to a codebase (fixing bugs, migrating APIs, adding features), strive to bump all affected dependencies to their latest stable versions. If a change breaks a dependent, upgrade the dependent too — don't pin to an older version to avoid the migration. This keeps the codebase current and reduces accumulated technical debt. Always verify compilation locally before pushing.
+
 ### Error Handling
 In roles: use `fail`, `assert`, `changed_when: false`, `failed_when: false` + explicit checks.
 In playbooks: none (orchestration only).

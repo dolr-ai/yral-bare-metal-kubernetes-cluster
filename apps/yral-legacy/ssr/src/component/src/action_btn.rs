@@ -9,7 +9,7 @@ pub fn ActionButtonLink(
 ) -> impl IntoView {
     view! {
         <a
-            aria-disabled=move || disabled().to_string()
+            aria-disabled=move || disabled.get().to_string()
             href=href
             class=move || {
                 format!(
@@ -37,7 +37,7 @@ pub fn ActionButton(
 ) -> impl IntoView {
     view! {
         <button
-            disabled=disabled
+            disabled=move || disabled.get()
             class="flex flex-col gap-1 justify-center items-center text-xs transition-colors enabled:group-hover:text-white enabled:text-neutral-300 disabled:cursor-default cursor-pointer disabled:text-neutral-600"
         >
             <div class="flex justify-center items-center w-4.5 h-4.5">{children()}</div>

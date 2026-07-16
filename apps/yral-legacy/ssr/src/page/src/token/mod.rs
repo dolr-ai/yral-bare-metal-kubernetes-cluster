@@ -9,10 +9,10 @@ use yral_canisters_common::utils::token::RootType;
 
 #[derive(Params, PartialEq, Clone)]
 struct TokenParams {
-    token_root: RootType,
+    token_root: Option<RootType>,
 }
 
 #[derive(Params, PartialEq, Clone)]
 struct TokenInfoParams {
-    token_root: RootType,
+    token_root: Option<RootType>,
 }

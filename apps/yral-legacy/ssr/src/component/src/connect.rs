@@ -55,7 +55,7 @@ pub fn ConnectLogin(
                 login_click_action.dispatch(());
             }
         >
-            {move || if show_login() { "Connecting..." } else { login_text }}
+            {move || if show_login.get() { "Connecting..." } else { login_text }}
         </HighlightedButton>
         <LoginModal show=show_login redirect_to />
     }

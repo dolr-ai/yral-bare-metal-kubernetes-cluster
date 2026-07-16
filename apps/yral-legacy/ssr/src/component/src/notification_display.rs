@@ -60,12 +60,12 @@ pub fn NotificationDisplay() -> impl IntoView {
     };
 
     view! {
-        <Show when=is_visible>
+        <Show when=move || is_visible.get()>
             <div
                 node_ref=notification_node_ref
                 class="notification-container"
                 class:slide-in=move || is_visible.get() && !is_sliding_out.get()
-                class:slide-out=is_sliding_out
+                class:slide-out=move || is_sliding_out.get()
                 on:animationend=handle_animation_end
             >
                 {move || {
