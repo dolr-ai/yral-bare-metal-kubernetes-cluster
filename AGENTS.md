@@ -231,7 +231,7 @@ Never push code changes to git without first verifying they compile and run loca
 - GitHub webhook → EventListener Service (exposed via Cilium Gateway HTTPRoute).
 - **Filter out fluxcdbot commits**: The CEL interceptor MUST filter `body.head_commit.author.username != 'fluxcdbot'` to prevent a feedback loop (Flux ImageUpdateAutomation commits tag updates → triggers new build → new image → Flux commits again → infinite loop).
 
-**Image tagging (timestamp-prefixed, NOT raw commit SHA):** Tags are `YYYYMMDDHHMMSS-<8-char-sha>` (e.g. `20260716021700-a2e4e7b8`). The timestamp prefix ensures `Alphabetical:desc` in Flux ImagePolicy correctly selects the most recent build (chronological order = alphabetical order). Raw commit SHAs are meaningless alphabetically — `d424a6c2...` would outrank `a2e4e7b8...` regardless of commit time.
+**Image tagging (timestamp-prefixed, NOT raw commit SHA):** Tags are `YYYYMMDDHHMMSS-<8-char-sha>` (e.g. `20260716021700-a2e4e7b8`). The timestamp prefix ensures `Alphabetical:asc` in Flux ImagePolicy correctly selects the most recent build (chronological order = alphabetical order). Raw commit SHAs are meaningless alphabetically — `d424a6c2...` would outrank `a2e4e7b8...` regardless of commit time.
 
 **Tekton Triggers CEL Interceptor (official pattern):**
 - Overlay `key`: just the field name (e.g. `image_tag`), NOT prefixed with `body.` or `extensions.`
