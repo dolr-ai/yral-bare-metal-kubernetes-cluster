@@ -244,6 +244,78 @@ url = "https://github.com/cli/cli/releases/download/v2.96.0/gh_2.96.0_windows_am
 url_api = "https://api.github.com/repos/cli/cli/releases/assets/464728577"
 provenance = "github-attestations"
 
+[[tools."github:WebAssembly/binaryen"]]
+version = "1.39.1"
+backend = "github:WebAssembly/binaryen"
+
+[tools."github:WebAssembly/binaryen"."platforms.linux-arm64"]
+checksum = "sha256:1ee3bc68a18ea6ae94cc2634227fcf1518682fb80a59fc7774a4d9caea5ffd54"
+url = "https://github.com/WebAssembly/binaryen/releases/download/1.39.1/binaryen-1.39.1-aarch64-linux.tar.gz"
+url_api = "https://api.github.com/repos/WebAssembly/binaryen/releases/assets/15882041"
+
+[tools."github:WebAssembly/binaryen"."platforms.linux-arm64-musl"]
+checksum = "sha256:1ee3bc68a18ea6ae94cc2634227fcf1518682fb80a59fc7774a4d9caea5ffd54"
+url = "https://github.com/WebAssembly/binaryen/releases/download/1.39.1/binaryen-1.39.1-aarch64-linux.tar.gz"
+url_api = "https://api.github.com/repos/WebAssembly/binaryen/releases/assets/15882041"
+
+[tools."github:WebAssembly/binaryen"."platforms.linux-x64"]
+checksum = "sha256:e3b436c35ded5944589daaac2f17a6b2550af61bde3875fb8809a5d0e9aff8e2"
+url = "https://github.com/WebAssembly/binaryen/releases/download/1.39.1/binaryen-1.39.1-x86_64-linux.tar.gz"
+url_api = "https://api.github.com/repos/WebAssembly/binaryen/releases/assets/15882062"
+
+[tools."github:WebAssembly/binaryen"."platforms.linux-x64-musl"]
+checksum = "sha256:e3b436c35ded5944589daaac2f17a6b2550af61bde3875fb8809a5d0e9aff8e2"
+url = "https://github.com/WebAssembly/binaryen/releases/download/1.39.1/binaryen-1.39.1-x86_64-linux.tar.gz"
+url_api = "https://api.github.com/repos/WebAssembly/binaryen/releases/assets/15882062"
+
+[tools."github:WebAssembly/binaryen"."platforms.macos-x64"]
+checksum = "sha256:c48998f9427666c539eeadbce0371c6cb1ae16700bbfce69b6a0bd5192f4cece"
+url = "https://github.com/WebAssembly/binaryen/releases/download/1.39.1/binaryen-1.39.1-x86_64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/WebAssembly/binaryen/releases/assets/15882198"
+
+[tools."github:WebAssembly/binaryen"."platforms.windows-x64"]
+url = "https://github.com/WebAssembly/binaryen/releases/download/1.39.1/binaryen-1.39.1-x86_64-windows.tar.gz"
+url_api = "https://api.github.com/repos/WebAssembly/binaryen/releases/assets/15881988"
+
+[[tools."github:clockworklabs/SpacetimeDB"]]
+version = "2.6.1"
+backend = "github:clockworklabs/SpacetimeDB"
+
+[tools."github:clockworklabs/SpacetimeDB"."platforms.linux-arm64"]
+checksum = "sha256:09db3428fb12fb8cf9cbb03cc5398c4a8d0234484b1dc88f10591199462068fd"
+url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.6.1/spacetime-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/463492118"
+
+[tools."github:clockworklabs/SpacetimeDB"."platforms.linux-arm64-musl"]
+checksum = "sha256:09db3428fb12fb8cf9cbb03cc5398c4a8d0234484b1dc88f10591199462068fd"
+url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.6.1/spacetime-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/463492118"
+
+[tools."github:clockworklabs/SpacetimeDB"."platforms.linux-x64"]
+checksum = "sha256:cb03bb4706dc6bd6ef080c9bbd220a6e7d10430a65e7be2ba6be27ec7e3a9118"
+url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.6.1/spacetime-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/463492136"
+
+[tools."github:clockworklabs/SpacetimeDB"."platforms.linux-x64-musl"]
+checksum = "sha256:cb03bb4706dc6bd6ef080c9bbd220a6e7d10430a65e7be2ba6be27ec7e3a9118"
+url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.6.1/spacetime-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/463492136"
+
+[tools."github:clockworklabs/SpacetimeDB"."platforms.macos-arm64"]
+checksum = "sha256:4736035e991bba6f416c99c08d02e5985534bf238732ea8464f199050e694f9f"
+url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.6.1/spacetime-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/463492116"
+
+[tools."github:clockworklabs/SpacetimeDB"."platforms.macos-x64"]
+checksum = "sha256:8d58ccc6762822710ce047dbf0d9d29ada95e5d70f300b1b6ee7cae09183b558"
+url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.6.1/spacetime-x86_64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/463492130"
+
+[tools."github:clockworklabs/SpacetimeDB"."platforms.windows-x64"]
+checksum = "sha256:0ca19c9941eb42d8c276ee100ccab46381fd00b176cffecd9e4c4b41bc820f30"
+url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.6.1/spacetime-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/463492135"
+
 [[tools.helm]]
 version = "4.2.3"
 backend = "aqua:helm/helm"

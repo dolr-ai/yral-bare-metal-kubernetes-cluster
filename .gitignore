@@ -43,3 +43,5 @@ mise.local.toml
 *.tmp
 /tmp/
 target/
+
+spacetime.local.json

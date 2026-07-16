@@ -1,5 +1,14 @@
 {
+  "dev": {
+    "run": "cargo run"
+  },
+  "generate": [
+    {
+      "out-dir": "./apps/task-runner/src/bindings",
+      "language": "rust"
+    }
+  ],
+  "server": "local",
   "database": "yral-database-spacetime-4lbo7",
-  "module-path": "./apps/yral-database-spacetime",
-  "server": "maincloud"
+  "module-path": "./apps/yral-database-spacetime"
 }
