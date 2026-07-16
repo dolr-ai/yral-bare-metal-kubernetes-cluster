@@ -118,7 +118,7 @@ pub async fn clear_session_principal() -> Result<(), ServerFnError> {
         .same_site(SameSite::Lax)
         .secure(true)
         .path("/")
-        .max_age(Duration::ZERO)
+        .max_age(Duration::ZERO.try_into().unwrap())
         .http_only(true)
         .build();
 

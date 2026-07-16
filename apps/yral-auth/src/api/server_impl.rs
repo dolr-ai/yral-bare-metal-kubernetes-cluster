@@ -291,7 +291,6 @@ async fn handle_authorization_code_grant(
 
     let code_claims = auth_code.claims;
 
-    // Set user context for tracking
     if code_claims.ext_redirect_uri != redirect_uri {
         return Err(TokenGrantError {
             error: TokenGrantErrorKind::InvalidGrant,
@@ -349,7 +348,6 @@ async fn handle_refresh_token_grant(
 
     let refresh_claims = refresh_token.claims;
 
-    // Set user context for tracking
 
     let grant = generate_access_token(
         ctx,
@@ -375,7 +373,6 @@ async fn client_credentials_grant_for_backend(
     client_id: String,
     res: ValidationRes,
 ) -> Result<TokenGrantRes, TokenGrantError> {
-    // Set Sentry tag for backend service type
 
     let server_url = match get_server_url_from_request().await {
         Ok(url) => url,
@@ -404,7 +401,6 @@ async fn client_credentials_grant_for_backend(
         })?;
 
     if let Some(principal) = princ_res {
-        // Set user context for existing backend service principal
         return generate_access_token(
             ctx,
             principal,
@@ -426,7 +422,6 @@ async fn client_credentials_grant_for_backend(
         })?;
     let principal = identity.sender().unwrap();
 
-    // Set user context for new backend service principal
 
     ctx.kv_store
         .write(

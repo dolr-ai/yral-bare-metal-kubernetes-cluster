@@ -1,6 +1,7 @@
 use leptos::either::Either;
 use leptos::prelude::*;
 use leptos::server_fn::codec::Json;
+use leptos_router::NavigateOptions;
 
 use crate::components::{spinner::Spinner, yral_symbol::YralSymbol};
 

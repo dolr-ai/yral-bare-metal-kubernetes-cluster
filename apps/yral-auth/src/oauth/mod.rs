@@ -318,3 +318,91 @@ impl AuthCodeError {
 
     #[cfg(feature = "ssr")]
     pub fn capture(self) -> Self {
+        log::error!(
+            "OAuth callback failed: {:?} - {}",
+            self.error,
+            self.error_description
+        );
+        self
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum TokenGrantErrorKind {
+    #[serde(rename = "invalid_request")]
+    InvalidRequest,
+    #[serde(rename = "invalid_client")]
+    InvalidClient,
+    #[serde(rename = "invalid_grant")]
+    InvalidGrant,
+    #[serde(rename = "unauthorized_client")]
+    UnauthorizedClient,
+    #[serde(rename = "unsupported_grant_type")]
+    UnsupportedGrantType,
+    #[serde(rename = "invalid_scope")]
+    InvalidScope,
+    #[serde(rename = "server_error")]
+    ServerError,
+}
+
+impl TokenGrantErrorKind {
+    #[cfg(feature = "ssr")]
+    pub fn status_code(&self) -> axum::http::StatusCode {
+        use axum::http::StatusCode;
+
+        match self {
+            Self::InvalidRequest => StatusCode::BAD_REQUEST,
+            Self::InvalidClient => StatusCode::UNAUTHORIZED,
+            Self::InvalidGrant => StatusCode::UNAUTHORIZED,
+            Self::UnauthorizedClient => StatusCode::UNAUTHORIZED,
+            Self::UnsupportedGrantType => StatusCode::BAD_REQUEST,
+            Self::InvalidScope => StatusCode::BAD_REQUEST,
+            Self::ServerError => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenGrantError {
+    pub error: TokenGrantErrorKind,
+    pub error_description: String,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum TokenType {
+    Bearer,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenGrantRes {
+    pub access_token: String,
+    pub id_token: String,
+    pub token_type: TokenType,
+    // seconds
+    pub expires_in: usize,
+    pub refresh_token: String,
+}
+
+impl TokenGrantRes {
+    pub fn new(access_token: String, id_token: String, refresh_token: String) -> Self {
+        Self {
+            access_token,
+            id_token,
+            token_type: TokenType::Bearer,
+            expires_in: ACCESS_TOKEN_MAX_AGE.as_secs() as usize,
+            refresh_token,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum TokenGrantResult {
+    Ok(TokenGrantRes),
+    Err(TokenGrantError),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PartialOIDCConfig {
+    pub jwks_uri: String,
+}
