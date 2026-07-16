@@ -19,9 +19,6 @@ test-results/
 ssr/end2end/playwright-report/
 playwright/.cache/
 
-# redb
-redb-kv.db
-
 # dotenv
 .env
 

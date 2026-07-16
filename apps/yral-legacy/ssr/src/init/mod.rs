@@ -145,41 +145,31 @@ impl AppStateBuilder {
     }
 
     async fn init_redis_kv(&mut self) -> KVStoreImpl {
-        #[cfg(feature = "redis-kv")]
+        #[cfg(feature = "local-bin")]
         {
-            #[cfg(feature = "local-bin")]
-            {
-                use auth::server_impl::store::redis_kv::RedisKV;
+            use auth::server_impl::store::redis_kv::RedisKV;
 
-                self.containers.start_redis().await;
-                let redis_url = "redis://127.0.0.1:6379";
+            self.containers.start_redis().await;
+            let redis_url = "redis://127.0.0.1:6379";
 
-                log::info!("initiating local redis instnace (feature='local-bin') enabled");
-                KVStoreImpl::Redis(
-                    RedisKV::new(redis_url)
-                        .await
-                        .expect("failed to initialize local redis"),
-                )
-            }
-
-            #[cfg(not(feature = "local-bin"))]
-            {
-                use auth::server_impl::store::dragonfly_kv::DragonflyKV;
-
-                log::info!("initializing dragonfly redis instance");
-                KVStoreImpl::DragonflyKV(
-                    DragonflyKV::new()
-                        .await
-                        .expect("failed to initialize dragonfly redis"),
-                )
-            }
+            log::info!("initiating local redis instance (feature='local-bin')");
+            KVStoreImpl::Redis(
+                RedisKV::new(redis_url)
+                    .await
+                    .expect("failed to initialize local redis"),
+            )
         }
 
-        #[cfg(not(feature = "redis-kv"))]
+        #[cfg(not(feature = "local-bin"))]
         {
-            use auth::server_impl::store::redb_kv::ReDBKV;
-            log::info!("initiating reDB instnace enabled (since no feature flag passed)");
-            KVStoreImpl::ReDB(ReDBKV::new().expect("Failed to initialize ReDB"))
+            use auth::server_impl::store::dragonfly_kv::DragonflyKV;
+
+            log::info!("initializing dragonfly redis instance");
+            KVStoreImpl::DragonflyKV(
+                DragonflyKV::new()
+                    .await
+                    .expect("failed to initialize dragonfly redis"),
+            )
         }
     }
 

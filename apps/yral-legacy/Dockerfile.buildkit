@@ -57,8 +57,9 @@ ENV LEPTOS_BIN_TARGET_TRIPLE="x86_64-unknown-linux-musl"
 # Use git CLI for fetching git deps (libgit2 has SSL issues with large repos like dfinity/ic)
 ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
 
-# Build the app (uses bin-profile-release=prod-release from Cargo.toml metadata)
-RUN cargo leptos build --release
+# Build the app with production features (redis-kv, backend-admin, oauth-ssr, ga4)
+# release-bin includes redis-kv → uses Dragonfly instead of embedded ReDB
+RUN cargo leptos build --release --lib-features release-lib --bin-features release-bin
 
 # ── Stage 2: Runtime (scratch) ─────────────────────────────────────────────
 FROM scratch

@@ -1,5 +1,5 @@
 pub mod dragonfly_kv;
-pub mod redb_kv;
+pub mod dragonfly_kv;
 pub mod redis_kv;
 
 use enum_dispatch::enum_dispatch;
@@ -10,8 +10,6 @@ use thiserror::Error;
 pub enum KVError {
     #[error("deserialization err: {0}")]
     Deser(#[from] serde_json::Error),
-    #[error(transparent)]
-    ReDB(#[from] redb::Error),
     #[error("{0}")]
     Redis(#[from] RedisError),
     #[error("{0}")]
@@ -29,7 +27,6 @@ pub(crate) trait KVStore: Send {
 #[derive(Clone)]
 #[enum_dispatch(KVStore)]
 pub enum KVStoreImpl {
-    ReDB(redb_kv::ReDBKV),
     Redis(redis_kv::RedisKV),
     DragonflyKV(dragonfly_kv::DragonflyKV),
 }
