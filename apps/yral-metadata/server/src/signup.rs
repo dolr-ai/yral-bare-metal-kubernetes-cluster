@@ -1,11 +1,11 @@
 use crate::{
     api::METADATA_FIELD,
     dragonfly::{format_to_dragonfly_key, DragonflyPool, YRAL_METADATA_KEY_PREFIX},
-    notifications::traits::RedisConnection,
     services::error_wrappers::{ErrorWrapper, OkWrapper},
     state::AppState,
     utils::error::{Error, Result},
 };
+use redis::AsyncCommands;
 use axum::{
     extract::{Path, State},
     Json,
@@ -36,14 +36,6 @@ pub async fn set_user_email(
 ) -> Result<Json<ApiResult<UserMetadata>>> {
     let principal = user_principal;
 
-    // Add user context to Sentry
-    crate::sentry_utils::add_user_context(principal, None);
-    crate::sentry_utils::add_operation_breadcrumb(
-        "signup",
-        &format!("Setting email for user: {}", principal),
-        sentry::Level::Info,
-    );
-
     req.signature.clone().verify_identity(
         principal,
         req.payload
@@ -60,11 +52,7 @@ pub async fn set_user_email(
     )
     .await
     .map_err(|e| {
-        crate::sentry_utils::capture_api_error(
-            &e,
-            "/email/{user_principal}",
-            Some(&principal.to_text()),
-        );
+        log::error!("API error: {e:?}");
         e
     })?;
     Ok(Json(Ok(result)))
@@ -90,14 +78,6 @@ pub async fn set_signup_datetime(
 ) -> Result<Json<ApiResult<UserMetadata>>> {
     let principal = user_principal;
 
-    // Add user context to Sentry
-    crate::sentry_utils::add_user_context(principal, None);
-    crate::sentry_utils::add_operation_breadcrumb(
-        "signup",
-        &format!("Setting signup datetime for user: {}", principal),
-        sentry::Level::Info,
-    );
-
     let res = set_signup_datetime_impl(
         &state.dragonfly_redis_store,
         principal,
@@ -106,11 +86,7 @@ pub async fn set_signup_datetime(
     )
     .await
     .map_err(|e| {
-        crate::sentry_utils::capture_api_error(
-            &e,
-            "/signup/{user_principal}",
-            Some(&principal.to_text()),
-        );
+        log::error!("API error: {e:?}");
         e
     })?;
     Ok(Json(Ok(res)))
@@ -184,7 +160,7 @@ pub async fn set_user_email_impl(
                         ))
                     })?;
 
-                    conn.hset(&formatted_user_key, METADATA_FIELD, &updated_meta)
+                    conn.hset::<_, _, _, ()>(&formatted_user_key, METADATA_FIELD, &updated_meta)
                         .await?;
                 }
 
@@ -255,7 +231,7 @@ pub async fn set_signup_datetime_impl(
                         ))
                     })?;
 
-                    conn.hset(&formatted_user_key, METADATA_FIELD, &updated_meta)
+                    conn.hset::<_, _, _, ()>(&formatted_user_key, METADATA_FIELD, &updated_meta)
                         .await?;
                 }
 

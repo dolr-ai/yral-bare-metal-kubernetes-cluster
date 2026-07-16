@@ -55,18 +55,13 @@ pub async fn update_session_as_registered_v2(
     headers: HeaderMap,
     Json(req_payload): Json<UpdateUserSessionRequest>,
 ) -> Result<Json<ApiResult<()>>> {
-    crate::sentry_utils::add_operation_breadcrumb(
-        "session",
-        &format!("Update session v2 for user: {}", req_payload.user_principal),
-        sentry::Level::Info,
+    log::info!(
+        "Update session v2 for user: {}",
+        req_payload.user_principal
     );
 
     let Some(auth_header) = headers.get("Authorization") else {
-        crate::sentry_utils::add_operation_breadcrumb(
-            "session",
-            "Auth token missing",
-            sentry::Level::Warning,
-        );
+        log::warn!("Auth token missing");
         return Err(Error::AuthTokenMissing);
     };
 
@@ -85,41 +80,24 @@ pub async fn update_session_as_registered_v2(
     // Individual user canisters have been decommissioned; all session updates
     // now go through the user_info_service canister.
     if user_canister != USER_INFO_SERVICE_ID {
-        crate::sentry_utils::add_operation_breadcrumb(
-            "session",
-            &format!(
-                "Unexpected canister id for session update: {} (expected user_info_service)",
-                user_canister.to_text()
-            ),
-            sentry::Level::Warning,
+        log::warn!(
+            "Unexpected canister id for session update: {} (expected user_info_service)",
+            user_canister.to_text()
         );
     }
 
-    crate::sentry_utils::add_canister_call_breadcrumb(
-        &user_canister.to_text(),
-        "update_session_type",
-        true,
-    );
     let user_info_service = UserInfoService(USER_INFO_SERVICE_ID, ic_agent);
 
     let result = user_info_service
         .update_session_type(user_principal, UserServiceSessionType::RegisteredSession)
         .await
         .map_err(|e| {
-            crate::sentry_utils::add_canister_call_breadcrumb(
-                &user_canister.to_text(),
-                "update_session_type",
-                false,
-            );
+            log::error!("update_session_type failed: {e}");
             e
         })?;
 
     if let Result_::Err(e) = result {
-        crate::sentry_utils::add_operation_breadcrumb(
-            "session",
-            &format!("Update session failed: {}", e),
-            sentry::Level::Error,
-        );
+        log::error!("Update session failed: {e}");
         return Err(Error::UpdateSession(e));
     }
 

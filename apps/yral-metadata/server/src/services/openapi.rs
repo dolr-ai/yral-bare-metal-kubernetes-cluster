@@ -39,9 +39,6 @@ impl Modify for BearerAuth {
         crate::api::handlers::delete_metadata_bulk,
         crate::api::handlers::get_user_metadata_bulk,
         crate::api::handlers::get_canister_to_principal_bulk,
-        crate::notifications::register_device,
-        crate::notifications::unregister_device,
-        crate::notifications::send_notification,
         crate::session::update_session_as_registered_v2
     ),
     components(schemas(
@@ -55,10 +52,6 @@ impl Modify for BearerAuth {
         BulkUsers,
         BulkGetUserMetadataReq,
         CanisterToPrincipalReq,
-        RegisterDeviceReq,
-        UnregisterDeviceReq,
-        NotificationPayload,
-        SendNotificationReq,
         CanisterSessionRegisteredRes,
         YralAuthClaim
     )),

@@ -5,8 +5,6 @@ use crate::dragonfly::{
     get_redis_store_ca_cert_pem, get_redis_store_client_cert_pem, get_redis_store_client_key_pem,
     init_dragonfly_redis_store, DragonflyPool,
 };
-use crate::firebase::Firebase;
-use crate::qstash::QStashState;
 use crate::utils::error::{Error, Result};
 use crate::utils::yral_auth_jwt::YralAuthJwt;
 use ic_agent::identity::Secp256k1Identity;
@@ -20,9 +18,7 @@ pub struct AppState {
     pub dragonfly_redis_store: Arc<DragonflyPool>,
     pub jwt_details: JwtDetails,
     pub yral_auth_jwt: YralAuthJwt,
-    pub firebase: Firebase,
     pub backend_admin_ic_agent: ic_agent::Agent,
-    pub qstash: QStashState,
 }
 
 impl AppState {
@@ -40,11 +36,7 @@ impl AppState {
             .await?,
             jwt_details: init_jwt(app_config)?,
             yral_auth_jwt: YralAuthJwt::init(app_config.yral_auth_public_key.clone())?,
-            firebase: Firebase::new()
-                .await
-                .map_err(|e| Error::FirebaseApiErr(e.to_string()))?,
             backend_admin_ic_agent: init_backend_admin_key(app_config).await?,
-            qstash: QStashState::init(app_config.qstash_current_signing_key.clone()),
         })
     }
 }

@@ -48,14 +48,6 @@ pub async fn set_user_metadata(
 ) -> Result<Json<ApiResult<SetUserMetadataRes>>> {
     let principal = user_principal;
 
-    // Add user context to Sentry
-    crate::sentry_utils::add_user_context(principal, None);
-    crate::sentry_utils::add_operation_breadcrumb(
-        "metadata",
-        &format!("Setting metadata for user: {}", principal),
-        sentry::Level::Info,
-    );
-
     let result = set_user_metadata_impl(
         &state.dragonfly_redis_store,
         principal,
@@ -65,11 +57,7 @@ pub async fn set_user_metadata(
     )
     .await
     .map_err(|e| {
-        crate::sentry_utils::capture_api_error(
-            &e,
-            "/metadata/{user_principal}",
-            Some(&principal.to_text()),
-        );
+        log::error!("API error: {e:?}");
         e
     })?;
 
@@ -128,12 +116,6 @@ pub async fn get_user_metadata(
     State(state): State<Arc<AppState>>,
     Path(identifier): Path<String>,
 ) -> Result<Json<ApiResult<GetUserMetadataV2Res>>> {
-    crate::sentry_utils::add_operation_breadcrumb(
-        "metadata",
-        &format!("Getting metadata for: {}", identifier),
-        sentry::Level::Info,
-    );
-
     let result = get_user_metadata_impl(
         &state.dragonfly_redis_store,
         identifier.clone(),
@@ -141,11 +123,7 @@ pub async fn get_user_metadata(
     )
     .await
     .map_err(|e| {
-        crate::sentry_utils::capture_api_error(
-            &e,
-            "/metadata/{username_or_principal}",
-            Some(&identifier),
-        );
+        log::error!("API error: {e:?}");
         e
     })?;
 
@@ -205,19 +183,13 @@ pub async fn get_user_metadata_bulk(
     Json(req): Json<BulkGetUserMetadataReq>,
 ) -> Result<Json<ApiResult<BulkGetUserMetadataRes>>> {
     let user_count = req.users.len();
-
-    crate::sentry_utils::add_operation_breadcrumb(
-        "metadata",
-        &format!("Bulk fetch metadata for {} users", user_count),
-        sentry::Level::Info,
-    );
+    log::info!("Bulk fetch metadata for {} users", user_count);
 
     let result =
         get_user_metadata_bulk_impl(&state.dragonfly_redis_store, req, YRAL_METADATA_KEY_PREFIX)
             .await
             .map_err(|e| {
-                log::error!("Error fetching bulk user metadata: {}", e);
-                crate::sentry_utils::capture_api_error(&e, "/metadata-bulk", None);
+                log::error!("API error: {e:?}");
                 e
             })?;
     Ok(Json(Ok(result)))
