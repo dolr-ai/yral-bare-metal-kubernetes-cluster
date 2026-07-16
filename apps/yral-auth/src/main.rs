@@ -10,8 +10,6 @@ use axum::{
 };
 use leptos::{config::get_configuration, logging::log, prelude::provide_context};
 use leptos_axum::{generate_route_list, handle_server_fns_with_context, LeptosRoutes};
-use sentry_tower::{NewSentryLayer, SentryHttpLayer};
-use tower::ServiceBuilder;
 use tower_governor::{
     governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor, GovernorLayer,
 };
@@ -65,9 +63,8 @@ fn server_routes(ctx: Arc<ServerCtx>) -> Router {
         .layer(Extension(ctx))
 }
 
-fn setup_sentry_subscriber() {
+fn setup_tracing_subscriber() {
     tracing_subscriber::registry()
-        .with(sentry_tracing::layer())
         .with(tracing_subscriber::fmt::layer())
         .with(tracing_subscriber::EnvFilter::from_default_env())
         .init();
@@ -75,27 +72,7 @@ fn setup_sentry_subscriber() {
 
 #[tokio::main]
 async fn main() {
-    let _guard = sentry::init((
-        "https://c77631cc9b797bd2c9520d74bc08eaad@sentry.naitik.yral.com/3",
-        sentry::ClientOptions {
-            release: sentry::release_name!(),
-            environment: Some(
-                std::env::var("APP_ENV")
-                    .unwrap_or("local".to_owned())
-                    .into(),
-            ),
-            traces_sample_rate: std::env::var("SENTRY_TRACES_SAMPLE_RATE")
-                .ok()
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(0.5),
-            send_default_pii: false, // Keep false, manually add safe data
-            attach_stacktrace: true,
-            before_send: Some(yral_auth::middleware::sentry_scrub::create_before_send()),
-            ..Default::default()
-        },
-    ));
-
-    setup_sentry_subscriber();
+    setup_tracing_subscriber();
 
     let conf = get_configuration(None).unwrap();
     let addr = conf.leptos_options.site_addr;
@@ -114,10 +91,6 @@ async fn main() {
         routes: routes.clone(),
         ctx: ctx.clone(),
     };
-
-    let sentry_tower_layer = ServiceBuilder::new()
-        .layer(NewSentryLayer::new_from_top())
-        .layer(SentryHttpLayer::with_transaction());
 
     let governor_conf = GovernorConfigBuilder::default()
         .per_second(5)
@@ -138,8 +111,7 @@ async fn main() {
         .merge(server_routes(ctx))
         .layer(axum::middleware::from_fn(
             yral_auth::middleware::http_logging_middleware,
-        )) // HTTP logging before Sentry
-        .layer(sentry_tower_layer);
+        ));
 
     // run our app with hyper
     // `axum::Server` is a re-export of `hyper::Server`

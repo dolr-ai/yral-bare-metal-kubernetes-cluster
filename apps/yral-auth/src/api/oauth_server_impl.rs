@@ -83,7 +83,7 @@ pub async fn get_oauth_url_impl(
 
     let server_url = get_server_url_from_request().await.map_err(|e| {
         let err_msg = format!("failed to get server url: {:?}", e);
-        sentry::capture_message(&err_msg, sentry::Level::Error);
+        log::error!("{err_msg}");
         e
     })?;
 
@@ -137,7 +137,7 @@ pub async fn get_oauth_url_impl(
 
     let mut jar: PrivateCookieJar = extract_with_state(&ctx.cookie_key).await.map_err(|e| {
         let err_msg = format!("failed to extract cookie jar: {:?}", e);
-        sentry::capture_message(&err_msg, sentry::Level::Error);
+        log::error!("{err_msg}");
         e
     })?;
 
@@ -364,35 +364,29 @@ pub async fn perform_oauth_login_impl(
     let ctx = expect_server_ctx();
     let mut jar: PrivateCookieJar = extract_with_state(&ctx.cookie_key).await.map_err(|e| {
         log::error!("Failed to extract jar: {}", e);
-        sentry::capture_message(
-            &format!("Failed to extract jar: {}", e),
-            sentry::Level::Error,
-        );
+        log::error!("OAuth error occurred: {e}");
         e
     })?;
     let server_url = get_server_url_from_request().await.map_err(|e| {
         log::error!("Failed to get server url: {}", e);
-        sentry::capture_message(
-            &format!("Failed to get server url: {}", e),
-            sentry::Level::Error,
-        );
+        log::error!("OAuth error occurred: {e}");
         e
     })?;
 
     let csrf_cookie = jar.get(CSRF_TOKEN_COOKIE).ok_or_else(|| {
         let err_msg = "csrf token not found";
-        sentry::capture_message(err_msg, sentry::Level::Error);
+        log::error!("{err_msg}");
         ServerFnError::new(err_msg)
     })?;
     if state != csrf_cookie.value() {
         let err_msg = "CSRF token mismatch";
-        sentry::capture_message(err_msg, sentry::Level::Error);
+        log::error!("{err_msg}");
         return Err(ServerFnError::new(err_msg));
     }
 
     let pkce_cookie = jar.get(PKCE_VERIFIER_COOKIE).ok_or_else(|| {
         let err_msg = "pkce verifier not found";
-        sentry::capture_message(err_msg, sentry::Level::Error);
+        log::error!("{err_msg}");
         ServerFnError::new(err_msg)
     })?;
     let pkce_verifier = PkceCodeVerifier::new(pkce_cookie.value().to_owned());
@@ -432,10 +426,7 @@ pub async fn perform_oauth_login_impl(
 
         Err(e) => {
             let err_msg = e.to_string();
-            sentry::capture_message(
-                &format!("OAuth login failed: {}", err_msg),
-                sentry::Level::Error,
-            );
+        log::error!("OAuth error occurred: {err_msg}");
             redirect_uri
                 .query_pairs_mut()
                 .clear()

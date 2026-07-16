@@ -272,10 +272,6 @@ async fn handle_authorization_code_grant(
     client_secret: Option<String>,
     server_url: &str,
 ) -> Result<TokenGrantRes, TokenGrantError> {
-    // Set Sentry context for this grant flow
-    crate::middleware::sentry_user::add_tag("grant_type", "authorization_code");
-    crate::middleware::sentry_user::add_tag("client_id", &client_id);
-
     let validation_res =
         verify_client_secret(ctx, &client_id, client_secret, Some(&redirect_uri)).await?;
 
@@ -296,7 +292,6 @@ async fn handle_authorization_code_grant(
     let code_claims = auth_code.claims;
 
     // Set user context for tracking
-    crate::middleware::sentry_user::set_user_context(code_claims.sub);
     if code_claims.ext_redirect_uri != redirect_uri {
         return Err(TokenGrantError {
             error: TokenGrantErrorKind::InvalidGrant,
@@ -336,10 +331,6 @@ async fn handle_refresh_token_grant(
     client_secret: Option<String>,
     server_url: &str,
 ) -> Result<TokenGrantRes, TokenGrantError> {
-    // Set Sentry context for this grant flow
-    crate::middleware::sentry_user::add_tag("grant_type", "refresh_token");
-    crate::middleware::sentry_user::add_tag("client_id", &client_id);
-
     let validation_res = verify_client_secret(ctx, &client_id, client_secret, None).await?;
 
     let mut validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::ES256);
@@ -359,7 +350,6 @@ async fn handle_refresh_token_grant(
     let refresh_claims = refresh_token.claims;
 
     // Set user context for tracking
-    crate::middleware::sentry_user::set_user_context(refresh_claims.sub);
 
     let grant = generate_access_token(
         ctx,
@@ -386,7 +376,6 @@ async fn client_credentials_grant_for_backend(
     res: ValidationRes,
 ) -> Result<TokenGrantRes, TokenGrantError> {
     // Set Sentry tag for backend service type
-    crate::middleware::sentry_user::add_tag("client_type", "backend_service");
 
     let server_url = match get_server_url_from_request().await {
         Ok(url) => url,
@@ -416,7 +405,6 @@ async fn client_credentials_grant_for_backend(
 
     if let Some(principal) = princ_res {
         // Set user context for existing backend service principal
-        crate::middleware::sentry_user::set_user_context(principal);
         return generate_access_token(
             ctx,
             principal,
@@ -439,7 +427,6 @@ async fn client_credentials_grant_for_backend(
     let principal = identity.sender().unwrap();
 
     // Set user context for new backend service principal
-    crate::middleware::sentry_user::set_user_context(principal);
 
     ctx.kv_store
         .write(
@@ -473,10 +460,6 @@ async fn handle_client_credentials_grant(
     client_secret: Option<String>,
     server_url: &str,
 ) -> Result<TokenGrantRes, TokenGrantError> {
-    // Set Sentry context for this grant flow
-    crate::middleware::sentry_user::add_tag("grant_type", "client_credentials");
-    crate::middleware::sentry_user::add_tag("client_id", &client_id);
-
     let validation_res = verify_client_secret(ctx, &client_id, client_secret, None).await?;
     if validation_res.kind == OAuthClientType::BackendService {
         return client_credentials_grant_for_backend(ctx, client_id, validation_res).await;
@@ -488,13 +471,6 @@ async fn handle_client_credentials_grant(
             error: TokenGrantErrorKind::ServerError,
             error_description: e.to_string(),
         })?;
-
-    // Set user context for anonymous identity
-    crate::middleware::sentry_user::set_user_context_with_metadata(
-        identity.sender().unwrap(),
-        None,
-        true,
-    );
 
     let grant = generate_access_token_with_identity(
         ctx,
