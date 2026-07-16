@@ -238,7 +238,7 @@ Never push code changes to git without first verifying they compile and run loca
 
 **Flux ImagePolicy (official — only 3 policy types exist):**
 - `SemVer` — semantic versioning range (e.g. `>=1.0.0`)
-- `Alphabetical` — string sort, `asc` picks Z (last), `desc` picks A (first) — use `desc` for timestamp-prefixed tags
+- `Alphabetical` — string sort, `asc` picks Z (last/highest), `desc` picks A (first/lowest) — use `asc` for timestamp-prefixed tags
 - `Numerical` — numeric sort, same order semantics
 - `filterTags.pattern` — regex to filter tags; `filterTags.extract` — optional capture group extraction for sorting
 - NO `Latest` policy type exists — do not attempt to use it

@@ -14,6 +14,6 @@ spec:
     name: yral-auth
   policy:
     alphabetical:
-      order: desc
+      order: asc
   filterTags:
     pattern: '^\d{14}-[0-9a-f]{8}$'
