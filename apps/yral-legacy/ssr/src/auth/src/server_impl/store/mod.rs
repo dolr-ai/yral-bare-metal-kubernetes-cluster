@@ -1,5 +1,4 @@
 pub mod dragonfly_kv;
-pub mod dragonfly_kv;
 pub mod redis_kv;
 
 use enum_dispatch::enum_dispatch;

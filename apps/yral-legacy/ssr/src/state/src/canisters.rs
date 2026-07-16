@@ -97,7 +97,7 @@ pub fn auth_state() -> AuthState {
 
 #[derive(Params, PartialEq, Clone)]
 struct Referrer {
-    user_refer: String,
+    user_refer: Option<String>,
 }
 
 #[derive(Copy, Clone)]
@@ -143,13 +143,13 @@ impl Default for AuthState {
             );
         let referrer_query = use_query::<Referrer>();
         let referrer_principal = Signal::derive(move || {
-            let referrer_query_val = referrer_query()
+            let referrer_query_val = referrer_query.get()
                 .ok()
-                .and_then(|r| Principal::from_text(r.user_refer).ok());
+                .and_then(|r| r.user_refer.and_then(|s| Principal::from_text(s).ok()));
 
             let referrer_cookie_val = referrer_cookie.get_untracked();
             if let Some(ref_princ) = referrer_query_val {
-                set_referrer_cookie(Some(ref_princ));
+                set_referrer_cookie.set(Some(ref_princ));
                 Some(ref_princ)
             } else {
                 referrer_cookie_val
@@ -166,7 +166,7 @@ impl Default for AuthState {
         let new_identity_setter = RwSignal::new(None::<NewIdentity>);
 
         let user_identity_resource = Resource::new(
-            move || MockPartialEq(new_identity_setter()),
+            move || MockPartialEq(new_identity_setter.get()),
             move |auth_id| async move {
                 let temp_identity = temp_identity_resource.await;
 
@@ -201,7 +201,7 @@ impl Default for AuthState {
 
         let canisters_resource: AuthCansResource = LocalResource::new(move || {
             user_identity_resource.track();
-            let new_cans = new_cans_setter();
+            let new_cans = new_cans_setter.get();
             async move {
                 let new_id = user_identity_resource.await?;
                 match new_cans {
