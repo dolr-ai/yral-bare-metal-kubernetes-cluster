@@ -1,0 +1,35 @@
+primary_region = 'iad'
+
+[build]
+
+[env]
+PORT = '8080'
+SENTRY_ENVIRONMENT = "staging"
+ALLOYDB_DB_NAME = "postgres"
+ALLOYDB_DB_USER = "postgres"
+REPORT_APPROVED_NSFW_BAN_ENABLED = "true"
+
+[deploy]
+strategy = "rolling"
+
+[[services]]
+internal_port = 50051
+protocol = "tcp"
+processes = ["app"]
+
+[[services.ports]]
+handlers = ["tls", "http"]
+tls_options = { "alpn" = ["h2"], "versions" = ["TLSv1.2", "TLSv1.3"] }
+port = 443
+
+[services.ports.http_options]
+h2_backend = true
+
+[services.concurrency]
+hard_limit = 1000
+soft_limit = 5
+
+[[vm]]
+memory = '16gb'
+cpu_kind = 'performance'
+cpus = 8

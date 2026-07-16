@@ -1,0 +1,43 @@
+use axum::{routing::post, Router};
+use std::sync::Arc;
+use utoipa_axum::{router::OpenApiRouter, routes};
+
+use crate::{
+    app_state::AppState,
+    videogen::{comfyui_webhook, handlers, handlers_v2, replicate_webhook},
+};
+
+/// V1 API routes for video generation
+pub fn videogen_router<S>(state: Arc<AppState>) -> OpenApiRouter<S> {
+    OpenApiRouter::new()
+        .routes(routes!(handlers::generate_video_with_identity))
+        .with_state(state)
+}
+
+/// V2 API routes for video generation
+pub fn videogen_router_v2<S>(state: Arc<AppState>) -> OpenApiRouter<S> {
+    OpenApiRouter::new()
+        .routes(routes!(handlers_v2::get_providers))
+        .routes(routes!(handlers_v2::get_providers_all))
+        .routes(routes!(handlers_v2::generate_video_with_identity_v2))
+        .routes(routes!(handlers_v2::get_in_progress_videos))
+        .routes(routes!(handlers_v2::get_all_video_status))
+        .with_state(state)
+}
+
+/// Replicate webhook router - separate from API docs since it's an internal endpoint
+pub fn replicate_webhook_router(state: Arc<AppState>) -> Router<Arc<AppState>> {
+    Router::new()
+        .route(
+            "/webhook",
+            post(replicate_webhook::handle_replicate_webhook),
+        )
+        .with_state(state)
+}
+
+/// ComfyUI webhook router - separate from API docs since it's an internal endpoint
+pub fn comfyui_webhook_router(state: Arc<AppState>) -> Router<Arc<AppState>> {
+    Router::new()
+        .route("/webhook", post(comfyui_webhook::handle_comfyui_webhook))
+        .with_state(state)
+}

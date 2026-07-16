@@ -181,6 +181,13 @@ The repo uses a single monorepo-wide `mise.toml` at the repository root as the s
 
 This ensures `mise bootstrap --yes && mise run setup` is the only command needed to go from a fresh machine to a working environment.
 
+**Per-service local dev convention (all services):** Every service we host and maintain follows the same pattern for local development:
+- **Tasks and plaintext env vars** → `mise.toml` (per-app `[tasks]` and `[env]` sections, or root `mise.toml` for shared values)
+- **Secrets** → `fnox.toml` (age-encrypted, committed to git)
+- **Long-running dev servers** → `pitchfork.toml` (with ready checks, restart policies, automatic cleanup)
+- Reuse shared secrets (Dragonfly TLS certs, Harbor credentials, etc.) across services — don't duplicate values, reference the same fnox secret definitions
+- For each new service onboarded, create mise tasks (`<app>-build`, `<app>-run`, `<app>-image`), add secrets to fnox, and add a pitchfork daemon entry
+
 ### GPU (Vast.ai)
 `vastai-provision` role + playbook (not Kubernetes). Always ≥2 replicas on distinct offers. Shared infra SSH key attached. Override vars at invocation (never new playbook).
 

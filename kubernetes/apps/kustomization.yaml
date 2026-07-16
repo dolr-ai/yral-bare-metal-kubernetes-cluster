@@ -5,3 +5,4 @@ resources:
   - dashboard
   - yral-auth
   - yral-legacy
+  - yral-metadata

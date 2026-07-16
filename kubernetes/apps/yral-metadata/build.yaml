@@ -1,0 +1,36 @@
+# Shipwright Build CR for yral-metadata.
+#
+# Defines how to build the yral-metadata image from source using BuildKit.
+# Source: the monorepo (dolr-ai/yral-bare-metal-kubernetes-cluster) at apps/yral-metadata/
+# Strategy: buildkit (ClusterBuildStrategy, rootless BuildKit)
+# Output: harbor.yral.com/yral-metadata/yral-metadata
+---
+apiVersion: shipwright.io/v1beta1
+kind: Build
+metadata:
+  name: yral-metadata
+  namespace: yral-metadata
+spec:
+  source:
+    type: Git
+    git:
+      url: https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git
+      revision: main
+      cloneSecret: github-clone-secret
+    contextDir: apps/yral-metadata
+  strategy:
+    name: buildkit
+    kind: ClusterBuildStrategy
+  paramValues:
+    - name: dockerfile
+      value: Dockerfile.buildkit
+    - name: cache
+      value: registry
+  output:
+    image: harbor.yral.com/yral-metadata/yral-metadata
+    pushSecret: harbor-pull-secret
+  retention:
+    succeededLimit: 3
+    failedLimit: 3
+    ttlAfterSucceeded: 1h
+    ttlAfterFailed: 24h

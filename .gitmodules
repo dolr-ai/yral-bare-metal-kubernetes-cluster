@@ -13,12 +13,6 @@
 [submodule "apps/yral-billing"]
 	path = apps/yral-billing
 	url = https://github.com/dolr-ai/yral-billing.git
-[submodule "apps/yral-metadata"]
-	path = apps/yral-metadata
-	url = https://github.com/dolr-ai/yral-metadata.git
-[submodule "apps/off-chain-agent"]
-	path = apps/off-chain-agent
-	url = https://github.com/dolr-ai/off-chain-agent.git
 [submodule "apps/yral"]
 	path = apps/yral
 	url = https://github.com/dolr-ai/yral.git

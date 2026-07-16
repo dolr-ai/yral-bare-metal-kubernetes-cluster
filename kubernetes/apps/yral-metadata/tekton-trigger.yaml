@@ -1,0 +1,127 @@
+---
+# ServiceAccount for the Tekton EventListener.
+# Needs permissions to create BuildRuns in the yral-metadata namespace.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tekton-trigger-sa
+  namespace: yral-metadata
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tekton-trigger-role
+  namespace: yral-metadata
+rules:
+  - apiGroups: ["shipwright.io"]
+    resources: ["buildruns", "builds"]
+    verbs: ["create", "get", "list", "watch"]
+  - apiGroups: ["triggers.tekton.dev"]
+    resources: ["triggerbindings", "triggertemplates", "eventlisteners", "triggers", "interceptors"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tekton-trigger-binding
+  namespace: yral-metadata
+subjects:
+  - kind: ServiceAccount
+    name: tekton-trigger-sa
+    namespace: yral-metadata
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tekton-trigger-role
+---
+# ClusterRole for the Tekton EventListener — needs cluster-scope read access
+# to ClusterInterceptor and ClusterTriggerBinding resources.
+# Note: uses the same ClusterRole as yral-auth/yral-legacy (tekton-trigger-clusterrole)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tekton-trigger-clusterbinding-yral-metadata
+subjects:
+  - kind: ServiceAccount
+    name: tekton-trigger-sa
+    namespace: yral-metadata
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-trigger-clusterrole
+---
+# TriggerBinding extracts fields from the GitHub push event payload.
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: github-push-binding
+  namespace: yral-metadata
+spec:
+  params:
+    - name: repo-url
+      value: $(body.repository.html_url)
+    - name: revision
+      value: $(body.ref)
+    - name: commit-sha
+      value: $(body.after)
+    - name: image-tag
+      value: $(extensions.image_tag)
+---
+# TriggerTemplate creates a BuildRun with a timestamp-prefixed image tag.
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: yral-metadata-buildrun-template
+  namespace: yral-metadata
+spec:
+  params:
+    - name: repo-url
+      description: The Git repository URL
+    - name: revision
+      description: The Git ref (e.g. refs/heads/main)
+    - name: commit-sha
+      description: The full commit SHA
+    - name: image-tag
+      description: Timestamp-prefixed tag (YYYYMMDDHHMMSS-short-sha)
+  resourcetemplates:
+    - apiVersion: shipwright.io/v1beta1
+      kind: BuildRun
+      metadata:
+        generateName: yral-metadata-auto-
+        namespace: yral-metadata
+        labels:
+          app: yral-metadata
+          trigger: github-push
+      spec:
+        build:
+          name: yral-metadata
+        output:
+          image: harbor.yral.com/yral-metadata/yral-metadata:$(tt.params.image-tag)
+---
+# EventListener receives GitHub push events and creates BuildRuns.
+# Filters out fluxcdbot commits to prevent feedback loops.
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: yral-metadata-build-listener
+  namespace: yral-metadata
+spec:
+  serviceAccountName: tekton-trigger-sa
+  triggers:
+    - name: github-push
+      bindings:
+        - kind: TriggerBinding
+          ref: github-push-binding
+      template:
+        ref: yral-metadata-buildrun-template
+      interceptors:
+        - name: filter-push-main
+          ref:
+            name: cel
+          params:
+            - name: filter
+              value: "body.ref == 'refs/heads/main' && body.head_commit.author.username != 'fluxcdbot'"
+            - name: overlays
+              value:
+                - key: image_tag
+                  expression: "body.head_commit.timestamp.translate('[-:TZ]', '') + '-' + body.after.truncate(8)"

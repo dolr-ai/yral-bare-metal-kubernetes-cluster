@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: yral-metadata-config
+  namespace: yral-metadata
+data:
+  BIND_ADDRESS: "0.0.0.0:7000"
+  RUST_LOG: "info"

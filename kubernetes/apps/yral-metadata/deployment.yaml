@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: yral-metadata
+  namespace: yral-metadata
+  annotations:
+    secret.reloader.stakater.com/reload: "yral-metadata-secrets"
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: yral-metadata
+  template:
+    metadata:
+      labels:
+        app: yral-metadata
+    spec:
+      imagePullSecrets:
+        - name: harbor-pull-secret
+      containers:
+        - name: yral-metadata
+          image: harbor.yral.com/yral-metadata/yral-metadata:latest # {"$imagepolicy": "flux-system:yral-metadata"}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 7000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: yral-metadata-config
+            - secretRef:
+                name: yral-metadata-secrets
+          livenessProbe:
+            httpGet:
+              path: /metadata/health
+              port: 7000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /metadata/health
+              port: 7000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

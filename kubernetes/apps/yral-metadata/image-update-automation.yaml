@@ -1,0 +1,23 @@
+# Flux ImageUpdateAutomation — commits image tag updates to git.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageUpdateAutomation
+metadata:
+  name: yral-metadata
+  namespace: flux-system
+spec:
+  interval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  git:
+    commit:
+      author:
+        name: fluxcdbot
+        email: fluxcdbot@users.noreply.github.com
+      messageTemplate: "chore: update yral-metadata image tag\n"
+    push:
+      branch: main
+  update:
+    path: ./kubernetes/apps/yral-metadata
+    strategy: Setters

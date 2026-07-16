@@ -1,0 +1,46 @@
+# yral-metadata HTTPRoute
+#
+# Exposes the yral-metadata API service at metadata.yral.com — a public
+# endpoint providing user metadata, notifications, and session management.
+#
+# TLS is terminated by the Cilium Gateway (web-gateway in kube-system)
+# using the wildcard *.yral.com certificate.
+# The ReferenceGrant in the yral-metadata namespace allows this HTTPRoute
+# to reference yral-metadata:7000 as a backend.
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: yral-metadata-redirect
+  namespace: kube-system
+spec:
+  parentRefs:
+    - name: web-gateway
+      namespace: kube-system
+      sectionName: http
+  hostnames:
+    - metadata.yral.com
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: yral-metadata
+  namespace: kube-system
+spec:
+  parentRefs:
+    - name: web-gateway
+      namespace: kube-system
+      sectionName: https
+  hostnames:
+    - metadata.yral.com
+  rules:
+    - backendRefs:
+        - name: yral-metadata
+          namespace: yral-metadata
+          port: 7000

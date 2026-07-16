@@ -1,0 +1,19 @@
+# Flux ImagePolicy — selects the latest image tag for yral-metadata.
+#
+# Tags are timestamp-prefixed: YYYYMMDDHHMMSS-<short-sha>
+# (e.g. 20260716021700-a2e4e7b8). Alphabetical ascending picks the
+# most recent build since timestamp prefix ensures chronological sorting.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: yral-metadata
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: yral-metadata
+  policy:
+    alphabetical:
+      order: asc
+  filterTags:
+    pattern: '^\d{14}-[0-9a-f]{8}$'

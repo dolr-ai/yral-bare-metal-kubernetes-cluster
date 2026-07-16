@@ -20,3 +20,5 @@ resources:
   - yral-auth-build.yaml
   - yral-legacy.yaml
   - yral-legacy-build.yaml
+  - yral-metadata.yaml
+  - yral-metadata-build.yaml
