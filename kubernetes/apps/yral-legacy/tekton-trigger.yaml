@@ -71,8 +71,13 @@ spec:
       value: $(body.ref)
     - name: commit-sha
       value: $(body.after)
+    - name: image-tag
+      value: $(extensions.image_tag)
 ---
-# TriggerTemplate creates a BuildRun with the commit SHA as the image tag.
+# TriggerTemplate creates a BuildRun with a timestamp-prefixed image tag.
+# Tag format: YYYYMMDDHHMMSS-<short-sha> (e.g. 20260716021700-a2e4e7b8).
+# The timestamp prefix ensures Alphabetical:desc in the Flux ImagePolicy
+# correctly selects the most recent build.
 apiVersion: triggers.tekton.dev/v1beta1
 kind: TriggerTemplate
 metadata:
@@ -85,7 +90,9 @@ spec:
     - name: revision
       description: The Git ref (e.g. refs/heads/main)
     - name: commit-sha
-      description: The commit SHA, used as the image tag
+      description: The full commit SHA
+    - name: image-tag
+      description: Timestamp-prefixed tag (YYYYMMDDHHMMSS-short-sha)
   resourcetemplates:
     - apiVersion: shipwright.io/v1beta1
       kind: BuildRun
@@ -99,7 +106,7 @@ spec:
         build:
           name: yral-legacy
         output:
-          image: harbor.yral.com/yral-legacy/yral-legacy:$(tt.params.commit-sha)
+          image: harbor.yral.com/yral-legacy/yral-legacy:$(tt.params.image-tag)
 ---
 # EventListener receives GitHub push events and creates BuildRuns.
 apiVersion: triggers.tekton.dev/v1beta1
@@ -123,3 +130,7 @@ spec:
           params:
             - name: filter
               value: "body.ref == 'refs/heads/main'"
+            - name: overlays
+              value:
+                - key: image_tag
+                  expression: "body.head_commit.timestamp.translate('[-:TZ]', '') + '-' + body.after.truncate(8)"

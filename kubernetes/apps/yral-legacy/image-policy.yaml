@@ -1,9 +1,8 @@
 # Flux ImagePolicy — selects the latest image tag for yral-legacy.
 #
-# Tags are Git commit SHAs (40 hex chars) from Shipwright BuildRuns
-# triggered by Tekton EventListener on git push. The Latest policy picks
-# the most recently pushed tag by registry timestamp — Alphabetical would
-# be meaningless for SHA hashes since hash order ≠ commit order.
+# Tags are timestamp-prefixed: YYYYMMDDHHMMSS-<short-sha>
+# (e.g. 20260716021700-a2e4e7b8). Alphabetical descending picks the
+# most recent build since timestamp prefix ensures chronological sorting.
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImagePolicy
@@ -14,7 +13,7 @@ spec:
   imageRepositoryRef:
     name: yral-legacy
   policy:
-    latest:
+    alphabetical:
       order: desc
   filterTags:
-    pattern: '^[0-9a-f]{40}$'
+    pattern: '^\d{14}-[0-9a-f]{8}$'

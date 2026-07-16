@@ -72,6 +72,9 @@ Cross-namespace is the exception (shared infra like Cilium/cert-manager/monitori
 ### Default-First Configuration
 Prefer component defaults. Add explicit config only when a concrete problem requires deviation. Explicitly matching the default creates maintenance burden and obscures intent.
 
+### Docs-First for Tooling (Hard Rule)
+When using a tool or library for the first time (or encountering a non-trivial configuration question), **always check the official documentation first** before trial-and-error. Find the canonical/prescribed way to do it, implement that, and record it in AGENTS.md under the relevant tooling section. Never guess at API shapes, configuration fields, or patterns — fetch the docs, read the prescribed approach, and follow it exactly. This prevents hours of wasted iteration on wrong assumptions.
+
 **Binary search debugging for procedural code:** When stuck after a couple of failed iterations on Dockerfiles, scripts, or any multi-step procedural code, comment out everything except the first essential step. Verify it works (locally + in-cluster). Then uncomment one line/step at a time, verifying each works before proceeding to the next. This isolates the exact failing step without rewriting from scratch.
 
 ### Component Versioning
@@ -215,6 +218,27 @@ In-cluster image building via Shipwright (CRD-native operator, CNCF Sandbox) wra
 3. **Test the specific change** — manually verify the feature/fix works as expected via the local endpoint or browser.
 4. **Only then push** — once local testing passes, push to git and let the CI/CD pipeline build and deploy.
 Never push code changes to git without first verifying they compile and run locally. Waiting for an in-cluster Shipwright build to discover a compile error or runtime failure wastes 10+ minutes per iteration.
+
+**CI/CD Pipeline (Tekton Triggers → Shipwright → Harbor → Flux):** Git push → Tekton EventListener → BuildRun (via Shipwright/BuildKit) → Harbor image push → Flux ImageRepository/ImagePolicy/ImageUpdateAutomation → git commit updating deployment manifest → Flux Kustomization reconcile → new pods.
+
+- Per-app Tekton Trigger resources in `kubernetes/apps/<app>/tekton-trigger.yaml`: ServiceAccount, Role/RoleBinding, ClusterRole/ClusterRoleBinding, TriggerBinding, TriggerTemplate, EventListener.
+- GitHub webhook → EventListener Service (exposed via Cilium Gateway HTTPRoute).
+
+**Image tagging (timestamp-prefixed, NOT raw commit SHA):** Tags are `YYYYMMDDHHMMSS-<8-char-sha>` (e.g. `20260716021700-a2e4e7b8`). The timestamp prefix ensures `Alphabetical:desc` in Flux ImagePolicy correctly selects the most recent build (chronological order = alphabetical order). Raw commit SHAs are meaningless alphabetically — `d424a6c2...` would outrank `a2e4e7b8...` regardless of commit time.
+
+**Tekton Triggers CEL Interceptor (official pattern):**
+- Overlay `key`: just the field name (e.g. `image_tag`), NOT prefixed with `body.` or `extensions.`
+- Overlay `expression`: CEL expression evaluated against `body` (JSON payload), `header`, `extensions`, `requestURL`
+- TriggerBinding access: `$(extensions.image_tag)` — NOT `$(body.extensions.image_tag)`
+- Available CEL functions: `truncate(uint)`, `translate(regex, repl)`, `split(sep)`, `join(sep)`, `replace(old, new)`, `substring(start, end)`, `lowerAscii()`, `upperAscii()`, `parseJSON()`, `parseURL()`
+- Example overlay: `expression: "body.head_commit.timestamp.translate('[-:TZ]', '') + '-' + body.after.truncate(8)"`
+
+**Flux ImagePolicy (official — only 3 policy types exist):**
+- `SemVer` — semantic versioning range (e.g. `>=1.0.0`)
+- `Alphabetical` — string sort, `asc` picks Z (last), `desc` picks A (first) — use `desc` for timestamp-prefixed tags
+- `Numerical` — numeric sort, same order semantics
+- `filterTags.pattern` — regex to filter tags; `filterTags.extract` — optional capture group extraction for sorting
+- NO `Latest` policy type exists — do not attempt to use it
 
 **Container runtime:** Use `podman` (managed by the root `mise.toml`) for local container tasks — `podman build`, `podman run`, `podman logs`. The `mise run yral-auth-image` and `mise run yral-auth-image-run` tasks wrap the standard build/run flow. Use `--platform linux/amd64` with `podman run` to run the exact same x86_64 images that run in the cluster — this ensures parity between local testing and production. Log into Harbor locally with `echo "$HARBOR_PASS" | podman login harbor.yral.com -u admin --password-stdin`.
 
