@@ -24,7 +24,7 @@ spec:
         - name: harbor-pull-secret
       containers:
         - name: yral-auth
-          image: harbor.yral.com/yral-auth/yral-auth:14012c87c84f8ead0b0fa8a6b34a71568a5da937 # {"$imagepolicy": "flux-system:yral-auth"}
+          image: harbor.yral.com/yral-auth/yral-auth:20260716024449-2a307111 # {"$imagepolicy": "flux-system:yral-auth"}
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
