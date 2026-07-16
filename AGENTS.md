@@ -69,6 +69,9 @@ Cross-namespace is the exception (shared infra like Cilium/cert-manager/monitori
 
 ## Policies
 
+### Edit Tooling Preference (Hard Rule)
+Never use terminal commands (`sed`, `awk`, `echo >`, `cat >`, `tee`, etc.) for text edits. Always use the VS Code edit tools (`replace_string_in_file`, `multi_replace_string_in_file`, `create_file`) so changes are visible in the diff editor for review. Terminal commands bypass the review workflow and can silently corrupt files.
+
 ### Default-First Configuration
 Prefer component defaults. Add explicit config only when a concrete problem requires deviation. Explicitly matching the default creates maintenance burden and obscures intent.
 

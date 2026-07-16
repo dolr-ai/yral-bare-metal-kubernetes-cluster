@@ -42,19 +42,19 @@ pub fn normalize_pem(pem: String) -> Vec<u8> {
 
 pub fn get_ca_cert_pem() -> Result<Vec<u8>, anyhow::Error> {
     Ok(normalize_pem(
-        std::env::var("DRAGONFLY_CA_CERT").expect("DRAGONFLY_CA_CERT env var not set"),
+        std::env::var("DRAGONFLY_REDIS_STORE_CA_CERT").expect("DRAGONFLY_REDIS_STORE_CA_CERT env var not set"),
     ))
 }
 
 pub fn get_client_cert_pem() -> Result<Vec<u8>, anyhow::Error> {
     Ok(normalize_pem(
-        std::env::var("DRAGONFLY_CLIENT_CERT").expect("DRAGONFLY_CLIENT_CERT env var not set"),
+        std::env::var("DRAGONFLY_REDIS_STORE_CLIENT_CERT").expect("DRAGONFLY_REDIS_STORE_CLIENT_CERT env var not set"),
     ))
 }
 
 pub fn get_client_key_pem() -> Result<Vec<u8>, anyhow::Error> {
     Ok(normalize_pem(
-        std::env::var("DRAGONFLY_CLIENT_KEY").expect("DRAGONFLY_CLIENT_KEY env var not set"),
+        std::env::var("DRAGONFLY_REDIS_STORE_CLIENT_KEY").expect("DRAGONFLY_REDIS_STORE_CLIENT_KEY env var not set"),
     ))
 }
 
@@ -73,8 +73,8 @@ fn build_tls_certs(
 }
 
 fn get_hosts_from_env() -> Vec<String> {
-    let hosts_str = std::env::var("DRAGONFLY_HOSTS")
-        .expect("DRAGONFLY_HOSTS environment variable not set")
+    let hosts_str = std::env::var("DRAGONFLY_REDIS_STORE_HOSTS")
+        .expect("DRAGONFLY_REDIS_STORE_HOSTS environment variable not set")
         .trim()
         .to_string();
 
@@ -429,8 +429,8 @@ pub async fn init_dragonfly_redis(
         })
         .collect();
 
-    let dragonfly_pass = std::env::var("DRAGONFLY_PASSWORD")
-        .expect("DRAGONFLY_PASSWORD environment variable not set");
+    let dragonfly_pass = std::env::var("DRAGONFLY_REDIS_STORE_PASSWORD")
+        .expect("DRAGONFLY_REDIS_STORE_PASSWORD environment variable not set");
 
     let mut builder =
         SentinelClientBuilder::new(conn_addr, SENTINEL_SERVICE_NAME, SentinelServerType::Master)?;
@@ -487,8 +487,8 @@ pub async fn init_dragonfly_redis_for_test() -> Result<Arc<DragonflyPool>, KVErr
         })
         .collect();
 
-    let dragonfly_pass = std::env::var("DRAGONFLY_PASSWORD")
-        .expect("DRAGONFLY_PASSWORD environment variable not set");
+    let dragonfly_pass = std::env::var("DRAGONFLY_REDIS_STORE_PASSWORD")
+        .expect("DRAGONFLY_REDIS_STORE_PASSWORD environment variable not set");
 
     let mut builder =
         SentinelClientBuilder::new(conn_addr, SENTINEL_SERVICE_NAME, SentinelServerType::Master)?;
