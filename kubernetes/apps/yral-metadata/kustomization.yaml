@@ -13,6 +13,7 @@ resources:
   - image-repository.yaml
   - image-policy.yaml
   - image-update-automation.yaml
-  - harbor-scan-secret.sops.yaml
-  # tekton-trigger.yaml — temporarily disabled to debug "id matched 2 resources" error
-  # - tekton-trigger.yaml
+  # harbor-scan-secret is NOT included here — it's defined once in yral-auth
+  # and shared across all apps (same Secret in flux-system namespace).
+  # Including it here causes "id matched 2 resources" kustomize error.
+  - tekton-trigger.yaml

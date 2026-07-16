@@ -256,6 +256,10 @@ Never push code changes to git without first verifying they compile and run loca
 
 **Container runtime:** Use `podman` (managed by the root `mise.toml`) for local container tasks — `podman build`, `podman run`, `podman logs`. The `mise run yral-auth-image` and `mise run yral-auth-image-run` tasks wrap the standard build/run flow. Use `--platform linux/amd64` with `podman run` to run the exact same x86_64 images that run in the cluster — this ensures parity between local testing and production. Log into Harbor locally with `echo "$HARBOR_PASS" | podman login harbor.yral.com -u admin --password-stdin`.
 
+**Shared cluster-scoped resources (avoid kustomize "id matched 2 resources"):** When multiple app sub-kustomizations are included in the same parent Kustomization (`apps`), cluster-scoped resources (ClusterRole, ClusterRoleBinding) and shared namespace resources (e.g., `harbor-scan-secret` in `flux-system`) must be defined only ONCE. Duplicate definitions with the same name cause kustomize build failures.
+- **ClusterRole/ClusterRoleBinding for Tekton triggers**: Define the ClusterRole once (in the first app's tekton-trigger.yaml). Other apps only create a ClusterRoleBinding referencing the existing ClusterRole — do NOT redefine the ClusterRole.
+- **`harbor-scan-secret` in `flux-system`**: Define once (in yral-auth). Other apps' ImageRepository resources reference it by name — do NOT create a duplicate `harbor-scan-secret` in each app's kustomization.
+
 ## Questions for Agents (When in Doubt)
 
 1. Is this logic in a role? → Move it.
