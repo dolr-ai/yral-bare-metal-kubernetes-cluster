@@ -1,0 +1,45 @@
+[workspace]
+members = [
+    "canisters-client",
+    "canisters-common",
+    "qstash-types",
+    "types",
+    "sns-validation",
+    "config-keys",
+    "config-cf-kv",
+    "config-cf-kv-worker",
+    "pump-n-dump-common",
+    "metrics",
+    "ml-feed-cache",
+    "alloydb-client", "identity",
+    "videogen-common", "username-gen",
+]
+resolver = "2"
+
+[workspace.dependencies]
+serde = { version = "1.0.210", features = ["derive"] }
+serde_bytes = "0.11.15"
+serde_json = "1.0.128"
+ic-agent = { version = "0.41.0", default-features = false }
+types = { package = "yral-types", path = "types" }
+identity = { package = "yral-identity", path = "identity", default-features = false }
+canisters-client = { package = "yral-canisters-client", path = "canisters-client" }
+global-constants = { package = "global-constants", path = "global-constants" }
+pump-n-dump-common = { package = "yral-pump-n-dump-common", path = "pump-n-dump-common" }
+hon-worker-common = { package = "hon-worker-common", path = "hon-worker-common", features = [
+    "client",
+] }
+username-gen = { package = "yral-username-gen", path = "username-gen" }
+candid = "0.10.20"
+url = "2.5.4"
+web-time = "1.0.0"
+thiserror = "2.0.3"
+log = "0.4.22"
+k256 = { version = "0.13.4", default-features = false, features = ["jwk"] }
+futures-util = "0.3.31"
+uuid = { version = "1.11.0", features = ["serde"] }
+serde_with = "3.12.0"
+trait-variant = "0.1.2"
+num-bigint = "0.4.6"
+async-trait = "0.1"
+enum_dispatch = "0.3"
