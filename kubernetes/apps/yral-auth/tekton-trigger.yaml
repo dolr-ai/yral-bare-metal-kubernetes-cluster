@@ -131,7 +131,7 @@ spec:
             name: cel
           params:
             - name: filter
-              value: "body.ref == 'refs/heads/main'"
+              value: "body.ref == 'refs/heads/main' && body.head_commit.author.username != 'fluxcdbot'"
             - name: overlays
               value:
                 - key: image_tag

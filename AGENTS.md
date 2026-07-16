@@ -229,6 +229,7 @@ Never push code changes to git without first verifying they compile and run loca
 
 - Per-app Tekton Trigger resources in `kubernetes/apps/<app>/tekton-trigger.yaml`: ServiceAccount, Role/RoleBinding, ClusterRole/ClusterRoleBinding, TriggerBinding, TriggerTemplate, EventListener.
 - GitHub webhook → EventListener Service (exposed via Cilium Gateway HTTPRoute).
+- **Filter out fluxcdbot commits**: The CEL interceptor MUST filter `body.head_commit.author.username != 'fluxcdbot'` to prevent a feedback loop (Flux ImageUpdateAutomation commits tag updates → triggers new build → new image → Flux commits again → infinite loop).
 
 **Image tagging (timestamp-prefixed, NOT raw commit SHA):** Tags are `YYYYMMDDHHMMSS-<8-char-sha>` (e.g. `20260716021700-a2e4e7b8`). The timestamp prefix ensures `Alphabetical:desc` in Flux ImagePolicy correctly selects the most recent build (chronological order = alphabetical order). Raw commit SHAs are meaningless alphabetically — `d424a6c2...` would outrank `a2e4e7b8...` regardless of commit time.
 
