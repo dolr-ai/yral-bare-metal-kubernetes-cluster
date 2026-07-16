@@ -1,0 +1,122 @@
+---
+# ServiceAccount for the Tekton EventListener.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tekton-trigger-sa
+  namespace: off-chain-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tekton-trigger-role
+  namespace: off-chain-agent
+rules:
+  - apiGroups: ["shipwright.io"]
+    resources: ["buildruns", "builds"]
+    verbs: ["create", "get", "list", "watch"]
+  - apiGroups: ["triggers.tekton.dev"]
+    resources: ["triggerbindings", "triggertemplates", "eventlisteners", "triggers", "interceptors"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tekton-trigger-binding
+  namespace: off-chain-agent
+subjects:
+  - kind: ServiceAccount
+    name: tekton-trigger-sa
+    namespace: off-chain-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tekton-trigger-role
+---
+# ClusterRoleBinding referencing the shared ClusterRole (defined once in yral-auth).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tekton-trigger-clusterbinding-off-chain-agent
+subjects:
+  - kind: ServiceAccount
+    name: tekton-trigger-sa
+    namespace: off-chain-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-trigger-clusterrole
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: github-push-binding
+  namespace: off-chain-agent
+spec:
+  params:
+    - name: repo-url
+      value: $(body.repository.html_url)
+    - name: revision
+      value: $(body.ref)
+    - name: commit-sha
+      value: $(body.after)
+    - name: image-tag
+      value: $(extensions.image_tag)
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: off-chain-agent-buildrun-template
+  namespace: off-chain-agent
+spec:
+  params:
+    - name: repo-url
+      description: The Git repository URL
+    - name: revision
+      description: The Git ref (e.g. refs/heads/main)
+    - name: commit-sha
+      description: The full commit SHA
+    - name: image-tag
+      description: Timestamp-prefixed tag (YYYYMMDDHHMMSS-short-sha)
+  resourcetemplates:
+    - apiVersion: shipwright.io/v1beta1
+      kind: BuildRun
+      metadata:
+        generateName: off-chain-agent-auto-
+        namespace: off-chain-agent
+        labels:
+          app: off-chain-agent
+          trigger: github-push
+      spec:
+        build:
+          name: off-chain-agent
+        output:
+          image: harbor.yral.com/off-chain-agent/off-chain-agent:$(tt.params.image-tag)
+---
+# EventListener receives GitHub push events and creates BuildRuns.
+# Filters out fluxcdbot commits to prevent feedback loops.
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: off-chain-agent-build-listener
+  namespace: off-chain-agent
+spec:
+  serviceAccountName: tekton-trigger-sa
+  triggers:
+    - name: github-push
+      bindings:
+        - kind: TriggerBinding
+          ref: github-push-binding
+      template:
+        ref: off-chain-agent-buildrun-template
+      interceptors:
+        - name: filter-push-main
+          ref:
+            name: cel
+          params:
+            - name: filter
+              value: "body.ref == 'refs/heads/main' && body.head_commit.author.username != 'fluxcdbot'"
+            - name: overlays
+              value:
+                - key: image_tag
+                  expression: "body.head_commit.timestamp.translate('[-:TZ]', '') + '-' + body.after.truncate(8)"

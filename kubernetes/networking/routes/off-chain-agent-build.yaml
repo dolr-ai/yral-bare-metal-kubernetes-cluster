@@ -1,0 +1,46 @@
+# Tekton EventListener HTTPRoute for off-chain-agent build triggers
+#
+# Exposes the Tekton EventListener at:
+#   https://off-chain-agent-build.yral.com/
+#
+# GitHub push webhooks are sent to this endpoint. The EventListener creates
+# a BuildRun via Shipwright/BuildKit.
+#
+# TLS: covered by existing wildcard *.yral.com cert (cert-manager, letsencrypt-prod).
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: off-chain-agent-build-redirect
+  namespace: kube-system
+spec:
+  parentRefs:
+    - name: web-gateway
+      namespace: kube-system
+      sectionName: http
+  hostnames:
+    - off-chain-agent-build.yral.com
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: off-chain-agent-build
+  namespace: kube-system
+spec:
+  parentRefs:
+    - name: web-gateway
+      namespace: kube-system
+      sectionName: https
+  hostnames:
+    - off-chain-agent-build.yral.com
+  rules:
+    - backendRefs:
+        - name: el-off-chain-agent-build-listener
+          namespace: off-chain-agent
+          port: 8080

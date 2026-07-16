@@ -1,0 +1,29 @@
+apiVersion: shipwright.io/v1beta1
+kind: Build
+metadata:
+  name: off-chain-agent
+  namespace: off-chain-agent
+spec:
+  source:
+    type: Git
+    git:
+      url: https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git
+      revision: main
+      cloneSecret: github-clone-secret
+    contextDir: apps/off-chain-agent
+  strategy:
+    name: buildkit
+    kind: ClusterBuildStrategy
+  paramValues:
+    - name: dockerfile
+      value: Dockerfile.buildkit
+    - name: cache
+      value: registry
+  output:
+    image: harbor.yral.com/off-chain-agent/off-chain-agent
+    pushSecret: harbor-pull-secret
+  retention:
+    succeededLimit: 3
+    failedLimit: 3
+    ttlAfterSucceeded: 1h
+    ttlAfterFailed: 24h

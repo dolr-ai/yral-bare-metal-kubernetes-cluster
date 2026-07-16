@@ -22,3 +22,5 @@ resources:
   - yral-legacy-build.yaml
   - yral-metadata.yaml
   - yral-metadata-build.yaml
+  - off-chain-agent.yaml
+  - off-chain-agent-build.yaml

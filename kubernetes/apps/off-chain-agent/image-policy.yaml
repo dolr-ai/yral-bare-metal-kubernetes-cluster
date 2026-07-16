@@ -1,0 +1,13 @@
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: off-chain-agent
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: off-chain-agent
+  policy:
+    alphabetical:
+      order: asc
+  filterTags:
+    pattern: '^\d{14}-[0-9a-f]{8}$'

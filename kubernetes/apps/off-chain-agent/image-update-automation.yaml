@@ -1,0 +1,21 @@
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageUpdateAutomation
+metadata:
+  name: off-chain-agent
+  namespace: flux-system
+spec:
+  interval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  git:
+    commit:
+      author:
+        name: fluxcdbot
+        email: fluxcdbot@users.noreply.github.com
+      messageTemplate: "chore: update off-chain-agent image tag\n"
+    push:
+      branch: main
+  update:
+    path: ./kubernetes/apps/off-chain-agent
+    strategy: Setters

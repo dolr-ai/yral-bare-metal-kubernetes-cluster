@@ -6,3 +6,4 @@ resources:
   - yral-auth
   - yral-legacy
   - yral-metadata
+  - off-chain-agent
