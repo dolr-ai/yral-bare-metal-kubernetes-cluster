@@ -498,10 +498,8 @@ pub async fn upload_video_gcs(
     )
     .await?;
 
-    let qstash_client = state.qstash_client.clone();
-    qstash_client
-        .publish_video_frames(&payload.video_id, &payload)
-        .await?;
+    // QStash has been removed. Frame publishing is no longer queued.
+    log::info!("Video uploaded to GCS for {} (QStash frame publishing removed)", payload.video_id);
 
     Ok(Json(
         serde_json::json!({ "message": "Video uploaded to GCS" }),

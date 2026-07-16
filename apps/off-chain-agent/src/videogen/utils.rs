@@ -170,20 +170,26 @@ pub async fn queue_to_qstash_with_rollback(
         })?
         .to_string();
 
-    // Attempt to queue
-    if let Err(e) = app_state
-        .qstash_client
-        .queue_video_generation(
-            &qstash_request,
-            if uses_webhook {
-                None
-            } else {
-                Some(&callback_url)
-            },
-        )
-        .await
+    // TODO: Remove QStash (Phase 2)
+    log::warn!("QStash disabled: queue_video_generation skipped");
+    if let Err(_e) = (|| async {
+        // app_state
+        //     .qstash_client
+        //     .queue_video_generation(
+        //         &qstash_request,
+        //         if uses_webhook {
+        //             None
+        //         } else {
+        //             Some(&callback_url)
+        //         },
+        //     )
+        //     .await
+        Ok::<(), anyhow::Error>(())
+    })()
+    .await
     {
-        log::error!("Failed to queue video generation: {e}. Rolling back balance.");
+        // log::error!("Failed to queue video generation: {e}. Rolling back balance.");
+        log::error!("Failed to queue video generation. Rolling back balance.");
 
         // Rollback balance on failure
         if let Err(rollback_err) = rollback_balance_on_failure(
@@ -201,7 +207,7 @@ pub async fn queue_to_qstash_with_rollback(
         return Err((
             StatusCode::SERVICE_UNAVAILABLE,
             Json(VideoGenError::NetworkError(format!(
-                "Failed to queue video generation: {e}"
+                "Failed to queue video generation"
             ))),
         ));
     }

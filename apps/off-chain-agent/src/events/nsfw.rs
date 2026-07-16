@@ -49,41 +49,9 @@ fn create_output_directory(video_id: &str) -> Result<PathBuf, Error> {
 }
 
 #[instrument]
-pub async fn extract_frames(video_path: &str, output_dir: PathBuf) -> Result<Vec<Vec<u8>>, Error> {
-    let output_pattern = output_dir.join("output-%04d.jpg");
-    let video_path_clone = video_path.to_string();
-    let output_pattern_str = output_pattern.to_string_lossy().to_string();
-
-    let status = tokio::task::spawn_blocking(move || {
-        Command::new("ffmpeg")
-            .arg("-loglevel")
-            .arg("error")
-            .arg("-i")
-            .arg(&video_path_clone)
-            .arg("-vf")
-            .arg("fps=1")
-            .arg("-pix_fmt")
-            .arg("rgb24")
-            .arg(&output_pattern_str)
-            .status()
-    })
-    .await??;
-
-    if !status.success() {
-        return Err(anyhow::anyhow!("Failed to extract frames"));
-    }
-
-    let mut frames = Vec::new();
-    for entry in fs::read_dir(output_dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_file() {
-            let frame = fs::read(&path)?;
-            frames.push(frame);
-        }
-    }
-
-    Ok(frames)
+pub async fn extract_frames(_video_path: &str, _output_dir: PathBuf) -> Result<Vec<Vec<u8>>, Error> {
+    log::warn!("NSFW frame extraction not available (ffmpeg removed)");
+    Err(anyhow::anyhow!("ffmpeg has been removed; frame extraction is not available"))
 }
 
 #[instrument(skip(gcs_client, frames))]
@@ -125,33 +93,23 @@ pub struct VideoRequest {
 }
 
 // extract_frames_and_upload API handler which takes video_id as queryparam in axum
-#[instrument(skip(state))]
+#[instrument(skip(_state))]
 pub async fn extract_frames_and_upload(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Json(payload): Json<VideoRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     setup_context!(&payload.video_id, Step::ExtractFrames, {
         "upload_info": &payload.video_info
     });
 
-    let video_id = payload.video_id;
-    let publisher_user_id = &payload.video_info.publisher_user_id;
-    let video_path = crate::consts::get_storj_video_url(publisher_user_id, &video_id, false);
-    let output_dir = create_output_directory(&video_id)?;
-    let frames = extract_frames(&video_path, output_dir.clone()).await?;
-    #[cfg(not(feature = "local-bin"))]
-    upload_frames_to_gcs(&state.gcs_client, frames, &video_id).await?;
-    // delete output directory
-    fs::remove_dir_all(output_dir)?;
-
-    // enqueue qstash job to detect nsfw
-    let qstash_client = state.qstash_client.clone();
-    qstash_client
-        .publish_video_nsfw_detection(&video_id, &payload.video_info)
-        .await?;
+    // ffmpeg has been removed; frame extraction is no longer available.
+    log::warn!(
+        "NSFW frame extraction not available (ffmpeg removed) for video {}",
+        payload.video_id
+    );
 
     Ok(Json(
-        serde_json::json!({ "message": "Frames extracted and uploaded to GCS" }),
+        serde_json::json!({ "message": "Frames extraction skipped (ffmpeg removed)" }),
     ))
 }
 
@@ -218,8 +176,6 @@ pub async fn nsfw_job(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<VideoRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    use sentry_anyhow::capture_anyhow;
-
     setup_context!(&payload.video_id, Step::NsfwDetection, {
         "upload_info": &payload.video_info
     });
@@ -230,18 +186,19 @@ pub async fn nsfw_job(
     let nsfw_info = get_video_nsfw_info(video_id.clone())
         .await
         .inspect_err(|e| {
-            capture_anyhow(e);
+            log::error!("get_video_nsfw_info failed: {:?}", e);
         })?;
 
     // push nsfw info to bigquery table
     let bigquery_client = state.bigquery_client.clone();
     push_nsfw_data_bigquery(bigquery_client, nsfw_info.clone(), video_id.clone()).await?;
 
-    // enqueue qstash job to detect nsfw v2
-    let qstash_client = state.qstash_client.clone();
-    qstash_client
-        .publish_video_nsfw_detection_v2(&video_id, video_info)
-        .await?;
+    // TODO: Remove QStash (Phase 2)
+    log::warn!("QStash disabled: publish_video_nsfw_detection_v2 skipped");
+    // let qstash_client = state.qstash_client.clone();
+    // qstash_client
+    //     .publish_video_nsfw_detection_v2(&video_id, video_info)
+    //     .await?;
 
     Ok(Json(serde_json::json!({ "message": "NSFW job completed" })))
 }
@@ -351,8 +308,6 @@ pub async fn nsfw_job_v2(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<VideoRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    use sentry_anyhow::capture_anyhow;
-
     setup_context!(&payload.video_id, Step::NsfwDetectionV2, {
         "upload_info": &payload.video_info
     });
@@ -362,7 +317,7 @@ pub async fn nsfw_job_v2(
     let nsfw_prob = get_video_nsfw_info_v2(video_id.clone())
         .await
         .inspect_err(|err| {
-            capture_anyhow(err);
+            log::error!("get_video_nsfw_info_v2 failed: {:?}", err);
         })?;
     let is_nsfw = nsfw_prob >= NSFW_THRESHOLD;
 

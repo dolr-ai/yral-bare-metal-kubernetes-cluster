@@ -1271,20 +1271,26 @@ pub async fn create_tournament_handler(
         // Schedule finalize for end_time
         let delay = tournament.end_time - now;
         if delay > 0 {
-            if let Err(e) = state
-                .qstash_client
-                .schedule_tournament_finalize(&tournament_id, delay)
-                .await
-            {
-                log::error!("Failed to schedule tournament finalize: {:?}", e);
-            } else {
-                log::info!(
-                    "Tournament {} created and started immediately. Scheduled finalize for {} (in {} seconds)",
-                    tournament_id,
-                    tournament.end_time,
-                    delay
-                );
-            }
+            // TODO: Remove QStash (Phase 2)
+            log::warn!("QStash disabled: schedule_tournament_finalize skipped");
+            // if let Err(e) = state
+            //     .qstash_client
+            //     .schedule_tournament_finalize(&tournament_id, delay)
+            //     .await
+            // {
+            //     log::error!("Failed to schedule tournament finalize: {:?}", e);
+            // } else {
+            //     log::info!(
+            //         "Tournament {} created and started immediately. Scheduled finalize for {} (in {} seconds)",
+            //         tournament_id,
+            //         tournament.end_time,
+            //         delay
+            //     );
+            // }
+            log::info!(
+                "Tournament {} created and started immediately. Finalize scheduling skipped (QStash disabled).",
+                tournament_id,
+            );
         }
     } else {
         // Set as upcoming tournament
@@ -1298,20 +1304,26 @@ pub async fn create_tournament_handler(
         // Schedule start for start_time
         let delay = tournament.start_time - now;
         if delay > 0 {
-            if let Err(e) = state
-                .qstash_client
-                .schedule_tournament_start(&tournament_id, delay)
-                .await
-            {
-                log::error!("Failed to schedule tournament start: {:?}", e);
-            } else {
-                log::info!(
-                    "Tournament {} created with Upcoming status. Scheduled start for {} (in {} seconds)",
-                    tournament_id,
-                    tournament.start_time,
-                    delay
-                );
-            }
+            // TODO: Remove QStash (Phase 2)
+            log::warn!("QStash disabled: schedule_tournament_start skipped");
+            // if let Err(e) = state
+            //     .qstash_client
+            //     .schedule_tournament_start(&tournament_id, delay)
+            //     .await
+            // {
+            //     log::error!("Failed to schedule tournament start: {:?}", e);
+            // } else {
+            //     log::info!(
+            //         "Tournament {} created with Upcoming status. Scheduled start for {} (in {} seconds)",
+            //         tournament_id,
+            //         tournament.start_time,
+            //         delay
+            //     );
+            // }
+            log::info!(
+                "Tournament {} created with Upcoming status. Start scheduling skipped (QStash disabled).",
+                tournament_id,
+            );
         }
     }
 

@@ -33,23 +33,13 @@ macro_rules! setup_context {
     ($video_id:expr, $step:expr, {
         $($key:literal: $value:expr),+ $(,)?
     }) => {
-        sentry::configure_scope(|scope| {
-            use std::collections::BTreeMap;
-            use sentry::protocol::Context;
-            scope.set_tag("pipeline.video_id", $video_id);
-            scope.set_tag("pipeline.step", $step);
-            let map = BTreeMap::from([
-                $(
-                  ($key.into(), serde_json::to_value($value).expect("value for context to be json serializable")),
-                )*
-            ]);
-            scope.set_context("context", Context::Other(map));
-        })
+        log::info!(
+            "pipeline context: video_id={}, step={}, {}",
+            $video_id, $step,
+            [$((format!("{}={:?}", $key, $value))),+].join(", ")
+        )
     };
     ($video_id:expr, $step:expr) => {
-        sentry::configure_scope(|scope| {
-            scope.set_tag("pipeline.video_id", $video_id);
-            scope.set_tag("pipeline.step", $step);
-        })
+        log::info!("pipeline context: video_id={}, step={}", $video_id, $step)
     };
 }

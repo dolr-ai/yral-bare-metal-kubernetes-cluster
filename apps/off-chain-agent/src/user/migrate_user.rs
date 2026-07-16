@@ -1,14 +1,19 @@
 use std::sync::Arc;
 
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use candid::Principal;
 use http::header;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use utoipa::ToSchema;
 
-use crate::{
-    app_state::AppState, qstash::service_canister_migration::MigrateIndividualUserRequest,
-};
+use crate::app_state::AppState;
+
+#[derive(Serialize, Deserialize, Copy, Clone, Eq, PartialEq, PartialOrd, Debug)]
+pub struct MigrateIndividualUserRequest {
+    pub user_canister: Principal,
+    pub user_principal: Principal,
+}
 
 #[derive(Serialize, Deserialize, ToSchema, Clone)]
 pub struct MigrateIndividualUserRequestSchema {
@@ -56,11 +61,12 @@ pub async fn handle_user_migration(
         return Err((StatusCode::UNAUTHORIZED, "Unauthorized".to_string()));
     }
 
-    state
-        .qstash_client
-        .migrate_individual_user_to_service_canister(&request)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    // QStash has been removed. Log the migration request instead of queueing it.
+    log::info!(
+        "User migration request received for user_principal={}, user_canister={}",
+        request.user_principal,
+        request.user_canister
+    );
 
     Ok((
         StatusCode::OK,

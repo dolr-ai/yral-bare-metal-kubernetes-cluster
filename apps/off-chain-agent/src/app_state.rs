@@ -3,8 +3,6 @@ use crate::consts::{ANALYTICS_SERVER_URL, NSFW_SERVER_URL, YRAL_METADATA_URL};
 #[cfg(not(feature = "local-bin"))]
 use crate::events::push_notifications::NotificationClient;
 use crate::kvrocks::KvrocksClient;
-use crate::qstash::client::QStashClient;
-use crate::qstash::QStashState;
 use crate::rewards::RewardsModule;
 use crate::scratchpad::ScratchpadClient;
 use crate::types::RedisPool;
@@ -68,11 +66,9 @@ pub struct AppState {
     /// Google Chat App authenticator (for sending messages with interactive buttons)
     #[cfg(not(feature = "local-bin"))]
     pub gchat_auth: Authenticator<HttpsConnector<HttpConnector>>,
-    pub qstash: QStashState,
     #[cfg(not(feature = "local-bin"))]
     pub bigquery_client: Client,
     pub nsfw_detect_channel: Option<Channel>,
-    pub qstash_client: QStashClient,
     #[cfg(not(feature = "local-bin"))]
     pub gcs_client: Arc<cloud_storage::Client>,
     #[cfg(not(any(feature = "local-bin", feature = "use-local-agent")))]
@@ -151,11 +147,9 @@ impl AppState {
             #[cfg(not(feature = "local-bin"))]
             gchat_auth: init_gchat_auth().await,
             // ml_server_grpc_channel: init_ml_server_grpc_channel().await,
-            qstash: init_qstash(),
             #[cfg(not(feature = "local-bin"))]
             bigquery_client: init_bigquery_client().await,
             nsfw_detect_channel: init_nsfw_detect_channel().await.ok(),
-            qstash_client: init_qstash_client().await,
             #[cfg(not(feature = "local-bin"))]
             gcs_client: Arc::new(cloud_storage::Client::default()),
             #[cfg(not(any(feature = "local-bin", feature = "use-local-agent")))]
@@ -370,13 +364,6 @@ pub async fn init_gchat_auth() -> Authenticator<HttpsConnector<HttpConnector>> {
         .expect("Failed to build Google Chat authenticator")
 }
 
-pub fn init_qstash() -> QStashState {
-    let qstash_key =
-        env::var("QSTASH_CURRENT_SIGNING_KEY").expect("QSTASH_CURRENT_SIGNING_KEY is required");
-
-    QStashState::init(qstash_key)
-}
-
 pub async fn init_bigquery_client() -> Client {
     let (config, _) = ClientConfig::new_with_auth().await.unwrap();
     Client::new(config).await.unwrap()
@@ -399,10 +386,6 @@ pub async fn init_nsfw_detect_channel() -> Result<Channel, tonic::transport::Err
     Ok(channel)
 }
 
-pub async fn init_qstash_client() -> QStashClient {
-    let auth_token = env::var("QSTASH_AUTH_TOKEN").expect("QSTASH_AUTH_TOKEN is required");
-    QStashClient::new(auth_token.as_str())
-}
 
 async fn init_alloydb_client() -> AlloyDbInstance {
     let sa_json_raw = env::var("ALLOYDB_SERVICE_ACCOUNT_JSON")

@@ -1,7 +1,4 @@
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
@@ -12,7 +9,6 @@ use crate::{
     app_state::AppState,
     consts::get_storj_video_url,
     pipeline::Step,
-    qstash::{self, duplicate::VideoPublisherDataV2},
     setup_context,
     video_processing::{
         nsfw_api::{NsfwApiClient, NsfwApiError, VideoDetectRequest},
@@ -66,7 +62,6 @@ pub fn spawn_worker(state: Arc<AppState>) -> Result<()> {
     tokio::spawn(async move {
         if let Err(err) = run_worker(state, nsfw_client, config).await {
             log::error!("Video processing worker stopped: {err:?}");
-            sentry_anyhow::capture_anyhow(&err);
         }
     });
 
@@ -93,7 +88,6 @@ async fn run_worker(
         if let Err(err) = process_due_jobs(state.clone(), nsfw_client.clone(), config.clone()).await
         {
             log::error!("Video processing worker tick failed: {err:?}");
-            sentry_anyhow::capture_anyhow(&err);
         }
         tokio::time::sleep(Duration::from_secs(config.tick_seconds)).await;
     }
@@ -122,7 +116,6 @@ async fn process_due_jobs(
                     process_one_job(state, nsfw_client, config, video_id.clone()).await
                 {
                     log::error!("Video processing job failed for {video_id}: {err:?}");
-                    sentry_anyhow::capture_anyhow(&err);
                 }
             }
         })
@@ -195,78 +188,19 @@ async fn process_locked_job(
 async fn process_dedup_pending(
     state: Arc<AppState>,
     mut job: VideoProcessingJob,
-    config: WorkerConfig,
+    _config: WorkerConfig,
 ) -> Result<()> {
     setup_context!(&job.video_id, Step::Deduplication, {
         "source": "video_processing_worker",
         "job": &job,
     });
 
-    // Dedup may return Ok without calling the continuation when AI approval blocks the video.
-    let callback_called = Arc::new(AtomicBool::new(false));
-    let callback_called_for_dedup = callback_called.clone();
-    let callback_pool = state.yral_redis_store_dragonfly.clone();
-
-    let publisher_data = VideoPublisherDataV2 {
-        publisher_principal: job.publisher_user_id.clone(),
-        post_id: job.post_id.clone(),
-    };
-
-    let dedup_result = qstash::duplicate::VideoHashDuplication
-        .process_video_deduplication_v2(
-            &state.bigquery_client,
-            &state.milvus_client,
-            &state.rewards_module.dragonfly_pool,
-            &state.kvrocks_client,
-            &job.video_id,
-            &job.source_video_uri,
-            publisher_data,
-            30,
-            move |video_id, _post_id, _timestamp, _publisher_user_id| {
-                let video_id = video_id.to_string();
-                let callback_pool = callback_pool.clone();
-                let callback_called_for_dedup = callback_called_for_dedup.clone();
-
-                Box::pin(async move {
-                    // Replace the old upload_video_gcs callback with a durable phase transition.
-                    callback_called_for_dedup.store(true, Ordering::SeqCst);
-                    queue::mark_nsfw_enqueue_pending(&callback_pool, &video_id).await
-                })
-            },
-        )
-        .await;
-
-    match dedup_result {
-        Ok(()) if callback_called.load(Ordering::SeqCst) => {
-            log::info!(
-                "Dedup completed for {}; NSFW enqueue phase scheduled",
-                job.video_id
-            );
-        }
-        Ok(()) => {
-            job.phase = VideoProcessingPhase::Completed;
-            job.last_nsfw_status = Some("dedup_completed_without_handoff".to_string());
-            job.last_error = None;
-            save_and_unschedule(&state.yral_redis_store_dragonfly, &mut job).await?;
-            log::info!(
-                "Dedup completed for {} without NSFW handoff; marking job completed",
-                job.video_id
-            );
-        }
-        Err(err) => {
-            let error_message = format!("{err:?}");
-            log::error!("Dedup failed for {}: {error_message}", job.video_id);
-            retry_or_terminal(
-                &state,
-                &mut job,
-                config.max_dedup_attempts,
-                RetryCounter::Dedup,
-                "dedup failed",
-                error_message,
-            )
-            .await?;
-        }
-    }
+    // Dedup (ffmpeg/phash) has been removed. Skip directly to NSFW enqueue.
+    log::info!(
+        "Skipping dedup for {} (ffmpeg/phash removed); proceeding to NSFW enqueue",
+        job.video_id
+    );
+    queue::mark_nsfw_enqueue_pending(&state.yral_redis_store_dragonfly, &job.video_id).await?;
 
     Ok(())
 }
@@ -601,7 +535,7 @@ async fn mark_terminal_failed(
         job.video_id,
         error_message
     );
-    sentry_anyhow::capture_anyhow(&anyhow::anyhow!(error_message));
+    log::error!("sentry capture removed: {}", error_message);
     Ok(())
 }
 

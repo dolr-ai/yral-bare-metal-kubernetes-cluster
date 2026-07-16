@@ -37,10 +37,22 @@ pub async fn storj_ingest(
 /// for the purpose of backfilling, can be removed once there are no more items
 /// to be filled
 pub async fn enqueue_storj_backfill_item(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Json(payload): Json<storj_interface::duplicate::Args>,
 ) -> Result<(), AppError> {
-    state.qstash_client.duplicate_to_storj(payload).await?;
+    // QStash has been removed. Perform the storj duplicate directly instead of queueing.
+    let client = reqwest::Client::new();
+    client
+        .post(
+            STORJ_INTERFACE_URL
+                .join("/duplicate")
+                .expect("url to be valid"),
+        )
+        .json(&payload)
+        .bearer_auth(STORJ_INTERFACE_TOKEN.as_str())
+        .send()
+        .await?
+        .error_for_status()?;
 
     Ok(())
 }

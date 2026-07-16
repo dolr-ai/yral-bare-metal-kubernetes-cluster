@@ -72,20 +72,7 @@ uuid = { version = "1.4", features = ["v4", "fast-rng"] }
 storj-interface = { git = "https://github.com/dolr-ai/storj-interface", rev = "b824766e5a528deafa56fbb01ecb9f7e09a79e50", version = "0.1.0" }
 # yral-metrics = { path = "../yral-common/metrics" }
 yral-metadata-types = { git = "https://github.com/dolr-ai/yral-metadata", branch = "main", version = "0.1.0" }
-sentry = { version = "0.37.0", default-features = false, features = [
-    "rustls",
-    "sentry-anyhow",
-    "serde_json",
-    "backtrace",
-    "contexts",
-    "debug-images",
-    "panic",
-    "release-health",
-    "reqwest",
-] }
-sentry-tower = { version = "0.37.0", features = ["axum", "axum-matched-path"] }
 tracing = "0.1.41"
-sentry-tracing = "0.37.0"
 tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 tracing-futures = "0.2.5"
@@ -112,9 +99,6 @@ urlencoding = "2"
 async-channel = "2.3.1"
 num-bigint = "0.4"
 num-traits = "0.2"
-sentry-anyhow = "0.42.0"
-ffmpeg-next = "8.1.0"
-image_hasher = "3.0.0"
 milvus-sdk-rust = "0.1.0"
 
 # ===== YRAL-COMMON DEPENDENCIES =====
@@ -123,7 +107,6 @@ yral-canisters-client = { git = "https://github.com/dolr-ai/yral-common.git", br
     "full",
 ] }
 yral-alloydb-client = { git = "https://github.com/dolr-ai/yral-common", branch = "main", package = "alloydb-client" }
-yral-qstash-types = { git = "https://github.com/dolr-ai/yral-common.git", branch = "main" }
 yral-metrics = { git = "https://github.com/dolr-ai/yral-common", branch = "main" }
 videogen-common = { git = "https://github.com/dolr-ai/yral-common", branch = "main", features = [
     "server",

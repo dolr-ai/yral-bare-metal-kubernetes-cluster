@@ -126,20 +126,26 @@ pub async fn start_tournament(tournament_id: &str, app_state: &Arc<AppState>) ->
     // Schedule finalize for end_time
     let delay = tournament.end_time - Utc::now().timestamp();
     if delay > 0 {
-        if let Err(e) = app_state
-            .qstash_client
-            .schedule_tournament_finalize(tournament_id, delay)
-            .await
-        {
-            log::error!("Failed to schedule tournament finalize: {:?}", e);
-        } else {
-            log::info!(
-                "Tournament {} started successfully. Scheduled finalize for {} (in {} seconds)",
-                tournament_id,
-                tournament.end_time,
-                delay
-            );
-        }
+        // TODO: Remove QStash (Phase 2)
+        log::warn!("QStash disabled: schedule_tournament_finalize skipped");
+        // if let Err(e) = app_state
+        //     .qstash_client
+        //     .schedule_tournament_finalize(tournament_id, delay)
+        //     .await
+        // {
+        //     log::error!("Failed to schedule tournament finalize: {:?}", e);
+        // } else {
+        //     log::info!(
+        //         "Tournament {} started successfully. Scheduled finalize for {} (in {} seconds)",
+        //         tournament_id,
+        //         tournament.end_time,
+        //         delay
+        //     );
+        // }
+        log::info!(
+            "Tournament {} started successfully. Finalize scheduling skipped (QStash disabled).",
+            tournament_id,
+        );
     } else {
         log::warn!(
             "Tournament {} end_time {} is in the past, not scheduling finalize",

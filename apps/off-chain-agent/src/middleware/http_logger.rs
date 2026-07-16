@@ -293,23 +293,10 @@ fn extract_safe_headers(headers: &http::HeaderMap) -> BTreeMap<String, serde_jso
 
 /// Add lightweight breadcrumb for successful requests (no body capture)
 fn add_lightweight_breadcrumb(method: &str, path: &str, status: u16, duration_ms: u64) {
-    let mut data = BTreeMap::new();
-    data.insert("method".to_string(), serde_json::json!(method));
-    data.insert("url".to_string(), serde_json::json!(path));
-    data.insert("status_code".to_string(), serde_json::json!(status));
-    data.insert("duration_ms".to_string(), serde_json::json!(duration_ms));
-
-    sentry::Hub::current().add_breadcrumb(sentry::Breadcrumb {
-        ty: "http".to_string(),
-        category: Some("http.request".to_string()),
-        message: Some(format!(
-            "{} {} {} ({}ms)",
-            method, path, status, duration_ms
-        )),
-        data: data.into_iter().collect(),
-        level: sentry::Level::Info,
-        ..Default::default()
-    });
+    log::info!(
+        "http.request: {} {} {} ({}ms)",
+        method, path, status, duration_ms
+    );
 }
 
 /// Add request breadcrumb to Sentry
@@ -320,33 +307,14 @@ fn add_request_breadcrumb(
     headers: &BTreeMap<String, serde_json::Value>,
     body_preview: Option<&str>,
 ) {
-    let mut data = BTreeMap::new();
-    data.insert("request_id".to_string(), serde_json::json!(request_id));
-    data.insert("method".to_string(), serde_json::json!(method));
-    data.insert("url".to_string(), serde_json::json!(path));
-
-    if !headers.is_empty() {
-        data.insert("headers".to_string(), serde_json::json!(headers));
-    }
-
-    if let Some(body) = body_preview {
-        // Scrub sensitive fields if present, otherwise use body as-is
-        let safe_body = if contains_sensitive_field(body) {
-            scrub_body(body)
-        } else {
-            body.to_string()
-        };
-        data.insert("body".to_string(), serde_json::json!(safe_body));
-    }
-
-    sentry::Hub::current().add_breadcrumb(sentry::Breadcrumb {
-        ty: "http".to_string(),
-        category: Some("http.request".to_string()),
-        message: Some(format!("[{}] {} {}", request_id, method, path)),
-        data: data.into_iter().collect(),
-        level: sentry::Level::Info,
-        ..Default::default()
-    });
+    log::info!(
+        "http.request [{}] {} {} | headers: {} | body: {}",
+        request_id,
+        method,
+        path,
+        serde_json::to_string(headers).unwrap_or_default(),
+        body_preview.unwrap_or("[no body]")
+    );
 }
 
 /// Add response breadcrumb to Sentry
@@ -357,44 +325,27 @@ fn add_response_breadcrumb(
     headers: &BTreeMap<String, serde_json::Value>,
     body_preview: Option<&str>,
 ) {
-    let mut data = BTreeMap::new();
-    data.insert("request_id".to_string(), serde_json::json!(request_id));
-    data.insert("status_code".to_string(), serde_json::json!(status));
-    data.insert("duration_ms".to_string(), serde_json::json!(duration_ms));
-
-    if !headers.is_empty() {
-        data.insert("headers".to_string(), serde_json::json!(headers));
-    }
-
-    if let Some(body) = body_preview {
-        // Scrub sensitive fields if present, otherwise use body as-is
-        let safe_body = if contains_sensitive_field(body) {
-            scrub_body(body)
-        } else {
-            body.to_string()
-        };
-        data.insert("body".to_string(), serde_json::json!(safe_body));
-    }
-
-    let level = if status >= 500 {
-        sentry::Level::Error
+    let body_str = body_preview.unwrap_or("[no body]");
+    if status >= 500 {
+        log::error!(
+            "http.response [{}] HTTP {} ({}ms) | headers: {} | body: {}",
+            request_id, status, duration_ms,
+            serde_json::to_string(headers).unwrap_or_default(),
+            body_str
+        );
     } else if status >= 400 {
-        sentry::Level::Warning
+        log::warn!(
+            "http.response [{}] HTTP {} ({}ms) | headers: {} | body: {}",
+            request_id, status, duration_ms,
+            serde_json::to_string(headers).unwrap_or_default(),
+            body_str
+        );
     } else {
-        sentry::Level::Info
-    };
-
-    sentry::Hub::current().add_breadcrumb(sentry::Breadcrumb {
-        ty: "http".to_string(),
-        category: Some("http.response".to_string()),
-        message: Some(format!(
-            "[{}] HTTP {} ({}ms)",
+        log::info!(
+            "http.response [{}] HTTP {} ({}ms)",
             request_id, status, duration_ms
-        )),
-        data: data.into_iter().collect(),
-        level,
-        ..Default::default()
-    });
+        );
+    }
 }
 
 /// List of sensitive field names that should be scrubbed

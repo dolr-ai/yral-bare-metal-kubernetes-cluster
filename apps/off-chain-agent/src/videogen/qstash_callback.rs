@@ -216,17 +216,19 @@ pub async fn handle_video_gen_callback_internal(
                     None
                 };
 
-                state
-                    .qstash_client
-                    .upload_ai_generated_video_to_canister_in_drafts(
-                        UploadAiVideoToCanisterRequest {
-                            ai_video_url: ai_video_url.clone(),
-                            user_id: callback.request_key.principal,
-                            delegated_identity,
-                        },
-                    )
-                    .await
-                    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+                // TODO: Remove QStash (Phase 2)
+                log::warn!("QStash disabled: upload_ai_generated_video_to_canister_in_drafts skipped");
+                // state
+                //     .qstash_client
+                //     .upload_ai_generated_video_to_canister_in_drafts(
+                //         UploadAiVideoToCanisterRequest {
+                //             ai_video_url: ai_video_url.clone(),
+                //             user_id: callback.request_key.principal,
+                //             delegated_identity,
+                //         },
+                //     )
+                //     .await
+                //     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
                 Ok(StatusCode::OK)
             }

@@ -271,11 +271,13 @@ pub async fn repost_post_common_impl(
         log::error!("Error sending data to Google Chat: {res:?}");
     }
 
-    #[cfg(not(any(feature = "local-bin", feature = "use-local-agent")))]
-    {
-        let qstash_client = state.qstash_client.clone();
-        qstash_client.publish_report_post(payload).await?;
-    }
+    // TODO: Remove QStash (Phase 2)
+    log::warn!("QStash disabled: publish_report_post skipped");
+    // #[cfg(not(any(feature = "local-bin", feature = "use-local-agent")))]
+    // {
+    //     let qstash_client = state.qstash_client.clone();
+    //     qstash_client.publish_report_post(payload).await?;
+    // }
 
     Ok(())
 }
