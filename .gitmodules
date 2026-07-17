@@ -10,9 +10,6 @@
 [submodule "apps/website"]
 	path = apps/website
 	url = https://github.com/dolr-ai/website.git
-[submodule "apps/yral-billing"]
-	path = apps/yral-billing
-	url = https://github.com/dolr-ai/yral-billing.git
 [submodule "apps/yral"]
 	path = apps/yral
 	url = https://github.com/dolr-ai/yral.git
