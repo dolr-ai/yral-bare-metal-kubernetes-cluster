@@ -180,9 +180,7 @@ pub fn init_identity() -> ic_agent::identity::Secp256k1Identity {
     #[cfg(not(any(feature = "local-bin", feature = "use-local-agent")))]
     {
         let pk = env::var("BACKEND_ADMIN_IDENTITY").expect("$BACKEND_ADMIN_IDENTITY is not set");
-        match ic_agent::identity::Secp256k1Identity::from_pem(stringreader::StringReader::new(
-            pk.as_str(),
-        )) {
+        match ic_agent::identity::Secp256k1Identity::from_pem(pk.as_str()) {
             Ok(identity) => identity,
             Err(err) => {
                 panic!("Unable to create identity, error: {err:?}");
@@ -206,9 +204,7 @@ pub async fn init_agent() -> Agent {
     {
         let pk = env::var("BACKEND_ADMIN_IDENTITY").expect("$BACKEND_ADMIN_IDENTITY is not set");
 
-        let identity = match ic_agent::identity::Secp256k1Identity::from_pem(
-            stringreader::StringReader::new(pk.as_str()),
-        ) {
+        let identity = match ic_agent::identity::Secp256k1Identity::from_pem(pk.as_str()) {
             Ok(identity) => identity,
             Err(err) => {
                 panic!("Unable to create identity, error: {err:?}");
@@ -243,9 +239,7 @@ pub async fn init_agent() -> Agent {
     {
         let pk = env::var("BACKEND_ADMIN_IDENTITY").expect("$BACKEND_ADMIN_IDENTITY is not set");
 
-        let identity = match ic_agent::identity::Secp256k1Identity::from_pem(
-            stringreader::StringReader::new(pk.as_str()),
-        ) {
+        let identity = match ic_agent::identity::Secp256k1Identity::from_pem(pk.as_str()) {
             Ok(identity) => identity,
             Err(err) => {
                 panic!("Unable to create identity, error: {:?}", err);
@@ -291,7 +285,6 @@ pub async fn init_gchat_auth() -> Authenticator<HttpsConnector<HttpConnector>> {
         .await
         .expect("Failed to build Google Chat authenticator")
 }
-
 
 async fn init_leaderboard_redis_pool() -> RedisPool {
     let redis_url =
