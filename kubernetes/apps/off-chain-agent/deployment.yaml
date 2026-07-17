@@ -24,7 +24,7 @@ spec:
         - name: harbor-pull-secret
       containers:
         - name: off-chain-agent
-          image: harbor.yral.com/off-chain-agent/off-chain-agent:20260717030621-987175f4 # {"$imagepolicy": "flux-system:off-chain-agent"}
+          image: harbor.yral.com/off-chain-agent/off-chain-agent:20260717033711-f0c7cdc8 # {"$imagepolicy": "flux-system:off-chain-agent"}
           imagePullPolicy: Always
           ports:
             - containerPort: 50051
