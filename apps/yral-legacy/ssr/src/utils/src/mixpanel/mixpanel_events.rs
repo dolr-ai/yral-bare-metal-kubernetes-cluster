@@ -555,10 +555,6 @@ derive_event!(track_profile_tab_clicked {
     cta_type: MixpanelProfileClickedCTAType
 });
 
-derive_event!(track_delete_account_clicked { page_name: String });
-
-derive_event!(track_delete_account_confirmed { page_name: String });
-
 derive_event!(track_account_deleted { page_name: String });
 
 derive_event!(track_profile_page_viewed {
