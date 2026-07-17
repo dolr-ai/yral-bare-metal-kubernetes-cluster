@@ -130,3 +130,136 @@ run = "pitchfork start yral-auth-container --force"
 [tasks.yral-auth-stop]
 description = "Stop yral-auth dev server or container via pitchfork"
 run = "pitchfork stop yral-auth yral-auth-container"
+
+# ── yral-legacy ─────────────────────────────────────────────────────────────
+
+[tasks.yral-legacy-bootstrap]
+description = "Install yral-legacy build prerequisites (cargo-leptos, musl+wasm targets, npm deps)"
+depends = ["bootstrap"]
+run = '''
+rustup target add wasm32-unknown-unknown x86_64-unknown-linux-musl
+cargo binstall cargo-leptos --no-confirm
+cd apps/yral-legacy && npm install
+'''
+
+[tasks.yral-legacy-build]
+description = "Build yral-legacy (release, musl static binary + WASM client)"
+dir = "apps/yral-legacy"
+run = "cargo leptos build --release"
+env = { LEPTOS_BIN_TARGET_TRIPLE = "x86_64-unknown-linux-musl" }
+
+[tasks.yral-legacy-build-local]
+description = "Build yral-legacy for local dev (local-bin/local-lib features, debug)"
+dir = "apps/yral-legacy"
+run = "cargo leptos build --bin-features local-bin --lib-features local-lib"
+
+[tasks.yral-legacy-run]
+description = "Run yral-legacy locally via pitchfork (release binary, port 8080)"
+depends = ["yral-legacy-build"]
+run = "pitchfork start yral-legacy --force"
+
+[tasks.yral-legacy-run-local]
+description = "Run yral-legacy locally via pitchfork (local-bin debug build, port 8080)"
+depends = ["yral-legacy-build-local"]
+run = "pitchfork start yral-legacy-local --force"
+
+[tasks.yral-legacy-test]
+description = "Run yral-legacy tests"
+dir = "apps/yral-legacy"
+run = "cargo test"
+
+[tasks.yral-legacy-image]
+description = "Build the yral-legacy container image locally (podman)"
+dir = "apps/yral-legacy"
+run = "podman build -f Dockerfile.buildkit -t test/yral-legacy --platform linux/amd64 ."
+
+[tasks.yral-legacy-image-run]
+description = "Run the yral-legacy container image locally via pitchfork (podman, port 8080)"
+depends = ["yral-legacy-image"]
+run = "pitchfork start yral-legacy-container --force"
+
+[tasks.yral-legacy-stop]
+description = "Stop yral-legacy dev servers or container via pitchfork"
+run = "pitchfork stop yral-legacy yral-legacy-local yral-legacy-container"
+
+# ── yral-metadata ───────────────────────────────────────────────────────────
+
+[tasks.yral-metadata-bootstrap]
+description = "Install yral-metadata build prerequisites (musl target)"
+depends = ["bootstrap"]
+run = "rustup target add x86_64-unknown-linux-musl"
+
+[tasks.yral-metadata-build]
+description = "Build yral-metadata server (release, musl static binary)"
+dir = "apps/yral-metadata"
+run = "cargo build --release --target x86_64-unknown-linux-musl -p yral-metadata-server"
+
+[tasks.yral-metadata-run]
+description = "Run yral-metadata locally via pitchfork (release binary, port 7000)"
+depends = ["yral-metadata-build"]
+run = "pitchfork start yral-metadata --force"
+
+[tasks.yral-metadata-test]
+description = "Run yral-metadata tests"
+dir = "apps/yral-metadata"
+run = "cargo test"
+
+[tasks.yral-metadata-image]
+description = "Build the yral-metadata container image locally (podman)"
+dir = "apps/yral-metadata"
+run = "podman build -f Dockerfile.buildkit -t test/yral-metadata --platform linux/amd64 ."
+
+[tasks.yral-metadata-image-run]
+description = "Run the yral-metadata container image locally via pitchfork (podman, port 7000)"
+depends = ["yral-metadata-image"]
+run = "pitchfork start yral-metadata-container --force"
+
+[tasks.yral-metadata-stop]
+description = "Stop yral-metadata dev server or container via pitchfork"
+run = "pitchfork stop yral-metadata yral-metadata-container"
+
+# ── off-chain-agent ─────────────────────────────────────────────────────────
+
+[tasks.off-chain-agent-bootstrap]
+description = "Install off-chain-agent build prerequisites (musl target)"
+depends = ["bootstrap"]
+run = "rustup target add x86_64-unknown-linux-musl"
+
+[tasks.off-chain-agent-build]
+description = "Build off-chain-agent (release, musl static binary)"
+dir = "apps/off-chain-agent"
+run = "cargo build --release --target x86_64-unknown-linux-musl"
+
+[tasks.off-chain-agent-build-local]
+description = "Build off-chain-agent for local dev (local-bin feature, debug)"
+dir = "apps/off-chain-agent"
+run = "cargo build --features local-bin"
+
+[tasks.off-chain-agent-run]
+description = "Run off-chain-agent locally via pitchfork (release binary, port 50051)"
+depends = ["off-chain-agent-build"]
+run = "pitchfork start off-chain-agent --force"
+
+[tasks.off-chain-agent-run-local]
+description = "Run off-chain-agent locally via pitchfork (local-bin debug build, port 50051)"
+depends = ["off-chain-agent-build-local"]
+run = "pitchfork start off-chain-agent-local --force"
+
+[tasks.off-chain-agent-test]
+description = "Run off-chain-agent tests"
+dir = "apps/off-chain-agent"
+run = "cargo test"
+
+[tasks.off-chain-agent-image]
+description = "Build the off-chain-agent container image locally (podman)"
+dir = "apps/off-chain-agent"
+run = "podman build -f Dockerfile.buildkit -t test/off-chain-agent --platform linux/amd64 ."
+
+[tasks.off-chain-agent-image-run]
+description = "Run the off-chain-agent container image locally via pitchfork (podman, port 50051)"
+depends = ["off-chain-agent-image"]
+run = "pitchfork start off-chain-agent-container --force"
+
+[tasks.off-chain-agent-stop]
+description = "Stop off-chain-agent dev servers or container via pitchfork"
+run = "pitchfork stop off-chain-agent off-chain-agent-local off-chain-agent-container"

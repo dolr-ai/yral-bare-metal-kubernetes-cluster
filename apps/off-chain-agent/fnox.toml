@@ -1,0 +1,58 @@
+#:schema https://fnox.jdx.dev/schema.json
+
+# off-chain-agent secrets — age-encrypted ciphertext, safe to commit.
+# Inherits the age provider and shared Dragonfly secrets from the root fnox.toml (hierarchical config).
+#
+# Setup:
+#   1. mise run bootstrap (from repo root) — extracts infra SSH key
+#   2. fnox set <KEY> --provider age  — encrypt each secret into this file
+#   3. Verify: fnox get BACKEND_ADMIN_IDENTITY
+#
+# Note: Many secrets are only needed in production (video processing, NSFW,
+# Google Chat, etc.). For local dev, set the ones you need and leave the rest.
+
+[secrets]
+# IC backend admin identity (ED25519 PEM)
+BACKEND_ADMIN_IDENTITY= { default = "", description = "IC backend admin identity (ED25519 PEM private key)", if_missing = "warn" }
+
+# Leaderboard Redis URL (separate from Dragonfly — this is the leaderboard Redis)
+LEADERBOARD_REDIS_URL= { default = "", description = "Leaderboard Redis connection URL", if_missing = "warn" }
+
+# Service canister migration Redis URL
+SERVICE_CANISTER_MIGRATION_REDIS_URL= { default = "", description = "Service canister migration Redis connection URL", if_missing = "warn" }
+
+# Storj storage API token
+STORJ_INTERFACE_TOKEN= { default = "", description = "Storj storage API auth token", if_missing = "warn" }
+
+# Google Chat webhook URLs
+GOOGLE_CHAT_REPORT_SPACE_URL= { default = "", description = "Google Chat webhook URL for reports", if_missing = "warn" }
+GOOGLE_SA_KEY= { default = "", description = "Google service account JSON (writes to google_service_account.json)", if_missing = "warn" }
+YRAL_MOBILE_SERVICE_ACCOUNT_KEY= { default = "", description = "Google Chat app auth service account key", if_missing = "warn" }
+
+# API keys
+YRAL_OFF_CHAIN_USER_MIGRATION_API_KEY= { default = "", description = "User migration API key", if_missing = "warn" }
+YRAL_METADATA_NOTIFICATION_API_KEY= { default = "", description = "Notification API key (optional)", if_missing = "warn" }
+NAITIK_MULTI_SERVICE_API_JWT_TOKEN= { default = "", description = "Naitik multi-service JWT (optional)", if_missing = "warn" }
+NSFW_INTERNAL_REQUEST_HMAC_SECRET= { default = "", description = "HMAC secret for NSFW API requests", if_missing = "warn" }
+YRAL_HON_WORKER_JWT= { default = "", description = "HON worker JWT (optional)", if_missing = "warn" }
+
+# Cloudflare credentials
+CF_IMAGES_API_TOKEN= { default = "", description = "Cloudflare Images API token", if_missing = "warn" }
+CF_R2_ACCESS_KEY_TEMP= { default = "", description = "Cloudflare R2 temp access key", if_missing = "warn" }
+CF_WORKER_ACCESS_OFF_CHAIN_AGENT_KEY= { default = "", description = "CF Worker access key for off-chain-agent", if_missing = "warn" }
+CLOUDFLARE_STREAM_READ_AND_LIST_ACCESS_TOKEN= { default = "", description = "Cloudflare Stream read/list token", if_missing = "warn" }
+
+# Analytics
+ANALYTICS_SERVER_TOKEN= { default = "", description = "Analytics server token", if_missing = "warn" }
+BTC_REWARDS_GCHAT_WEBHOOK_URL= { default = "", description = "BTC rewards GChat webhook URL", if_missing = "warn" }
+
+# AI/NSFW services
+AI_VIDEO_DETECTOR_API_KEY= { default = "", description = "AI video detector API key", if_missing = "warn" }
+COMFYUI_API_TOKEN= { default = "", description = "ComfyUI API token", if_missing = "warn" }
+COMFYUI_API_URL= { default = "", description = "ComfyUI API URL", if_missing = "warn" }
+COMFYUI_VIEW_URL= { default = "", description = "ComfyUI view URL", if_missing = "warn" }
+NSFW_API_BASE_URL= { default = "https://nsfw.ansuman.yral.com", description = "NSFW API base URL", if_missing = "warn" }
+
+# Google Chat auth
+GOOGLE_CHAT_ALLOWED_EMAILS= { default = "", description = "GChat allowed emails", if_missing = "warn" }
+GOOGLE_CHAT_AUTH_AUDIENCES= { default = "", description = "GChat auth audiences", if_missing = "warn" }

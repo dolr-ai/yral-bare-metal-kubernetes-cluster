@@ -1,4 +1,12 @@
 ---
+# Create/update Cloudflare DNS A records declared in hosts.yml.
+#
+# This role is create/update only (state: present) — it does NOT delete records
+# that were removed from hosts.yml. Stale records (e.g. Kafka DNS entries removed
+# after switching to *.yral.com wildcard + SNI passthrough) are cleaned up
+# manually via the Cloudflare UI, not programmatically. This is intentional —
+# automatic deletion of DNS records is too risky for a production cluster.
+
 - name: Create/update Cloudflare DNS A records for {{ inventory_hostname }}
   community.general.cloudflare_dns:
     api_token: "{{ cloudflare_api_token }}"

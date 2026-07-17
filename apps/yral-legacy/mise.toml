@@ -1,0 +1,18 @@
+# Per-app mise config for yral-legacy.
+# Inherits tools from the root monorepo mise.toml — only app-specific env goes here.
+# Secrets are in fnox.toml (age-encrypted, committed to git).
+# Shared Dragonfly secrets are in the root fnox.toml (hierarchical config).
+
+[env]
+APP_ENV = 'development'
+LEPTOS_ENV = 'development'
+LEPTOS_SITE_ADDR = '0.0.0.0:8080'
+LEPTOS_HASH_FILES = 'true'
+
+# Plaintext (non-sensitive) values — public OAuth identifiers
+GOOGLE_CLIENT_ID = '804814798298-taifmq3k6olk9bjr1cqb9gfnp1mssqqb.apps.googleusercontent.com'
+GOOGLE_REDIRECT_URL = 'http://127.0.0.1:8080/auth/google_redirect'
+YRAL_AUTH_REDIRECT_URL = 'http://127.0.0.1:8080/auth/yral_redirect'
+
+# Yral-auth client ID (same as yral-auth's GOOGLE_CLIENT_ID)
+YRAL_AUTH_CLIENT_ID = '804814798298-taifmq3k6olk9bjr1cqb9gfnp1mssqqb.apps.googleusercontent.com'

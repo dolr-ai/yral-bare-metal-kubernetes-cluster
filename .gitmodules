@@ -4,9 +4,6 @@
 [submodule "apps/yral-backend-canister"]
 	path = apps/yral-backend-canister
 	url = https://github.com/dolr-ai/yral-backend-canister.git
-[submodule "apps/yral-common"]
-	path = apps/yral-common
-	url = https://github.com/dolr-ai/yral-common.git
 [submodule "apps/website"]
 	path = apps/website
 	url = https://github.com/dolr-ai/website.git

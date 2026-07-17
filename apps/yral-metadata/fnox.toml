@@ -1,0 +1,19 @@
+#:schema https://fnox.jdx.dev/schema.json
+
+# yral-metadata secrets — age-encrypted ciphertext, safe to commit.
+# Inherits the age provider and shared Dragonfly secrets from the root fnox.toml (hierarchical config).
+#
+# Setup:
+#   1. mise run bootstrap (from repo root) — extracts infra SSH key
+#   2. fnox set <KEY> --provider age  — encrypt each secret into this file
+#   3. Verify: fnox get JWT_PUBLIC_KEY
+
+[secrets]
+# Ed25519 public key PEM for JWT validation (same as yral-auth CLIENT_JWT_PUB_ED_PEM)
+JWT_PUBLIC_KEY= { default = "", description = "Ed25519 public key PEM for JWT validation", if_missing = "warn" }
+
+# Yral-auth public key for JWT verification (same as yral-auth JWT_PUB_EC_PEM)
+YRAL_AUTH_PUBLIC_KEY= { default = "", description = "yral-auth public key PEM for JWT verification", if_missing = "warn" }
+
+# IC backend admin identity (Secp256k1 PEM)
+BACKEND_ADMIN_IDENTITY= { default = "", description = "IC backend admin identity (Secp256k1 PEM private key)", if_missing = "warn" }

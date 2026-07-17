@@ -2,6 +2,9 @@
 resolver = "3"
 members = ["apps/task-runner", "apps/yral-database-spacetime"]
 
+# All apps under apps/ are independent Cargo workspaces (not members of this root workspace).
+# Submodules: apps/website, apps/yral, apps/yral-backend-canister, apps/yral-mobile
+# Native dirs: apps/yral-auth, apps/yral-legacy, apps/yral-metadata, apps/off-chain-agent, apps/yral-common
 exclude = [
     "apps/yral-legacy",
     "apps/off-chain-agent",
@@ -9,9 +12,8 @@ exclude = [
     "apps/yral",
     "apps/yral-auth",
     "apps/yral-backend-canister",
-    "yral-billing",
-    "yral-common",
-    "yral-metadata",
+    "apps/yral-common",
+    "apps/yral-metadata",
     "apps/yral-mobile",
 ]
 

@@ -1,6 +1,21 @@
 # Per-app mise config for off-chain-agent.
 # Inherits tools from the root monorepo mise.toml — only app-specific env goes here.
 # Secrets are in fnox.toml (age-encrypted, committed to git).
+# Shared Dragonfly secrets are in the root fnox.toml (hierarchical config).
 
 [env]
-APP_ENV = 'production'
+APP_ENV = 'development'
+RUST_LOG = 'info'
+# Video processing config (plaintext — same as k8s ConfigMap)
+VIDEO_PROCESSING_WORKER_ENABLED = 'false'
+VIDEO_PROCESSING_DEDUP_DELAY_SECONDS = '600'
+VIDEO_PROCESSING_WORKER_BATCH_SIZE = '20'
+VIDEO_PROCESSING_WORKER_PARALLELISM = '5'
+VIDEO_PROCESSING_WORKER_TICK_SECONDS = '5'
+VIDEO_PROCESSING_MAX_DEDUP_ATTEMPTS = '5'
+VIDEO_PROCESSING_MAX_NSFW_ENQUEUE_ATTEMPTS = '20'
+VIDEO_PROCESSING_MAX_NSFW_POLL_ATTEMPTS = '180'
+VIDEO_PROCESSING_MAX_NSFW_JOB_RETRIES = '3'
+VIDEO_PROCESSING_NSFW_POLL_DELAY_SECONDS = '60'
+REPORT_APPROVED_NSFW_BAN_ENABLED = 'false'
+OFF_CHAIN_AGENT_URL = 'http://localhost:50051/'

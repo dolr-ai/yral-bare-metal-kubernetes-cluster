@@ -1,0 +1,39 @@
+#:schema https://fnox.jdx.dev/schema.json
+
+# yral-legacy secrets — age-encrypted ciphertext, safe to commit.
+# Inherits the age provider and shared Dragonfly secrets from the root fnox.toml (hierarchical config).
+#
+# Setup:
+#   1. mise run bootstrap (from repo root) — extracts infra SSH key
+#   2. fnox set <KEY> --provider age  — encrypt each secret into this file
+#   3. Verify: fnox get COOKIE_KEY
+#
+# Note: When running with --bin-features local-bin, many secrets are stubbed
+# and not needed. Set them as you need them for testing specific features.
+
+[secrets]
+# Cookie signing/encryption key (hex, 128 chars without 0x prefix)
+# Generate with: openssl rand -hex 64
+# Same value as yral-auth COOKIE_KEY for SSO cookie sharing
+COOKIE_KEY= { default = "", description = "Cookie signing/encryption key (hex, 128 chars). Generate: openssl rand -hex 64. Use same as yral-auth for SSO.", if_missing = "warn" }
+
+# Worker JWT token for off-chain-agent communication
+HON_WORKER_JWT= { default = "", description = "Worker JWT token for off-chain-agent gRPC auth", if_missing = "warn" }
+
+# IC backend admin identity (ED25519 PEM)
+BACKEND_ADMIN_IDENTITY= { default = "", description = "IC backend admin identity (ED25519 PEM private key)", if_missing = "warn" }
+
+# Cloudflare credentials (feature = "cloudflare", not needed for local-bin)
+CF_TOKEN= { default = "", description = "Cloudflare API token (feature: cloudflare)", if_missing = "warn" }
+CF_ACCOUNT_ID= { default = "", description = "Cloudflare account ID (feature: cloudflare)", if_missing = "warn" }
+
+# Hetzner S3 credentials for profile storage
+HETZNER_S3_ACCESS_KEY= { default = "", description = "Hetzner S3 access key for profile storage", if_missing = "warn" }
+HETZNER_S3_SECRET_KEY= { default = "", description = "Hetzner S3 secret key for profile storage", if_missing = "warn" }
+
+# Off-chain agent gRPC auth token (feature = "ga4", not needed for local-bin)
+GRPC_AUTH_TOKEN= { default = "", description = "Off-chain agent gRPC auth token (feature: ga4)", if_missing = "warn" }
+
+# OAuth secrets (feature = "oauth-ssr", not needed for local-bin)
+YRAL_AUTH_CLIENT_SECRET= { default = "", description = "Yral-auth OAuth client secret (feature: oauth-ssr)", if_missing = "warn" }
+YRAL_AUTH_MIGRATION_ES256_PEM= { default = "", description = "ES256 PEM for OAuth migration (can be empty string)", if_missing = "warn" }

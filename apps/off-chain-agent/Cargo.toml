@@ -11,7 +11,8 @@ candid = "0.10.6"
 chrono = { version = "=0.4.39", features = ["serde"] }
 chrono-tz = "0.10"
 futures = "0.3.30"
-ic-agent = "0.41.0"
+ic-agent = "0.49.0"
+ic-utils = "0.49.0"
 serde = "=1.0.219"
 serde_json = { version = "=1.0.143", default-features = false }
 stringreader = "0.1.1"
@@ -47,8 +48,6 @@ hex = "0.4.3"
 sha2 = "0.10"
 sha1 = "0.10"
 hmac = "0.12"
-ic-sns-governance = { git = "https://github.com/dfinity/ic", rev = "tags/release-2025-07-11_03-31-base" }
-ic-utils = "0.41.0"
 utoipa = "5.3.1"
 utoipa-axum = "0.2.0"
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
