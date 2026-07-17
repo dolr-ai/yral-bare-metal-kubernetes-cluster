@@ -3,7 +3,6 @@ target/
 **/test-results
 **/end2end/playwright-report
 **/playwright/.cache
-fly.toml
 .env
 *.pem
 redb-kv.db

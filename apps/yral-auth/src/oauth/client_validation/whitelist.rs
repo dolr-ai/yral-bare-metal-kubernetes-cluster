@@ -37,8 +37,7 @@ pub fn default_oauth_clients() -> HashMap<String, OAuthClient> {
             [
                 "https://pumpdump.wtf/api/oauth/callback",
                 "https://pd.dev/api/oauth/callback",
-                "http://localhost:5190/api/oauth/callback",
-                "https://pump-dump-kit.fly.dev/api/oauth/callback"
+                "http://localhost:5190/api/oauth/callback"
             ],
             OAuthClientType::Web
         },
@@ -58,8 +57,7 @@ pub fn default_oauth_clients() -> HashMap<String, OAuthClient> {
         {
             "4ec00561-91bb-4e60-9743-8bed684145ba",
             [
-                "https://legacy.yral.com/auth/google_redirect",
-                "https://hot-or-not-web-leptos-ssr-staging.fly.dev/auth/google_redirect"
+                "https://legacy.yral.com/auth/google_redirect"
             ],
             OAuthClientType::Web
         },
@@ -80,8 +78,7 @@ pub fn default_oauth_clients() -> HashMap<String, OAuthClient> {
             "ada497c8-f8e1-4ab8-b3b1-f2b873357f5f",
             [
                 "http://localhost:3002/auth/callback",
-                "https://nofeebooking.com/auth/callback",
-                "https://estatefe.fly.dev/auth/callback"
+                "https://nofeebooking.com/auth/callback"
             ],
             OAuthClientType::Web
         },
