@@ -738,22 +738,6 @@ derive_event!(track_upload_type_continue_clicked {
     upload_type: String
 });
 
-derive_event!(track_video_generation_model_selected { model: String });
-
-derive_event!(track_create_ai_video_clicked {
-    model: String,
-    token_type: String
-});
-
-derive_event!(track_ai_video_generated {
-    is_success: bool,
-    reason: Option<String>,
-    model: String,
-    token_type: String
-});
-
-derive_event!(track_regenerate_video_clicked { model: String });
-
 impl MixPanelEvent {
     fn clear_auth_journey_page() {
         let (_, set_auth_journey_page) =

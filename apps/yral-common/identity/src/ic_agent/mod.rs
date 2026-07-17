@@ -24,6 +24,7 @@ impl From<Delegation> for ic_agent::identity::Delegation {
             pubkey: value.pubkey,
             expiration: value.expiration_ns,
             targets: value.targets,
+            permissions: None,
         }
     }
 }
@@ -70,6 +71,7 @@ impl From<Message> for EnvelopeContent {
             sender: value.sender,
             nonce: value.nonce,
             ingress_expiry: ingress_expiry_ns,
+            sender_info: None,
         }
     }
 }

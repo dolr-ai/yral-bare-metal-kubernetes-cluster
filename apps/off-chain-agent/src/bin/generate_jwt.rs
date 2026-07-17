@@ -16,8 +16,8 @@ fn main() {
     });
 
     let jwt_aud = env::var("JWT_AUD").unwrap_or_else(|_| {
-        eprintln!("JWT_AUD not set, using default 'videogen-api'");
-        "videogen-api".to_string()
+        eprintln!("JWT_AUD not set, using default 'offchain-api'");
+        "offchain-api".to_string()
     });
 
     // If PEM file doesn't exist, generate a test key pair

@@ -4,20 +4,20 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ic-agent.workspace = true
-canisters-client = { workspace = true, features = ["full"] }
-pump-n-dump-common = { workspace = true }
-hon-worker-common = { workspace = true }
 candid.workspace = true
-url.workspace = true
+canisters-client = { workspace = true, features = ["full"] }
+global-constants.workspace = true
+hon-worker-common = { workspace = true }
+ic-agent.workspace = true
 identity = { workspace = true, default-features = false, features = [
     "ic-agent",
 ] }
+pump-n-dump-common = { workspace = true }
+url.workspace = true
 username-gen.workspace = true
-global-constants.workspace = true
 
-yral-metadata-client = { git = "https://github.com/yral-dapp/yral-metadata", branch = "main", default-features = false }
-yral-metadata-types = { git = "https://github.com/yral-dapp/yral-metadata", branch = "main", default-features = false }
+yral-metadata-client = { path = "../../yral-metadata/client", default-features = false }
+yral-metadata-types = { path = "../../yral-metadata/types", default-features = false }
 
 types.workspace = true
 sns-validation.path = "../sns-validation"

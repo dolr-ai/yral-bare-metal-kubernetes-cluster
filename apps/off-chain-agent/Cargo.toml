@@ -6,60 +6,34 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# Third-party crates
+anyhow = "1.0.86"
+async-channel = "2.3.1"
+aws-config = { version = "1.5", features = ["behavior-version-latest"] }
+aws-sdk-s3 = { version = "1.65", features = ["behavior-version-latest"] }
 axum = { version = "0.8.0", features = ["macros", "json"] }
+base64 = "0.22.1"
+bb8 = "=0.9.0"
+bb8-redis = "=0.24.0"
 candid = "0.10.6"
 chrono = { version = "=0.4.39", features = ["serde"] }
 chrono-tz = "0.10"
+config = { version = "0.14.0", features = ["toml"] }
 futures = "0.3.30"
-ic-agent = "0.49.0"
-ic-utils = "0.49.0"
-serde = "=1.0.219"
-serde_json = { version = "=1.0.143", default-features = false }
-strum = { version = "0.26", features = ["derive"] }
-strum_macros = "0.26"
-tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread", "time"] }
-tower = { version = "0.5.2", features = ["full"] }
-hyper-util = { version = "0.1.8", features = ["client", "client-legacy"] }
+hex = "0.4.3"
+hmac = "0.12"
 http = "1.0.0"
 http-body-util = "0.1.2"
-reqwest = { version = "0.12.3", features = [
-    "json",
-    "rustls-tls",
-    "stream",
-    "multipart",
-], default-features = false }
-once_cell = "1.19.0"
-yup-oauth2 = "11.0.0"
-log = "0.4.21"
-yral-metadata-client = { git = "https://github.com/dolr-ai/yral-metadata.git", branch = "main", features = [
-    "rustls-tls",
-], default-features = false }
-config = { version = "0.14.0", features = ["toml"] }
-serde_with = "3.7.0"
-thiserror = "1.0.58"
-anyhow = "1.0.86"
-serde_bytes = "0.11.14"
+hyper-util = { version = "0.1.8", features = ["client", "client-legacy"] }
+ic-agent = "0.49.0"
+ic-utils = "0.49.0"
+image = "0.25"
 jsonwebtoken = { version = "9.3.0", features = ["use_pem"] }
 k256 = { version = "0.13.3", features = ["jwk"] }
-time = "0.3.36"
-base64 = "0.22.1"
-hex = "0.4.3"
-sha2 = "0.10"
-sha1 = "0.10"
-hmac = "0.12"
-utoipa = "5.3.1"
-utoipa-axum = "0.2.0"
-utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
-tower-http = { version = "0.6.2", features = ["cors", "limit"] }
-image = "0.25"
-uuid = { version = "1.4", features = ["v4", "fast-rng"] }
-storj-interface = { git = "https://github.com/dolr-ai/storj-interface", rev = "b824766e5a528deafa56fbb01ecb9f7e09a79e50", version = "0.1.0" }
-yral-metadata-types = { git = "https://github.com/dolr-ai/yral-metadata", branch = "main", version = "0.1.0" }
-tracing = "0.1.41"
-tracing-log = "0.2.0"
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-tracing-futures = "0.2.5"
-regex = "1.11.1"
+log = "0.4.21"
+num-bigint = "0.4"
+num-traits = "0.2"
+once_cell = "1.19.0"
 rand = "0.9.1"
 redis = { version = "0.32.7", features = [
     "tokio-rustls-comp",
@@ -71,23 +45,51 @@ redis = { version = "0.32.7", features = [
     "acl",
     "sentinel",
 ] }
-bb8 = "=0.9.0"
-bb8-redis = "=0.24.0"
-aws-sdk-s3 = { version = "1.65", features = ["behavior-version-latest"] }
-aws-config = { version = "1.5", features = ["behavior-version-latest"] }
+regex = "1.11.1"
+reqwest = { version = "0.12.3", features = [
+    "json",
+    "rustls-tls",
+    "stream",
+    "multipart",
+], default-features = false }
 rustls = { version = "0.23", features = ["ring"] }
+serde = "=1.0.219"
+serde_bytes = "0.11.14"
+serde_json = { version = "=1.0.143", default-features = false }
+serde_with = "3.7.0"
+sha1 = "0.10"
+sha2 = "0.10"
+storj-interface = { git = "https://github.com/dolr-ai/storj-interface", rev = "b824766e5a528deafa56fbb01ecb9f7e09a79e50", version = "0.1.0" }
+strum = { version = "0.26", features = ["derive"] }
+strum_macros = "0.26"
+thiserror = "1.0.58"
+time = "0.3.36"
+tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread", "time"] }
+tower = { version = "0.5.2", features = ["full"] }
+tower-http = { version = "0.6.2", features = ["cors", "limit"] }
+tracing = "0.1.41"
+tracing-futures = "0.2.5"
+tracing-log = "0.2.0"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+utoipa = "5.3.1"
+utoipa-axum = "0.2.0"
+utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
 urlencoding = "2"
-async-channel = "2.3.1"
-num-bigint = "0.4"
-num-traits = "0.2"
+uuid = { version = "1.4", features = ["v4", "fast-rng"] }
+yup-oauth2 = "11.0.0"
 
-yral-canisters-client = { git = "https://github.com/dolr-ai/yral-common.git", branch = "main", features = [
+# Local crates
+yral-canisters-client = { path = "../yral-common/canisters-client", features = [
     "full",
 ] }
-yral-metrics = { git = "https://github.com/dolr-ai/yral-common", branch = "main" }
-yral-canisters-common = { git = "https://github.com/dolr-ai/yral-common", branch = "main" }
-yral-types = { git = "https://github.com/dolr-ai/yral-common", branch = "main" }
-yral-username-gen = { git = "https://github.com/dolr-ai/yral-common", branch = "main" }
+yral-canisters-common = { path = "../yral-common/canisters-common" }
+yral-metadata-client = { path = "../yral-metadata/client", features = [
+    "rustls-tls",
+], default-features = false }
+yral-metadata-types = { path = "../yral-metadata/types" }
+yral-metrics = { path = "../yral-common/metrics" }
+yral-types = { path = "../yral-common/types" }
+yral-username-gen = { path = "../yral-common/username-gen" }
 
 [[bin]]
 name = "icp-off-chain-agent"

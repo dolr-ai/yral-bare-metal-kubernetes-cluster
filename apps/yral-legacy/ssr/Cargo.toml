@@ -89,7 +89,6 @@ sentry-tower = { workspace = true, optional = true }
 telemetry_axum = { workspace = true, optional = true }
 opentelemetry_sdk = { workspace = true, optional = true }
 jsonwebtoken = { workspace = true, optional = true }
-videogen-common = { workspace = true }
 
 # local deps
 auth = { workspace = true }

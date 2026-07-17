@@ -1,7 +1,6 @@
 #[cfg(feature = "js")]
 pub mod js_spawn;
 pub mod mock;
-pub mod vectordb;
 
 use std::{error::Error, future::Future};
 

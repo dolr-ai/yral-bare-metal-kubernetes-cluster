@@ -3,15 +3,15 @@ members = ["client", "server", "types"]
 resolver = "2"
 
 [workspace.dependencies]
-serde = { version = "1.0.219", features = ["derive"] }
-thiserror = "1.0.58"
 candid = "^0.10.10"
+chrono = "0.4"
+ic-agent = { version = "0.49.0", default-features = false, features = ["pem"]}
 log = "0.4.21"
-yral-identity = { git = "https://github.com/dolr-ai/yral-common.git", default-features = false, branch = "main" }
 reqwest = { version = "0.12", default-features = false, features = [
   "json",
   "http2",
 ] }
+serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.115"
-ic-agent = { version = "0.49.0", default-features = false, features = ["pem"]}
-chrono = "0.4"
+thiserror = "1.0.58"
+yral-identity = { path = "../yral-common/identity", default-features = false }

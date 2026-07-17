@@ -1,8 +1,6 @@
-pub mod ai;
 mod validators;
 mod video_upload;
 
-pub use ai::UploadAiPostPage;
 use leptos_meta::*;
 pub use video_upload::PostUploadScreen;
 
@@ -239,38 +237,6 @@ pub fn UploadOptionsPage() -> impl IntoView {
             <div class="flex flex-col gap-6 justify-center items-center px-4 flex-1">
                 <div class="flex flex-col gap-6 w-full max-w-[358px]">
 
-                // Create AI video option
-                <div class="w-full">
-                    <div
-                        on:click=move |_| {
-                            selected_option.set(Some("ai".to_string()));
-                            if let Some(global) = MixpanelGlobalProps::from_ev_ctx(ev_ctx) {
-                                MixPanelEvent::track_video_upload_type_selected(global, "ai_video".to_string());
-                            }
-                        }
-                        class=move || format!(
-                            "bg-neutral-900 rounded-lg p-3 h-[150px] flex flex-col items-center justify-center gap-4 hover:bg-neutral-800 transition-colors cursor-pointer {}",
-                            if selected_option.get() == Some("ai".to_string()) {
-                                "border border-pink-500"
-                            } else {
-                                "border border-neutral-800"
-                            }
-                        )
-                    >
-                        <div class="w-6 h-6">
-                            <img src="/img/icons/magicpen.svg" alt="Magic Pen" class="w-full h-full" />
-                        </div>
-                        <div class="flex flex-col items-center gap-1 text-center">
-                            <h2 class="text-sm font-semibold text-neutral-50 font-['Kumbh_Sans']">
-                                "Create AI video"
-                            </h2>
-                            <p class="text-sm font-normal text-neutral-400 font-['Kumbh_Sans']">
-                                "Generate a video using AI"
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
                 // Upload video option
                 <div class="w-full">
                     <div
@@ -311,7 +277,6 @@ pub fn UploadOptionsPage() -> impl IntoView {
                                 // Track continue click
                                 if let Some(global) = MixpanelGlobalProps::from_ev_ctx(ev_ctx) {
                                     let upload_type = match option.as_str() {
-                                        "ai" => "ai_video",
                                         "upload" => "upload_video",
                                         _ => ""
                                     };
@@ -322,7 +287,6 @@ pub fn UploadOptionsPage() -> impl IntoView {
 
                                 // Navigate
                                 match option.as_str() {
-                                    "ai" => navigate("/upload-ai", Default::default()),
                                     "upload" => navigate("/upload", Default::default()),
                                     _ => {}
                                 }

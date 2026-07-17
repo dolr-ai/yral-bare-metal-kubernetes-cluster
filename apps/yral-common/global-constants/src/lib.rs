@@ -85,21 +85,3 @@ impl CoinState {
             .unwrap_or(DEFAULT_BET_COIN_FOR_LOGGED_OUT)
     }
 }
-
-// VIDEOGEN COMMON CONSTANTS
-
-pub const GLOBAL_VIDEOGEN_RATE_LIMIT_PER_DAY: u64 = 1000; // Total generations allowed per day
-
-// Video Generation Model Costs in USD cents
-pub const RAY2FLASH_COST_USD_CENTS: u64 = 50; // $0.5
-pub const WAN2_5_COST_USD_CENTS: u64 = 50; // $0.5
-pub const WAN2_5_FAST_COST_USD_CENTS: u64 = 50; // $0.5
-pub const SEEDANCE_COST_USD_CENTS: u64 = 50; // $0.5
-pub const TALKINGHEAD_COST_USD_CENTS: u64 = 50; // $0.5
-pub const INTTEST_COST_USD_CENTS: u64 = 0; // Free for testing
-pub const LTX2_COST_USD_CENTS: u64 = 0; // Free - Self-hosted LTX-2 on Vast.ai H100
-
-// Token conversion ratios for video generation
-// Based on: $0.5 (50 cents) = 500 sats = 100 dolr
-pub const VIDEOGEN_USD_CENTS_TO_SATS: u64 = 10; // 1 cent = 10 sats
-pub const VIDEOGEN_USD_CENTS_TO_DOLR_E8S: u64 = 200_000_000; // 1 cent = 2 dolr = 2×10^8 e8s
