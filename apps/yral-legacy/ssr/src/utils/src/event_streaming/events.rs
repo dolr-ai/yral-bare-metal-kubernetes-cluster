@@ -126,8 +126,6 @@ pub enum AnalyticsEvent {
     TokenCreationStarted(TokenCreationStarted),
     TokensTransferred(TokensTransferred),
     PageVisit(PageVisit),
-    CentsAdded(CentsAdded),
-    CentsWithdrawn(CentsWithdrawn),
 }
 
 #[derive(Clone)]
@@ -838,56 +836,6 @@ impl PageVisit {
             );
 
             start(());
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct CentsAdded;
-
-impl CentsAdded {
-    pub fn send_event(&self, ctx: EventCtx, payment_source: String, amount: u64) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            let Some(user) = ctx.user_details() else {
-                return;
-            };
-
-            let _ = send_event_ssr_spawn(
-                "cents_added".to_string(),
-                json!({
-                    "user_id": user.details.principal,
-                    "canister_id": user.canister_id,
-                    "is_loggedin": ctx.is_connected(),
-                    "amount_added": amount,
-                    "payment_source": payment_source,
-                })
-                .to_string(),
-            );
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct CentsWithdrawn;
-
-impl CentsWithdrawn {
-    pub fn send_event(&self, ctx: EventCtx, amount_withdrawn: f64) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            let Some(user) = ctx.user_details() else {
-                return;
-            };
-            let _ = send_event_ssr_spawn(
-                "cents_withdrawn".to_string(),
-                json!({
-                    "user_id": user.details.principal,
-                    "canister_id": user.canister_id,
-                    "is_loggedin": ctx.is_connected(),
-                    "amount_withdrawn": amount_withdrawn,
-                })
-                .to_string(),
-            );
         }
     }
 }

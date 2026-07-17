@@ -27,7 +27,7 @@ pub fn LoginNudgePopup(
                 MixPanelEvent::track_unlock_higher_bets_popup_shown(
                     global,
                     "home".into(),
-                    coin.get_untracked().to_cents(),
+                    coin.get_untracked().to_sats(),
                     StakeType::Sats,
                 );
             }

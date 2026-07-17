@@ -195,7 +195,6 @@ fn TokenTransferInner(
                     cans.transfer_ck_token_to_user_principal(destination, ledger, amt.clone())
                         .await?;
                 }
-                RootType::CENTS => return Err(ServerFnError::new("Cents cannot be transferred")),
                 RootType::SATS => return Err(ServerFnError::new("Satoshis cannot be transferred")),
             }
             TokensTransferred.send_event(amt.e8s.to_string(), destination, cans.clone());

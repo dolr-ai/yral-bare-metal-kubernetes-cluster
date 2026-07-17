@@ -115,7 +115,7 @@ pub fn OnboardingPopUp(onboard_on_click: WriteSignal<bool>) -> impl IntoView {
                             </div>
                             <div class="self-center">
                                 <p class="text-sm font-medium leading-normal text-center text-white">
-                                    Refer and Earn Cents
+                                    Refer and Earn
                                 </p>
                             </div>
                         </div>

@@ -443,7 +443,6 @@ pub enum MixpanelProfileClickedCTAType {
 #[serde(rename_all = "snake_case")]
 pub enum StakeType {
     Sats,
-    Cents,
     DolrAi,
     Btc,
     Usdc,
@@ -724,12 +723,6 @@ derive_event!(track_video_upload_success {
     creator_comission_percentage: u64,
     upload_type: Option<String>,
     token_type: String
-});
-
-derive_event!(track_cents_to_dolr = "cents_to_DOLR" => {
-    cents_converted: f64,
-    updated_cents_wallet_balance: f64,
-    conversion_ratio: f64
 });
 
 derive_event!(track_third_party_wallet_transferred {

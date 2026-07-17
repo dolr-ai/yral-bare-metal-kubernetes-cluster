@@ -21,5 +21,3 @@ pub mod view_profile_redirect;
 pub mod wallet;
 #[cfg(any(feature = "oauth-ssr", feature = "oauth-hydrate"))]
 pub mod yral_auth_redirect;
-
-pub mod pumpdump;

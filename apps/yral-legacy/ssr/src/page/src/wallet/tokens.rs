@@ -21,8 +21,6 @@
 
 use candid::Principal;
 use component::action_btn::ActionButtonLink;
-use component::icons::information_icon::Information;
-use component::icons::padlock_icon::{PadlockClose, PadlockOpen};
 use component::icons::{
     arrow_left_right_icon::ArrowLeftRightIcon, chevron_right_icon::ChevronRightIcon,
     send_icon::SendIcon, share_icon::ShareIcon,
@@ -30,7 +28,6 @@ use component::icons::{
 use component::overlay::PopupOverlay;
 use component::share_popup::ShareContent;
 use component::skeleton::Skeleton;
-use component::tooltip::Tooltip;
 use consts::{
     CKBTC_LEDGER_CANISTER, DOLR_AI_LEDGER_CANISTER, DOLR_AI_ROOT_CANISTER, USDC_LEDGER_CANISTER,
 };
@@ -43,8 +40,8 @@ use utils::host::get_host;
 use utils::mixpanel::mixpanel_events::*;
 use utils::send_wrap;
 use yral_canisters_common::utils::token::balance::TokenBalance;
-use yral_canisters_common::utils::token::{load_cents_balance, load_sats_balance};
-use yral_canisters_common::{Canisters, CENT_TOKEN_NAME};
+use yral_canisters_common::utils::token::load_sats_balance;
+use yral_canisters_common::Canisters;
 use yral_canisters_common::{SATS_TOKEN_NAME, SATS_TOKEN_SYMBOL};
 
 use super::ShowLoginSignal;
@@ -60,7 +57,6 @@ pub fn TokenViewFallback() -> impl IntoView {
 pub enum BalanceFetcherType {
     Icrc1 { ledger: Principal, decimals: u8 },
     Sats,
-    Cents,
     Yral,
 }
 
@@ -83,9 +79,6 @@ impl BalanceFetcherType {
                     .await
                     .map(|info| TokenBalance::new(info.balance.into(), 0))?
             }
-            BalanceFetcherType::Cents => load_cents_balance(user_canister)
-                .await
-                .map(|info| TokenBalance::new(info.balance, 6))?,
         };
 
         Ok(res)
@@ -95,7 +88,6 @@ impl BalanceFetcherType {
 /// Different strategies for loading withdrawal state of tokens
 enum WithdrawalStateFetcherType {
     Sats,
-    Cents,
     /// Simply return `Ok(None)`, used for tokens which can't be withdrawn
     Noop,
 }
@@ -112,15 +104,6 @@ impl WithdrawalStateFetcherType {
             Self::Sats => load_sats_balance(user_principal)
                 .await
                 .map(|info| Some(WithdrawalState::Value(info.balance.into())))?,
-            Self::Cents => load_cents_balance(user_canister).await.map(|info| {
-                if info.withdrawable == 0usize {
-                    Some(WithdrawalState::NeedMoreEarnings(
-                        (info.net_airdrop_reward - info.balance) + 1e6 as usize,
-                    ))
-                } else {
-                    Some(WithdrawalState::Value(info.withdrawable))
-                }
-            })?,
             Self::Noop => None,
         };
 
@@ -132,7 +115,6 @@ impl WithdrawalStateFetcherType {
 pub enum TokenType {
     Sats,
     Btc,
-    Cents,
     Dolr,
     Usdc,
     Yral,
@@ -142,7 +124,6 @@ impl From<TokenType> for WithdrawalStateFetcherType {
     fn from(value: TokenType) -> Self {
         match value {
             TokenType::Sats => Self::Sats,
-            TokenType::Cents => Self::Cents,
             _ => Self::Noop,
         }
     }
@@ -152,7 +133,6 @@ impl From<TokenType> for StakeType {
     fn from(value: TokenType) -> Self {
         match value {
             TokenType::Sats => Self::Sats,
-            TokenType::Cents => Self::Cents,
             TokenType::Btc => Self::Btc,
             TokenType::Usdc => Self::Usdc,
             TokenType::Dolr => Self::DolrAi,
@@ -176,12 +156,6 @@ impl From<TokenType> for TokenDisplayInfo {
                 name: "Bitcoin".into(),
                 symbol: "BTC".into(),
                 logo: "/img/hotornot/bitcoin.svg".into(),
-                token_root_canister: None,
-            },
-            TokenType::Cents => Self {
-                name: CENT_TOKEN_NAME.into(),
-                symbol: CENT_TOKEN_NAME.into(),
-                logo: "/img/yral/cents.webp".into(),
                 token_root_canister: None,
             },
             TokenType::Dolr => Self {
@@ -214,7 +188,6 @@ impl From<TokenType> for BalanceFetcherType {
                 ledger: CKBTC_LEDGER_CANISTER.parse().unwrap(),
                 decimals: 8,
             },
-            TokenType::Cents => Self::Cents,
             TokenType::Dolr => Self::Icrc1 {
                 ledger: DOLR_AI_LEDGER_CANISTER.parse().unwrap(),
                 decimals: 8,
@@ -232,7 +205,7 @@ impl TokenType {
     /// Whether the token is maintained artifically by our platform, unlike
     /// icrc1/2 tokens. For example, `Sats` and `Cents`
     fn is_utility_token(&self) -> bool {
-        matches!(self, Self::Sats | Self::Cents | Self::Yral)
+        matches!(self, Self::Sats | Self::Yral)
     }
 }
 
@@ -312,7 +285,6 @@ enum WithdrawDetails {
 }
 
 struct WithdrawSats;
-struct WithdrawCents;
 
 trait WithdrawImpl {
     fn details(&self, state: WithdrawalState) -> WithdrawDetails;
@@ -326,31 +298,6 @@ trait WithdrawImpl {
 // TODO: use enum_dispatch instead
 // when i try adding enum_dispatch, the linker kills itself with a SIGBUS
 type Withdrawer = Box<dyn WithdrawImpl>;
-
-impl WithdrawImpl for WithdrawCents {
-    fn details(&self, state: WithdrawalState) -> WithdrawDetails {
-        match state {
-            WithdrawalState::Value(bal) => WithdrawDetails::CanWithdraw {
-                amount: TokenBalance::new(bal * 100usize, 8).humanize_float_truncate_to_dp(2),
-                message: "Cents you can withdraw".to_string(),
-            },
-            WithdrawalState::NeedMoreEarnings(more) => WithdrawDetails::CannotWithdraw {
-                message: format!(
-                    "Earn {} Cents more to unlock",
-                    TokenBalance::new(more * 100usize, 8).humanize_float_truncate_to_dp(2)
-                ),
-            },
-        }
-    }
-
-    fn withdraw_url(&self) -> String {
-        "/pnd/withdraw".into()
-    }
-
-    fn withdraw_cta(&self) -> String {
-        "Withdraw".into()
-    }
-}
 
 impl WithdrawImpl for WithdrawSats {
     fn details(&self, state: WithdrawalState) -> WithdrawDetails {
@@ -392,7 +339,6 @@ pub fn WithdrawSection(
 ) -> impl IntoView {
     let withdrawer = match token_name.as_str() {
         s if s == SATS_TOKEN_NAME => Box::new(WithdrawSats) as Withdrawer,
-        s if s == CENT_TOKEN_NAME => Box::new(WithdrawCents),
         _ => unimplemented!("Withdrawing is not implemented for a token"),
     };
 
@@ -413,7 +359,6 @@ pub fn WithdrawSection(
         if let Some(global) = global {
             let token_clicked = match token_name_analytics.as_str() {
                 s if s == SATS_TOKEN_NAME => StakeType::Sats,
-                s if s == CENT_TOKEN_NAME => StakeType::Cents,
                 _ => unimplemented!("Withdrawing is not implemented for a token"),
             };
             MixPanelEvent::track_withdraw_tokens_clicked(global, token_clicked);
@@ -421,33 +366,14 @@ pub fn WithdrawSection(
         nav(&withdraw_url, Default::default());
     };
 
-    let (is_withdrawable, withdraw_message, withdrawable_balance) =
+    let (is_withdrawable, _withdraw_message, _withdrawable_balance) =
         match withdrawer.details(withdrawal_state.clone()) {
             WithdrawDetails::CanWithdraw { amount, message } => (true, Some(message), Some(amount)),
             WithdrawDetails::CannotWithdraw { message } => (false, Some(message), None),
         };
     let withdraw_cta = withdrawer.withdraw_cta();
-    let is_cents = token_name == CENT_TOKEN_NAME;
     view! {
         <div class="flex flex-col gap-2 pt-4 border-t border-neutral-700">
-            {is_cents
-                .then_some(
-                    view! {
-                        <div class="flex items-center">
-                            <Icon
-                                attr:class="text-neutral-300"
-                                icon=if is_withdrawable { PadlockOpen } else { PadlockClose }
-                            />
-                            <span class="mx-2 text-xs text-neutral-400">{withdraw_message}</span>
-                            <Tooltip
-                                icon=Information
-                                title="Withdrawal Tokens"
-                                description="Only Cents earned above your airdrop amount can be withdrawn."
-                            />
-                            <span class="ml-auto">{withdrawable_balance}</span>
-                        </div>
-                    },
-                )}
             <button
                 class="py-2 px-5 text-sm font-bold text-center rounded-lg"
                 class=(

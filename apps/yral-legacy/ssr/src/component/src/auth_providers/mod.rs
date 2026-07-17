@@ -7,7 +7,7 @@ use candid::Principal;
 use codee::string::JsonSerdeCodec;
 use consts::auth::REFRESH_MAX_AGE;
 use consts::AUTH_JOURNEY_PAGE;
-use global_constants::{NEW_USER_SIGNUP_REWARD_SATS, REFERRAL_REWARD_SATS};
+use global_constants::REFERRAL_REWARD_SATS;
 use hon_worker_common::sign_referral_request;
 use hon_worker_common::ReferralReqWithSignature;
 use leptos::logging;
@@ -19,7 +19,6 @@ use leptos_router::hooks::use_navigate;
 use leptos_use::use_cookie_with_options;
 use leptos_use::UseCookieOptions;
 use state::canisters::auth_state;
-use utils::event_streaming::events::CentsAdded;
 use utils::event_streaming::events::EventCtx;
 use utils::event_streaming::events::{LoginMethodSelected, LoginSuccessful, ProviderKind};
 use utils::mixpanel::mixpanel_events::BottomNavigationCategory;
@@ -67,7 +66,6 @@ pub async fn handle_user_login(
     let page_name = page_name.unwrap_or_default();
 
     if first_time_login {
-        CentsAdded.send_event(event_ctx, "signup".to_string(), NEW_USER_SIGNUP_REWARD_SATS);
         let global = MixpanelGlobalProps::try_get(&canisters, true);
         MixPanelEvent::track_signup_success_async(
             global,
@@ -96,7 +94,6 @@ pub async fn handle_user_login(
                 signature: sig,
             })
             .await?;
-            CentsAdded.send_event(event_ctx, "referral".to_string(), REFERRAL_REWARD_SATS);
             Ok(())
         }
         _ => Ok(()),
