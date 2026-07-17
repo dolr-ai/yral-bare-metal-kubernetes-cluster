@@ -12,7 +12,7 @@ use videogen_common::{types_v2::VideoUploadHandling, TokenType, VideoGenError, V
 use crate::{
     app_state::AppState,
     videogen::{
-        qstash_types::{QstashVideoGenCallback, VideoGenCallbackResult},
+        qstash_types::{VideoGenCallback, VideoGenCallbackResult},
         webhook_signature::{verify_webhook_signature, WebhookHeaders},
     },
 };
@@ -178,7 +178,7 @@ pub async fn handle_replicate_webhook(
             };
 
             // Create callback data compatible with existing system
-            let callback = QstashVideoGenCallback {
+            let callback = VideoGenCallback {
                 request_key: crate::videogen::VideoGenRequestKey {
                     principal: user_principal,
                     counter: params.counter,

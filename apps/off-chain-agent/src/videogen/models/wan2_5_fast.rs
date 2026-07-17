@@ -51,7 +51,7 @@ pub struct ReplicatePredictionResponse {
 pub async fn generate_with_context(
     input: VideoGenInput,
     app_state: &AppState,
-    context: &crate::videogen::qstash_types::QstashVideoGenRequest,
+    context: &crate::videogen::qstash_types::VideoGenQueueRequest,
 ) -> Result<VideoGenResponse, VideoGenError> {
     let VideoGenInput::Wan25Fast(model) = input else {
         return Err(VideoGenError::InvalidInput(

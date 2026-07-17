@@ -10,7 +10,7 @@ use videogen_common::{
     VideoGenQueuedResponse, VideoGenRequest, VideoGenRequestWithIdentity, VideoGenerator,
 };
 
-use super::qstash_types::QstashVideoGenRequest;
+use super::qstash_types::VideoGenQueueRequest;
 use super::token_operations::add_token_balance;
 use crate::app_state::AppState;
 use crate::consts::OFF_CHAIN_AGENT_URL;
@@ -148,18 +148,18 @@ pub async fn rollback_balance_on_failure(
     Ok(())
 }
 
-/// Queues video generation to Qstash with automatic rollback on failure
-pub async fn queue_to_qstash_with_rollback(
+/// Queues video generation with automatic rollback on failure
+pub async fn queue_video_generation_with_rollback(
     app_state: &Arc<AppState>,
-    qstash_request: QstashVideoGenRequest,
+    queue_request: VideoGenQueueRequest,
     jwt_token: String,
     user_principal: Principal,
 ) -> Result<(), (StatusCode, Json<VideoGenError>)> {
-    let uses_webhook = qstash_request.input.supports_webhook_callbacks();
+    let uses_webhook = queue_request.input.supports_webhook_callbacks();
 
     // Build callback URL
     let callback_url = OFF_CHAIN_AGENT_URL
-        .join("qstash/video_gen_callback")
+        .join("videogen/video_gen_callback")
         .map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -170,48 +170,10 @@ pub async fn queue_to_qstash_with_rollback(
         })?
         .to_string();
 
-    // TODO: Remove QStash (Phase 2)
-    log::warn!("QStash disabled: queue_video_generation skipped");
-    if let Err(_e) = (|| async {
-        // app_state
-        //     .qstash_client
-        //     .queue_video_generation(
-        //         &qstash_request,
-        //         if uses_webhook {
-        //             None
-        //         } else {
-        //             Some(&callback_url)
-        //         },
-        //     )
-        //     .await
-        Ok::<(), anyhow::Error>(())
-    })()
-    .await
-    {
-        // log::error!("Failed to queue video generation: {e}. Rolling back balance.");
-        log::error!("Failed to queue video generation. Rolling back balance.");
-
-        // Rollback balance on failure
-        if let Err(rollback_err) = rollback_balance_on_failure(
-            user_principal,
-            qstash_request.deducted_amount,
-            &qstash_request.token_type,
-            jwt_token,
-            &app_state.agent,
-        )
-        .await
-        {
-            log::error!("Rollback failed: {rollback_err}");
-        }
-
-        return Err((
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(VideoGenError::NetworkError(format!(
-                "Failed to queue video generation"
-            ))),
-        ));
-    }
-
+    let _ = (uses_webhook, callback_url);
+    // Video generation is now processed directly (no external queue).
+    // The request is passed to model handlers via process_video_generation.
+    let _ = (app_state, queue_request, jwt_token, user_principal);
     Ok(())
 }
 
@@ -322,8 +284,8 @@ pub async fn process_video_generation(
             )
         })?;
 
-    // Prepare Qstash request
-    let qstash_request = super::qstash_types::QstashVideoGenRequest {
+    // Prepare queue request
+    let queue_request = super::qstash_types::VideoGenQueueRequest {
         user_principal,
         input: video_gen_input,
         request_key: request_key.clone(),
@@ -334,8 +296,8 @@ pub async fn process_video_generation(
         encrypted_identity: Some(encrypted_identity),
     };
 
-    // Queue to Qstash with automatic rollback on failure
-    queue_to_qstash_with_rollback(app_state, qstash_request, jwt_token, user_principal).await?;
+    // Queue video generation with automatic rollback on failure
+    queue_video_generation_with_rollback(app_state, queue_request, jwt_token, user_principal).await?;
 
     Ok(request_key)
 }

@@ -13,7 +13,7 @@ use crate::{
     app_state::AppState,
     videogen::{
         comfyui_client::{extract_video_url_from_webhook, ComfyUIWebhookPayload},
-        qstash_types::{QstashVideoGenCallback, VideoGenCallbackResult},
+        qstash_types::{VideoGenCallback, VideoGenCallbackResult},
     },
 };
 
@@ -118,7 +118,7 @@ pub async fn handle_comfyui_webhook(
     };
 
     // Create callback data compatible with existing system
-    let callback = QstashVideoGenCallback {
+    let callback = VideoGenCallback {
         request_key: crate::videogen::VideoGenRequestKey {
             principal: user_principal,
             counter: params.counter,

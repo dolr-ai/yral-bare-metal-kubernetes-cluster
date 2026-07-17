@@ -82,7 +82,7 @@ pub async fn generate_prompt_from_speech(
 pub async fn generate_with_context(
     input: VideoGenInput,
     app_state: &AppState,
-    context: &crate::videogen::qstash_types::QstashVideoGenRequest,
+    context: &crate::videogen::qstash_types::VideoGenQueueRequest,
 ) -> Result<VideoGenResponse, VideoGenError> {
     let VideoGenInput::SpeechToVideo(model) = input else {
         return Err(VideoGenError::InvalidInput(

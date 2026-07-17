@@ -195,7 +195,7 @@ pub async fn schedule_nsfw_handoff_job(
     pool: &Arc<DragonflyPool>,
     mut job: VideoProcessingJob,
 ) -> Result<()> {
-    // Legacy QStash dedup and the new worker can converge on the same video; preserve active job state.
+    // Legacy dedup and the new worker can converge on the same video; preserve active job state.
     if let Some(mut existing_job) = load_job(pool, &job.video_id).await? {
         if existing_job.is_terminal() {
             log::info!(

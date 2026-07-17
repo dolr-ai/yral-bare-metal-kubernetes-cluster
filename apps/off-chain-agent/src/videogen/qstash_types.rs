@@ -2,9 +2,9 @@ use candid::Principal;
 use serde::{Deserialize, Serialize};
 use videogen_common::{types_v2::VideoUploadHandling, TokenType, VideoGenInput, VideoGenResponse};
 
-/// Request structure for queueing video generation to Qstash
+/// Request structure for queueing video generation
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct QstashVideoGenRequest {
+pub struct VideoGenQueueRequest {
     /// User principal making the request
     pub user_principal: Principal,
     /// The video generation input
@@ -30,9 +30,9 @@ pub struct VideoGenRequestKey {
     pub counter: u64,
 }
 
-/// Callback request structure for Qstash completion
+/// Callback request structure for video generation completion
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct QstashVideoGenCallback {
+pub struct VideoGenCallback {
     /// The original request key
     pub request_key: VideoGenRequestKey,
     /// Result of the video generation

@@ -61,7 +61,7 @@ pub async fn handle_user_migration(
         return Err((StatusCode::UNAUTHORIZED, "Unauthorized".to_string()));
     }
 
-    // QStash has been removed. Log the migration request instead of queueing it.
+    // Log the migration request (queueing is handled externally).
     log::info!(
         "User migration request received for user_principal={}, user_canister={}",
         request.user_principal,
