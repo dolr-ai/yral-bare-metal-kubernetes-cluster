@@ -62,7 +62,6 @@ services:
 
       # === Upstash & Vector ===
       UPSTASH_VECTOR_READ_WRITE_TOKEN: ${UPSTASH_VECTOR_READ_WRITE_TOKEN}
-      MILVUS_URL: ${MILVUS_URL}
 
       # === Storage ===
       STORJ_INTERFACE_TOKEN: ${STORJ_INTERFACE_TOKEN}
