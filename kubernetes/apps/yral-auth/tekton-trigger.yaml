@@ -131,7 +131,9 @@ spec:
             name: cel
           params:
             - name: filter
-              value: "body.ref == 'refs/heads/main' && body.head_commit.author.username != 'fluxcdbot'"
+              # Only trigger when files under apps/yral-auth/ or kubernetes/apps/yral-auth/ changed.
+              # Checks all commits in the push (added + modified + removed files).
+              value: "body.ref == 'refs/heads/main' && body.head_commit.author.username != 'fluxcdbot' && body.commits.exists(c, (c.added + c.modified + c.removed).exists(f, f.startsWith('apps/yral-auth/') || f.startsWith('kubernetes/apps/yral-auth/')))"
             - name: overlays
               value:
                 - key: image_tag
