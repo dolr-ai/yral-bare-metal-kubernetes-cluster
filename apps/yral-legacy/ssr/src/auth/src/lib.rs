@@ -37,6 +37,7 @@ fn delegate_identity_with_max_age(
         pubkey: to_identity.public_key().unwrap(),
         expiration: expiry_ns,
         targets: None,
+        permissions: None,
     };
     let sig = from.sign_delegation(&delegation).unwrap();
     let signed_delegation = SignedDelegation {

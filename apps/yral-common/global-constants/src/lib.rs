@@ -54,6 +54,9 @@ impl CoinState {
             CoinState::C200 => 200,
         }
     }
+    pub fn to_sats(&self) -> u64 {
+        self.to_cents()
+    }
     pub fn from_cents(cents: u64) -> CoinState {
         match cents {
             1 => CoinState::C1,
