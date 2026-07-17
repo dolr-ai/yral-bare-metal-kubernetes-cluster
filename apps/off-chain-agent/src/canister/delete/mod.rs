@@ -20,9 +20,8 @@ use crate::{
 /// 0. YRAL auth Redis keys (including AI/bot account slots)
 /// 1. User metadata (via yral_metadata_client)
 /// 2. User info from UserInfoService canister
-/// 3. All user posts (fetched + recorded in BigQuery)
+/// 3. All user posts (fetched + recorded in kvrocks)
 /// 4. Posts deleted from canister (background task)
-/// 5. Duplicate post cleanup (background task)
 #[instrument(skip(agent, state))]
 pub async fn delete_canister_data(
     agent: &Agent,
@@ -235,20 +234,8 @@ pub async fn delete_canister_data(
     }
 
     // Step 3: Bulk insert into video_deleted table if posts exist
-    //       : Handle duplicate posts cleanup (spawn as background task)
     if !posts.is_empty() {
-        bulk_insert_video_delete_rows_v2(
-            &state.bigquery_client,
-            &state.kvrocks_client,
-            posts.clone(),
-        )
-        .await?;
-        let bigquery_client = state.bigquery_client.clone();
-        let kvrocks_client = state.kvrocks_client.clone();
-        let video_ids: Vec<String> = posts.iter().map(|p| p.video_id.clone()).collect();
-        tokio::spawn(async move {
-            handle_duplicate_posts_cleanup(bigquery_client, kvrocks_client, video_ids).await;
-        });
+        bulk_insert_video_delete_rows_v2(&state.kvrocks_client, posts.clone()).await?;
     }
 
     // Step 4: Delete posts from canister (spawn as background task)
@@ -362,41 +349,6 @@ async fn delete_posts_from_canister(agent: &Agent, posts: Vec<UserPostV2>) {
     while let Some(result) = buffered.next().await {
         if let Err(e) = result {
             log::error!("Post deletion error: {e}");
-        }
-    }
-}
-
-async fn handle_duplicate_posts_cleanup(
-    bigquery_client: google_cloud_bigquery::client::Client,
-    kvrocks_client: crate::kvrocks::KvrocksClient,
-    video_ids: Vec<String>,
-) {
-    let futures: Vec<_> = video_ids
-        .into_iter()
-        .map(|video_id| {
-            let client = bigquery_client.clone();
-            let kvrocks = kvrocks_client.clone();
-            async move {
-                crate::posts::delete_post::handle_duplicate_post_on_delete(
-                    client,
-                    &kvrocks,
-                    video_id.clone(),
-                )
-                .await
-                .map_err(|e| {
-                    log::error!(
-                        "Failed to handle duplicate post on delete for video {video_id}: {e}"
-                    );
-                    anyhow::anyhow!("Failed to handle duplicate post: {}", e)
-                })
-            }
-        })
-        .collect();
-
-    let mut buffered = futures::stream::iter(futures).buffer_unordered(2);
-    while let Some(result) = buffered.next().await {
-        if let Err(e) = result {
-            log::error!("Duplicate post cleanup error: {e}");
         }
     }
 }

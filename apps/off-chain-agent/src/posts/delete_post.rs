@@ -1,16 +1,7 @@
 use std::sync::Arc;
 
-use super::types::{UserPost, UserPostV2, VideoDeleteRow};
+use super::types::{UserPost, UserPostV2};
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
-use chrono::Utc;
-use google_cloud_bigquery::{
-    client::Client,
-    http::{
-        job::query::QueryRequest,
-        tabledata::insert_all::{InsertAllRequest, Row},
-    },
-    query::row::Row as QueryRow,
-};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use types::PostRequest;
@@ -21,13 +12,12 @@ use crate::kvrocks::{KvrocksClient, VideoDeleted};
 use crate::{
     app_state::AppState,
     consts::{USER_INFO_SERVICE_CANISTER_ID, USER_POST_SERVICE_CANISTER_ID},
-    posts::queries::get_duplicate_children_query,
     user::utils::get_agent_from_delegated_identity_wire,
 };
 
 use super::{types, verify, DeletePostRequest, DeletePostRequestV2};
 
-const BULK_INSERT_DELETE_BIGQUERY_BATCH_SIZE: usize = 500;
+const BULK_DELETE_BATCH_SIZE: usize = 500;
 
 // TODO: canister_id still being used
 #[utoipa::path(
@@ -97,18 +87,6 @@ pub async fn handle_delete_post(
                 format!("Failed to insert video to bigquery: {e}"),
             )
         })?;
-
-    // spawn to not block the request since as far as user is concerned, the post is deleted
-    let bigquery_client = state.bigquery_client.clone();
-    let kvrocks_client = state.kvrocks_client.clone();
-    let video_id_clone = video_id.clone();
-    tokio::spawn(async move {
-        if let Err(e) =
-            handle_duplicate_post_on_delete(bigquery_client, &kvrocks_client, video_id_clone).await
-        {
-            log::error!("Failed to handle duplicate post on delete: {e}");
-        }
-    });
 
     Ok((StatusCode::OK, "Post deleted".to_string()))
 }
@@ -228,18 +206,6 @@ pub async fn handle_delete_post_v2(
         )
     })?;
 
-    // spawn to not block the request since as far as user is concerned, the post is deleted
-    let bigquery_client = state.bigquery_client.clone();
-    let kvrocks_client = state.kvrocks_client.clone();
-    let video_id_clone = video_id.clone();
-    tokio::spawn(async move {
-        if let Err(e) =
-            handle_duplicate_post_on_delete(bigquery_client, &kvrocks_client, video_id_clone).await
-        {
-            log::error!("Failed to handle duplicate post on delete: {e}");
-        }
-    });
-
     Ok((StatusCode::OK, "Post deleted".to_string()))
 }
 
@@ -250,124 +216,6 @@ pub struct VideoUniqueRow {
     pub created_at: String,
 }
 
-#[instrument(skip(kvrocks_client))]
-async fn get_hash_from_videohash_original(
-    kvrocks_client: &KvrocksClient,
-    video_id: &str,
-) -> anyhow::Result<Option<String>> {
-    let data = kvrocks_client.get_videohash_original(video_id).await?;
-    Ok(data.map(|d| d.videohash))
-}
-
-#[instrument(skip(bq_client, kvrocks_client))]
-pub async fn handle_duplicate_post_on_delete(
-    bq_client: Client,
-    kvrocks_client: &KvrocksClient,
-    video_id: String,
-) -> Result<(), anyhow::Error> {
-    // check if its unique using kvrocks
-    let is_unique = kvrocks_client
-        .get_video_unique_v2(&video_id)
-        .await?
-        .is_some();
-
-    let videohash = match get_hash_from_videohash_original(kvrocks_client, &video_id).await? {
-        Some(h) => h,
-        None => return Ok(()),
-    };
-
-    // if its not unique, return
-    if !is_unique {
-        return Ok(());
-    }
-
-    // get children from videohash_original GROUP BY and filter from video_deleted table
-    let request = QueryRequest {
-        query: get_duplicate_children_query(videohash.clone(), video_id.clone()),
-        ..Default::default()
-    };
-    let mut response = bq_client
-        .query::<QueryRow>("hot-or-not-feed-intelligence", request)
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to query videohash_original: {}", e))?;
-    let mut res_list = Vec::new();
-    while let Some(row) = response.next().await? {
-        res_list.push(row);
-    }
-
-    let mut duplicate_videos = Vec::new();
-    for row in res_list {
-        duplicate_videos.push(
-            row.column::<String>(0)
-                .map_err(|e| anyhow::anyhow!("Failed to retrieve 'video_id' at index 0: {}", e))?,
-        );
-    }
-
-    if !duplicate_videos.is_empty() {
-        // add one of the children to video_unique table
-        let new_parent_video_id = duplicate_videos[0].clone();
-        let video_unique_row = VideoUniqueRow {
-            video_id: new_parent_video_id,
-            videohash,
-            created_at: Utc::now().to_rfc3339(),
-        };
-
-        let request = InsertAllRequest {
-            rows: vec![Row {
-                insert_id: None,
-                json: video_unique_row,
-            }],
-            ..Default::default()
-        };
-
-        let res = bq_client
-            .tabledata()
-            .insert(
-                "hot-or-not-feed-intelligence",
-                "yral_ds",
-                "video_unique_v2",
-                &request,
-            )
-            .await
-            .map_err(|e| {
-                anyhow::anyhow!("Failed to insert video unique v2 row to bigquery: {}", e)
-            })?;
-
-        if let Some(errors) = res.insert_errors {
-            if !errors.is_empty() {
-                log::error!("video_unique_v2 insert response : {errors:?}");
-                return Err(anyhow::anyhow!(
-                    "Failed to insert video unique v2 row to bigquery"
-                ));
-            }
-        }
-    }
-
-    // delete old parent from video_unique_v2 table
-    let request = QueryRequest {
-        query: format!(
-            "DELETE FROM `hot-or-not-feed-intelligence.yral_ds.video_unique_v2` WHERE video_id = '{video_id}'"
-        ),
-        ..Default::default()
-    };
-
-    let res = bq_client
-        .job()
-        .query("hot-or-not-feed-intelligence", &request)
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to delete video unique v2 row to bigquery: {}", e))?;
-
-    if let Some(errors) = res.errors {
-        if !errors.is_empty() {
-            log::error!("video_unique delete response : {errors:?}");
-            return Err(anyhow::anyhow!(
-                "Failed to delete video unique v2 row to bigquery"
-            ));
-        }
-    }
-    Ok(())
-}
-
 pub async fn insert_video_delete_row_to_bigquery(
     state: Arc<AppState>,
     canister_id: String,
@@ -375,7 +223,6 @@ pub async fn insert_video_delete_row_to_bigquery(
     video_id: String,
 ) -> Result<(), anyhow::Error> {
     bulk_insert_video_delete_rows(
-        &state.bigquery_client,
         &state.kvrocks_client,
         vec![UserPost {
             canister_id,
@@ -395,7 +242,6 @@ pub async fn insert_video_delete_row_to_bigquery_v2(
     video_id: String,
 ) -> Result<(), anyhow::Error> {
     bulk_insert_video_delete_rows_v2(
-        &state.bigquery_client,
         &state.kvrocks_client,
         vec![UserPostV2 {
             canister_id,
@@ -409,53 +255,12 @@ pub async fn insert_video_delete_row_to_bigquery_v2(
 }
 
 pub async fn bulk_insert_video_delete_rows(
-    bq_client: &Client,
     kvrocks_client: &KvrocksClient,
     posts: Vec<UserPost>,
 ) -> Result<(), anyhow::Error> {
     // Process posts in batches of 500
-    for chunk in posts.chunks(BULK_INSERT_DELETE_BIGQUERY_BATCH_SIZE) {
-        let rows: Vec<Row<VideoDeleteRow>> = chunk
-            .iter()
-            .map(|post| {
-                let video_delete_row = VideoDeleteRow {
-                    canister_id: post.canister_id.clone(),
-                    post_id: post.post_id,
-                    video_id: post.video_id.clone(),
-                    gcs_video_id: format!("gs://yral-videos/{}.mp4", post.video_id),
-                };
-                Row::<VideoDeleteRow> {
-                    insert_id: None,
-                    json: video_delete_row,
-                }
-            })
-            .collect();
-
-        let request = InsertAllRequest {
-            rows,
-            ..Default::default()
-        };
-
-        let res = bq_client
-            .tabledata()
-            .insert(
-                "hot-or-not-feed-intelligence",
-                "yral_ds",
-                "video_deleted",
-                &request,
-            )
-            .await?;
-
-        if let Some(errors) = res.insert_errors {
-            if !errors.is_empty() {
-                log::error!("video_deleted bulk insert errors: {errors:?}");
-                return Err(anyhow::anyhow!(
-                    "Failed to bulk insert video deleted rows to bigquery"
-                ));
-            }
-        }
-
-        // Also push to kvrocks
+    for chunk in posts.chunks(BULK_DELETE_BATCH_SIZE) {
+        // Push to kvrocks
         for post in chunk {
             let delete_data = VideoDeleted {
                 canister_id: post.canister_id.to_string(),
@@ -478,53 +283,12 @@ pub async fn bulk_insert_video_delete_rows(
 }
 
 pub async fn bulk_insert_video_delete_rows_v2(
-    bq_client: &Client,
     kvrocks_client: &KvrocksClient,
     posts: Vec<UserPostV2>,
 ) -> Result<(), anyhow::Error> {
     // Process posts in batches of 500
-    for chunk in posts.chunks(BULK_INSERT_DELETE_BIGQUERY_BATCH_SIZE) {
-        let rows: Vec<Row<VideoDeleteRow>> = chunk
-            .iter()
-            .map(|post| {
-                let video_delete_row = VideoDeleteRow {
-                    canister_id: post.canister_id.clone(),
-                    post_id: 0, // Post ID is not used in V2, so set to 0
-                    video_id: post.video_id.clone(),
-                    gcs_video_id: format!("gs://yral-videos/{}.mp4", post.video_id),
-                };
-                Row::<VideoDeleteRow> {
-                    insert_id: None,
-                    json: video_delete_row,
-                }
-            })
-            .collect();
-
-        let request = InsertAllRequest {
-            rows,
-            ..Default::default()
-        };
-
-        let res = bq_client
-            .tabledata()
-            .insert(
-                "hot-or-not-feed-intelligence",
-                "yral_ds",
-                "video_deleted",
-                &request,
-            )
-            .await?;
-
-        if let Some(errors) = res.insert_errors {
-            if !errors.is_empty() {
-                log::error!("video_deleted bulk insert errors: {errors:?}");
-                return Err(anyhow::anyhow!(
-                    "Failed to bulk insert video deleted rows to bigquery"
-                ));
-            }
-        }
-
-        // Also push to kvrocks
+    for chunk in posts.chunks(BULK_DELETE_BATCH_SIZE) {
+        // Push to kvrocks
         for post in chunk {
             let delete_data = VideoDeleted {
                 canister_id: post.canister_id.clone(),

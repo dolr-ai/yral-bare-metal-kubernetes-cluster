@@ -6,10 +6,6 @@ use reqwest::Url;
 #[allow(dead_code)]
 pub const NSFW_THRESHOLD: f32 = 0.4;
 
-pub static BIGQUERY_INGESTION_URL: Lazy<Url> = Lazy::new(|| {
-    Url::parse("https://bigquery.googleapis.com/bigquery/v2/projects/hot-or-not-feed-intelligence/datasets/analytics_335143420/tables/test_events_analytics/insertAll").unwrap()
-});
-
 pub static YRAL_UPLOAD_SERVICE: Lazy<Url> =
     Lazy::new(|| Url::parse("https://upload.yral.com").unwrap());
 

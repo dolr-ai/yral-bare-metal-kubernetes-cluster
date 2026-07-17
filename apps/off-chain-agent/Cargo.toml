@@ -43,17 +43,9 @@ thiserror = "1.0.58"
 anyhow = "1.0.86"
 serde_bytes = "0.11.14"
 jsonwebtoken = { version = "9.3.0", features = ["use_pem"] }
-cloud-storage = { version = "0.11.1", default-features = false, features = [
-    "rustls-tls",
-] }
 k256 = { version = "0.13.3", features = ["jwk"] }
 time = "0.3.36"
-firestore = "0.43.1"
 base64 = "0.22.1"
-google-cloud-bigquery = { version = "0.15.0", default-features = false, features = [
-    "auth",
-    "rustls-tls",
-] }
 hex = "0.4.3"
 sha2 = "0.10"
 sha1 = "0.10"
@@ -77,8 +69,6 @@ tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 tracing-futures = "0.2.5"
 regex = "1.11.1"
-google-cloud-alloydb-v1 = "0.2.0"
-google-cloud-auth = "0.19.0"
 rand = "0.9.1"
 redis = { version = "0.32.7", features = [
     "tokio-rustls-comp",
@@ -106,7 +96,6 @@ milvus-sdk-rust = "0.1.0"
 yral-canisters-client = { git = "https://github.com/dolr-ai/yral-common.git", branch = "main", features = [
     "full",
 ] }
-yral-alloydb-client = { git = "https://github.com/dolr-ai/yral-common", branch = "main", package = "alloydb-client" }
 yral-metrics = { git = "https://github.com/dolr-ai/yral-common", branch = "main" }
 videogen-common = { git = "https://github.com/dolr-ai/yral-common", branch = "main", features = [
     "server",

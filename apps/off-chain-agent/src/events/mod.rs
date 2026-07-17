@@ -28,9 +28,6 @@ pub mod warehouse_events {
 }
 
 pub mod event;
-// Retired QStash NSFW handlers are kept for rollback/cleanup context, but are not mounted.
-#[allow(dead_code)]
-pub mod nsfw;
 pub mod push_notifications;
 pub mod queries;
 pub mod types;
@@ -147,9 +144,6 @@ async fn process_event_impl(
     event: Event,
     shared_state: Arc<AppState>,
 ) -> Result<(), anyhow::Error> {
-    #[cfg(not(feature = "local-bin"))]
-    event.stream_to_bigquery(&shared_state.clone());
-
     // event.forward_to_mixpanel(&shared_state);
 
     event
@@ -192,9 +186,6 @@ async fn process_event_impl_v2(
     event: Event,
     shared_state: Arc<AppState>,
 ) -> Result<(), anyhow::Error> {
-    #[cfg(not(feature = "local-bin"))]
-    event.stream_to_bigquery(&shared_state.clone());
-
     // event.forward_to_mixpanel(&shared_state);
 
     event

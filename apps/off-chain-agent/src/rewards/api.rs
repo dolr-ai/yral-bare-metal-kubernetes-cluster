@@ -19,65 +19,6 @@ use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
-#[cfg(not(feature = "local-bin"))]
-use google_cloud_bigquery::http::job::query::QueryRequest;
-
-/// Query BigQuery to get post_id from video_id
-#[cfg(not(feature = "local-bin"))]
-#[allow(dead_code)]
-async fn query_post_id_from_bigquery(
-    bigquery_client: &google_cloud_bigquery::client::Client,
-    video_id: &str,
-) -> Option<String> {
-    let query = format!(
-        "SELECT JSON_EXTRACT_SCALAR(params, '$.post_id') as post_id \
-         FROM `hot-or-not-feed-intelligence.analytics_335143420.test_events_analytics` \
-         WHERE event = 'video_upload_successful' \
-         AND JSON_EXTRACT_SCALAR(params, '$.video_id') = '{}' \
-         LIMIT 1",
-        video_id
-    );
-
-    let request = QueryRequest {
-        query,
-        ..Default::default()
-    };
-
-    match bigquery_client
-        .job()
-        .query("hot-or-not-feed-intelligence", &request)
-        .await
-    {
-        Ok(result) => {
-            let rows = result.rows.unwrap_or_default();
-            if rows.is_empty() {
-                log::warn!("No post_id found in BigQuery for video_id: {}", video_id);
-                return None;
-            }
-
-            // Extract post_id from first row
-            let row = &rows[0];
-            match &row.f[0].v {
-                google_cloud_bigquery::http::tabledata::list::Value::String(s) => {
-                    log::debug!("Found post_id {} for video_id {}", s, video_id);
-                    Some(s.clone())
-                }
-                _ => {
-                    log::warn!(
-                        "Unexpected value type for post_id in BigQuery for video_id: {}",
-                        video_id
-                    );
-                    None
-                }
-            }
-        }
-        Err(e) => {
-            log::error!("Failed to query BigQuery for post_id: {}", e);
-            None
-        }
-    }
-}
-
 #[derive(Debug, Deserialize, IntoParams)]
 pub struct PaginationParams {
     #[serde(default = "default_limit")]

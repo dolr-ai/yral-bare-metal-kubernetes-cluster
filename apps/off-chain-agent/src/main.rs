@@ -42,7 +42,6 @@ pub mod leaderboard;
 mod middleware;
 #[cfg(not(feature = "local-bin"))]
 mod milvus;
-mod moderation;
 mod offchain_service;
 pub mod pipeline;
 mod posts;
@@ -103,10 +102,6 @@ async fn main_impl() -> Result<()> {
         .nest(
             "/api/v2/posts",
             posts::posts_router_v2(shared_state.clone()),
-        )
-        .nest(
-            "/api/v1/moderation",
-            moderation::moderation_router(shared_state.clone()),
         );
 
     #[cfg(not(feature = "local-bin"))]

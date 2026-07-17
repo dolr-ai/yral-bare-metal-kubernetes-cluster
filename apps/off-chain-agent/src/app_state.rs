@@ -15,9 +15,6 @@ use crate::yral_auth::dragonfly::{
 };
 use anyhow::{anyhow, Context, Result};
 use candid::Principal;
-use google_cloud_alloydb_v1::client::AlloyDBAdmin;
-use google_cloud_auth::credentials::service_account::Builder as CredBuilder;
-use google_cloud_bigquery::client::{Client, ClientConfig};
 use hyper_util::client::legacy::connect::HttpConnector;
 use ic_agent::identity::Secp256k1Identity;
 use ic_agent::Agent;
@@ -27,7 +24,6 @@ use reqwest::Client as ReqwestClient;
 use std::env;
 use std::sync::Arc;
 use tonic::transport::{Channel, ClientTlsConfig};
-use yral_alloydb_client::AlloyDbInstance;
 use yral_metadata_client::MetadataClient;
 use yup_oauth2::hyper_rustls::HttpsConnector;
 use yup_oauth2::{authenticator::Authenticator, ServiceAccountAuthenticator};
@@ -66,13 +62,7 @@ pub struct AppState {
     /// Google Chat App authenticator (for sending messages with interactive buttons)
     #[cfg(not(feature = "local-bin"))]
     pub gchat_auth: Authenticator<HttpsConnector<HttpConnector>>,
-    #[cfg(not(feature = "local-bin"))]
-    pub bigquery_client: Client,
     pub nsfw_detect_channel: Option<Channel>,
-    #[cfg(not(feature = "local-bin"))]
-    pub gcs_client: Arc<cloud_storage::Client>,
-    #[cfg(not(any(feature = "local-bin", feature = "use-local-agent")))]
-    pub alloydb_client: AlloyDbInstance,
     #[cfg(not(feature = "local-bin"))]
     pub notification_client: NotificationClient,
     #[cfg(not(feature = "local-bin"))]
@@ -147,13 +137,7 @@ impl AppState {
             #[cfg(not(feature = "local-bin"))]
             gchat_auth: init_gchat_auth().await,
             // ml_server_grpc_channel: init_ml_server_grpc_channel().await,
-            #[cfg(not(feature = "local-bin"))]
-            bigquery_client: init_bigquery_client().await,
             nsfw_detect_channel: init_nsfw_detect_channel().await.ok(),
-            #[cfg(not(feature = "local-bin"))]
-            gcs_client: Arc::new(cloud_storage::Client::default()),
-            #[cfg(not(any(feature = "local-bin", feature = "use-local-agent")))]
-            alloydb_client: init_alloydb_client().await,
             #[cfg(not(feature = "local-bin"))]
             notification_client: NotificationClient::new(
                 env::var("YRAL_METADATA_NOTIFICATION_API_KEY").unwrap_or_default(),
@@ -364,11 +348,6 @@ pub async fn init_gchat_auth() -> Authenticator<HttpsConnector<HttpConnector>> {
         .expect("Failed to build Google Chat authenticator")
 }
 
-pub async fn init_bigquery_client() -> Client {
-    let (config, _) = ClientConfig::new_with_auth().await.unwrap();
-    Client::new(config).await.unwrap()
-}
-
 pub async fn init_nsfw_detect_channel() -> Result<Channel, tonic::transport::Error> {
     let tls_config = ClientTlsConfig::new().with_webpki_roots();
     let channel = Channel::from_static(NSFW_SERVER_URL)
@@ -386,29 +365,6 @@ pub async fn init_nsfw_detect_channel() -> Result<Channel, tonic::transport::Err
     Ok(channel)
 }
 
-
-async fn init_alloydb_client() -> AlloyDbInstance {
-    let sa_json_raw = env::var("ALLOYDB_SERVICE_ACCOUNT_JSON")
-        .expect("`ALLOYDB_SERVICE_ACCOUNT_JSON` is required!");
-    let sa_json: serde_json::Value =
-        serde_json::from_str(&sa_json_raw).expect("Invalid `ALLOYDB_SERVICE_ACCOUNT_JSON`");
-    let credentials = CredBuilder::new(sa_json)
-        .build()
-        .expect("Invalid `ALLOYDB_SERVICE_ACCOUNT_JSON`");
-
-    let client = AlloyDBAdmin::builder()
-        .with_credentials(credentials)
-        .build()
-        .await
-        .expect("Failed to create AlloyDB client");
-
-    let instance = env::var("ALLOYDB_INSTANCE").expect("`ALLOYDB_INSTANCE` is required!");
-    let db_name = env::var("ALLOYDB_DB_NAME").expect("`ALLOYDB_DB_NAME` is required!");
-    let db_user = env::var("ALLOYDB_DB_USER").expect("`ALLOYDB_DB_USER` is required!");
-    let db_password = env::var("ALLOYDB_DB_PASSWORD").expect("`ALLOYDB_DB_PASSWORD` is required!");
-
-    AlloyDbInstance::new(client, instance, db_name, db_user, db_password)
-}
 
 async fn init_leaderboard_redis_pool() -> RedisPool {
     let redis_url =

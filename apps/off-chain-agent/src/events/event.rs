@@ -6,7 +6,7 @@ use crate::events::types::{
 use crate::pipeline::Step;
 use crate::setup_context;
 use crate::{
-    app_state::AppState, consts::BIGQUERY_INGESTION_URL, events::warehouse_events::WarehouseEvent,
+    app_state::AppState, events::warehouse_events::WarehouseEvent,
     AppError,
 };
 use axum::{extract::State, Json};
@@ -75,35 +75,6 @@ impl Event {
             event: self.event.event.clone(),
             params,
         })
-    }
-
-    /// BigQuery format: {event: string, params: string (JSON), timestamp: string}
-    pub fn stream_to_bigquery(&self, app_state: &AppState) {
-        let event_str = self.event.event.clone();
-        let params_str = self.event.params.clone();
-        let app_state = app_state.clone();
-
-        tokio::spawn(async move {
-            let timestamp = chrono::Utc::now().to_rfc3339();
-
-            let data = serde_json::json!({
-                "kind": "bigquery#tableDataInsertAllRequest",
-                "rows": [
-                    {
-                        "json": {
-                            "event": event_str,
-                            "params": params_str,
-                            "timestamp": timestamp,
-                        }
-                    }
-                ]
-            });
-
-            // Push to BigQuery (events stay in analytical DB only, not kvrocks)
-            if let Err(e) = stream_to_bigquery(&app_state, data).await {
-                error!("Error sending data to BigQuery: {}", e);
-            }
-        });
     }
 
     /// Mixpanel format: {event: string, user_id: string, video_id: string, ...} (flat)
@@ -446,139 +417,4 @@ impl Event {
             log::error!("Failed to process video_started event: {e:?}");
         }
     }
-}
-
-async fn stream_to_bigquery(
-    app_state: &AppState,
-    data: Value,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let token = app_state
-        .get_access_token(&["https://www.googleapis.com/auth/bigquery.insertdata"])
-        .await;
-    let client = Client::new();
-    let request_url = BIGQUERY_INGESTION_URL.to_string();
-    let response = client
-        .post(request_url)
-        .bearer_auth(token)
-        .json(&data)
-        .send()
-        .await?;
-
-    match response.status().is_success() {
-        true => Ok(()),
-        false => Err(format!("Failed to stream data - {:?}", response.text().await?).into()),
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct UploadVideoInfoV2 {
-    pub video_id: String,
-    #[serde(deserialize_with = "string_or_number")]
-    pub post_id: String, // String instead of u64
-    pub timestamp: String,
-    pub publisher_user_id: String,
-    pub channel_id: Option<String>,
-}
-
-#[instrument(skip(state))]
-#[allow(dead_code)]
-pub async fn upload_video_gcs(
-    State(state): State<Arc<AppState>>,
-    Json(payload): Json<UploadVideoInfoV2>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    setup_context!(&payload.video_id, Step::GcsUpload, {
-        "upload_info": &payload
-    });
-
-    upload_gcs_impl(
-        &payload.video_id,
-        &payload.publisher_user_id,
-        payload.post_id.clone(),
-        &payload.timestamp,
-    )
-    .await?;
-
-    // QStash has been removed. Frame publishing is no longer queued.
-    log::info!("Video uploaded to GCS for {} (QStash frame publishing removed)", payload.video_id);
-
-    Ok(Json(
-        serde_json::json!({ "message": "Video uploaded to GCS" }),
-    ))
-}
-
-#[instrument(skip(uid))]
-#[allow(dead_code)]
-pub async fn upload_gcs_impl(
-    uid: &str,
-    publisher_user_id: &str,
-    post_id: String,
-    timestamp_str: &str,
-) -> Result<(), anyhow::Error> {
-    // Download from Storj (SFW bucket - NSFW status not yet determined at this stage)
-    let url = crate::consts::get_storj_video_url(publisher_user_id, uid, false);
-    let name = format!("{uid}.mp4");
-
-    log::info!("Downloading video from Storj: {}", url);
-
-    // Download the video bytes
-    let response = reqwest::Client::new().get(&url).send().await?;
-
-    if !response.status().is_success() {
-        return Err(anyhow::anyhow!(
-            "Failed to download video from Storj: HTTP {}",
-            response.status()
-        ));
-    }
-
-    let video_bytes = response.bytes().await?;
-    log::info!("Downloaded {} bytes from Storj", video_bytes.len());
-
-    log::info!("Uploading video to GCS bucket 'yral-videos' as {}", name);
-
-    // Upload to GCS
-    let gcs_client = cloud_storage::Client::default();
-    gcs_client
-        .object()
-        .create("yral-videos", video_bytes.to_vec(), &name, "video/mp4")
-        .await
-        .map_err(|e| {
-            log::error!("Failed to upload to GCS: {}", e);
-            anyhow::anyhow!("GCS upload failed: {}", e)
-        })?;
-
-    log::info!("Reading object from GCS to update metadata");
-
-    // Now update metadata since create doesn't accept it
-    let mut obj = gcs_client
-        .object()
-        .read("yral-videos", &name)
-        .await
-        .map_err(|e| {
-            log::error!("Failed to read object from GCS: {}", e);
-            anyhow::anyhow!("Failed to read GCS object for metadata update: {}", e)
-        })?;
-
-    obj.metadata = Some(
-        [
-            (
-                "publisher_user_id".to_string(),
-                publisher_user_id.to_string(),
-            ),
-            ("post_id".to_string(), post_id.to_string()),
-            ("timestamp".to_string(), timestamp_str.to_string()),
-        ]
-        .into_iter()
-        .collect(),
-    );
-
-    log::info!("Updating GCS object metadata");
-
-    gcs_client.object().update(&obj).await.map_err(|e| {
-        log::error!("Failed to update GCS metadata: {}", e);
-        anyhow::anyhow!("GCS metadata update failed: {}", e)
-    })?;
-
-    log::info!("Successfully uploaded video {} to GCS with metadata", uid);
-
-    Ok(())
 }

@@ -8,54 +8,6 @@ use videogen_common::{
 };
 
 use crate::app_state::AppState;
-use crate::utils::gcs::{maybe_upload_image_to_gcs, upload_audio_if_needed};
-use cloud_storage::Client;
-
-/// Helper function to process images in unified request
-/// Uploads large images to GCS and replaces them with URLs
-async fn process_input_image_v2(
-    image: &mut Option<videogen_common::ImageData>,
-    gcs_client: Arc<Client>,
-    user_principal: &str,
-) -> Result<(), (StatusCode, Json<VideoGenError>)> {
-    if let Some(image_data) = image {
-        *image_data = maybe_upload_image_to_gcs(gcs_client, image_data.clone(), user_principal)
-            .await
-            .map_err(|e| {
-                log::error!("Failed to upload image to GCS: {e}");
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(VideoGenError::NetworkError(format!(
-                        "Failed to upload image: {e}"
-                    ))),
-                )
-            })?;
-    }
-    Ok(())
-}
-
-/// Helper function to process audio in unified request
-/// Uploads large audio to GCS and replaces them with URLs
-async fn process_input_audio(
-    audio: &mut Option<videogen_common::AudioData>,
-    gcs_client: Arc<Client>,
-    user_principal: &str,
-) -> Result<(), (StatusCode, Json<VideoGenError>)> {
-    if let Some(audio_data) = audio {
-        *audio_data = upload_audio_if_needed(gcs_client, audio_data.clone(), user_principal)
-            .await
-            .map_err(|e| {
-                log::error!("Failed to upload audio to GCS: {e}");
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(VideoGenError::NetworkError(format!(
-                        "Failed to upload audio: {e}"
-                    ))),
-                )
-            })?;
-    }
-    Ok(())
-}
 
 /// Get all available video generation providers
 #[utoipa::path(
@@ -102,7 +54,7 @@ pub async fn get_providers_all() -> Json<ProvidersResponse> {
 #[debug_handler]
 pub async fn generate_video_with_identity_v2(
     State(app_state): State<Arc<AppState>>,
-    Json(mut identity_request): Json<VideoGenRequestWithIdentityV2>,
+    Json(identity_request): Json<VideoGenRequestWithIdentityV2>,
 ) -> Result<Json<VideoGenQueuedResponseV2>, (StatusCode, Json<VideoGenError>)> {
     // Validate identity and extract user principal
     let user_principal = validate_delegated_identity_v2(&identity_request)?;
@@ -117,22 +69,6 @@ pub async fn generate_video_with_identity_v2(
             ))),
         ));
     }
-
-    // process audio if present - upload large audio to GCS
-    process_input_audio(
-        &mut identity_request.request.audio,
-        app_state.gcs_client.clone(),
-        &user_principal.to_string(),
-    )
-    .await?;
-
-    // Process image if present - upload large images to GCS
-    process_input_image_v2(
-        &mut identity_request.request.image,
-        app_state.gcs_client.clone(),
-        &user_principal.to_string(),
-    )
-    .await?;
 
     // Adapt unified request to model-specific format
     let video_gen_input = ADAPTER_REGISTRY
