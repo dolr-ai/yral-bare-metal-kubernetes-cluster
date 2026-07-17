@@ -21,7 +21,6 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use error::*;
 
-mod ai_video_detector;
 mod app_state;
 mod auth;
 pub mod canister;

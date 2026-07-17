@@ -5,12 +5,10 @@ use crate::video_processing::nsfw_api::{NsfwApiClient, VideoBanRequest};
 use crate::{
     app_state::AppState,
     consts::{GOOGLE_CHAT_REPORT_SPACE_URL, OFF_CHAIN_AGENT_URL, USER_POST_SERVICE_CANISTER_ID},
-    posts::report_post::repost_post_common_impl,
     AppError,
 };
 use anyhow::{Context, Result};
 use axum::extract::State;
-use candid::Principal;
 use http::HeaderMap;
 use jsonwebtoken::DecodingKey;
 use reqwest::Client;
@@ -32,35 +30,6 @@ pub async fn send_message_gchat(
         .post(request_url)
         .header("Content-Type", "application/json")
         .bearer_auth(token)
-        .json(&data)
-        .send()
-        .await
-        .context("Failed to send request to Google Chat")?;
-
-    let status = response.status();
-    let body = response.text().await.unwrap_or_default();
-
-    if !status.is_success() {
-        log::error!("Google Chat API error: status={}, body={}", status, body);
-        return Err(anyhow::anyhow!(
-            "Google Chat API error: status={}, body={}",
-            status,
-            body
-        ));
-    }
-
-    log::debug!("Google Chat response: {}", body);
-    Ok(())
-}
-
-/// Send a message to Google Chat via webhook (no OAuth, but interactive buttons won't work)
-/// Use this for simple notifications like Sentry alerts
-pub async fn send_message_gchat_webhook(request_url: &str, data: Value) -> Result<()> {
-    let client = Client::new();
-
-    let response = client
-        .post(request_url)
-        .header("Content-Type", "application/json")
         .json(&data)
         .send()
         .await
