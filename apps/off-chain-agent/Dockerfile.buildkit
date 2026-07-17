@@ -2,9 +2,6 @@
 FROM rust:latest AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends musl-tools protobuf-compiler && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-# Copy rust-toolchain.toml first so rustup installs the correct toolchain + target
-COPY rust-toolchain.toml .
-RUN rustup target add x86_64-unknown-linux-musl
 COPY . .
 RUN cargo build --release --target x86_64-unknown-linux-musl
 FROM scratch
