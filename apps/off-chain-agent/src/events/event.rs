@@ -1,29 +1,12 @@
 use crate::consts::{USER_INFO_SERVICE_CANISTER_ID, USER_POST_SERVICE_CANISTER_ID};
 use crate::events::types::{
-    string_or_number, VideoDurationWatchedPayload, VideoDurationWatchedPayloadV2,
-    VideoStartedPayload, VideoUploadSuccessfulPayload,
+    VideoDurationWatchedPayload, VideoDurationWatchedPayloadV2, VideoStartedPayload,
+    VideoUploadSuccessfulPayload,
 };
-use crate::pipeline::Step;
-use crate::setup_context;
-use crate::{app_state::AppState, events::WarehouseEvent, AppError};
-use axum::{extract::State, Json};
+use crate::{app_state::AppState, events::WarehouseEvent};
 use log::{debug, error};
-use reqwest::Client;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::sync::Arc;
-use tracing::instrument;
 
 pub mod storj;
-
-/// Flat event for Mixpanel - event name + all params at same level
-#[allow(dead_code)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FlatEvent {
-    pub event: String,
-    #[serde(flatten)]
-    pub params: Value,
-}
 
 #[derive(Debug)]
 pub struct Event {
@@ -33,94 +16,6 @@ pub struct Event {
 impl Event {
     pub fn new(event: WarehouseEvent) -> Self {
         Self { event }
-    }
-
-    /// Convert to flat event (for Mixpanel)
-    /// Returns None if no principal can be determined (analytics server requires it)
-    #[allow(dead_code)]
-    fn to_flat_event(&self) -> Option<FlatEvent> {
-        let mut params: Value = serde_json::from_str(&self.event.params).ok()?;
-
-        // Remove "event" from params if present (avoid duplication)
-        if let Value::Object(ref mut map) = params {
-            map.remove("event");
-
-            // Analytics server requires "principal" field
-            // Check multiple possible sources in priority order
-            if !map.contains_key("principal") {
-                let principal_value = map
-                    .get("user_id")
-                    .or_else(|| map.get("publisher_user_id"))
-                    .or_else(|| map.get("creator_id"))
-                    .or_else(|| map.get("viewer_id"))
-                    .cloned();
-
-                if let Some(value) = principal_value {
-                    map.insert("principal".to_string(), value);
-                } else {
-                    // No principal found - skip this event for Mixpanel
-                    log::debug!(
-                        "Skipping event '{}' for Mixpanel - no principal field found",
-                        self.event.event
-                    );
-                    return None;
-                }
-            }
-        }
-
-        Some(FlatEvent {
-            event: self.event.event.clone(),
-            params,
-        })
-    }
-
-    /// Mixpanel format: {event: string, user_id: string, video_id: string, ...} (flat)
-    #[allow(dead_code)]
-    pub fn forward_to_mixpanel(&self, app_state: &AppState) {
-        let mixpanel_client = app_state.mixpanel_client.clone();
-        let flat_event = match self.to_flat_event() {
-            Some(e) => e,
-            None => {
-                log::warn!(
-                    "Skipping mixpanel forward - event: '{}', params: {}",
-                    self.event.event,
-                    self.event.params
-                );
-                return;
-            }
-        };
-
-        tokio::spawn(async move {
-            let token = mixpanel_client.token.clone();
-            let event_name = flat_event.event.clone();
-
-            let response = match mixpanel_client
-                .client
-                .post(&mixpanel_client.url)
-                .header("Content-Type", "application/json")
-                .header("Authorization", format!("Bearer {}", token))
-                .json(&flat_event)
-                .send()
-                .await
-            {
-                Ok(r) => r,
-                Err(e) => {
-                    error!("Failed to send mixpanel request: {}", e);
-                    return;
-                }
-            };
-
-            if !response.status().is_success() {
-                let status = response.status();
-                let error_text = response.text().await.unwrap_or_default();
-                error!(
-                    "Mixpanel proxy returned error {} for event '{}': {}",
-                    status, event_name, error_text
-                );
-            } else {
-                log::debug!("Successfully forwarded event '{}' to mixpanel", event_name);
-            }
-        });
     }
 
     pub async fn check_video_deduplication(

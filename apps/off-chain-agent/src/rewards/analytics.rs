@@ -1,6 +1,7 @@
-use crate::app_state::{AppState, MixpanelClient};
+use crate::app_state::AppState;
 use crate::consts::OFF_CHAIN_AGENT_URL;
 use candid::Principal;
+use reqwest::Client as ReqwestClient;
 use serde_json::json;
 use std::sync::Arc;
 
@@ -35,8 +36,6 @@ pub async fn send_btc_video_viewed_event(
     params: BtcVideoViewedEventParams<'_>,
     app_state: &Arc<AppState>,
 ) {
-    let mixpanel_client = app_state.mixpanel_client.clone();
-
     // Spawn async task to avoid blocking
     let video_id = params.video_id.to_string();
     let publisher_user_id = params.publisher_user_id.to_text();
@@ -83,16 +82,9 @@ pub async fn send_btc_video_viewed_event(
         });
 
         if let Err(e) =
-            send_event_to_pipeline(&mixpanel_client, "btc_video_viewed", event_params.clone()).await
+            send_event_to_pipeline("btc_video_viewed", event_params).await
         {
             log::error!("Failed to send btc_video_viewed event to pipeline: {}", e);
-        }
-
-        // Send directly to Mixpanel proxy
-        if let Err(e) =
-            send_event_to_mixpanel(&mixpanel_client, "btc_video_viewed", event_params).await
-        {
-            log::error!("Failed to send btc_video_viewed event to Mixpanel: {}", e);
         }
     });
 }
@@ -102,8 +94,6 @@ pub async fn send_btc_rewarded_event(
     params: BtcRewardedEventParams<'_>,
     app_state: &Arc<AppState>,
 ) {
-    let mixpanel_client = app_state.mixpanel_client.clone();
-
     // Spawn async task to avoid blocking
     let creator_id = *params.creator_id;
     let creator_id_text = params.creator_id.to_text();
@@ -139,15 +129,9 @@ pub async fn send_btc_rewarded_event(
 
         // Send to event pipeline (BigQuery etc.)
         if let Err(e) =
-            send_event_to_pipeline(&mixpanel_client, "btc_rewarded", event_params.clone()).await
+            send_event_to_pipeline("btc_rewarded", event_params).await
         {
             log::error!("Failed to send btc_rewarded event to pipeline: {}", e);
-        }
-
-        // Send directly to Mixpanel proxy
-        if let Err(e) = send_event_to_mixpanel(&mixpanel_client, "btc_rewarded", event_params).await
-        {
-            log::error!("Failed to send btc_rewarded event to Mixpanel: {}", e);
         } else {
             log::info!(
                 "Successfully sent btc_rewarded event for creator {} (video: {}, milestone: {}, BTC: {:.8}, INR: {:.2})",
@@ -161,42 +145,8 @@ pub async fn send_btc_rewarded_event(
     });
 }
 
-/// Send event directly to the Mixpanel analytics proxy
-async fn send_event_to_mixpanel(
-    mixpanel_client: &MixpanelClient,
-    event_name: &str,
-    params: serde_json::Value,
-) -> anyhow::Result<()> {
-    let mut body = params;
-    if let serde_json::Value::Object(ref mut map) = body {
-        map.insert(
-            "event".to_string(),
-            serde_json::Value::String(event_name.to_string()),
-        );
-    }
-
-    let response = mixpanel_client
-        .client
-        .post(&mixpanel_client.url)
-        .header("Content-Type", "application/json")
-        .header("Authorization", format!("Bearer {}", mixpanel_client.token))
-        .json(&body)
-        .send()
-        .await?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let error_text = response.text().await.unwrap_or_default();
-        anyhow::bail!("Mixpanel proxy error {status}: {error_text}");
-    }
-
-    log::debug!("Successfully sent '{event_name}' event to Mixpanel");
-    Ok(())
-}
-
 /// Send event to the /api/v2/events endpoint for processing through the event pipeline
 async fn send_event_to_pipeline(
-    mixpanel_client: &MixpanelClient,
     event_name: &str,
     params: serde_json::Value,
 ) -> anyhow::Result<()> {
@@ -208,8 +158,8 @@ async fn send_event_to_pipeline(
         "params": params.to_string(),
     });
 
-    let response = mixpanel_client
-        .client
+    let client = ReqwestClient::new();
+    let response = client
         .post(url.as_str())
         .header("Content-Type", "application/json")
         .json(&request_body)

@@ -41,7 +41,6 @@ pub mod user;
 pub mod utils;
 #[cfg(not(feature = "local-bin"))]
 mod video_processing;
-pub mod videogen;
 pub mod yral_auth;
 
 use app_state::AppState;
@@ -69,20 +68,12 @@ async fn main_impl() -> Result<()> {
         )
         .nest("/api/v1/user", user::user_router(shared_state.clone()))
         .nest(
-            "/api/v1/videogen",
-            videogen::videogen_router(shared_state.clone()),
-        )
-        .nest(
             "/api/v1/leaderboard",
             leaderboard::leaderboard_router(shared_state.clone()),
         )
         .nest(
             "/api/v1/rewards",
             rewards::api::rewards_router(shared_state.clone()),
-        )
-        .nest(
-            "/api/v2/videogen",
-            videogen::videogen_router_v2(shared_state.clone()),
         )
         .nest(
             "/api/v2/events",
@@ -99,9 +90,6 @@ async fn main_impl() -> Result<()> {
         router.merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api.clone()));
 
     // build our application with a route
-    let replicate_webhook_routes = videogen::router::replicate_webhook_router(shared_state.clone());
-    let comfyui_webhook_routes = videogen::router::comfyui_webhook_router(shared_state.clone());
-
     let http = Router::new()
         .route("/healthz", get(health_handler))
         .route("/canister-health", get(canister_health_handler))
@@ -110,8 +98,6 @@ async fn main_impl() -> Result<()> {
             "/enqueue_storj_backfill_item",
             post(enqueue_storj_backfill_item),
         )
-        .nest("/replicate", replicate_webhook_routes)
-        .nest("/comfyui", comfyui_webhook_routes)
         .fallback_service(router)
         .layer(DefaultBodyLimit::max(50 * 1024 * 1024)) // 50MB limit
         .layer(CorsLayer::permissive())

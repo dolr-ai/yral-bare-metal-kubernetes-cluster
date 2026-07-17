@@ -1,5 +1,5 @@
 use crate::config::AppConfig;
-use crate::consts::{ANALYTICS_SERVER_URL, YRAL_METADATA_URL};
+use crate::consts::YRAL_METADATA_URL;
 #[cfg(not(feature = "local-bin"))]
 use crate::events::push_notifications::NotificationClient;
 use crate::kvrocks::KvrocksClient;
@@ -7,8 +7,6 @@ use crate::rewards::RewardsModule;
 use crate::scratchpad::ScratchpadClient;
 use crate::types::RedisPool;
 use crate::utils::naitik_multi_service_client::NaitikMultiServiceClient;
-use crate::videogen::comfyui_client::{ComfyUIClient, ComfyUIConfig};
-use crate::videogen::crypto::Crypto;
 use crate::yral_auth::dragonfly::{
     get_redis_store_ca_cert, get_redis_store_client_cert, get_redis_store_client_key,
     init_dragonfly_redis_store, DragonflyPool,
@@ -18,36 +16,11 @@ use candid::Principal;
 use hyper_util::client::legacy::connect::HttpConnector;
 use ic_agent::identity::Secp256k1Identity;
 use ic_agent::Agent;
-use reqwest::Client as ReqwestClient;
 use std::env;
 use std::sync::Arc;
 use yral_metadata_client::MetadataClient;
 use yup_oauth2::hyper_rustls::HttpsConnector;
 use yup_oauth2::{authenticator::Authenticator, ServiceAccountAuthenticator};
-
-#[derive(Clone)]
-pub struct MixpanelClient {
-    pub client: ReqwestClient,
-    pub token: String,
-    pub url: String,
-}
-
-impl Default for MixpanelClient {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl MixpanelClient {
-    pub fn new() -> Self {
-        let token = env::var("ANALYTICS_SERVER_TOKEN").expect("ANALYTICS_SERVER_TOKEN is required");
-        Self {
-            client: ReqwestClient::new(),
-            token,
-            url: format!("{}/api/send_event", ANALYTICS_SERVER_URL),
-        }
-    }
-}
 
 #[derive(Clone)]
 pub struct AppState {
@@ -71,7 +44,6 @@ pub struct AppState {
     pub rewards_module: RewardsModule,
     pub service_cansister_migration_redis_pool: RedisPool,
     pub config: AppConfig,
-    pub replicate_api_token: String,
     pub user_migration_api_key: String,
     #[cfg(not(feature = "local-bin"))]
     pub kvrocks_client: KvrocksClient,
@@ -79,13 +51,6 @@ pub struct AppState {
     // This uses ds staging
     #[cfg(not(feature = "local-bin"))]
     pub scratchpad_client: ScratchpadClient,
-
-    pub mixpanel_client: MixpanelClient,
-
-    /// ComfyUI client for self-hosted video generation (optional)
-    pub comfyui_client: Option<ComfyUIClient>,
-
-    pub crypto: Crypto,
 
     pub naitik_multi_service_client: NaitikMultiServiceClient,
 }
@@ -114,12 +79,6 @@ impl AppState {
         #[cfg(not(feature = "local-bin"))]
         let scratchpad_client = init_scratchpad_client().await;
 
-        // Initialize ComfyUI client if env vars are configured
-        let comfyui_client = ComfyUIConfig::from_env().map(ComfyUIClient::new);
-        if comfyui_client.is_some() {
-            log::info!("ComfyUI client initialized from environment variables");
-        }
-
         AppState {
             admin_identity: init_identity(),
             yral_metadata_client: init_yral_metadata_client(&app_config),
@@ -143,16 +102,12 @@ impl AppState {
             config: app_config,
             service_cansister_migration_redis_pool: init_service_canister_migration_redis_pool()
                 .await,
-            replicate_api_token: env::var("REPLICATE_API_TOKEN").unwrap_or_default(),
             user_migration_api_key: env::var("YRAL_OFF_CHAIN_USER_MIGRATION_API_KEY")
                 .expect("YRAL_OFF_CHAIN_USER_MIGRATION_API_KEY is not set"),
             #[cfg(not(feature = "local-bin"))]
             kvrocks_client,
             #[cfg(not(feature = "local-bin"))]
             scratchpad_client,
-            mixpanel_client: MixpanelClient::new(),
-            comfyui_client,
-            crypto: Crypto::default(),
             naitik_multi_service_client: NaitikMultiServiceClient::new(),
         }
     }

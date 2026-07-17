@@ -11,71 +11,10 @@ use yral_username_gen::random_username_from_principal;
 use super::redis_ops::LeaderboardRedis;
 use super::types::*;
 use super::utils::get_usernames_with_fallback;
-use crate::{app_state::AppState, auth::check_auth_events, consts::ANALYTICS_SERVER_URL};
-use chrono::{DateTime, TimeZone};
-use chrono_tz::Tz;
-use serde::Deserialize;
+use crate::{app_state::AppState, auth::check_auth_events};
 
 // Conversion rate: 1 USD = 886 SATS (ckBTC satoshis)
 const USD_TO_CKBTC_SATS_RATE: f64 = 886.0;
-
-// Timezone API response structure
-#[derive(Debug, Deserialize)]
-struct TimezoneApiResponse {
-    timezone: Option<String>,
-    // Add other fields if needed
-}
-
-// Helper function to extract client IP from headers
-fn extract_client_ip(headers: &HeaderMap) -> String {
-    headers
-        .get("x-forwarded-for")
-        .and_then(|h| h.to_str().ok())
-        .and_then(|s| s.split(',').next()) // take first if multiple
-        .map(|s| s.trim().to_string())
-        .unwrap_or_else(|| "127.0.0.1".to_string()) // Default fallback for local/unknown
-}
-
-// Helper function to get timezone from IP using the API
-async fn get_timezone_from_ip(ip: &str) -> Option<(String, Tz)> {
-    // Get the bearer token from environment or config
-    let token = std::env::var("TIMEZONE_API_TOKEN").ok()?;
-
-    let url = format!("{}/api/ip_v2/{}", ANALYTICS_SERVER_URL, ip);
-
-    let client = reqwest::Client::new();
-    let response = client
-        .get(&url)
-        .header("Authorization", format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .send()
-        .await
-        .ok()?;
-
-    if !response.status().is_success() {
-        log::warn!(
-            "Timezone API returned non-success status for IP {}: {}",
-            ip,
-            response.status()
-        );
-        return None;
-    }
-
-    let data: TimezoneApiResponse = response.json().await.ok()?;
-    let timezone_str = data.timezone?;
-
-    // Parse the timezone string to Tz
-    let tz: Tz = timezone_str.parse().ok()?;
-
-    Some((timezone_str, tz))
-}
-
-// Helper function to convert Unix timestamp to ISO 8601 string in given timezone
-fn convert_timestamp_to_timezone(timestamp: i64, tz: &Tz) -> String {
-    let utc_dt = DateTime::from_timestamp(timestamp, 0).unwrap_or_else(Utc::now);
-    let local_dt = tz.from_utc_datetime(&utc_dt.naive_utc());
-    local_dt.to_rfc3339()
-}
 
 // Internal API: Update user score on balance change (requires authentication)
 #[utoipa::path(
@@ -280,7 +219,6 @@ pub async fn update_score_handler(
     )
 )]
 pub async fn get_leaderboard_handler(
-    headers: HeaderMap,
     Query(params): Query<LeaderboardQueryParams>,
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
@@ -566,87 +504,39 @@ pub async fn get_leaderboard_handler(
     };
 
     // Get client IP and timezone
-    let client_ip = extract_client_ip(&headers);
-    log::debug!("Client IP: {}", client_ip);
-
-    // Get timezone info from IP
-    let timezone_info = get_timezone_from_ip(&client_ip).await;
-
-    // Build tournament info for response with timezone-adjusted times
-    let tournament_info = if let Some((ref timezone_str, ref tz)) = timezone_info {
-        TournamentInfo {
-            id: tournament.id.clone(),
-            start_time: tournament.start_time,
-            end_time: tournament.end_time,
-            status: tournament.status,
-            prize_pool: tournament.prize_pool,
-            prize_token: tournament.prize_token,
-            metric_type: tournament.metric_type,
-            metric_display_name: tournament.metric_display_name,
-            client_timezone: Some(timezone_str.clone()),
-            client_start_time: Some(convert_timestamp_to_timezone(tournament.start_time, tz)),
-            client_end_time: Some(convert_timestamp_to_timezone(tournament.end_time, tz)),
-            num_winners: tournament.num_winners,
-        }
-    } else {
-        // Fallback when timezone cannot be determined
-        TournamentInfo {
-            id: tournament.id.clone(),
-            start_time: tournament.start_time,
-            end_time: tournament.end_time,
-            status: tournament.status,
-            prize_pool: tournament.prize_pool,
-            prize_token: tournament.prize_token,
-            metric_type: tournament.metric_type,
-            metric_display_name: tournament.metric_display_name,
-            client_timezone: None,
-            client_start_time: None,
-            client_end_time: None,
-            num_winners: tournament.num_winners,
-        }
+    // Build tournament info for response (timezone API removed — client-side conversion)
+    let tournament_info = TournamentInfo {
+        id: tournament.id.clone(),
+        start_time: tournament.start_time,
+        end_time: tournament.end_time,
+        status: tournament.status,
+        prize_pool: tournament.prize_pool,
+        prize_token: tournament.prize_token,
+        metric_type: tournament.metric_type,
+        metric_display_name: tournament.metric_display_name,
+        client_timezone: None,
+        client_start_time: None,
+        client_end_time: None,
+        num_winners: tournament.num_winners,
     };
 
     // Fetch upcoming tournament info if available
     let upcoming_tournament_info =
         if let Ok(Some(upcoming_id)) = redis.get_upcoming_tournament().await {
             if let Ok(Some(upcoming_tournament)) = redis.get_tournament_info(&upcoming_id).await {
-                // Build tournament info with timezone-adjusted times
-                let upcoming_info = if let Some((ref timezone_str, ref tz)) = timezone_info {
-                    TournamentInfo {
-                        id: upcoming_tournament.id.clone(),
-                        start_time: upcoming_tournament.start_time,
-                        end_time: upcoming_tournament.end_time,
-                        status: upcoming_tournament.status,
-                        prize_pool: upcoming_tournament.prize_pool,
-                        prize_token: upcoming_tournament.prize_token,
-                        metric_type: upcoming_tournament.metric_type,
-                        metric_display_name: upcoming_tournament.metric_display_name,
-                        client_timezone: Some(timezone_str.clone()),
-                        client_start_time: Some(convert_timestamp_to_timezone(
-                            upcoming_tournament.start_time,
-                            tz,
-                        )),
-                        client_end_time: Some(convert_timestamp_to_timezone(
-                            upcoming_tournament.end_time,
-                            tz,
-                        )),
-                        num_winners: upcoming_tournament.num_winners,
-                    }
-                } else {
-                    TournamentInfo {
-                        id: upcoming_tournament.id.clone(),
-                        start_time: upcoming_tournament.start_time,
-                        end_time: upcoming_tournament.end_time,
-                        status: upcoming_tournament.status,
-                        prize_pool: upcoming_tournament.prize_pool,
-                        prize_token: upcoming_tournament.prize_token,
-                        metric_type: upcoming_tournament.metric_type,
-                        metric_display_name: upcoming_tournament.metric_display_name,
-                        client_timezone: None,
-                        client_start_time: None,
-                        client_end_time: None,
-                        num_winners: upcoming_tournament.num_winners,
-                    }
+                let upcoming_info = TournamentInfo {
+                    id: upcoming_tournament.id.clone(),
+                    start_time: upcoming_tournament.start_time,
+                    end_time: upcoming_tournament.end_time,
+                    status: upcoming_tournament.status,
+                    prize_pool: upcoming_tournament.prize_pool,
+                    prize_token: upcoming_tournament.prize_token,
+                    metric_type: upcoming_tournament.metric_type,
+                    metric_display_name: upcoming_tournament.metric_display_name,
+                    client_timezone: None,
+                    client_start_time: None,
+                    client_end_time: None,
+                    num_winners: upcoming_tournament.num_winners,
                 };
                 Some(upcoming_info)
             } else {

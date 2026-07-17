@@ -297,7 +297,8 @@ pub async fn process_video_generation(
     };
 
     // Queue video generation with automatic rollback on failure
-    queue_video_generation_with_rollback(app_state, queue_request, jwt_token, user_principal).await?;
+    queue_video_generation_with_rollback(app_state, queue_request, jwt_token, user_principal)
+        .await?;
 
     Ok(request_key)
 }

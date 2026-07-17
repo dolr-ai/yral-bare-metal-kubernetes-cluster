@@ -117,8 +117,6 @@ async fn process_event_impl(
     event: Event,
     shared_state: Arc<AppState>,
 ) -> Result<(), anyhow::Error> {
-    // event.forward_to_mixpanel(&shared_state);
-
     event
         .check_video_deduplication(&shared_state.clone())
         .await?;
@@ -159,8 +157,6 @@ async fn process_event_impl_v2(
     event: Event,
     shared_state: Arc<AppState>,
 ) -> Result<(), anyhow::Error> {
-    // event.forward_to_mixpanel(&shared_state);
-
     event
         .check_video_deduplication(&shared_state.clone())
         .await?;
