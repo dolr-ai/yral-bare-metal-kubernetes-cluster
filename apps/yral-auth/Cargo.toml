@@ -15,7 +15,6 @@ name = "jwt-secret-gen"
 path = "src/jwt_secret_gen.rs"
 
 [dependencies]
-# Third-party crates
 anyhow = { version = "1.0.86" }
 async-trait = "0.1.89"
 axum = { version = "0.8.7", optional = true, features = [
@@ -77,8 +76,6 @@ tracing-subscriber = { version = "0.3", optional = true, features = [
 url = { version = "2.5.4", features = ["serde"] }
 wasm-bindgen = { version = "=0.2.108", optional = true }
 web-time = "1.1.0"
-
-# Local crates
 yral-identity = { path = "../yral-common/identity", default-features = false }
 yral-types = { path = "../yral-common/types" }
 

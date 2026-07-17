@@ -6,7 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# Third-party crates
 anyhow = "1.0.86"
 async-channel = "2.3.1"
 aws-config = { version = "1.5", features = ["behavior-version-latest"] }
@@ -76,9 +75,6 @@ utoipa-axum = "0.2.0"
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
 urlencoding = "2"
 uuid = { version = "1.4", features = ["v4", "fast-rng"] }
-yup-oauth2 = "11.0.0"
-
-# Local crates
 yral-canisters-client = { path = "../yral-common/canisters-client", features = [
     "full",
 ] }
@@ -90,6 +86,7 @@ yral-metadata-types = { path = "../yral-metadata/types" }
 yral-metrics = { path = "../yral-common/metrics" }
 yral-types = { path = "../yral-common/types" }
 yral-username-gen = { path = "../yral-common/username-gen" }
+yup-oauth2 = "11.0.0"
 
 [[bin]]
 name = "icp-off-chain-agent"

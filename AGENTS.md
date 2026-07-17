@@ -100,7 +100,7 @@ When making sweeping changes (removing a feature, restructuring workspaces, bump
 Never push sweeping changes without first verifying every affected component compiles and runs locally.
 
 ### Alphabetical Dependency Ordering
-In all `Cargo.toml` (and other manifest) files, list dependencies **alphabetically by key** within each `[dependencies]` section. Separate third-party and local/path deps with a comment (`# Third-party crates` / `# Local crates`). This makes it easier for human reviewers to find and parse dependency lists, and avoids duplicate entries. Apply this to `[workspace.dependencies]`, `[dependencies]`, `[dev-dependencies]`, and `[build-dependencies]` sections alike.
+In all `Cargo.toml` (and other manifest) files, list dependencies **alphabetically by key** within each `[dependencies]` section. Merge third-party and local/path deps into a single list (no separator comments). This makes it easier for human reviewers to find and parse dependency lists, and avoids duplicate entries. Apply this to `[workspace.dependencies]`, `[dependencies]`, `[dev-dependencies]`, and `[build-dependencies]` sections alike.
 
 ### Error Handling
 In roles: use `fail`, `assert`, `changed_when: false`, `failed_when: false` + explicit checks.
