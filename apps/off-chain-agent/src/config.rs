@@ -16,8 +16,6 @@ use crate::consts::STORJ_INTERFACE_TOKEN;
 pub struct AppConfig {
     pub yral_metadata_token: String,
     pub google_sa_key: String,
-    #[cfg(not(feature = "local-bin"))]
-    pub milvus_url: Option<String>,
     pub naitik_multi_service_api_jwt_token: String,
 }
 

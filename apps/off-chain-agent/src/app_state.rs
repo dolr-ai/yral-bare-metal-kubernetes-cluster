@@ -18,8 +18,6 @@ use candid::Principal;
 use hyper_util::client::legacy::connect::HttpConnector;
 use ic_agent::identity::Secp256k1Identity;
 use ic_agent::Agent;
-#[cfg(not(feature = "local-bin"))]
-use milvus::client::Client as MilvusClient;
 use reqwest::Client as ReqwestClient;
 use std::env;
 use std::sync::Arc;
@@ -77,8 +75,6 @@ pub struct AppState {
     pub replicate_api_token: String,
     pub user_migration_api_key: String,
     #[cfg(not(feature = "local-bin"))]
-    pub milvus_client: Option<MilvusClient>,
-    #[cfg(not(feature = "local-bin"))]
     pub kvrocks_client: KvrocksClient,
 
     // This uses ds staging
@@ -113,9 +109,6 @@ impl AppState {
         if let Err(e) = rewards_module.initialize().await {
             log::error!("Failed to initialize rewards module: {}", e);
         }
-
-        #[cfg(not(feature = "local-bin"))]
-        let milvus_client = init_milvus_client(&app_config).await;
 
         #[cfg(not(feature = "local-bin"))]
         let kvrocks_client = init_kvrocks_client().await;
@@ -155,8 +148,6 @@ impl AppState {
             replicate_api_token: env::var("REPLICATE_API_TOKEN").unwrap_or_default(),
             user_migration_api_key: env::var("YRAL_OFF_CHAIN_USER_MIGRATION_API_KEY")
                 .expect("YRAL_OFF_CHAIN_USER_MIGRATION_API_KEY is not set"),
-            #[cfg(not(feature = "local-bin"))]
-            milvus_client,
             #[cfg(not(feature = "local-bin"))]
             kvrocks_client,
             #[cfg(not(feature = "local-bin"))]
@@ -397,39 +388,6 @@ async fn init_dragonfly_redis_store_pool() -> Arc<DragonflyPool> {
             .await
             .expect("failed to initalize DragonflyPool");
     dragonfly_pool
-}
-
-#[cfg(not(feature = "local-bin"))]
-async fn init_milvus_client(app_config: &AppConfig) -> Option<MilvusClient> {
-    use crate::milvus;
-
-    let milvus_url = match &app_config.milvus_url {
-        Some(url) => url,
-        None => {
-            log::warn!("MILVUS_URL not set, Milvus functionality will be disabled");
-            return None;
-        }
-    };
-
-    log::info!("Initializing Milvus client at {}", milvus_url);
-
-    match milvus::create_milvus_client(milvus_url.clone()).await {
-        Ok(client) => {
-            log::info!("Milvus client connected successfully");
-
-            // Initialize collection if it doesn't exist
-            if let Err(e) = milvus::init_collection(&client).await {
-                log::error!("Failed to initialize Milvus collection: {}", e);
-                return None;
-            }
-
-            Some(client)
-        }
-        Err(e) => {
-            log::error!("Failed to connect to Milvus: {}", e);
-            None
-        }
-    }
 }
 
 const KVROCKS_MAX_RETRIES: u32 = 10;

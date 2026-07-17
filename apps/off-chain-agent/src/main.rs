@@ -40,8 +40,6 @@ mod events;
 pub mod kvrocks;
 pub mod leaderboard;
 mod middleware;
-#[cfg(not(feature = "local-bin"))]
-mod milvus;
 mod offchain_service;
 pub mod pipeline;
 mod posts;
@@ -103,12 +101,6 @@ async fn main_impl() -> Result<()> {
             "/api/v2/posts",
             posts::posts_router_v2(shared_state.clone()),
         );
-
-    #[cfg(not(feature = "local-bin"))]
-    let router = router.nest(
-        "/api/v1/milvus",
-        milvus::router::milvus_router(shared_state.clone()),
-    );
 
     let (router, api) = router.split_for_parts();
 
