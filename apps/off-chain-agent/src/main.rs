@@ -11,22 +11,14 @@ use axum::{routing::get, Router};
 use canister::canister_health_handler;
 use config::AppConfig;
 use events::event::storj::enqueue_storj_backfill_item;
-use http::header::CONTENT_TYPE;
 use offchain_service::report_approved_handler;
-use tonic::service::Routes;
 use tower::make::Shared;
-use tower::steer::Steer;
 use tower_http::cors::CorsLayer;
 use tracing::instrument;
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::auth::check_auth_grpc;
-use crate::events::warehouse_events::warehouse_events_server::WarehouseEventsServer;
-use crate::events::{warehouse_events, WarehouseEventsService};
-use crate::offchain_service::off_chain::off_chain_server::OffChainServer;
-use crate::offchain_service::{off_chain, OffChainService};
 use error::*;
 
 mod ai_video_detector;
@@ -129,47 +121,12 @@ async fn main_impl() -> Result<()> {
         ))
         .with_state(shared_state.clone());
 
-    let reflection_service = tonic_reflection::server::Builder::configure()
-        .register_encoded_file_descriptor_set(warehouse_events::FILE_DESCRIPTOR_SET)
-        .register_encoded_file_descriptor_set(off_chain::FILE_DESCRIPTOR_SET)
-        .build_v1()
-        .unwrap();
-
-    let grpc_axum = Routes::builder()
-        .routes()
-        .add_service(WarehouseEventsServer::with_interceptor(
-            WarehouseEventsService {
-                shared_state: shared_state.clone(),
-            },
-            check_auth_grpc,
-        ))
-        .add_service(OffChainServer::with_interceptor(
-            OffChainService {
-                shared_state: shared_state.clone(),
-            },
-            check_auth_grpc,
-        ))
-        .add_service(reflection_service)
-        .into_axum_router();
-
-    let http_grpc = Steer::new(
-        vec![http, grpc_axum],
-        |req: &axum::extract::Request, _svcs: &[_]| {
-            if req.headers().get(CONTENT_TYPE).map(|v| v.as_bytes()) != Some(b"application/grpc") {
-                0
-            } else {
-                1
-            }
-        },
-    );
-
     // run it
     let addr = SocketAddr::from(([0, 0, 0, 0, 0, 0, 0, 0], 50051));
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-
     log::info!("listening on {addr}");
 
-    axum::serve(listener, Shared::new(http_grpc)).await.unwrap();
+    axum::serve(listener, Shared::new(http)).await.unwrap();
 
     Ok(())
 }

@@ -4,29 +4,6 @@ use std::env;
 use axum::http::HeaderMap;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
-use tonic::metadata::MetadataValue;
-use tonic::{Request, Status};
-
-#[allow(clippy::result_large_err)]
-pub fn check_auth_grpc(req: Request<()>) -> Result<Request<()>, Status> {
-    let mut grpc_token = env::var("GRPC_AUTH_TOKEN").expect("GRPC_AUTH_TOKEN is required");
-    let mut yral_cloudflare_workers_grpc_auth_token =
-        env::var("YRAL_CLOUDFLARE_WORKER_GRPC_AUTH_TOKEN")
-            .expect("YRAL_CLOUDFLARE_WORKER_GRPC_AUTH_TOKEN is required");
-    grpc_token.retain(|c| !c.is_whitespace());
-    yral_cloudflare_workers_grpc_auth_token.retain(|c| !c.is_whitespace());
-
-    let token: MetadataValue<_> = format!("Bearer {grpc_token}").parse().unwrap();
-    let yral_cloudflare_worker_token: MetadataValue<_> =
-        format!("Bearer {yral_cloudflare_workers_grpc_auth_token}")
-            .parse()
-            .unwrap();
-
-    match req.metadata().get("authorization") {
-        Some(t) if token == t || t == yral_cloudflare_worker_token => Ok(req),
-        _ => Err(Status::unauthenticated("No valid auth token")),
-    }
-}
 
 pub fn check_auth_events(req_token: Option<String>) -> Result<(), anyhow::Error> {
     let mut token = env::var("GRPC_AUTH_TOKEN").expect("GRPC_AUTH_TOKEN is required");

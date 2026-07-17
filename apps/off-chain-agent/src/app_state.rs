@@ -1,5 +1,5 @@
 use crate::config::AppConfig;
-use crate::consts::{ANALYTICS_SERVER_URL, NSFW_SERVER_URL, YRAL_METADATA_URL};
+use crate::consts::{ANALYTICS_SERVER_URL, YRAL_METADATA_URL};
 #[cfg(not(feature = "local-bin"))]
 use crate::events::push_notifications::NotificationClient;
 use crate::kvrocks::KvrocksClient;
@@ -21,7 +21,6 @@ use ic_agent::Agent;
 use reqwest::Client as ReqwestClient;
 use std::env;
 use std::sync::Arc;
-use tonic::transport::{Channel, ClientTlsConfig};
 use yral_metadata_client::MetadataClient;
 use yup_oauth2::hyper_rustls::HttpsConnector;
 use yup_oauth2::{authenticator::Authenticator, ServiceAccountAuthenticator};
@@ -60,7 +59,7 @@ pub struct AppState {
     /// Google Chat App authenticator (for sending messages with interactive buttons)
     #[cfg(not(feature = "local-bin"))]
     pub gchat_auth: Authenticator<HttpsConnector<HttpConnector>>,
-    pub nsfw_detect_channel: Option<Channel>,
+
     #[cfg(not(feature = "local-bin"))]
     pub notification_client: NotificationClient,
     #[cfg(not(feature = "local-bin"))]
@@ -130,7 +129,6 @@ impl AppState {
             #[cfg(not(feature = "local-bin"))]
             gchat_auth: init_gchat_auth().await,
             // ml_server_grpc_channel: init_ml_server_grpc_channel().await,
-            nsfw_detect_channel: init_nsfw_detect_channel().await.ok(),
             #[cfg(not(feature = "local-bin"))]
             notification_client: NotificationClient::new(
                 env::var("YRAL_METADATA_NOTIFICATION_API_KEY").unwrap_or_default(),
@@ -337,23 +335,6 @@ pub async fn init_gchat_auth() -> Authenticator<HttpsConnector<HttpConnector>> {
         .build()
         .await
         .expect("Failed to build Google Chat authenticator")
-}
-
-pub async fn init_nsfw_detect_channel() -> Result<Channel, tonic::transport::Error> {
-    let tls_config = ClientTlsConfig::new().with_webpki_roots();
-    let channel = Channel::from_static(NSFW_SERVER_URL)
-        .tls_config(tls_config)
-        .map_err(|e| {
-            log::warn!("Failed to configure TLS for nsfw agent: {e}");
-            e
-        })?
-        .connect()
-        .await
-        .map_err(|e| {
-            log::warn!("Failed to connect to nsfw agent: {e}, NSFW detection will be disabled");
-            e
-        })?;
-    Ok(channel)
 }
 
 

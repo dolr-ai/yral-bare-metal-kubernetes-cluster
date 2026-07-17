@@ -5,10 +5,7 @@ use crate::events::types::{
 };
 use crate::pipeline::Step;
 use crate::setup_context;
-use crate::{
-    app_state::AppState, events::warehouse_events::WarehouseEvent,
-    AppError,
-};
+use crate::{app_state::AppState, events::WarehouseEvent, AppError};
 use axum::{extract::State, Json};
 use log::{debug, error};
 use reqwest::Client;

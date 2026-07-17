@@ -13,18 +13,15 @@ use utoipa_axum::routes;
 use verify::verify_event_bulk_request;
 use yral_metrics::metrics::sealed_metric::SealedMetric;
 
-use warehouse_events::warehouse_events_server::WarehouseEvents;
-
 use crate::auth::check_auth_events;
 use crate::events::verify::verify_event_bulk_request_v3;
-use crate::events::warehouse_events::{Empty, WarehouseEvent};
 use crate::types::DelegatedIdentityWire;
 use crate::AppState;
 
-pub mod warehouse_events {
-    tonic::include_proto!("warehouse_events");
-    pub(crate) const FILE_DESCRIPTOR_SET: &[u8] =
-        tonic::include_file_descriptor_set!("warehouse_events_descriptor");
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WarehouseEvent {
+    pub event: String,
+    pub params: String,
 }
 
 pub mod event;
@@ -48,30 +45,6 @@ fn to_snake_case(s: &str) -> String {
         }
     }
     result
-}
-
-pub struct WarehouseEventsService {
-    pub shared_state: Arc<AppState>,
-}
-
-#[tonic::async_trait]
-impl WarehouseEvents for WarehouseEventsService {
-    async fn send_event(
-        &self,
-        request: tonic::Request<WarehouseEvent>,
-    ) -> Result<tonic::Response<Empty>, tonic::Status> {
-        let shared_state = self.shared_state.clone();
-
-        let request = request.into_inner();
-        let event = event::Event::new(request);
-
-        process_event_impl(event, shared_state).await.map_err(|e| {
-            log::error!("Failed to process event grpc: {e}");
-            tonic::Status::internal("Failed to process event")
-        })?;
-
-        Ok(tonic::Response::new(Empty {}))
-    }
 }
 
 pub fn events_router(state: Arc<AppState>) -> OpenApiRouter {

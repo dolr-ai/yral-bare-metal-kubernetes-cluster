@@ -1,7 +1,8 @@
 # Multi-stage Dockerfile for building off-chain-agent from source (Shipwright/BuildKit).
 # Static musl binary — all TLS via rustls (no openssl/native-tls).
+# No protobuf-compiler needed — contracts/proto/gRPC removed.
 FROM rust:latest AS builder
-RUN apt-get update && apt-get install -y --no-install-recommends musl-tools protobuf-compiler && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends musl-tools && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY . .
 RUN cargo build --release --target x86_64-unknown-linux-musl

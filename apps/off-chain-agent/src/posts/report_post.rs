@@ -6,15 +6,13 @@ use candid::Principal;
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tonic::transport::{Channel, ClientTlsConfig};
 use tracing::instrument;
 use utoipa::ToSchema;
 
 use crate::{
     app_state::AppState,
-    consts::{GOOGLE_CHAT_REPORT_SPACE_URL, ML_FEED_SERVER_GRPC_URL},
+    consts::GOOGLE_CHAT_REPORT_SPACE_URL,
     offchain_service::send_message_gchat,
-    utils::grpc_clients::ml_feed::{ml_feed_client::MlFeedClient, VideoReportRequestV3},
 };
 
 use super::{types::PostRequest, verify::VerifiedPostRequest};
@@ -157,49 +155,6 @@ pub async fn handle_report_post_v3(
         })?;
 
     Ok((StatusCode::OK, "Post reported".to_string()))
-}
-
-pub async fn qstash_report_post(
-    State(_state): State<Arc<AppState>>,
-    Json(payload): Json<ReportPostRequestV3>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let tls_config = ClientTlsConfig::new().with_webpki_roots();
-
-    let channel = Channel::from_static(ML_FEED_SERVER_GRPC_URL)
-        .tls_config(tls_config)
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to create channel: {e}"),
-            )
-        })?
-        .connect()
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to connect to ML feed server: {e}"),
-            )
-        })?;
-
-    let mut client = MlFeedClient::new(channel);
-
-    let request = VideoReportRequestV3 {
-        reportee_user_id: payload.user_principal.to_string(),
-        video_id: payload.video_id,
-        reason: payload.reason,
-    };
-
-    client.report_video_v3(request).await.map_err(|e| {
-        log::error!("Failed to report video: {e}");
-
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to report video: {e}"),
-        )
-    })?;
-
-    Ok((StatusCode::OK, "Report post success".to_string()))
 }
 
 pub async fn repost_post_common_impl(

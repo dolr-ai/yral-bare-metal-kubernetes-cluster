@@ -18,13 +18,10 @@ stringreader = "0.1.1"
 strum = { version = "0.26", features = ["derive"] }
 strum_macros = "0.26"
 tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread", "time"] }
-tonic = { version = "0.13.0", features = ["tls-webpki-roots"] }
-prost = "0.13.5"
 tower = { version = "0.5.2", features = ["full"] }
 hyper-util = { version = "0.1.8", features = ["client", "client-legacy"] }
 http = "1.0.0"
 http-body-util = "0.1.2"
-tonic-reflection = "0.13.0"
 reqwest = { version = "0.12.3", features = [
     "json",
     "rustls-tls",
@@ -62,7 +59,6 @@ image = "0.25"
 rayon = "1.8"
 uuid = { version = "1.4", features = ["v4", "fast-rng"] }
 storj-interface = { git = "https://github.com/dolr-ai/storj-interface", rev = "b824766e5a528deafa56fbb01ecb9f7e09a79e50", version = "0.1.0" }
-# yral-metrics = { path = "../yral-common/metrics" }
 yral-metadata-types = { git = "https://github.com/dolr-ai/yral-metadata", branch = "main", version = "0.1.0" }
 tracing = "0.1.41"
 tracing-log = "0.2.0"
@@ -90,8 +86,6 @@ async-channel = "2.3.1"
 num-bigint = "0.4"
 num-traits = "0.2"
 
-# ===== YRAL-COMMON DEPENDENCIES =====
-# Remote (Git) - uncomment to use remote versions
 yral-canisters-client = { git = "https://github.com/dolr-ai/yral-common.git", branch = "main", features = [
     "full",
 ] }
@@ -102,26 +96,6 @@ videogen-common = { git = "https://github.com/dolr-ai/yral-common", branch = "ma
 yral-canisters-common = { git = "https://github.com/dolr-ai/yral-common", branch = "main" }
 yral-types = { git = "https://github.com/dolr-ai/yral-common", branch = "main" }
 yral-username-gen = { git = "https://github.com/dolr-ai/yral-common", branch = "main" }
-
-
-# Local (Path) - uncomment to use local development versions
-# yral-canisters-client = { path = "../yral-common/canisters-client", features = [
-#     "full",
-#     "user-post-service",
-# ] }
-# yral-alloydb-client = { path = "../yral-common/alloydb-client", package = "alloydb-client" }
-# yral-qstash-types = { path = "../yral-common/qstash-types" }
-# videogen-common = { path = "../yral-common/videogen-common", features = [
-#     "server",
-# ] }
-# yral-identity = { path = "../yral-common/identity" }
-# yral-canisters-common = { path = "../yral-common/canisters-common" }
-# yral-types = { path = "../yral-common/types" }
-# yral-username-gen = { path = "../yral-common/username-gen" }
-
-
-[build-dependencies]
-tonic-build = "0.13.0"
 
 [[bin]]
 name = "icp-off-chain-agent"
