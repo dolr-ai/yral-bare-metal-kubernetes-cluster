@@ -39,7 +39,6 @@ impl FetchCursor {
 //         if loc == "yral.com"
 //             || loc == "localhost:3000"
 //             || loc == "hotornot.wtf"
-//             || loc.contains("go-bazzinga-hot-or-not-web-leptos-ssr.fly.dev")
 //         // || loc == "hot-or-not-web-leptos-ssr-staging.fly.dev"
 //         {
 //             Some("PostViewWithUpdatesMLFeed")

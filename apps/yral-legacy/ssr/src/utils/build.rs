@@ -1,35 +1,10 @@
 use anyhow::Result;
 
 mod build_common {
-    use std::{env, fs, path::PathBuf};
-
     use anyhow::Result;
 
-    fn build_gprc_client() -> Result<()> {
-        let ml_feed_proto = "contracts/projects/ml_feed/ml_feed.proto";
-        let mut out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-
-        tonic_build::configure()
-            .build_client(true)
-            .build_server(false)
-            .out_dir(out_dir.clone())
-            .compile_protos(&[ml_feed_proto], &["contracts"])?;
-
-        out_dir = out_dir.join("grpc-web");
-        fs::create_dir_all(&out_dir)?;
-
-        tonic_build::configure()
-            .build_client(true)
-            .build_server(false)
-            .out_dir(out_dir)
-            .compile_protos(&[ml_feed_proto], &["contracts"])?;
-
-        Ok(())
-    }
-
     pub fn build_common() -> Result<()> {
-        build_gprc_client()?;
-
+        // ml_feed gRPC client removed — recommendation service is no longer used
         Ok(())
     }
 }

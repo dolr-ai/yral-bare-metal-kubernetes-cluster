@@ -5,14 +5,7 @@ use futures::Stream;
 use leptos::prelude::*;
 
 use state::canisters::AuthState;
-use utils::{
-    host::show_nsfw_content,
-    ml_feed::{
-        get_ml_feed_clean, get_ml_feed_coldstart_clean, get_ml_feed_coldstart_nsfw,
-        get_ml_feed_nsfw,
-    },
-    posts::FetchCursor,
-};
+use utils::posts::FetchCursor;
 use yral_canisters_common::Canisters;
 
 use crate::post_view::MlPostItem;
@@ -111,56 +104,28 @@ impl<
 
     pub async fn fetch_post_uids_ml_feed_chunked(
         &self,
-        allow_nsfw: bool,
+        _allow_nsfw: bool,
     ) -> Result<FetchVideosRes<'a>, ServerFnError> {
-        let user_principal_id = self.user_principal().await?;
-
-        let show_nsfw = allow_nsfw || show_nsfw_content();
-        let top_posts = if show_nsfw {
-            get_ml_feed_nsfw(user_principal_id, self.cursor.limit as u32)
-                .await
-                .map_err(|e| ServerFnError::new(format!("Error fetching ml feed: {e:?}")))?
-        } else {
-            get_ml_feed_clean(user_principal_id, self.cursor.limit as u32)
-                .await
-                .map_err(|e| ServerFnError::new(format!("Error fetching ml feed: {e:?}")))?
-        };
-
-        let top_posts = top_posts.into_iter().map(Into::into).collect();
-
-        let end = false;
+        // Recommendation service removed — return empty feed
+        let top_posts: Vec<MlPostItem> = vec![];
 
         Ok(FetchVideosRes {
             posts_stream: Box::pin(futures::stream::once(async move { top_posts })),
-            end,
+            end: true,
             res_type: FeedResultType::MLFeed,
         })
     }
 
     pub async fn fetch_post_uids_mlfeed_cache_chunked(
         &self,
-        allow_nsfw: bool,
+        _allow_nsfw: bool,
     ) -> Result<FetchVideosRes<'a>, ServerFnError> {
-        let user_principal_id = self.user_principal().await?;
-
-        let show_nsfw = allow_nsfw || show_nsfw_content();
-        let top_posts = if show_nsfw {
-            get_ml_feed_coldstart_nsfw(user_principal_id, self.cursor.limit as u32)
-                .await
-                .map_err(|e| ServerFnError::new(format!("Error fetching ml feed: {e:?}")))?
-        } else {
-            get_ml_feed_coldstart_clean(user_principal_id, self.cursor.limit as u32)
-                .await
-                .map_err(|e| ServerFnError::new(format!("Error fetching ml feed: {e:?}")))?
-        };
-
-        let top_posts = top_posts.into_iter().map(Into::into).collect();
-
-        let end = false;
+        // Recommendation service removed — return empty feed
+        let top_posts: Vec<MlPostItem> = vec![];
 
         Ok(FetchVideosRes {
             posts_stream: Box::pin(futures::stream::once(async move { top_posts })),
-            end,
+            end: true,
             res_type: FeedResultType::MLFeedCache,
         })
     }

@@ -54,7 +54,7 @@ pub static SMILEY_GAME_STATS_URL: Lazy<Url> =
 pub static OFF_CHAIN_AGENT_GRPC_URL: Lazy<Url> =
     Lazy::new(|| Url::parse("https://offchain.yral.com:443").unwrap());
 pub static DOWNLOAD_UPLOAD_SERVICE: Lazy<Url> =
-    Lazy::new(|| Url::parse("https://download-upload-service.fly.dev").unwrap());
+    Lazy::new(|| Url::parse("https://upload.yral.com").unwrap());
 
 pub const ICP_LEDGER_CANISTER_ID: &str = "ryjl3-tyaaa-aaaaa-aaaba-cai";
 
