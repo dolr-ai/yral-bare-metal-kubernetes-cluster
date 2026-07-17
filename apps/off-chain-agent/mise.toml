@@ -1,2 +1,6 @@
+# Per-app mise config for off-chain-agent.
+# Inherits tools from the root monorepo mise.toml — only app-specific env goes here.
+# Secrets are in fnox.toml (age-encrypted, committed to git).
+
 [env]
-_.file = '.env'
+APP_ENV = 'production'
