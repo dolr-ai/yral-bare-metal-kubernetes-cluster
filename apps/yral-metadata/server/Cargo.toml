@@ -33,7 +33,7 @@ redis = { version = "1.0.2", features = [
     "cluster",
     "cluster-async",
     "acl",
-    "sentinel"
+    "sentinel",
 ] }
 regex = "1.11.1"
 reqwest = { workspace = true, default-features = false, features = [
@@ -53,15 +53,19 @@ tower-http = { version = "0.6.2", features = ["cors", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 utoipa = { version = "5.3.1" }
-utoipa-swagger-ui = { version = "9.0.2", features = ["reqwest", "axum"]}
+utoipa-swagger-ui = { version = "9.0.2", features = ["reqwest", "axum"] }
 
 # Local crates
 types = { path = "../types", package = "yral-metadata-types" }
-yral-canisters-client = {path = "../../yral-common/canisters-client", features = ["individual-user", "user-index", "user-info-service"]}
+yral-canisters-client = { path = "../../yral-common/canisters-client", features = [
+    "individual-user",
+    "user-index",
+    "user-info-service",
+] }
 yral-identity = { workspace = true, default-features = false, features = [
     "ic-git",
 ] }
-yral-types = {path = "../../yral-common/types"}
+yral-types = { path = "../../yral-common/types" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

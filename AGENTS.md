@@ -90,6 +90,18 @@ When using a tool or library for the first time (or encountering a non-trivial c
 ### Latest Stable Preference
 When making changes to a codebase (fixing bugs, migrating APIs, adding features), strive to bump all affected dependencies to their latest stable versions. If a change breaks a dependent, upgrade the dependent too — don't pin to an older version to avoid the migration. This keeps the codebase current and reduces accumulated technical debt. Always verify compilation locally before pushing.
 
+### Sweeping Changes — Per-Component Verification (Hard Rule)
+When making sweeping changes (removing a feature, restructuring workspaces, bumping shared deps, etc.) that touch multiple components, **verify each affected component individually** before pushing:
+1. **Compile** — `cargo check` / `cargo build` / `mise run <app>-build` for each affected component.
+2. **Test** — `cargo test` / `mise run <app>-test`. Tests requiring external services (Redis, IC canisters) that fail with "Connection refused" are expected locally; verify no *new* test failures from the change.
+3. **Run locally** — `mise run <app>-run` (via pitchfork) to verify the app starts and the health endpoint responds.
+4. **Push** — once all components pass, push to git and let CI/CD handle deployment.
+5. **Validate on prod** — after deployment, verify the service is healthy in production (read-only `kubectl get/describe/logs`, health endpoint, smoke test).
+Never push sweeping changes without first verifying every affected component compiles and runs locally.
+
+### Alphabetical Dependency Ordering
+In all `Cargo.toml` (and other manifest) files, list dependencies **alphabetically by key** within each `[dependencies]` section. Separate third-party and local/path deps with a comment (`# Third-party crates` / `# Local crates`). This makes it easier for human reviewers to find and parse dependency lists, and avoids duplicate entries. Apply this to `[workspace.dependencies]`, `[dependencies]`, `[dev-dependencies]`, and `[build-dependencies]` sections alike.
+
 ### Error Handling
 In roles: use `fail`, `assert`, `changed_when: false`, `failed_when: false` + explicit checks.
 In playbooks: none (orchestration only).

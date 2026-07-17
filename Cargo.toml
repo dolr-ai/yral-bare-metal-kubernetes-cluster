@@ -34,17 +34,23 @@ exclude = [
 ]
 
 [workspace.dependencies]
-# Third-party crates
 anyhow = "1.0.103"
 async-trait = "0.1"
+canisters-client = { package = "yral-canisters-client", path = "apps/yral-common/canisters-client" }
 candid = "0.10.20"
 enum_dispatch = "0.3"
 futures-util = "0.3.31"
+global-constants = { package = "global-constants", path = "apps/yral-common/global-constants" }
 hex = "0.4.3"
+hon-worker-common = { package = "hon-worker-common", path = "apps/yral-common/hon-worker-common", features = [
+    "client",
+] }
 ic-agent = { version = "0.49.0", default-features = false }
+identity = { package = "yral-identity", path = "apps/yral-common/identity", default-features = false }
 k256 = { version = "0.13.4", default-features = false, features = ["jwk"] }
 log = "0.4.33"
 num-bigint = "0.4.6"
+pump-n-dump-common = { package = "yral-pump-n-dump-common", path = "apps/yral-common/pump-n-dump-common" }
 reqwest = "0.13.4"
 serde = { version = "1.0.210", features = ["derive"] }
 serde_bytes = "0.11.15"
@@ -54,19 +60,10 @@ spacetimedb = { version = "2.6.1" }
 spacetimedb-sdk = { version = "2.6.1" }
 thiserror = "2.0.3"
 trait-variant = "0.1.2"
+types = { package = "yral-types", path = "apps/yral-common/types" }
 url = "2.5.4"
+username-gen = { package = "yral-username-gen", path = "apps/yral-common/username-gen" }
 uuid = { version = "1.11.0", features = ["serde"] }
 web-time = "1.0.0"
-
-# Local yral-common crates (dissolved from apps/yral-common/Cargo.toml workspace)
-canisters-client = { package = "yral-canisters-client", path = "apps/yral-common/canisters-client" }
-global-constants = { package = "global-constants", path = "apps/yral-common/global-constants" }
-hon-worker-common = { package = "hon-worker-common", path = "apps/yral-common/hon-worker-common", features = [
-    "client",
-] }
-identity = { package = "yral-identity", path = "apps/yral-common/identity", default-features = false }
-pump-n-dump-common = { package = "yral-pump-n-dump-common", path = "apps/yral-common/pump-n-dump-common" }
-types = { package = "yral-types", path = "apps/yral-common/types" }
-username-gen = { package = "yral-username-gen", path = "apps/yral-common/username-gen" }
 yral-canisters-common = { package = "yral-canisters-common", path = "apps/yral-common/canisters-common" }
 yral-metrics = { package = "yral-metrics", path = "apps/yral-common/metrics" }
