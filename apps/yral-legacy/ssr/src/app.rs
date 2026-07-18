@@ -8,7 +8,7 @@ use leptos_router::{components::*, path, MatchNestedRoutes};
 use page::about_us::AboutUs;
 use page::internal::clear_sats::ClearSats;
 use page::post_view::PostDetailsCacheCtx;
-use page::pumpdump;
+// use page::pumpdump; // TODO: re-enable when pumpdump module is restored
 use page::root::YralRootPage;
 use page::terms_android::TermsAndroid;
 use page::terms_ios::TermsIos;
@@ -199,18 +199,19 @@ pub fn App() -> impl IntoView {
                         />
                         <Route path=path!("/token/info/:token_root") view=TokenInfo />
                         <Route path=path!("/token/transfer/:token_root") view=TokenTransfer />
-                        <Route
-                            path=path!("/pnd/withdraw")
-                            view=pumpdump::withdrawal::PndWithdrawal
-                        />
-                        <Route
-                            path=path!("/pnd/withdraw/success")
-                            view=pumpdump::withdrawal::result::Success
-                        />
-                        <Route
-                            path=path!("/pnd/withdraw/failure")
-                            view=pumpdump::withdrawal::result::Failure
-                        />
+                        // TODO: re-enable when pumpdump module is restored
+                        // <Route
+                        //     path=path!("/pnd/withdraw")
+                        //     view=pumpdump::withdrawal::PndWithdrawal
+                        // />
+                        // <Route
+                        //     path=path!("/pnd/withdraw/success")
+                        //     view=pumpdump::withdrawal::result::Success
+                        // />
+                        // <Route
+                        //     path=path!("/pnd/withdraw/failure")
+                        //     view=pumpdump::withdrawal::result::Failure
+                        // />
                         <Route path=path!("/terms-ios") view=TermsIos />
                         <Route path=path!("/terms-android") view=TermsAndroid />
                         <Route path=path!("/internal/clear-sats") view=ClearSats />
