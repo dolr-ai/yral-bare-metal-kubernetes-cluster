@@ -248,6 +248,7 @@ In-cluster image building via Shipwright (CRD-native operator, CNCF Sandbox) wra
 
 - Shipwright operator in `kubernetes/infrastructure/shipwright/`, Tekton in `kubernetes/infrastructure/tekton-pipelines/` (raw release YAML committed to repo, gotk-components.yaml style).
 - Define a `Build` + `BuildRun` CR per app (source: git, strategy: buildkit ClusterBuildStrategy, output: Harbor).
+- **`contextDir`**: Omit `spec.source.contextDir` to use the full repo root as build context. This is required when Cargo.toml uses local path deps (`../yral-common/`, `../yral-metadata/`) — the BuildKit context must include those directories. The `dockerfile` param value is relative to the repo root (e.g., `apps/off-chain-agent/Dockerfile.buildkit`). A `.dockerignore` at the repo root excludes `target/`, `node_modules/`, etc. from the build context.
 - BuildKit runs rootless (non-privileged, UID 1000) — no `privileged: true` needed.
 - Pin versions: Tekton v1.12.2 LTS (Shipwright v0.20.3 supports v1.3/v1.6/v1.9/v1.12 — NOT v1.14+), Shipwright v0.20.3, BuildKit v0.31.1.
 
