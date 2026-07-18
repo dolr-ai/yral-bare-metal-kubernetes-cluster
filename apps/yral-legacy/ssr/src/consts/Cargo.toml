@@ -106,7 +106,7 @@ ssr = [
     "dep:tracing",
     "leptos-use/ssr",
     "leptos-use/axum",
-    "reqwest/rustls-tls",
+    "reqwest/rustls",
     "dep:redis",
     "yral-canisters-common/rustls-tls",
     "dep:enum_dispatch",

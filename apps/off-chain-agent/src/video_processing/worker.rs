@@ -187,7 +187,7 @@ async fn process_locked_job(
 
 async fn process_dedup_pending(
     state: Arc<AppState>,
-    mut job: VideoProcessingJob,
+    job: VideoProcessingJob,
     _config: WorkerConfig,
 ) -> Result<()> {
     setup_context!(&job.video_id, Step::Deduplication, {

@@ -168,15 +168,29 @@ The repo uses a single monorepo-wide `mise.toml` at the repository root as the s
 
 **mise (not direnv)** for env var management and tool versioning. Plaintext environment values belong in the `mise.toml` `[env]` section; secrets are managed by **fnox** (age-encrypted, committed to git in `fnox.toml`). No `.env` file is generated or loaded — `_.file = '.env'` was removed.
 
-**Secret management (fnox + age):**
-- `fnox.toml` at repo root defines the age provider and encrypted secret definitions. The encrypted ciphertext is safe to commit to git.
-- Provider: `age` with SSH ed25519 key. Recipient is the infra SSH public key (`github_actions_ssh_pub_key` in `ansible/inventory/group_vars/all/vars.yml`).
-- Private key: `vault_github_actions_ssh_private_key` from Ansible vault, extracted to `./.yral-infra-ed25519` (repo-root, gitignored) by `mise run bootstrap`. **Not** `~/.ssh/id_ed25519` — that's the user's personal key, which is a different key.
+**Secret management (fnox + age) — two separate keys:**
+
+There are **two distinct age keys** in this repo. Do not confuse them:
+
+**Key 1 — fnox (SSH ed25519 → age identity):**
+- fnox uses the infra SSH ed25519 private key, which it internally converts to an age identity.
+- Private key: `vault_github_actions_ssh_private_key` from Ansible vault, extracted to `./.yral-infra-ed25519` (repo-root, gitignored) by `mise run bootstrap`. **Not** `~/.ssh/id_ed25519` — that's the user's personal key.
 - `FNOX_AGE_KEY_FILE = './.yral-infra-ed25519'` is set in `mise.toml [env]` — fnox picks it up automatically. No manual `export` needed.
-- Rotating a secret: `fnox set <KEY> --provider age` (re-encrypts in `fnox.toml`, commit the change).
+- `fnox.toml` at repo root (and per-app `fnox.toml` files) define encrypted secret definitions. The encrypted ciphertext is safe to commit to git.
+- Rotating a secret: `fnox set <KEY> --provider age` (re-encrypts in `fnox.toml`, commit the change). For multi-line values (PEM keys/certs), pipe via stdin: `printf '%s' "$VALUE" | fnox set <KEY> --provider age`.
 - Running commands with secrets: `fnox exec -- <command>`, or `fnox export -f env -o .env` for tools that need a file (e.g. `podman --env-file`).
-- Ansible vault remains the source for cluster ops secrets (roles consume `vault_*` vars directly). fnox replaced the old `generate-env` vault→`.env` pipeline for local dev.
 - `fnox.local.toml` is gitignored for machine-specific overrides.
+
+**Key 2 — SOPS (native age key):**
+- SOPS-encrypted `*.sops.yaml` files under `kubernetes/` use a **separate native age key** (not the SSH key).
+- The age private key is stored in Ansible vault as `vault_age_private_key` (a standard age key with `AGE-SECRET-KEY-...` format).
+- The corresponding public key (`age1pdqae3ffmt9rxtmn2758pxjqaaxnytg6mzx3wpepuhs7de2ttfkqk3z7hl`) is in `.sops.yaml`.
+- To extract and use: `ansible-vault view ansible/inventory/group_vars/all/vault.yml | grep vault_age_private_key` → write the `AGE-SECRET-KEY-...` line to a temp file → `SOPS_AGE_KEY_FILE=/tmp/sops-age.key sops --decrypt <file>.sops.yaml`.
+- **Never edit SOPS files outside of `sops`** — use `sops <file>.sops.yaml` to edit, or decrypt → edit → re-encrypt. Manual edits break the SOPS MAC integrity check.
+- To populate fnox secrets from SOPS: decrypt the SOPS file, extract values, and `fnox set <KEY> --provider age` for each.
+
+**Shared:**
+- Ansible vault remains the source for cluster ops secrets (roles consume `vault_*` vars directly). fnox replaced the old `generate-env` vault→`.env` pipeline for local dev.
 
 **Workflow tasks live in `mise.toml`, not bash scripts.** All setup, build, test, and run workflows are `mise` tasks (`mise tasks` to list). `scripts/setup-local-env.sh` is a thin `exec mise run setup` wrapper for compatibility only — do not add logic there. New workflow steps → new/updated `mise` task. Never create bespoke bash scripts for repo workflows.
 
@@ -303,6 +317,8 @@ Add to / update AGENTS.md only for new patterns, clarifications that prevent rep
 Do **not** add one-off workarounds, temporary fixes, or incident-specific notes (those belong in role READMEs).
 
 Process: identify section, make minimal prescriptive update, remove obsolete guidance immediately.
+
+**AGENTS.md is the only memory to use.** Do not use agent-specific memory systems (e.g. `/memories/`, `.copilot/`, or similar) — that memory doesn't get shared between hosts and isn't checked into source control. It defeats the purpose of memory when we switch to another host. All persistent knowledge must live in AGENTS.md (committed to git) or in role/README files within the repo.
 
 ---
 

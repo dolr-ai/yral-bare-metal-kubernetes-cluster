@@ -61,7 +61,7 @@ ic-agent = { version = "0.49.0", default-features = false, features = ["pem"] }
 futures = "0.3.30"
 leptos-use = { version = "0.16.2-beta2" }
 codee = { version = "0.3.0", features = ["json_serde"] }
-reqwest = { version = "0.12", default-features = false, features = [
+reqwest = { version = "0.13", default-features = false, features = [
     "json",
     "http2",
     "multipart",
