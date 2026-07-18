@@ -125,7 +125,7 @@ ssr = [
     "leptos_router/ssr",
     "leptos-use/ssr",
     "leptos-use/axum",
-    "reqwest/rustls",
+    "reqwest/rustls-tls",
     "dep:redis",
     "yral-canisters-common/rustls-tls",
     "axum-extra",
