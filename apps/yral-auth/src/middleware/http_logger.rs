@@ -1,4 +1,4 @@
-use axum::{extract::Request, http::StatusCode, middleware::Next, response::Response};
+use axum::{extract::Request, middleware::Next, response::Response};
 use std::time::Instant;
 
 /// HTTP logging middleware — logs HTTP requests using tracing (for LGTM stack).

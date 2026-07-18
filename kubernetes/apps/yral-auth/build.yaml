@@ -24,13 +24,13 @@ spec:
       url: https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git
       revision: main
       cloneSecret: github-clone-secret
-    contextDir: apps/yral-auth
+    contextDir: "."
   strategy:
     name: buildkit
     kind: ClusterBuildStrategy
   paramValues:
     - name: dockerfile
-      value: Dockerfile.buildkit
+      value: apps/yral-auth/Dockerfile.buildkit
     - name: cache
       value: registry
   output:

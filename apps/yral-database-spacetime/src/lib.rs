@@ -39,3 +39,27 @@ fn find_character_for_player(ctx: &ReducerContext) -> Character {
 fn update_character(ctx: &ReducerContext, character: Character) {
     ctx.db.character().player_id().update(character);
 }
+
+#[spacetimedb::reducer]
+fn rename_character(ctx: &ReducerContext, new_name: String) {
+    let character = find_character_for_player(ctx);
+    log::info!("Renaming {} to {}", character.nickname, new_name);
+    update_character(
+        ctx,
+        Character {
+            nickname: new_name,
+            ..character
+        },
+    );
+}
+
+#[spacetimedb::reducer]
+fn level_up_character(ctx: &ReducerContext) {
+    let character = find_character_for_player(ctx);
+    log::info!(
+        "Leveling up {} from {} to {}",
+        character.nickname,
+        character.level,
+        character.level + 1
+    );
+}

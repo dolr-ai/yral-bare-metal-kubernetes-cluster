@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile for building yral-auth from source (Shipwright/BuildKit).
-# Build context: apps/yral-auth/ (set by Shipwright spec.source.contextDir)
+# Build context: repo root (set by Shipwright spec.source.contextDir)
 
 # ── Stage 1: Build ──────────────────────────────────────────────────────────
 FROM rust:latest AS builder
@@ -25,22 +25,26 @@ RUN curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/downloa
     rm /tmp/cargo-binstall.tgz && \
     cargo binstall cargo-leptos --no-confirm
 
-WORKDIR /app
+WORKDIR /app/apps/yral-auth
 
 # Copy mise.toml + Cargo.toml + Cargo.lock first for better layer caching
-COPY mise.toml Cargo.toml Cargo.lock ./
+COPY apps/yral-auth/mise.toml apps/yral-auth/Cargo.toml apps/yral-auth/Cargo.lock ./
 
 # Install Node.js via mise (pinned in mise.toml)
 RUN mise trust -a && mise install
 
 # Copy the source code
-COPY src/ ./src/
-COPY style/ ./style/
-COPY public/ ./public/
-COPY tailwind.config.js ./
-COPY package.json ./
-COPY .cargo/ ./.cargo/
-COPY rust-toolchain.toml ./
+COPY apps/yral-auth/src/ ./src/
+COPY apps/yral-auth/style/ ./style/
+COPY apps/yral-auth/public/ ./public/
+COPY apps/yral-auth/tailwind.config.js ./
+COPY apps/yral-auth/package.json ./
+COPY apps/yral-auth/.cargo/ ./.cargo/
+COPY apps/yral-auth/rust-toolchain.toml ./
+
+# Copy local path dependencies (relative to repo root, placed adjacent to yral-auth)
+COPY apps/yral-common/ ../yral-common/
+COPY apps/yral-metadata/ ../yral-metadata/
 
 # Install JS dependencies (tailwindcss)
 RUN npm install
@@ -66,10 +70,10 @@ FROM scratch
 WORKDIR /app
 
 # Copy the built binary
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/yral-auth .
+COPY --from=builder /app/apps/yral-auth/target/x86_64-unknown-linux-musl/release/yral-auth .
 
 # Copy the Leptos site assets (WASM, JS, CSS)
-COPY --from=builder /app/target/site ./site
+COPY --from=builder /app/apps/yral-auth/target/site ./site
 
 # Copy CA certificates (app makes HTTPS calls to Google, Apple, WhatsApp, etc.)
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt

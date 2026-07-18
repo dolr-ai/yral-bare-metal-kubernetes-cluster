@@ -1,0 +1,42 @@
+# Exclude build artifacts and large directories from Docker build context
+# to prevent slow COPY operations and oversized build contexts.
+
+# Rust build targets (everywhere in the repo)
+**/target/
+
+# Node.js
+**/node_modules/
+
+# Git
+.git/
+.gitignore
+
+# Python
+.venv/
+*.pyc
+
+# Ansible (not needed for builds)
+ansible/
+
+# Kubernetes manifests (not needed for builds)
+kubernetes/
+
+# Dockerfiles themselves (copied individually by BuildKit)
+# (Don't ignore them — Shipwright needs to read them)
+
+# IDE / editor
+.vscode/
+.idea/
+
+# Misc
+*.md
+TODO.md
+LICENSE
+mise.lock
+spacetime*.json
+
+# Submodule git data
+apps/yral/.git/
+apps/yral-backend-canister/.git/
+apps/yral-mobile/.git/
+apps/website/.git/

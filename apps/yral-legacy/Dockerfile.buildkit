@@ -1,11 +1,11 @@
 # Multi-stage Dockerfile for building yral-legacy from source (Shipwright/BuildKit).
-# Build context: apps/yral-legacy/ (set by Shipwright spec.source.contextDir)
+# Build context: repo root (set by Shipwright spec.source.contextDir)
 
 # ── Stage 1: Build ──────────────────────────────────────────────────────────
 FROM rust:latest AS builder
 
 # Install the specific nightly toolchain from rust-toolchain.toml
-COPY rust-toolchain.toml /tmp/rust-toolchain.toml
+COPY apps/yral-legacy/rust-toolchain.toml /tmp/rust-toolchain.toml
 RUN rustup toolchain install nightly-2025-06-15 --profile default --component rust-src \
     --target x86_64-unknown-linux-musl --target wasm32-unknown-unknown && \
     rustup default nightly-2025-06-15
@@ -29,19 +29,23 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
     rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+WORKDIR /app/apps/yral-legacy
 
 # Copy Cargo.toml + Cargo.lock first for better layer caching
-COPY Cargo.toml Cargo.lock ./
+COPY apps/yral-legacy/Cargo.toml apps/yral-legacy/Cargo.lock ./
 
 # Copy the workspace members
-COPY ssr/ ./ssr/
-COPY telemetry_axum/ ./telemetry_axum/
-COPY .cargo/ ./.cargo/
-COPY rust-toolchain.toml ./
-COPY tailwind.config.js ./
-COPY package.json ./
-COPY pnpm-lock.yaml ./
+COPY apps/yral-legacy/ssr/ ./ssr/
+COPY apps/yral-legacy/telemetry_axum/ ./telemetry_axum/
+COPY apps/yral-legacy/.cargo/ ./.cargo/
+COPY apps/yral-legacy/rust-toolchain.toml ./
+COPY apps/yral-legacy/tailwind.config.js ./
+COPY apps/yral-legacy/package.json ./
+COPY apps/yral-legacy/pnpm-lock.yaml ./
+
+# Copy local path dependencies (relative to repo root, placed adjacent to yral-legacy)
+COPY apps/yral-common/ ../yral-common/
+COPY apps/yral-metadata/ ../yral-metadata/
 
 # Install JS dependencies (tailwindcss)
 RUN npm install
@@ -69,10 +73,10 @@ FROM scratch
 WORKDIR /app
 
 # Copy the built binary
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/prod-release/yral-legacy .
+COPY --from=builder /app/apps/yral-legacy/target/x86_64-unknown-linux-musl/prod-release/yral-legacy .
 
 # Copy the Leptos site assets (WASM, JS, CSS)
-COPY --from=builder /app/target/site ./site
+COPY --from=builder /app/apps/yral-legacy/target/site ./site
 
 # Copy CA certificates (app makes HTTPS calls to external services)
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt

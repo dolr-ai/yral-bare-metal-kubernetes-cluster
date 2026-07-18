@@ -1,14 +1,23 @@
 # Multi-stage Dockerfile for building off-chain-agent from source (Shipwright/BuildKit).
+# Build context: repo root (set by Shipwright spec.source.contextDir: ".")
 # Static musl binary — all TLS via rustls (no openssl/native-tls).
-# No protobuf-compiler needed — contracts/proto/gRPC removed.
 FROM rust:latest AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends musl-tools && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY . .
+
+# Copy the off-chain-agent source + local path deps (yral-common, yral-metadata)
+COPY apps/off-chain-agent/ ./apps/off-chain-agent/
+COPY apps/yral-common/ ./apps/yral-common/
+COPY apps/yral-metadata/ ./apps/yral-metadata/
+COPY Cargo.toml ./
+
+# Build from the off-chain-agent directory (uses path deps to ../yral-common/ and ../yral-metadata/)
+WORKDIR /app/apps/off-chain-agent
 RUN cargo build --release --target x86_64-unknown-linux-musl
+
 FROM scratch
 WORKDIR /app
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/icp-off-chain-agent .
+COPY --from=builder /app/apps/off-chain-agent/target/x86_64-unknown-linux-musl/release/icp-off-chain-agent .
 EXPOSE 50051
 CMD ["./icp-off-chain-agent"]

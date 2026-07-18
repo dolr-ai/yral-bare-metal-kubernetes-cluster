@@ -1,27 +1,25 @@
 # Multi-stage Dockerfile for building yral-metadata from source (Shipwright/BuildKit).
-# Build context: apps/yral-metadata/
+# Build context: repo root (set by Shipwright spec.source.contextDir: ".")
 
-# ── Stage 1: Build ──────────────────────────────────────────────────────────
+# Stage 1: Build
 FROM rust:latest AS builder
 
 # Install musl target and build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends musl-tools && \
     rm -rf /var/lib/apt/lists/*
 
-# musl target is declared in rust-toolchain.toml — rustup installs it automatically
-
 WORKDIR /app
 
-# Copy workspace manifests first for dependency caching
-COPY Cargo.toml Cargo.lock ./
-COPY client/ client/
-COPY server/ server/
-COPY types/ types/
+# Copy yral-metadata + local path dep (yral-common)
+COPY apps/yral-metadata/ ./apps/yral-metadata/
+COPY apps/yral-common/ ./apps/yral-common/
+
+WORKDIR /app/apps/yral-metadata
 
 # Build the server binary
 RUN cargo build --release --target x86_64-unknown-linux-musl -p yral-metadata-server
 
-# ── Stage 2: Runtime (scratch) ─────────────────────────────────────────────
+# Stage 2: Runtime (scratch)
 FROM scratch
 
 WORKDIR /app
@@ -30,7 +28,7 @@ WORKDIR /app
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
 # Copy the built binary
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/yral-metadata-server .
+COPY --from=builder /app/apps/yral-metadata/target/x86_64-unknown-linux-musl/release/yral-metadata-server .
 
 ENV RUST_LOG="info"
 ENV BIND_ADDRESS="0.0.0.0:7000"

@@ -119,8 +119,7 @@ run = "cargo test"
 
 [tasks.yral-auth-image]
 description = "Build the yral-auth container image locally (podman)"
-dir = "apps/yral-auth"
-run = "podman build -f Dockerfile.buildkit -t test/yral-auth --platform linux/amd64 ."
+run = "podman build -f apps/yral-auth/Dockerfile.buildkit -t test/yral-auth --platform linux/amd64 ."
 
 [tasks.yral-auth-image-run]
 description = "Run the yral-auth container image locally via pitchfork (podman, port 8080)"
@@ -130,6 +129,20 @@ run = "pitchfork start yral-auth-container --force"
 [tasks.yral-auth-stop]
 description = "Stop yral-auth dev server or container via pitchfork"
 run = "pitchfork stop yral-auth yral-auth-container"
+
+[tasks.yral-auth-validate]
+description = "Validate yral-auth on prod (read-only kubectl checks)"
+run = '''
+echo "=== Pods ==="
+kubectl -n yral-auth get pods -l app=yral-auth -o wide
+echo ""
+echo "=== Health ==="
+kubectl -n yral-auth get pods -l app=yral-auth -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.containerStatuses[0].ready}{"\n"}{end}'
+echo ""
+echo "=== Recent logs (last 20 lines, first pod) ==="
+FIRST_POD=$(kubectl -n yral-auth get pods -l app=yral-auth -o jsonpath='{.items[0].metadata.name}')
+kubectl -n yral-auth logs "$FIRST_POD" --tail=20
+'''
 
 # ── yral-legacy ─────────────────────────────────────────────────────────────
 
@@ -170,8 +183,7 @@ run = "cargo test"
 
 [tasks.yral-legacy-image]
 description = "Build the yral-legacy container image locally (podman)"
-dir = "apps/yral-legacy"
-run = "podman build -f Dockerfile.buildkit -t test/yral-legacy --platform linux/amd64 ."
+run = "podman build -f apps/yral-legacy/Dockerfile.buildkit -t test/yral-legacy --platform linux/amd64 ."
 
 [tasks.yral-legacy-image-run]
 description = "Run the yral-legacy container image locally via pitchfork (podman, port 8080)"
@@ -181,6 +193,20 @@ run = "pitchfork start yral-legacy-container --force"
 [tasks.yral-legacy-stop]
 description = "Stop yral-legacy dev servers or container via pitchfork"
 run = "pitchfork stop yral-legacy yral-legacy-local yral-legacy-container"
+
+[tasks.yral-legacy-validate]
+description = "Validate yral-legacy on prod (read-only kubectl checks)"
+run = '''
+echo "=== Pods ==="
+kubectl -n yral-legacy get pods -l app=yral-legacy -o wide
+echo ""
+echo "=== Health ==="
+kubectl -n yral-legacy get pods -l app=yral-legacy -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.containerStatuses[0].ready}{"\n"}{end}'
+echo ""
+echo "=== Recent logs (last 20 lines, first pod) ==="
+FIRST_POD=$(kubectl -n yral-legacy get pods -l app=yral-legacy -o jsonpath='{.items[0].metadata.name}')
+kubectl -n yral-legacy logs "$FIRST_POD" --tail=20
+'''
 
 # ── yral-metadata ───────────────────────────────────────────────────────────
 
@@ -206,8 +232,7 @@ run = "cargo test"
 
 [tasks.yral-metadata-image]
 description = "Build the yral-metadata container image locally (podman)"
-dir = "apps/yral-metadata"
-run = "podman build -f Dockerfile.buildkit -t test/yral-metadata --platform linux/amd64 ."
+run = "podman build -f apps/yral-metadata/Dockerfile.buildkit -t test/yral-metadata --platform linux/amd64 ."
 
 [tasks.yral-metadata-image-run]
 description = "Run the yral-metadata container image locally via pitchfork (podman, port 7000)"
@@ -217,6 +242,20 @@ run = "pitchfork start yral-metadata-container --force"
 [tasks.yral-metadata-stop]
 description = "Stop yral-metadata dev server or container via pitchfork"
 run = "pitchfork stop yral-metadata yral-metadata-container"
+
+[tasks.yral-metadata-validate]
+description = "Validate yral-metadata on prod (read-only kubectl checks)"
+run = '''
+echo "=== Pods ==="
+kubectl -n yral-metadata get pods -l app=yral-metadata -o wide
+echo ""
+echo "=== Health ==="
+kubectl -n yral-metadata get pods -l app=yral-metadata -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.containerStatuses[0].ready}{"\n"}{end}'
+echo ""
+echo "=== Recent logs (last 20 lines, first pod) ==="
+FIRST_POD=$(kubectl -n yral-metadata get pods -l app=yral-metadata -o jsonpath='{.items[0].metadata.name}')
+kubectl -n yral-metadata logs "$FIRST_POD" --tail=20
+'''
 
 # ── off-chain-agent ─────────────────────────────────────────────────────────
 
@@ -252,8 +291,7 @@ run = "cargo test"
 
 [tasks.off-chain-agent-image]
 description = "Build the off-chain-agent container image locally (podman)"
-dir = "apps/off-chain-agent"
-run = "podman build -f Dockerfile.buildkit -t test/off-chain-agent --platform linux/amd64 ."
+run = "podman build -f apps/off-chain-agent/Dockerfile.buildkit -t test/off-chain-agent --platform linux/amd64 ."
 
 [tasks.off-chain-agent-image-run]
 description = "Run the off-chain-agent container image locally via pitchfork (podman, port 50051)"
@@ -263,3 +301,17 @@ run = "pitchfork start off-chain-agent-container --force"
 [tasks.off-chain-agent-stop]
 description = "Stop off-chain-agent dev servers or container via pitchfork"
 run = "pitchfork stop off-chain-agent off-chain-agent-local off-chain-agent-container"
+
+[tasks.off-chain-agent-validate]
+description = "Validate off-chain-agent on prod (read-only kubectl checks)"
+run = '''
+echo "=== Pods ==="
+kubectl -n off-chain-agent get pods -l app=off-chain-agent -o wide
+echo ""
+echo "=== Health ==="
+kubectl -n off-chain-agent get pods -l app=off-chain-agent -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.containerStatuses[0].ready}{"\n"}{end}'
+echo ""
+echo "=== Recent logs (last 20 lines, first pod) ==="
+FIRST_POD=$(kubectl -n off-chain-agent get pods -l app=off-chain-agent -o jsonpath='{.items[0].metadata.name}')
+kubectl -n off-chain-agent logs "$FIRST_POD" --tail=20
+'''

@@ -251,12 +251,29 @@ In-cluster image building via Shipwright (CRD-native operator, CNCF Sandbox) wra
 - BuildKit runs rootless (non-privileged, UID 1000) — no `privileged: true` needed.
 - Pin versions: Tekton v1.12.2 LTS (Shipwright v0.20.3 supports v1.3/v1.6/v1.9/v1.12 — NOT v1.14+), Shipwright v0.20.3, BuildKit v0.31.1.
 
-**Test locally before deploying (Hard Rule):** Always build and test code changes locally before pushing to git and deploying to production. This includes:
-1. **Compile locally** — `mise run <app>-build` to verify the code compiles.
-2. **Run locally** — `mise run <app>-run` (via pitchfork) to verify the app starts and the health endpoint responds.
-3. **Test the specific change** — manually verify the feature/fix works as expected via the local endpoint or browser.
-4. **Only then push** — once local testing passes, push to git and let the CI/CD pipeline build and deploy.
+**Test locally before deploying (Hard Rule):** Always build and test code changes locally before pushing to git and deploying to production. The full end-to-end workflow uses mise tasks for every step — both human operators and agents must use the same mise tooling:
+
+1. **Compile locally** — `mise run <app>-build` (release musl binary) or `mise run <app>-build-local` (debug, same code as production).
+2. **Test** — `mise run <app>-test` (unit tests; external-service-dependent tests are removed — only pure-logic and production-endpoint tests remain).
+3. **Run locally** — `mise run <app>-run` (release binary via pitchfork, fnox secrets injected) or `mise run <app>-run-local` (debug build via pitchfork).
+4. **Build image locally** — `mise run <app>-image` (podman build from repo root, `.dockerignore` excludes `target/` and `node_modules/`).
+5. **Run image locally** — `mise run <app>-image-run` (podman container via pitchfork, port forwarded).
+6. **Push** — `git push` and let the CI/CD pipeline (Tekton → Shipwright → Harbor → Flux) build and deploy.
+7. **Validate on prod** — `mise run <app>-validate` (read-only kubectl checks: pods, readiness, recent logs).
+
 Never push code changes to git without first verifying they compile and run locally. Waiting for an in-cluster Shipwright build to discover a compile error or runtime failure wastes 10+ minutes per iteration.
+
+**Available mise tasks per app** (replace `<app>` with `off-chain-agent`, `yral-auth`, `yral-legacy`, or `yral-metadata`):
+- `<app>-bootstrap` — install build prerequisites (musl/wasm targets, cargo-leptos, npm deps)
+- `<app>-build` — build release musl binary (same as what runs in production)
+- `<app>-build-local` — build debug binary (same code, no feature gating)
+- `<app>-test` — run unit tests
+- `<app>-run` — run release binary locally via pitchfork (fnox secrets injected)
+- `<app>-run-local` — run debug binary locally via pitchfork
+- `<app>-image` — build container image locally via podman (from repo root, with `.dockerignore`)
+- `<app>-image-run` — run container image locally via pitchfork (podman, port forwarded)
+- `<app>-stop` — stop any running local dev server or container
+- `<app>-validate` — read-only kubectl checks on production pods/readiness/logs
 
 **CI/CD Pipeline (Tekton Triggers → Shipwright → Harbor → Flux):** Git push → Tekton EventListener → BuildRun (via Shipwright/BuildKit) → Harbor image push → Flux ImageRepository/ImagePolicy/ImageUpdateAutomation → git commit updating deployment manifest → Flux Kustomization reconcile → new pods.
 
