@@ -4,20 +4,6 @@ package offchain_canister;
 
 // Interface exported by the server.
 service OffChainCanister {
-
-    rpc UpdateMLFeedCache(UpdateMLFeedCacheRequest) returns (Empty) {}
-}
-
-message MLFeedCacheItem {
-    uint64 post_id = 1;
-    string canister_id = 2;
-    string video_id = 3;
-    string creator_principal_id = 4;
-}
-
-message UpdateMLFeedCacheRequest {
-    repeated MLFeedCacheItem items = 1;
-    string user_canister_id = 2;
 }
 
 message Empty {}

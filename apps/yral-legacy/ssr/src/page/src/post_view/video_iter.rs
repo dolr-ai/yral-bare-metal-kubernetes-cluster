@@ -15,7 +15,6 @@ type PostsStream<'a> = Pin<Box<dyn Stream<Item = Vec<MlPostItem>> + 'a>>;
 #[derive(Debug, Eq, PartialEq)]
 pub enum FeedResultType {
     PostCache,
-    MLFeedCache,
     MLFeed,
     MLFeedColdstart,
 }
@@ -116,38 +115,12 @@ impl<
         })
     }
 
-    pub async fn fetch_post_uids_mlfeed_cache_chunked(
-        &self,
-        _allow_nsfw: bool,
-    ) -> Result<FetchVideosRes<'a>, ServerFnError> {
-        // Recommendation service removed — return empty feed
-        let top_posts: Vec<MlPostItem> = vec![];
-
-        Ok(FetchVideosRes {
-            posts_stream: Box::pin(futures::stream::once(async move { top_posts })),
-            end: true,
-            res_type: FeedResultType::MLFeedCache,
-        })
-    }
-
     pub async fn fetch_post_uids_hybrid(
         &mut self,
         allow_nsfw: bool,
-        video_queue_len: usize,
+        _video_queue_len: usize,
     ) -> Result<FetchVideosRes<'a>, ServerFnError> {
-        if video_queue_len < 5 {
-            self.cursor.set_limit(30);
-            self.fetch_post_uids_mlfeed_cache_chunked(allow_nsfw).await
-        } else {
-            let res = self.fetch_post_uids_ml_feed_chunked(allow_nsfw).await;
-
-            match res {
-                Ok(res) => Ok(res),
-                Err(_) => {
-                    self.cursor.set_limit(50);
-                    self.fetch_post_uids_mlfeed_cache_chunked(allow_nsfw).await
-                }
-            }
-        }
+        self.cursor.set_limit(50);
+        self.fetch_post_uids_ml_feed_chunked(allow_nsfw).await
     }
 }

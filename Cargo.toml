@@ -10,7 +10,6 @@ members = [
     "apps/yral-common/config-keys",
     "apps/yral-common/identity",
     "apps/yral-common/metrics",
-    "apps/yral-common/ml-feed-cache",
     "apps/yral-common/pump-n-dump-common",
     "apps/yral-common/qstash-types",
     "apps/yral-common/sns-validation",
