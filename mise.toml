@@ -96,7 +96,7 @@ run = "mise bootstrap packages apply --yes && mise install && mise run bootstrap
 
 [tasks.spacetime-dev]
 description = "Start SpacetimeDB server (pitchfork) and run dev mode (build, generate bindings, publish, watch for changes)"
-run = "pitchfork start spacetimedb && spacetimedb-cli dev --server-only"
+run = "pitchfork start spacetimedb && spacetimedb-cli dev"
 
 [tasks.spacetime-stop]
 description = "Stop SpacetimeDB server via pitchfork"

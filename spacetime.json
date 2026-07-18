@@ -1,10 +1,10 @@
 {
   "dev": {
-    "run": "cargo run"
+    "run": ""
   },
   "generate": [
     {
-      "out-dir": "./apps/task-runner/src/bindings",
+      "out-dir": "./apps/yral-database-spacetime/src/bindings",
       "language": "rust"
     }
   ],
