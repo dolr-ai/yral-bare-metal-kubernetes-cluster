@@ -146,6 +146,7 @@ fn delegate_identity(from: &impl Identity, max_age: Duration) -> DelegatedIdenti
         pubkey: to_identity.public_key().unwrap(),
         expiration: expiry.as_nanos() as u64,
         targets: None,
+        permissions: None,
     };
     let sig = from.sign_delegation(&delegation).unwrap();
     let signed_delegation = SignedDelegation {

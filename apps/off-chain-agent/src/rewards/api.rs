@@ -8,7 +8,6 @@ use crate::{
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
-    response::IntoResponse,
     Json,
 };
 use candid::Principal;
@@ -90,7 +89,6 @@ pub struct VideoStatsV2 {
 
 pub type BulkVideoStatsResponseV2 = Vec<VideoStatsV2>;
 
-#[cfg(not(feature = "local-bin"))]
 pub fn rewards_router(state: Arc<AppState>) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(get_video_views))
@@ -117,7 +115,6 @@ pub fn rewards_router(state: Arc<AppState>) -> OpenApiRouter {
         (status = 500, description = "Internal server error"),
     )
 )]
-#[cfg(not(feature = "local-bin"))]
 async fn get_video_views(
     State(state): State<Arc<AppState>>,
     Path(video_id): Path<String>,
@@ -151,7 +148,6 @@ async fn get_video_views(
         (status = 500, description = "Internal server error"),
     )
 )]
-#[cfg(not(feature = "local-bin"))]
 async fn get_user_view_history(
     State(state): State<Arc<AppState>>,
     Path(user_id): Path<String>,
@@ -188,7 +184,6 @@ async fn get_user_view_history(
         (status = 500, description = "Internal server error"),
     )
 )]
-#[cfg(not(feature = "local-bin"))]
 async fn get_user_reward_history(
     State(state): State<Arc<AppState>>,
     Path(user_id): Path<String>,
@@ -225,7 +220,6 @@ async fn get_user_reward_history(
         (status = 500, description = "Internal server error"),
     )
 )]
-#[cfg(not(feature = "local-bin"))]
 async fn get_creator_reward_history(
     State(state): State<Arc<AppState>>,
     Path(creator_id): Path<String>,
@@ -249,7 +243,6 @@ async fn get_creator_reward_history(
     Ok(Json(RewardHistoryResponse { rewards, total }))
 }
 
-#[cfg(not(feature = "local-bin"))]
 #[utoipa::path(
     get,
     path = "/config",
@@ -331,7 +324,6 @@ async fn get_reward_config(
     Ok(Json(response))
 }
 
-#[cfg(not(feature = "local-bin"))]
 #[utoipa::path(
     get,
     path = "/config_v2",
@@ -432,31 +424,6 @@ async fn get_reward_config_v2(
     }))
 }
 
-#[cfg(not(feature = "local-bin"))]
-pub async fn update_reward_config(
-    State(state): State<Arc<AppState>>,
-    Json(new_config): Json<RewardConfig>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
-    log::info!("Updating reward configuration: {:?}", new_config);
-
-    // Update the configuration through the rewards module
-    if let Err(e) = state
-        .rewards_module
-        .reward_engine
-        .update_config(new_config)
-        .await
-    {
-        log::error!("Failed to update reward configuration: {}", e);
-        return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to update configuration: {}", e),
-        ));
-    }
-
-    Ok(StatusCode::OK)
-}
-
-#[cfg(not(feature = "local-bin"))]
 #[utoipa::path(
     post,
     path = "/videos/bulk-stats",
@@ -485,7 +452,6 @@ async fn bulk_get_video_stats(
     Ok(Json(response))
 }
 
-#[cfg(not(feature = "local-bin"))]
 #[utoipa::path(
     post,
     path = "/videos/bulk-stats-v2",

@@ -53,6 +53,7 @@ fn create_delegated_identity(
         pubkey: to_identity.public_key().unwrap(),
         expiration: expiry.as_nanos() as u64,
         targets: None,
+        permissions: None,
     };
 
     let sig = from_identity.sign_delegation(&delegation).unwrap();

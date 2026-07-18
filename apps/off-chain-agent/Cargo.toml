@@ -101,7 +101,4 @@ name = "backfill_video_counts"
 path = "src/bin/backfill_video_counts.rs"
 
 [features]
-local-bin = []
-use-local-agent = []
-# use-uplink = ["dep:uplink"]
 prod-bin = []

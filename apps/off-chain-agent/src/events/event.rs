@@ -36,37 +36,26 @@ impl Event {
                 }
             };
 
-            #[cfg(feature = "local-bin")]
-            {
-                log::info!(
-                    "Skipping durable video processing enqueue in local-bin for {}",
-                    params.video_id
-                );
-            }
+            let video_processing_pool = app_state.yral_redis_store_dragonfly.clone();
+            let video_id = params.video_id;
+            let post_id = params.post_id.clone();
+            let publisher_user_id = params.publisher_user_id.to_text();
+            let canister_id = Some(params.canister_id.to_text());
 
-            #[cfg(not(feature = "local-bin"))]
-            {
-                let video_processing_pool = app_state.yral_redis_store_dragonfly.clone();
-                let video_id = params.video_id;
-                let post_id = params.post_id.clone();
-                let publisher_user_id = params.publisher_user_id.to_text();
-                let canister_id = Some(params.canister_id.to_text());
+            let job = crate::video_processing::worker::new_upload_job(
+                video_id.clone(),
+                publisher_user_id,
+                post_id,
+                canister_id,
+            );
 
-                let job = crate::video_processing::worker::new_upload_job(
-                    video_id.clone(),
-                    publisher_user_id,
-                    post_id,
-                    canister_id,
-                );
-
-                // Await the durable write so upload processing fails visibly instead of dropping NSFW handoff state.
-                crate::video_processing::queue::enqueue_video_processing_job(
-                    &video_processing_pool,
-                    job,
-                )
-                .await?;
-                log::info!("Durable video processing job queued for video_id: {video_id}");
-            }
+            // Await the durable write so upload processing fails visibly instead of dropping NSFW handoff state.
+            crate::video_processing::queue::enqueue_video_processing_job(
+                &video_processing_pool,
+                job,
+            )
+            .await?;
+            log::info!("Durable video processing job queued for video_id: {video_id}");
         }
 
         Ok(())

@@ -55,9 +55,8 @@ types = { path = "../types", package = "yral-metadata-types" }
 utoipa = { version = "5.3.1" }
 utoipa-swagger-ui = { version = "9.0.2", features = ["reqwest", "axum"] }
 yral-canisters-client = { path = "../../yral-common/canisters-client", features = [
-    "individual-user",
-    "user-index",
     "user-info-service",
+    "user-post-service",
 ] }
 yral-identity = { workspace = true, default-features = false, features = [
     "ic-git",

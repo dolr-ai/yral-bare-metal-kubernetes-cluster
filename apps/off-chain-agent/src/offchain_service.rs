@@ -1,6 +1,5 @@
 use std::{collections::HashMap, env, sync::Arc};
 
-#[cfg(not(feature = "local-bin"))]
 use crate::video_processing::nsfw_api::{NsfwApiClient, VideoBanRequest};
 use crate::{
     app_state::AppState,
@@ -81,7 +80,6 @@ fn report_approved_nsfw_ban_enabled() -> bool {
     true
 }
 
-#[cfg(not(feature = "local-bin"))]
 async fn ban_video_in_nsfw_service(
     video_id: &str,
     publisher_user_id: String,
@@ -133,16 +131,6 @@ async fn ban_video_in_nsfw_service(
         response.trace_id.as_deref()
     );
 
-    Ok(())
-}
-
-#[cfg(feature = "local-bin")]
-async fn ban_video_in_nsfw_service(
-    _video_id: &str,
-    _publisher_user_id: String,
-    _canister_id: &str,
-    _post_id: &str,
-) -> Result<()> {
     Ok(())
 }
 

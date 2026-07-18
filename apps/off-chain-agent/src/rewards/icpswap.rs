@@ -285,7 +285,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires network access to ICP - ACTUAL CANISTER CALLS
     async fn test_live_query_dolr_icp_pool() {
         println!("\n🔧 Testing DOLR/ICP pool query...");
         println!("   Pool canister: {}", DOLR_ICP_POOL);

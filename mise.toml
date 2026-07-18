@@ -231,9 +231,9 @@ dir = "apps/off-chain-agent"
 run = "cargo build --release --target x86_64-unknown-linux-musl"
 
 [tasks.off-chain-agent-build-local]
-description = "Build off-chain-agent for local dev (local-bin feature, debug)"
+description = "Build off-chain-agent for local dev (debug, same as production)"
 dir = "apps/off-chain-agent"
-run = "cargo build --features local-bin"
+run = "cargo build"
 
 [tasks.off-chain-agent-run]
 description = "Run off-chain-agent locally via pitchfork (release binary, port 50051)"
@@ -241,7 +241,7 @@ depends = ["off-chain-agent-build"]
 run = "pitchfork start off-chain-agent --force"
 
 [tasks.off-chain-agent-run-local]
-description = "Run off-chain-agent locally via pitchfork (local-bin debug build, port 50051)"
+description = "Run off-chain-agent locally via pitchfork (debug build, port 50051)"
 depends = ["off-chain-agent-build-local"]
 run = "pitchfork start off-chain-agent-local --force"
 

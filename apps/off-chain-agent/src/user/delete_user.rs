@@ -54,20 +54,17 @@ pub async fn handle_delete_user(
 
     // Use the common delete_canister_data function for steps 1-7
 
-    #[cfg(not(any(feature = "local-bin", feature = "use-local-agent")))]
-    {
-        use crate::canister::delete_canister_data;
+    use crate::canister::delete_canister_data;
 
-        delete_canister_data(&agent, &state, user_canister, user_principal, true)
-            .await
-            .map_err(|e| {
-                log::error!("Failed to delete canister data: {e}");
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Failed to delete canister data: {e}"),
-                )
-            })?;
-    }
+    delete_canister_data(&agent, &state, user_canister, user_principal, true)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to delete canister data: {e}");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to delete canister data: {e}"),
+            )
+        })?;
 
     Ok((StatusCode::OK, "User deleted successfully".to_string()))
 }

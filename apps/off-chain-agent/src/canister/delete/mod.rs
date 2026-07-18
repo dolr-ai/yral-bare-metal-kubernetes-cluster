@@ -36,7 +36,6 @@ pub async fn delete_canister_data(
     let mut bot_principals: Vec<Principal> = Vec::new();
 
     // 0. Delete user from YRAL auth Redis (this step is unique to user deletion)
-    #[cfg(not(feature = "local-bin"))]
     {
         use ic_agent::identity::{Identity, Secp256k1Identity};
 

@@ -139,8 +139,8 @@ mise = true
 ready_http = "http://localhost:50051/healthz"
 stop_signal = "SIGINT"
 
-# ── off-chain-agent dev server (local-bin debug build) ──────────────────────
-# Lighter build for local dev — stubs out video processing, Dragonfly, etc.
+# ── off-chain-agent dev server (debug build) ────────────────────────────────
+# Same code as production, debug build for faster iteration.
 # Build first with: mise run off-chain-agent-build-local
 
 [daemons.off-chain-agent-local]

@@ -505,19 +505,6 @@ dependencies = [
 
 [[package]]
 name = "cached"
-version = "0.52.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8466736fe5dbcaf8b8ee24f9bbefe43c884dc3e9ff7178da70f55bffca1133c"
-dependencies = [
- "ahash",
- "hashbrown 0.14.5",
- "instant",
- "once_cell",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "cached"
 version = "0.56.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "801927ee168e17809ab8901d9f01f700cd7d8d6a6527997fee44e4b0327a253c"
@@ -1838,53 +1825,6 @@ dependencies = [
 
 [[package]]
 name = "ic-agent"
-version = "0.41.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9f0125ba06162d2626d80318cad1d3540426a92d2929c5a7a10edc0b0127cca"
-dependencies = [
- "arc-swap",
- "async-channel 1.9.0",
- "async-lock",
- "async-trait",
- "async-watch",
- "backoff",
- "cached 0.52.0",
- "candid",
- "der",
- "ecdsa",
- "ed25519-consensus",
- "elliptic-curve",
- "futures-util",
- "hex",
- "http",
- "http-body",
- "ic-certification 3.0.3",
- "ic-ed25519 0.2.0",
- "ic-transport-types 0.41.0",
- "ic-verify-bls-signature 0.5.0",
- "k256",
- "leb128",
- "p256",
- "pkcs8",
- "rand 0.8.5",
- "rangemap",
- "reqwest 0.12.25",
- "sec1",
- "serde",
- "serde_bytes",
- "serde_cbor",
- "serde_repr",
- "sha2 0.10.9",
- "stop-token",
- "thiserror 2.0.17",
- "time",
- "tokio",
- "tower-service",
- "url",
-]
-
-[[package]]
-name = "ic-agent"
 version = "0.49.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "65a32acd8665871aff33d8c2d47ab8bf5da60635652d83a3770bfa34b9ef91ad"
@@ -1908,13 +1848,13 @@ dependencies = [
  "http-body-util",
  "ic-certification 3.0.3",
  "ic-ed25519 0.6.0",
- "ic-transport-types 0.49.0",
- "ic-verify-bls-signature 0.6.0",
+ "ic-transport-types",
+ "ic-verify-bls-signature",
  "ic_principal",
  "k256",
  "leb128",
  "p256",
- "pem 3.0.5",
+ "pem",
  "pkcs8",
  "rand 0.10.2",
  "rangemap",
@@ -2294,21 +2234,6 @@ dependencies = [
 
 [[package]]
 name = "ic-ed25519"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0a381e86a9d559c816a7ff4419e56f5d37f96357258fb63b0cb7026db0f729b"
-dependencies = [
- "curve25519-dalek",
- "ed25519-dalek",
- "hkdf",
- "pem 1.1.1",
- "rand 0.8.5",
- "thiserror 2.0.17",
- "zeroize",
-]
-
-[[package]]
-name = "ic-ed25519"
 version = "0.5.0"
 source = "git+https://github.com/dfinity/ic.git?rev=9806534c9ce6f1b91f7fbd554e6957f4acbdb3ea#9806534c9ce6f1b91f7fbd554e6957f4acbdb3ea"
 dependencies = [
@@ -2317,7 +2242,7 @@ dependencies = [
  "hex-literal",
  "hkdf",
  "ic_principal",
- "pem 3.0.5",
+ "pem",
  "rand 0.8.5",
  "thiserror 2.0.17",
  "zeroize",
@@ -2334,7 +2259,7 @@ dependencies = [
  "hex-literal",
  "hkdf",
  "ic_principal",
- "pem 3.0.5",
+ "pem",
  "rand 0.8.5",
  "thiserror 2.0.17",
  "zeroize",
@@ -2436,7 +2361,7 @@ dependencies = [
  "ic_principal",
  "k256",
  "num-bigint",
- "pem 3.0.5",
+ "pem",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "sha2 0.10.9",
@@ -2452,30 +2377,12 @@ dependencies = [
  "hmac",
  "num-bigint",
  "p256",
- "pem 3.0.5",
+ "pem",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "sha2 0.10.9",
  "simple_asn1",
  "zeroize",
-]
-
-[[package]]
-name = "ic-transport-types"
-version = "0.41.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5527e1eed0407cf4aa8ced1bc22181c2ae09f8385a00d270f146310b9379c6ad"
-dependencies = [
- "candid",
- "hex",
- "ic-certification 3.0.3",
- "leb128",
- "serde",
- "serde_bytes",
- "serde_cbor",
- "serde_repr",
- "sha2 0.10.9",
- "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -2592,20 +2499,6 @@ dependencies = [
  "ic-types",
  "ic-validator",
  "time",
-]
-
-[[package]]
-name = "ic-verify-bls-signature"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d420b25c0091059f6c3c23a21427a81915e6e0aca3b79e0d403ed767f286a3b9"
-dependencies = [
- "hex",
- "ic_bls12_381",
- "lazy_static",
- "pairing",
- "rand 0.8.5",
- "sha2 0.10.9",
 ]
 
 [[package]]
@@ -2959,7 +2852,7 @@ checksum = "5a87cc7a48537badeae96744432de36f4be2b4a34a05a5ef32e9dd8a1c169dde"
 dependencies = [
  "base64 0.22.1",
  "js-sys",
- "pem 3.0.5",
+ "pem",
  "ring",
  "serde",
  "serde_json",
@@ -3465,15 +3358,6 @@ name = "pathdiff"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df94ce210e5bc13cb6651479fa48d14f601d9858cfe0467f43ae157023b938d3"
-
-[[package]]
-name = "pem"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8835c273a76a90455d7344889b0964598e3316e2a79ede8e36f16bdcf2228b8"
-dependencies = [
- "base64 0.13.1",
-]
 
 [[package]]
 name = "pem"
@@ -4100,14 +3984,12 @@ dependencies = [
  "tokio",
  "tokio-native-tls",
  "tokio-rustls",
- "tokio-util",
  "tower",
  "tower-http",
  "tower-service",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-streams 0.4.2",
  "web-sys",
  "webpki-roots",
 ]
@@ -4149,7 +4031,7 @@ dependencies = [
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-streams 0.5.0",
+ "wasm-streams",
  "web-sys",
 ]
 
@@ -5555,19 +5437,6 @@ dependencies = [
 
 [[package]]
 name = "wasm-streams"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15053d8d85c7eccdbefef60f06769760a563c7f0a9d6902a13d35c7800b0ad65"
-dependencies = [
- "futures-util",
- "js-sys",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
-]
-
-[[package]]
-name = "wasm-streams"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d1ec4f6517c9e11ae630e200b2b65d193279042e28edd4a2cda233e46670bbb"
@@ -5942,13 +5811,12 @@ dependencies = [
 [[package]]
 name = "yral-canisters-client"
 version = "0.1.0"
-source = "git+https://github.com/dolr-ai/yral-common.git?branch=main#4989825f0b6e76d6f0871b96254cb5ab821e10dc"
 dependencies = [
  "anyhow",
  "candid",
  "candid_parser",
  "convert_case 0.6.0",
- "ic-agent 0.41.0",
+ "ic-agent",
  "log",
  "prettyplease",
  "proc-macro2",
@@ -5963,10 +5831,9 @@ dependencies = [
 [[package]]
 name = "yral-identity"
 version = "0.1.0"
-source = "git+https://github.com/dolr-ai/yral-common.git?branch=main#4989825f0b6e76d6f0871b96254cb5ab821e10dc"
 dependencies = [
  "candid",
- "ic-agent 0.41.0",
+ "ic-agent",
  "ic-types",
  "ic-validator-ingress-message",
  "serde",
@@ -5978,7 +5845,7 @@ dependencies = [
 name = "yral-metadata-client"
 version = "0.1.0"
 dependencies = [
- "ic-agent 0.49.0",
+ "ic-agent",
  "reqwest 0.12.25",
  "thiserror 1.0.69",
  "yral-identity",
@@ -6000,7 +5867,7 @@ dependencies = [
  "email_address",
  "env_logger",
  "futures",
- "ic-agent 0.49.0",
+ "ic-agent",
  "jsonwebtoken",
  "k256",
  "log",
@@ -6045,9 +5912,8 @@ dependencies = [
 [[package]]
 name = "yral-types"
 version = "0.1.0"
-source = "git+https://github.com/dolr-ai/yral-common.git?branch=main#4989825f0b6e76d6f0871b96254cb5ab821e10dc"
 dependencies = [
- "ic-agent 0.41.0",
+ "ic-agent",
  "k256",
  "serde",
  "serde_json",

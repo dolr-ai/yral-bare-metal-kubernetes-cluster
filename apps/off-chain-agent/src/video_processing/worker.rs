@@ -484,10 +484,6 @@ async fn retry_or_terminal(
     error_message: String,
 ) -> Result<()> {
     let attempts = match counter {
-        RetryCounter::Dedup => {
-            job.dedup_attempts += 1;
-            job.dedup_attempts
-        }
         RetryCounter::NsfwEnqueue => {
             job.nsfw_enqueue_attempts += 1;
             job.nsfw_enqueue_attempts
@@ -546,7 +542,6 @@ fn retry_delay_seconds(attempts: u32) -> i64 {
 }
 
 enum RetryCounter {
-    Dedup,
     NsfwEnqueue,
     NsfwPoll,
 }
