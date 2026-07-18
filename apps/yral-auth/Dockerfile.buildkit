@@ -43,6 +43,7 @@ COPY apps/yral-auth/.cargo/ ./.cargo/
 COPY apps/yral-auth/rust-toolchain.toml ./
 
 # Copy local path dependencies (relative to repo root, placed adjacent to yral-auth)
+COPY Cargo.toml /app/Cargo.toml
 COPY apps/yral-common/ ../yral-common/
 COPY apps/yral-metadata/ ../yral-metadata/
 

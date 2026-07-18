@@ -10,6 +10,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends musl-tools && \
 
 WORKDIR /app
 
+# Copy root workspace Cargo.toml (needed by yral-common sub-crates that use .workspace = true)
+COPY Cargo.toml ./
+
 # Copy yral-metadata + local path dep (yral-common)
 COPY apps/yral-metadata/ ./apps/yral-metadata/
 COPY apps/yral-common/ ./apps/yral-common/

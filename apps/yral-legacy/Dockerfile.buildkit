@@ -44,6 +44,7 @@ COPY apps/yral-legacy/package.json ./
 COPY apps/yral-legacy/pnpm-lock.yaml ./
 
 # Copy local path dependencies (relative to repo root, placed adjacent to yral-legacy)
+COPY Cargo.toml /app/Cargo.toml
 COPY apps/yral-common/ ../yral-common/
 COPY apps/yral-metadata/ ../yral-metadata/
 
