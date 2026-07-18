@@ -10,7 +10,8 @@ spec:
       url: https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git
       revision: main
       cloneSecret: github-clone-secret
-    contextDir: "."
+    # No contextDir — use the full repo as build context (needed for local path deps)
+    # contextDir defaults to repo root when omitted
   strategy:
     name: buildkit
     kind: ClusterBuildStrategy
