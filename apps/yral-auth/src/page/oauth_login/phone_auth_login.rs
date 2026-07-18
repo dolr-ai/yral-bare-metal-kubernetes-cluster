@@ -1,6 +1,7 @@
 use crate::components::spinner::Spinner;
 use crate::error::AuthError;
 use crate::error::AuthErrorKind;
+use crate::oauth::client_validation::ClientIdValidator;
 use crate::oauth::AuthQuery;
 use leptos::prelude::*;
 use leptos::server;

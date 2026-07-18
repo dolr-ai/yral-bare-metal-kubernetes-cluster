@@ -13,6 +13,20 @@
 #   pitchfork start --all              # start everything
 #   pitchfork stop --all               # stop everything
 
+# ── SpacetimeDB standalone server ───────────────────────────────────────────
+# Local SpacetimeDB instance for the yral-database-spacetime module.
+# Required by `spacetimedb-cli dev` (which publishes to http://127.0.0.1:3000).
+# In-memory mode — data is lost on restart, which is fine for dev.
+# Start with: pitchfork start spacetimedb
+# Stop with:  pitchfork stop spacetimedb
+
+[daemons.spacetimedb]
+run = "exec spacetimedb-cli start --in-memory --listen-addr 127.0.0.1:3000"
+mise = true
+ready_http = "http://127.0.0.1:3000/v1/health"
+stop_signal = "SIGINT"
+retry = 3
+
 # ── yral-auth dev server (release binary) ──────────────────────────────────
 # Runs the pre-built musl binary with env vars from mise + secrets from fnox.
 # Build first with: mise run yral-auth-build

@@ -92,6 +92,18 @@ run = "./.venv/bin/ansible-vault encrypt ansible/inventory/group_vars/all/vault.
 description = "Install system packages, repo toolchain, and Python tooling (secrets already in fnox.toml)"
 run = "mise bootstrap packages apply --yes && mise install && mise run bootstrap && echo 'Environment is ready'"
 
+# ── SpacetimeDB ─────────────────────────────────────────────────────────────
+
+[tasks.spacetime-dev]
+description = "Start SpacetimeDB server (pitchfork) and run dev mode (build, generate bindings, publish, watch for changes)"
+run = "pitchfork start spacetimedb && spacetimedb-cli dev --server-only"
+
+[tasks.spacetime-stop]
+description = "Stop SpacetimeDB server via pitchfork"
+run = "pitchfork stop spacetimedb"
+
+# ── yral-auth ────────────────────────────────────────────────────────────────
+
 [tasks.yral-auth-bootstrap]
 description = "Install yral-auth build prerequisites (cargo-leptos, musl+wasm targets, npm deps)"
 depends = ["bootstrap"]
