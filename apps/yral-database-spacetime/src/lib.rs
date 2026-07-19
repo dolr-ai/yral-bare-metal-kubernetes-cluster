@@ -62,4 +62,11 @@ fn level_up_character(ctx: &ReducerContext) {
         character.level,
         character.level + 1
     );
+    update_character(
+        ctx,
+        Character {
+            level: character.level + 1,
+            ..character
+        },
+    );
 }
