@@ -6,15 +6,23 @@
 #![allow(unused, clippy::all)]
 use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
+pub mod alliance_type;
 pub mod character_table;
 pub mod character_type;
+pub mod character_v_2_table;
+pub mod character_v_2_type;
+pub mod choose_alliance_reducer;
 pub mod class_type;
 pub mod create_character_reducer;
 pub mod level_up_character_reducer;
 pub mod rename_character_reducer;
 
+pub use alliance_type::Alliance;
 pub use character_table::*;
 pub use character_type::Character;
+pub use character_v_2_table::*;
+pub use character_v_2_type::CharacterV2;
+pub use choose_alliance_reducer::choose_alliance;
 pub use class_type::Class;
 pub use create_character_reducer::create_character;
 pub use level_up_character_reducer::level_up_character;
@@ -28,6 +36,7 @@ pub use rename_character_reducer::rename_character;
 /// to indicate which reducer caused the event.
 
 pub enum Reducer {
+    ChooseAlliance { alliance: Alliance },
     CreateCharacter { class: Class, nickname: String },
     LevelUpCharacter,
     RenameCharacter { new_name: String },
@@ -40,6 +49,7 @@ impl __sdk::InModule for Reducer {
 impl __sdk::Reducer for Reducer {
     fn reducer_name(&self) -> &'static str {
         match self {
+            Reducer::ChooseAlliance { .. } => "choose_alliance",
             Reducer::CreateCharacter { .. } => "create_character",
             Reducer::LevelUpCharacter => "level_up_character",
             Reducer::RenameCharacter { .. } => "rename_character",
@@ -49,6 +59,11 @@ impl __sdk::Reducer for Reducer {
     #[allow(clippy::clone_on_copy)]
     fn args_bsatn(&self) -> Result<Vec<u8>, __sats::bsatn::EncodeError> {
         match self {
+            Reducer::ChooseAlliance { alliance } => {
+                __sats::bsatn::to_vec(&choose_alliance_reducer::ChooseAllianceArgs {
+                    alliance: alliance.clone(),
+                })
+            }
             Reducer::CreateCharacter { class, nickname } => {
                 __sats::bsatn::to_vec(&create_character_reducer::CreateCharacterArgs {
                     class: class.clone(),
@@ -73,6 +88,7 @@ impl __sdk::Reducer for Reducer {
 #[doc(hidden)]
 pub struct DbUpdate {
     character: __sdk::TableUpdate<Character>,
+    character_v_2: __sdk::TableUpdate<CharacterV2>,
 }
 
 impl TryFrom<__ws::v2::TransactionUpdate> for DbUpdate {
@@ -84,6 +100,9 @@ impl TryFrom<__ws::v2::TransactionUpdate> for DbUpdate {
                 "character" => db_update
                     .character
                     .append(character_table::parse_table_update(table_update)?),
+                "character_v_2" => db_update
+                    .character_v_2
+                    .append(character_v_2_table::parse_table_update(table_update)?),
 
                 unknown => {
                     return Err(__sdk::InternalError::unknown_name(
@@ -113,6 +132,9 @@ impl __sdk::DbUpdate for DbUpdate {
         diff.character = cache
             .apply_diff_to_table::<Character>("character", &self.character)
             .with_updates_by_pk(|row| &row.player_id);
+        diff.character_v_2 = cache
+            .apply_diff_to_table::<CharacterV2>("character_v_2", &self.character_v_2)
+            .with_updates_by_pk(|row| &row.player_id);
 
         diff
     }
@@ -122,6 +144,9 @@ impl __sdk::DbUpdate for DbUpdate {
             match &table_rows.table[..] {
                 "character" => db_update
                     .character
+                    .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
+                "character_v_2" => db_update
+                    .character_v_2
                     .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
                 unknown => {
                     return Err(
@@ -139,6 +164,9 @@ impl __sdk::DbUpdate for DbUpdate {
                 "character" => db_update
                     .character
                     .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
+                "character_v_2" => db_update
+                    .character_v_2
+                    .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
                 unknown => {
                     return Err(
                         __sdk::InternalError::unknown_name("table", unknown, "QueryRows").into(),
@@ -155,6 +183,7 @@ impl __sdk::DbUpdate for DbUpdate {
 #[doc(hidden)]
 pub struct AppliedDiff<'r> {
     character: __sdk::TableAppliedDiff<'r, Character>,
+    character_v_2: __sdk::TableAppliedDiff<'r, CharacterV2>,
     __unused: std::marker::PhantomData<&'r ()>,
 }
 
@@ -169,6 +198,11 @@ impl<'r> __sdk::AppliedDiff<'r> for AppliedDiff<'r> {
         callbacks: &mut __sdk::DbCallbacks<RemoteModule>,
     ) {
         callbacks.invoke_table_row_callbacks::<Character>("character", &self.character, event);
+        callbacks.invoke_table_row_callbacks::<CharacterV2>(
+            "character_v_2",
+            &self.character_v_2,
+            event,
+        );
     }
 }
 
@@ -830,6 +864,7 @@ impl __sdk::SpacetimeModule for RemoteModule {
 
     fn register_tables(client_cache: &mut __sdk::ClientCache<Self>) {
         character_table::register_table(client_cache);
+        character_v_2_table::register_table(client_cache);
     }
-    const ALL_TABLE_NAMES: &'static [&'static str] = &["character"];
+    const ALL_TABLE_NAMES: &'static [&'static str] = &["character", "character_v_2"];
 }
