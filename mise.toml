@@ -13,6 +13,7 @@ helm = "latest"
 kubectl = "latest"
 node = "latest"
 pitchfork = "latest"
+podman = "latest"
 protobuf = "latest"
 python = "latest"
 redis = "latest"
@@ -27,20 +28,19 @@ sops = "latest"
 "apt:libssl-dev" = "latest"
 "apt:musl-tools" = "latest"
 "apt:pkg-config" = "latest"
-"apt:podman" = "latest"
 
 [env]
-_.path = '.venv/bin'
-APP_ENV = 'development'
-LEPTOS_ENV = 'development'
+_.path = ".venv/bin"
+APP_ENV = "development"
+LEPTOS_ENV = "development"
 # fnox age decryption — private key extracted by mise run bootstrap
 # Uses {{config_root}} so the path resolves to the repo root regardless of cwd
-FNOX_AGE_KEY_FILE = '{{config_root}}/.yral-infra-ed25519'
+FNOX_AGE_KEY_FILE = "{{config_root}}/.yral-infra-ed25519"
 # Plaintext (non-sensitive) values — declared directly, no .env file needed.
-AWS_ACCESS_KEY_ID = 'XO5X9A1W8AMHY3DSTKMS'
-AWS_ENDPOINT_URL = 'https://fsn1.your-objectstorage.com'
-AWS_DEFAULT_REGION = 'fsn1'
-KUBECONFIG = '{{env.HOME}}/.kube/config'
+AWS_ACCESS_KEY_ID = "XO5X9A1W8AMHY3DSTKMS"
+AWS_ENDPOINT_URL = "https://fsn1.your-objectstorage.com"
+AWS_DEFAULT_REGION = "fsn1"
+KUBECONFIG = "{{env.HOME}}/.kube/config"
 
 [tasks.bootstrap]
 description = "Create .venv, install Python tooling, and extract infra SSH key from vault"
@@ -68,6 +68,7 @@ fi
 # Extract kubeconfig from Ansible vault → ~/.kube/config (idempotent — skips if already present)
 if [ -f ansible/.vault_pass ] && [ ! -f ~/.kube/config ]; then
   export ANSIBLE_VAULT_PASSWORD_FILE=ansible/.vault_pass
+  mkdir -p ~/.kube
   ./.venv/bin/ansible-vault view ansible/inventory/group_vars/all/vault.yml --vault-password-file ansible/.vault_pass | \
     ./.venv/bin/python -c "import sys, yaml; print(yaml.safe_load(sys.stdin)['vault_kubeconfig'])" \
     > ~/.kube/config

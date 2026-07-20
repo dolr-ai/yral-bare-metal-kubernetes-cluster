@@ -465,6 +465,10 @@ checksum = "sha256:2d7dc04690f19be1c60d70dbc584bc3ff1e70a95fd53c7a4a349da6afc80c
 url = "https://github.com/jdx/pitchfork/releases/download/v2.16.0/pitchfork-x86_64-pc-windows-msvc.zip"
 url_api = "https://api.github.com/repos/jdx/pitchfork/releases/assets/471286097"
 
+[[tools.podman]]
+version = "6.0.1"
+backend = "github:podman-container-tools/podman"
+
 [[tools.protobuf]]
 version = "35.1"
 backend = "aqua:protocolbuffers/protobuf/protoc"
