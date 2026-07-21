@@ -1,13 +1,13 @@
 [workspace]
 members = [
-    "ssr",
-    "ssr/src/auth",
-    "ssr/src/component",
-    "ssr/src/consts",
-    "ssr/src/state",
-    "ssr/src/utils",
-    "ssr/src/page",
-    "telemetry_axum",
+  "ssr",
+  "ssr/src/auth",
+  "ssr/src/component",
+  "ssr/src/consts",
+  "ssr/src/page",
+  "ssr/src/state",
+  "ssr/src/utils",
+  "telemetry_axum",
 ]
 
 resolver = "2"
@@ -16,13 +16,239 @@ resolver = "2"
 edition = "2021"
 publish = false
 
-# Defines a size-optimized profile for the WASM bundle in release mode
-[profile.wasm-release]
-inherits = "release"
-opt-level = 'z'
-lto = true
-codegen-units = 1
-# panic = "abort"
+[workspace.dependencies]
+axum = { version = "0.8.4", features = ["macros"] }
+candid = "0.10.3"
+console_error_panic_hook = "0.1"
+console_log = "1"
+http = "1.1.0"
+leptos = { version = "0.8.20", features = ["nightly"] }
+leptos_axum = { version = "0.8.10" }
+leptos_meta = "0.8.6"
+leptos_router = { version = "0.8.14", features = ["nightly"] }
+log = "0.4"
+reactive_graph = "0.2.5"
+serde = { version = "1.0", features = ["derive"] }
+serde_bytes = "0.11.14"
+simple_logger = "4.0"
+thiserror = "2.0"
+tokio = { version = "1", features = ["rt-multi-thread", "signal", "time"] }
+tower = { version = "0.4" }
+tower-http = { version = "0.5", features = ["cors", "fs"] }
+tracing = { version = "0.1.37" }
+wasm-bindgen = "0.2.108"
+web-time = "1.0.0"
+
+anyhow = { version = "1.0.86" }
+auth = { path = "./ssr/src/auth" }
+axum-extra = {
+  version = "0.10.1",
+  features = [
+    "cookie",
+    "cookie-private",
+    "cookie-signed",
+    "typed-header",
+  ]
+}
+base64 = "0.22"
+bb8 = { version = "0.9.1" }
+bb8-redis = { version = "0.26.0" }
+ciborium = "0.2.2"
+circular-buffer = "0.1.7"
+codee = { version = "0.3.0", features = ["json_serde"] }
+component = { path = "./ssr/src/component" }
+consts = { path = "./ssr/src/consts" }
+crc32fast = "1.4.0"
+dotenv = { version = "0.15.0" }
+enum_dispatch = { version = "0.3.12" }
+futures = "0.3.30"
+# need getrandom with wasm_js feature for generating random values in wasm32-unknown-unknown
+getrandom = {
+  version = "0.3.3",
+  default-features = false,
+  features = [
+    "wasm_js",
+  ]
+}
+gloo = { version = "0.11.0", features = ["futures", "net"] }
+gloo-utils = { version = "0.2.0", features = ["serde"] }
+gob-cloudflare = {
+  git = "https://github.com/yral-dapp/gob-cloudflare",
+  rev = "c847ba87ecc73a33520b24bd62503420d7e23e3e",
+  default-features = false
+}
+hex = "0.4.3"
+hmac = { version = "0.12.1" }
+ic-agent = { version = "0.49.0", default-features = false, features = ["pem"] }
+ic-certification = "3.0.3"
+icondata = "0.3.0"
+icondata_core = "0.1.0"
+indexmap = "2.8.0"
+js-sys = "0.3.69"
+jsonwebtoken = "9.3.1"
+k256 = {
+  version = "0.13.4",
+  default-features = false,
+  features = [
+    "jwk",
+    "std",
+  ]
+}
+leptos_icons = "0.6.1"
+leptos-use = { version = "0.16.2-beta2" }
+num-bigint = "0.4.6"
+num-traits = "0.2.19"
+once_cell = "1.19.0"
+openidconnect = { version = "3.5.0" }
+page = { path = "./ssr/src/page" }
+priority-queue = "2.1.0"
+prost = "0.13.0"
+rand = { version = "0.9.0", default-features = false, features = ["small_rng"] }
+rand_chacha = { version = "0.3.1" }
+redis = {
+  version = "1.0.2",
+  default-features = false,
+  features = [
+    "acl",
+    "ahash",
+    "aio",
+    "cluster",
+    "cluster-async",
+    "connection-manager",
+    "sentinel",
+    "tokio-rustls-comp",
+  ]
+}
+regex = { version = "1.11.1" }
+reqwest = {
+  version = "0.12",
+  default-features = false,
+  features = [
+    "http2",
+    "json",
+    "multipart",
+  ]
+}
+rust_decimal = "1.36"
+rustls = { version = "0.23.26" }
+send_wrapper = { version = "0.6.0", features = ["futures"] }
+sentry = {
+  version = "0.37.0",
+  default-features = false,
+  features = [
+    "backtrace",
+    "contexts",
+    "debug-images",
+    "panic",
+    "release-health",
+    "reqwest",
+    "rustls",
+    "sentry-anyhow",
+    "serde_json",
+  ]
+}
+sentry-tower = { version = "0.37.0", features = ["axum", "axum-matched-path"] }
+sentry-tracing = "0.37.0"
+serde_json = "1.0"
+speedate = { version = "0.14.4" }
+state = { path = "./ssr/src/state" }
+testcontainers = { version = "0.20.0" }
+tonic = {
+  version = "0.12.0",
+  default-features = false,
+  features = [
+    "codegen",
+    "prost",
+  ]
+}
+tonic-build = {
+  version = "0.12.0",
+  default-features = false,
+  features = [
+    "prost",
+  ]
+}
+tracing-futures = "0.2.5"
+tracing-log = "0.2.0"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter", "std"] }
+urlencoding = "2.1.3"
+utils = { path = "./ssr/src/utils" }
+uts2ts = "0.4.1"
+uuid = { version = "1.11.0", features = ["js", "v4"] }
+wasm-bindgen-futures = { version = "0.4.42" }
+web-sys = {
+  version = "0.3",
+  features = [
+    "Clipboard",
+    "Document",
+    "Navigator",
+    "ShareData",
+    "ValidityState",
+    "Window",
+    "Worker",
+    "XmlHttpRequest",
+    "XmlHttpRequestUpload",
+  ]
+}
+yral-metadata-client = {
+  path = "../yral-metadata/client",
+  default-features = false
+}
+yral-metadata-types = { path = "../yral-metadata/types" }
+yral-testcontainers = {
+  git = "https://github.com/yral-dapp/yral-testcontainers",
+  rev = "7438ba7cb281e7f195cf81f2a8532f63ce005771"
+}
+
+global-constants = { path = "../yral-common/global-constants" }
+hon-worker-common = {
+  path = "../yral-common/hon-worker-common",
+  features = [
+    "client",
+  ]
+}
+sns-validation = { path = "../yral-common/sns-validation" }
+yral-canisters-client = {
+  path = "../yral-common/canisters-client",
+  features = [
+    "full",
+  ]
+}
+yral-canisters-common = { path = "../yral-common/canisters-common" }
+yral-identity = {
+  path = "../yral-common/identity",
+  default-features = false,
+  features = [
+    "ic-git",
+    "wasm-bindgen",
+  ]
+}
+yral-pump-n-dump-common = {
+  path = "../yral-common/pump-n-dump-common",
+  features = [
+    "client",
+  ]
+}
+yral-types = { path = "../yral-common/types" }
+yral-username-gen = { path = "../yral-common/username-gen" }
+
+# OpenTelemetry dependencies for telemetry_axum
+opentelemetry = { version = "0.24.0", features = ["trace"] }
+opentelemetry-appender-tracing = { version = "0.5.0" }
+opentelemetry-http = { version = "0.13.0" }
+opentelemetry-otlp = {
+  version = "0.17.0",
+  default-features = false,
+  features = [
+    "grpc-tonic",
+    "http-proto",
+    "reqwest-rustls",
+    "tls",
+  ]
+}
+opentelemetry_sdk = { version = "0.24.1", features = ["rt-tokio"] }
+telemetry_axum = { path = "./telemetry_axum" }
+tracing-opentelemetry = { version = "0.25.0" }
 
 [profile.prod-release]
 inherits = "release"
@@ -33,176 +259,10 @@ lto = true
 # [profile.preview-release]
 # inherits = "release"
 
-
-[workspace.dependencies]
-serde = { version = "1.0", features = ["derive"] }
-candid = "0.10.3"
-serde_bytes = "0.11.14"
-web-time = "1.0.0"
-axum = { version = "0.8.4", features = ["macros"] }
-console_error_panic_hook = "0.1"
-console_log = "1"
-leptos = { version = "0.8.5", features = ["nightly"] }
-leptos_axum = { version = "0.8.5" }
-leptos_meta = "0.8.5"
-leptos_router = { version = "0.8.5", features = ["nightly"] }
-reactive_graph = "0.2.5"
-log = "0.4"
-simple_logger = "4.0"
-tokio = { version = "1", features = ["rt-multi-thread", "signal", "time"] }
-tower = { version = "0.4" }
-tower-http = { version = "0.5", features = ["fs", "cors"] }
-wasm-bindgen = "0.2.108"
-thiserror = "2.0"
-tracing = { version = "0.1.37" }
-http = "1.1.0"
-
-ic-agent = { version = "0.49.0", default-features = false, features = ["pem"] }
-futures = "0.3.30"
-leptos-use = { version = "0.16.2-beta2" }
-codee = { version = "0.3.0", features = ["json_serde"] }
-reqwest = { version = "0.12", default-features = false, features = [
-    "json",
-    "http2",
-    "multipart",
-] }
-hex = "0.4.3"
-leptos_icons = "0.6.1"
-icondata = "0.3.0"
-gloo = { version = "0.11.0", features = ["futures", "net"] }
-once_cell = "1.19.0"
-k256 = { version = "0.13.4", default-features = false, features = [
-    "std",
-    "jwk",
-] }
-icondata_core = "0.1.0"
-serde_json = "1.0"
-crc32fast = "1.4.0"
-uts2ts = "0.4.1"
-rand_chacha = { version = "0.3.1" }
-web-sys = { version = "0.3", features = [
-    "Clipboard",
-    "Navigator",
-    "ShareData",
-    "Window",
-    "Document",
-    "Worker",
-    "XmlHttpRequest",
-    "XmlHttpRequestUpload",
-    "ValidityState",
-] }
-circular-buffer = "0.1.7"
-enum_dispatch = { version = "0.3.12" }
-axum-extra = { version = "0.10.1", features = [
-    "cookie",
-    "cookie-signed",
-    "cookie-private",
-    "typed-header",
-] }
-openidconnect = { version = "3.5.0" }
-dotenv = { version = "0.15.0" }
-redis = { version = "1.0.2", features = [
-    "tokio-rustls-comp",
-    "aio",
-    "ahash",
-    "connection-manager",
-    "cluster",
-    "cluster-async",
-    "acl",
-    "sentinel",
-], default-features = false }
-bb8 = { version = "0.9.1" }
-bb8-redis = { version = "0.26.0" }
-rustls = { version = "0.23.26" }
-gob-cloudflare = { git = "https://github.com/yral-dapp/gob-cloudflare", rev = "c847ba87ecc73a33520b24bd62503420d7e23e3e", default-features = false }
-gloo-utils = { version = "0.2.0", features = ["serde"] }
-hmac = { version = "0.12.1" }
-wasm-bindgen-futures = { version = "0.4.42" }
-testcontainers = { version = "0.20.0" }
-yral-testcontainers = { git = "https://github.com/yral-dapp/yral-testcontainers", rev = "7438ba7cb281e7f195cf81f2a8532f63ce005771" }
-js-sys = "0.3.69"
-tonic = { version = "0.12.0", default-features = false, features = [
-    "prost",
-    "codegen",
-] }
-prost = "0.13.0"
-priority-queue = "2.1.0"
-rust_decimal = "1.36"
-speedate = { version = "0.14.4" }
-urlencoding = "2.1.3"
-ic-certification = "3.0.3"
-ciborium = "0.2.2"
-yral-metadata-client = { path = "../yral-metadata/client", default-features = false }
-yral-metadata-types = { path = "../yral-metadata/types" }
-uuid = { version = "1.11.0", features = ["v4", "js"] }
-regex = { version = "1.11.1" }
-tonic-build = { version = "0.12.0", default-features = false, features = [
-    "prost",
-] }
-anyhow = { version = "1.0.86" }
-send_wrapper = { version = "0.6.0", features = ["futures"] }
-auth = { path = "./ssr/src/auth" }
-component = { path = "./ssr/src/component" }
-consts = { path = "./ssr/src/consts" }
-state = { path = "./ssr/src/state" }
-utils = { path = "./ssr/src/utils" }
-page = { path = "./ssr/src/page" }
-rand = { version = "0.9.0", default-features = false, features = ["small_rng"] }
-# need getrandom with wasm_js feature for generating random values in wasm32-unknown-unknown
-getrandom = { version = "0.3.3", default-features = false, features = [
-    "wasm_js",
-] }
-indexmap = "2.8.0"
-sentry-tracing = "0.37.0"
-tracing-log = "0.2.0"
-tracing-subscriber = { version = "0.3.19", features = ["std", "env-filter"] }
-tracing-futures = "0.2.5"
-sentry = { version = "0.37.0", default-features = false, features = [
-    "rustls",
-    "sentry-anyhow",
-    "serde_json",
-    "backtrace",
-    "contexts",
-    "debug-images",
-    "panic",
-    "release-health",
-    "reqwest",
-] }
-sentry-tower = { version = "0.37.0", features = ["axum", "axum-matched-path"] }
-jsonwebtoken = "9.3.1"
-num-traits = "0.2.19"
-num-bigint = "0.4.6"
-base64 = "0.22"
-
-global-constants = { path = "../yral-common/global-constants" }
-hon-worker-common = { path = "../yral-common/hon-worker-common", features = [
-    "client",
-] }
-sns-validation = { path = "../yral-common/sns-validation" }
-yral-canisters-client = { path = "../yral-common/canisters-client", features = [
-    "full",
-] }
-yral-canisters-common = { path = "../yral-common/canisters-common" }
-yral-identity = { path = "../yral-common/identity", default-features = false, features = [
-    "ic-git",
-    "wasm-bindgen",
-] }
-yral-pump-n-dump-common = { path = "../yral-common/pump-n-dump-common", features = [
-    "client",
-] }
-yral-types = { path = "../yral-common/types" }
-yral-username-gen = { path = "../yral-common/username-gen" }
-
-# OpenTelemetry dependencies for telemetry_axum
-opentelemetry = { version = "0.24.0", features = ["trace"] }
-opentelemetry_sdk = { version = "0.24.1", features = ["rt-tokio"] }
-opentelemetry-otlp = { version = "0.17.0", default-features = false, features = [
-    "reqwest-rustls",
-    "http-proto",
-    "tls",
-    "grpc-tonic",
-] }
-opentelemetry-appender-tracing = { version = "0.5.0" }
-opentelemetry-http = { version = "0.13.0" }
-tracing-opentelemetry = { version = "0.25.0" }
-telemetry_axum = { path = "./telemetry_axum" }
+# Defines a size-optimized profile for the WASM bundle in release mode
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+# panic = "abort"

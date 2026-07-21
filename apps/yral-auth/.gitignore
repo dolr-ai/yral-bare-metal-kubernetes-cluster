@@ -17,5 +17,4 @@ redb-kv.db
 .DS_Store
 .direnv
 .claude
-.pnpm-store
 .idea
