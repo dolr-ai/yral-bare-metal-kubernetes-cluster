@@ -152,7 +152,6 @@ sentry-tracing = "0.37.0"
 serde_json = "1.0"
 speedate = { version = "0.14.4" }
 state = { path = "./ssr/src/state" }
-testcontainers = { version = "0.20.0" }
 tonic = {
   version = "0.12.0",
   default-features = false,
@@ -195,10 +194,6 @@ yral-metadata-client = {
   default-features = false
 }
 yral-metadata-types = { path = "../yral-metadata/types" }
-yral-testcontainers = {
-  git = "https://github.com/yral-dapp/yral-testcontainers",
-  rev = "7438ba7cb281e7f195cf81f2a8532f63ce005771"
-}
 
 global-constants = { path = "../yral-common/global-constants" }
 hon-worker-common = {

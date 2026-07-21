@@ -190,25 +190,15 @@ dir = "apps/yral-legacy"
 run = "cargo leptos build --release"
 env = { LEPTOS_BIN_TARGET_TRIPLE = "x86_64-unknown-linux-musl" }
 
-[tasks.yral-legacy-build-local]
-description = "Build yral-legacy for local dev (local-bin/local-lib features, debug)"
-dir = "apps/yral-legacy"
-run = "cargo leptos build --bin-features local-bin --lib-features local-lib"
-
 [tasks.yral-legacy-run]
 description = "Run yral-legacy locally via pitchfork (release binary, port 8080)"
 depends = ["yral-legacy-build"]
 run = "pitchfork start yral-legacy --force"
 
-[tasks.yral-legacy-run-local]
-description = "Run yral-legacy locally via pitchfork (local-bin debug build, port 8080)"
-depends = ["yral-legacy-build-local"]
-run = "pitchfork start yral-legacy-local --force"
-
 [tasks.yral-legacy-test]
-description = "Run yral-legacy tests"
+description = "Run yral-legacy tests (ssr feature required for bin targets)"
 dir = "apps/yral-legacy"
-run = "cargo test"
+run = "cargo test --features ssr --bins --lib"
 
 [tasks.yral-legacy-image]
 description = "Build the yral-legacy container image locally (podman)"
@@ -220,8 +210,18 @@ depends = ["yral-legacy-image"]
 run = "pitchfork start yral-legacy-container --force"
 
 [tasks.yral-legacy-stop]
-description = "Stop yral-legacy dev servers or container via pitchfork"
-run = "pitchfork stop yral-legacy yral-legacy-local yral-legacy-container"
+description = "Stop yral-legacy dev server or container via pitchfork"
+run = "pitchfork stop yral-legacy yral-legacy-container"
+
+[tasks.yral-legacy-all]
+description = "Full yral-legacy workflow: build → test → image → image-run → validate → stop"
+run = '''
+mise run yral-legacy-build
+mise run yral-legacy-run
+mise run yral-legacy-test
+mise run yral-legacy-image
+mise run yral-legacy-image-run
+'''
 
 [tasks.yral-legacy-validate]
 description = "Validate yral-legacy on prod (read-only kubectl checks)"

@@ -1,15 +1,8 @@
-#[cfg(any(feature = "local-bin", feature = "local-lib"))]
-mod local;
+mod remote;
 
 use std::collections::BTreeSet;
 
 use candid::Principal;
-#[cfg(any(feature = "local-bin", feature = "local-lib"))]
-pub use local::*;
-
-#[cfg(not(any(feature = "local-bin", feature = "local-lib")))]
-mod remote;
-#[cfg(not(any(feature = "local-bin", feature = "local-lib")))]
 pub use remote::*;
 
 use once_cell::sync::Lazy;

@@ -566,6 +566,7 @@ mod tests {
     use redis::AsyncCommands;
 
     #[tokio::test]
+    #[ignore = "requires live DragonflyDB instance (run with: cargo test -- --ignored)"]
     async fn test_dragonfly_connection() {
         let pool = init_dragonfly_redis_for_test()
             .await
@@ -588,6 +589,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "requires live DragonflyDB instance (run with: cargo test -- --ignored)"]
     async fn test_dragonfly_validated_connection() {
         let pool = init_dragonfly_redis_for_test()
             .await
@@ -612,6 +614,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "requires live DragonflyDB instance (run with: cargo test -- --ignored)"]
     async fn test_dragonfly_pipeline() {
         let pool = init_dragonfly_redis_for_test()
             .await

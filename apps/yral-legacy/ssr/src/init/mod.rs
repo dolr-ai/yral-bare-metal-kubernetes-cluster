@@ -1,6 +1,3 @@
-#[cfg(feature = "local-bin")]
-pub mod containers;
-
 use std::env;
 
 use auth::server_impl::store::KVStoreImpl;
@@ -21,20 +18,9 @@ fn init_cf() -> gob_cloudflare::CloudflareAuth {
 }
 
 fn init_cookie_key() -> Key {
-    let cookie_key_raw = {
-        #[cfg(not(feature = "local-bin"))]
-        {
-            let cookie_key_str = env::var("COOKIE_KEY").expect("`COOKIE_KEY` is required!");
-            hex::decode(cookie_key_str).expect("Invalid `COOKIE_KEY` (must be length 128 hex)")
-        }
-        #[cfg(feature = "local-bin")]
-        {
-            use rand_chacha::rand_core::{OsRng, RngCore};
-            let mut cookie_key = [0u8; 64];
-            OsRng.fill_bytes(&mut cookie_key);
-            cookie_key.to_vec()
-        }
-    };
+    let cookie_key_str = env::var("COOKIE_KEY").expect("`COOKIE_KEY` is required!");
+    let cookie_key_raw =
+        hex::decode(cookie_key_str).expect("Invalid `COOKIE_KEY` (must be length 128 hex)");
     Key::from(&cookie_key_raw)
 }
 
@@ -96,42 +82,23 @@ async fn init_grpc_offchain_channel() -> tonic::transport::Channel {
 #[cfg(feature = "backend-admin")]
 fn init_admin_canisters() -> state::admin_canisters::AdminCanisters {
     use state::admin_canisters::AdminCanisters;
+    use ic_agent::identity::Secp256k1Identity;
 
-    #[cfg(feature = "local-bin")]
-    {
-        use ic_agent::identity::Secp256k1Identity;
-        use k256::SecretKey;
-        use yral_testcontainers::backend::ADMIN_SECP_BYTES;
-
-        let sk = SecretKey::from_bytes(&ADMIN_SECP_BYTES.into()).unwrap();
-        let identity = Secp256k1Identity::from_private_key(sk);
-        AdminCanisters::new(identity)
-    }
-
-    #[cfg(not(feature = "local-bin"))]
-    {
-        use ic_agent::identity::Secp256k1Identity;
-
-        let admin_id_pem =
-            env::var("BACKEND_ADMIN_IDENTITY").expect("`BACKEND_ADMIN_IDENTITY` is required!");
-        let admin_id_pem_by = admin_id_pem.as_bytes();
-        let admin_id =
-            Secp256k1Identity::from_pem(admin_id_pem_by).expect("Invalid `BACKEND_ADMIN_IDENTITY`");
-        AdminCanisters::new(admin_id)
-    }
+    let admin_id_pem =
+        env::var("BACKEND_ADMIN_IDENTITY").expect("`BACKEND_ADMIN_IDENTITY` is required!");
+    let admin_id_pem_by = admin_id_pem.as_bytes();
+    let admin_id =
+        Secp256k1Identity::from_pem(admin_id_pem_by).expect("Invalid `BACKEND_ADMIN_IDENTITY`");
+    AdminCanisters::new(admin_id)
 }
 
 pub struct AppStateRes {
     pub app_state: AppState,
-    #[cfg(feature = "local-bin")]
-    pub containers: containers::TestContainers,
 }
 
 pub struct AppStateBuilder {
     leptos_options: LeptosOptions,
     routes: Vec<AxumRouteListing>,
-    #[cfg(feature = "local-bin")]
-    containers: containers::TestContainers,
 }
 
 impl AppStateBuilder {
@@ -139,50 +106,22 @@ impl AppStateBuilder {
         Self {
             leptos_options,
             routes,
-            #[cfg(feature = "local-bin")]
-            containers: containers::TestContainers::default(),
         }
     }
 
     async fn init_redis_kv(&mut self) -> KVStoreImpl {
-        #[cfg(feature = "local-bin")]
-        {
-            use auth::server_impl::store::redis_kv::RedisKV;
+        use auth::server_impl::store::dragonfly_kv::DragonflyKV;
 
-            self.containers.start_redis().await;
-            let redis_url = "redis://127.0.0.1:6379";
-
-            log::info!("initiating local redis instance (feature='local-bin')");
-            KVStoreImpl::Redis(
-                RedisKV::new(redis_url)
-                    .await
-                    .expect("failed to initialize local redis"),
-            )
-        }
-
-        #[cfg(not(feature = "local-bin"))]
-        {
-            use auth::server_impl::store::dragonfly_kv::DragonflyKV;
-
-            log::info!("initializing dragonfly redis instance");
-            KVStoreImpl::DragonflyKV(
-                DragonflyKV::new()
-                    .await
-                    .expect("failed to initialize dragonfly redis"),
-            )
-        }
+        log::info!("initializing dragonfly redis instance");
+        KVStoreImpl::DragonflyKV(
+            DragonflyKV::new()
+                .await
+                .expect("failed to initialize dragonfly redis"),
+        )
     }
 
     pub async fn build(mut self) -> AppStateRes {
-        // if feature is local it will return local redis instance and if redis-kv not passed it will return reRB
-        // else it will return dragonfly kv
         let kv = self.init_redis_kv().await;
-
-        #[cfg(feature = "local-bin")]
-        {
-            self.containers.start_backend().await;
-            self.containers.start_metadata().await;
-        }
 
         let app_state = AppState {
             leptos_options: self.leptos_options,
@@ -207,10 +146,6 @@ impl AppStateBuilder {
             },
         };
 
-        AppStateRes {
-            app_state,
-            #[cfg(feature = "local-bin")]
-            containers: self.containers,
-        }
+        AppStateRes { app_state }
     }
 }

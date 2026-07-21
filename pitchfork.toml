@@ -77,18 +77,6 @@ ready_http = "http://localhost:8080/api/healthz"
 stop_signal = "SIGINT"
 env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
 
-# ── yral-legacy dev server (local-bin debug build) ──────────────────────────
-# Lighter build for local dev — stubs out IC canisters, video processing, etc.
-# Build first with: mise run yral-legacy-build-local
-
-[daemons.yral-legacy-local]
-run = "exec fnox exec -- ./target/debug/yral-legacy"
-dir = "apps/yral-legacy"
-mise = true
-ready_http = "http://localhost:8080/api/healthz"
-stop_signal = "SIGINT"
-env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
-
 # ── yral-legacy container (podman) ──────────────────────────────────────────
 # Build first with: mise run yral-legacy-image
 

@@ -57,8 +57,6 @@ gob-cloudflare = { workspace = true, optional = true }
 gloo-utils = { workspace = true }
 hmac = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true }
-testcontainers = { workspace = true, optional = true }
-yral-testcontainers = { workspace = true, optional = true }
 sns-validation = { workspace = true }
 js-sys = { workspace = true }
 tonic = { workspace = true }
@@ -175,22 +173,6 @@ mock-referral-history = [
 ]
 
 
-local-bin = [
-    "ssr",
-    "redis-kv",
-    "backend-admin",
-    "dep:testcontainers",
-    "dep:yral-testcontainers",
-    "yral-canisters-common/local",
-    "dep:yral-metadata-client",
-    "dep:yral-metadata-types",
-    "dep:rand_chacha",
-    "consts/local-bin",
-    "utils/local-bin",
-    "state/local-bin",
-    "component/local-bin",
-    "page/local-bin",
-]
 mock-history = [
     "mock-referral-history",
     "mock-wallet-history",
@@ -276,17 +258,6 @@ release-lib = [
     "state/release-lib",
     "component/release-lib",
     "page/release-lib",
-]
-local-lib = [
-    "hydrate",
-    "redis-kv",
-    "backend-admin",
-    "yral-canisters-common/local",
-    "consts/local-lib",
-    "utils/local-lib",
-    "state/local-lib",
-    "component/local-lib",
-    "page/local-lib",
 ]
 
 [package.metadata.leptos]

@@ -59,8 +59,6 @@ gob-cloudflare = { workspace = true, optional = true }
 gloo-utils = { workspace = true }
 hmac = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true }
-testcontainers = { workspace = true, optional = true }
-yral-testcontainers = { workspace = true, optional = true }
 sns-validation = { workspace = true }
 js-sys = { workspace = true }
 tonic = { workspace = true }
@@ -75,7 +73,6 @@ yral-canisters-common = { workspace = true }
 ic-certification = { workspace = true }
 ciborium = { workspace = true }
 yral-metadata-client = { workspace = true }
-yral-metadata-types = { workspace = true, optional = true }
 uuid = { workspace = true, features = ["v4", "js"] }
 regex = { workspace = true, optional = true }
 tonic-build = { workspace = true }
@@ -210,25 +207,4 @@ release-lib = [
     "consts/release-lib",
     "utils/release-lib",
     "state/release-lib",
-]
-local-bin = [
-    "ssr",
-    "redis-kv",
-    "backend-admin",
-    "dep:testcontainers",
-    "dep:yral-testcontainers",
-    "yral-canisters-common/local",
-    "dep:yral-metadata-types",
-    "consts/local-bin",
-    "utils/local-bin",
-    "state/local-bin",
-]
-local-lib = [
-    "hydrate",
-    "redis-kv",
-    "backend-admin",
-    "yral-canisters-common/local",
-    "consts/local-lib",
-    "utils/local-lib",
-    "state/local-lib",
 ]

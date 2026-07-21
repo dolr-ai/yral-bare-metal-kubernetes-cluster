@@ -126,9 +126,6 @@ async fn main_impl() -> Result<(), Box<dyn std::error::Error>> {
                 _ = terminate => {},
             }
             log::info!("stopping...");
-
-            #[cfg(feature = "local-bin")]
-            std::mem::drop(res.containers);
         }
     };
 
