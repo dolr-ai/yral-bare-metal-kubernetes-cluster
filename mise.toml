@@ -36,6 +36,12 @@ LEPTOS_ENV = "development"
 # fnox age decryption — private key extracted by mise run bootstrap
 # Uses {{config_root}} so the path resolves to the repo root regardless of cwd
 FNOX_AGE_KEY_FILE = "{{config_root}}/.yral-infra-ed25519"
+# Cargo + cargo-binstall cache dirs — shared across all projects via $HOME.
+# Without these, mise's rust/rustup backend sets CARGO_HOME/RUSTUP_HOME to a
+# literal `./undefined/` at the cwd (repo root), duplicating caches per project.
+CARGO_HOME = "{{env.HOME}}/.cargo"
+RUSTUP_HOME = "{{env.HOME}}/.rustup"
+CARGO_BINSTALL_DIR = "{{env.HOME}}/.local/share/cargo-binstall"
 # Plaintext (non-sensitive) values — declared directly, no .env file needed.
 AWS_ACCESS_KEY_ID = "XO5X9A1W8AMHY3DSTKMS"
 AWS_ENDPOINT_URL = "https://fsn1.your-objectstorage.com"
@@ -123,7 +129,7 @@ env = { LEPTOS_BIN_TARGET_TRIPLE = "x86_64-unknown-linux-musl" }
 [tasks.yral-auth-run]
 description = "Run yral-auth locally via pitchfork (release binary, port 8080)"
 depends = ["yral-auth-build"]
-run = "pitchfork start yral-auth --force"
+run = "pitchfork start yral-auth"
 
 [tasks.yral-auth-test]
 description = "Run yral-auth tests (ssr feature required for bin targets)"
