@@ -196,9 +196,9 @@ depends = ["yral-legacy-build"]
 run = "pitchfork start yral-legacy --force"
 
 [tasks.yral-legacy-test]
-description = "Run yral-legacy tests (ssr feature required for bin targets)"
+description = "Run yral-legacy tests (ssr feature + fnox secrets for DragonflyDB integration tests)"
 dir = "apps/yral-legacy"
-run = "cargo test --features ssr --bins --lib"
+run = "fnox exec -- cargo test --features ssr --bins --lib"
 
 [tasks.yral-legacy-image]
 description = "Build the yral-legacy container image locally (podman)"
