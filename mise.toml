@@ -129,7 +129,7 @@ env = { LEPTOS_BIN_TARGET_TRIPLE = "x86_64-unknown-linux-musl" }
 [tasks.yral-auth-run]
 description = "Run yral-auth locally via pitchfork (release binary, port 8080)"
 depends = ["yral-auth-build"]
-run = "pitchfork start yral-auth"
+run = "pitchfork start yral-auth --force"
 
 [tasks.yral-auth-test]
 description = "Run yral-auth tests (ssr feature required for bin targets)"
@@ -148,6 +148,16 @@ run = "pitchfork start yral-auth-container --force"
 [tasks.yral-auth-stop]
 description = "Stop yral-auth dev server or container via pitchfork"
 run = "pitchfork stop yral-auth yral-auth-container"
+
+[tasks.yral-auth-all]
+description = "Full yral-auth workflow: build → test → image → image-run → validate → stop"
+run = '''
+mise run yral-auth-build
+mise run yral-auth-run
+mise run yral-auth-test
+mise run yral-auth-image
+mise run yral-auth-image-run
+'''
 
 [tasks.yral-auth-validate]
 description = "Validate yral-auth on prod (read-only kubectl checks)"

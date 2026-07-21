@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 use leptos_meta::{provide_meta_context, HashedStylesheet, MetaTags, Title};
 use leptos_router::{
-    components::{Route, Router, Routes},
+    components::{Redirect, Route, Router, Routes},
     path,
 };
 
@@ -55,6 +55,7 @@ pub fn App() -> impl IntoView {
         <Router>
             <main>
                 <Routes fallback=|| "Page not found.".into_view()>
+                    <Route path=path!("/") view=|| view! { <Redirect path="/account" /> } />
                     <Route path=path!("/account") view=AccountPage />
                     <Route path=path!("/account/callback") view=OauthCallbackPage />
                     <Route path=path!("/oauth/auth") view=AuthPage />
