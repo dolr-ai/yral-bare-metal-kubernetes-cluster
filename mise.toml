@@ -109,7 +109,7 @@ run = "pitchfork stop spacetimedb"
 description = "Install yral-auth build prerequisites (cargo-leptos, musl+wasm targets, npm deps)"
 depends = ["bootstrap"]
 run = '''
-rustup target add wasm32-unknown-unknown x86_64-unknown-linux-musl
+rustup install
 cargo binstall cargo-leptos --no-confirm
 cd apps/yral-auth && npm install
 '''
@@ -126,9 +126,9 @@ depends = ["yral-auth-build"]
 run = "pitchfork start yral-auth --force"
 
 [tasks.yral-auth-test]
-description = "Run yral-auth tests"
+description = "Run yral-auth tests (ssr feature required for bin targets)"
 dir = "apps/yral-auth"
-run = "cargo test"
+run = "cargo test --features ssr --bins --lib"
 
 [tasks.yral-auth-image]
 description = "Build the yral-auth container image locally (podman)"
