@@ -136,6 +136,7 @@ async fn main_impl() -> Result<(), Box<dyn std::error::Error>> {
 
     // build our application with a route
     let app = Router::new()
+        .route("/healthz", get(|| async { "ok" }))
         .route(
             "/api/{*fn_name}",
             get(server_fn_handler).post(server_fn_handler),

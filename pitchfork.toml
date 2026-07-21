@@ -73,7 +73,7 @@ stop_signal = "SIGINT"
 run = "exec fnox exec -- ./target/x86_64-unknown-linux-musl/prod-release/yral-legacy"
 dir = "apps/yral-legacy"
 mise = true
-ready_http = "http://localhost:8080/api/healthz"
+ready_http = "http://localhost:8080/healthz"
 stop_signal = "SIGINT"
 env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
 
@@ -97,7 +97,7 @@ exec podman run --rm \
 '''
 dir = "apps/yral-legacy"
 mise = true
-ready_http = "http://localhost:8080/api/healthz"
+ready_http = "http://localhost:8080/healthz"
 stop_signal = "SIGINT"
 
 # ── yral-metadata dev server (release binary) ──────────────────────────────
