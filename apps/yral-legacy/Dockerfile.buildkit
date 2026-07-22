@@ -2,7 +2,7 @@
 # Build context: repo root (set by Shipwright spec.source.contextDir)
 
 # ── Stage 1: Build ──────────────────────────────────────────────────────────
-FROM rust:latest AS builder
+FROM rust:stable AS builder
 
 # Install the specific nightly toolchain from rust-toolchain.toml
 COPY apps/yral-legacy/rust-toolchain.toml /tmp/rust-toolchain.toml
