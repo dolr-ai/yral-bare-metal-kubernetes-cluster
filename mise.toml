@@ -344,3 +344,70 @@ echo "=== Recent logs (last 20 lines, first pod) ==="
 FIRST_POD=$(kubectl -n off-chain-agent get pods -l app=off-chain-agent -o jsonpath='{.items[0].metadata.name}')
 kubectl -n off-chain-agent logs "$FIRST_POD" --tail=20
 '''
+
+# ── yral-mobile ──────────────────────────────────────────────────────────────
+# Kotlin Multiplatform (Android + iOS). Tasks use `dir` to run from the submodule.
+# Prerequisites (not managed by mise — system-level):
+#   - Android SDK (set ANDROID_HOME or sdk.dir in local.properties)
+#   - Xcode + Command Line Tools (macOS only, for iOS targets)
+#   - Android emulator (API 35, Google APIs, 12 GB disk)
+#   - iOS simulator (iPhone, any recent iOS)
+# First-time setup:  mise install && mise run yral-mobile-setup
+
+[tasks.yral-mobile-setup]
+description = "Install Ruby gems (fastlane) and run CocoaPods install for iOS"
+dir = "apps/yral-mobile"
+run = '''
+bundle install
+cd iosApp && pod install
+'''
+
+[tasks.yral-mobile-build]
+description = "Assemble Android debug APK"
+dir = "apps/yral-mobile"
+run = "./gradlew :androidApp:assembleDebug"
+
+[tasks.yral-mobile-build-release]
+description = "Assemble Android release APK"
+dir = "apps/yral-mobile"
+run = "./gradlew :androidApp:assembleRelease"
+
+[tasks.yral-mobile-test]
+description = "Run all unit tests (root)"
+dir = "apps/yral-mobile"
+run = "./gradlew test"
+
+[tasks.yral-mobile-test-auth]
+description = "Run auth feature module tests (KMP, includes commonTest)"
+dir = "apps/yral-mobile"
+run = "./gradlew :shared:features:auth:allTests"
+
+[tasks.yral-mobile-lint]
+description = "Run ktlint + detekt"
+dir = "apps/yral-mobile"
+run = "./gradlew ktlintCheck detekt"
+
+[tasks.yral-mobile-lint-fix]
+description = "Auto-fix ktlint issues"
+dir = "apps/yral-mobile"
+run = "./gradlew ktlintFormat"
+
+[tasks.yral-mobile-ios-build]
+description = "Build the iOS XCFramework (shared Kotlin module)"
+dir = "apps/yral-mobile"
+run = "./gradlew :iosSharedUmbrella:assembleXCFramework"
+
+[tasks.yral-mobile-ios-pod-install]
+description = "Reinstall CocoaPods dependencies (run after adding/changing pods)"
+dir = "apps/yral-mobile"
+run = "cd iosApp && pod install"
+
+[tasks.yral-mobile-checks]
+description = "CI-equivalent full check suite (lint + unit tests + iOS xcodebuild + Android/iOS e2e)"
+dir = "apps/yral-mobile"
+run = "./gradlew allChecks"
+
+[tasks.yral-mobile-clean]
+description = "Clean all Gradle build outputs"
+dir = "apps/yral-mobile"
+run = "./gradlew clean"

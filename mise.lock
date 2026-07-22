@@ -469,6 +469,36 @@ url_api = "https://api.github.com/repos/jdx/pitchfork/releases/assets/471286097"
 version = "6.0.1"
 backend = "github:podman-container-tools/podman"
 
+[tools.podman."platforms.linux-arm64"]
+checksum = "sha256:e0329d3c1df622ae39e1ae42fc9c5de787ec7b086dfad44143f956e7079617d0"
+url = "https://github.com/podman-container-tools/podman/releases/download/v6.0.1/podman-remote-static-linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/podman-container-tools/podman/releases/assets/470621691"
+
+[tools.podman."platforms.linux-arm64-musl"]
+checksum = "sha256:e0329d3c1df622ae39e1ae42fc9c5de787ec7b086dfad44143f956e7079617d0"
+url = "https://github.com/podman-container-tools/podman/releases/download/v6.0.1/podman-remote-static-linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/podman-container-tools/podman/releases/assets/470621691"
+
+[tools.podman."platforms.linux-x64"]
+checksum = "sha256:f9e286224269e1db91892a9fceda92f844046ab5118f65dd815ab387cae24c6d"
+url = "https://github.com/podman-container-tools/podman/releases/download/v6.0.1/podman-remote-static-linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/podman-container-tools/podman/releases/assets/470621689"
+
+[tools.podman."platforms.linux-x64-musl"]
+checksum = "sha256:f9e286224269e1db91892a9fceda92f844046ab5118f65dd815ab387cae24c6d"
+url = "https://github.com/podman-container-tools/podman/releases/download/v6.0.1/podman-remote-static-linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/podman-container-tools/podman/releases/assets/470621689"
+
+[tools.podman."platforms.macos-arm64"]
+checksum = "sha256:4f2d2def65a5afe02fd56756e519bca328c02712c92ada07510b488c68051b95"
+url = "https://github.com/podman-container-tools/podman/releases/download/v6.0.1/podman-remote-release-darwin_arm64.zip"
+url_api = "https://api.github.com/repos/podman-container-tools/podman/releases/assets/470621667"
+
+[tools.podman."platforms.windows-x64"]
+checksum = "sha256:127d02930ac25c80088817502e833916cd3ee1ed1e771dbd42a4ce81b2e0d415"
+url = "https://github.com/podman-container-tools/podman/releases/download/v6.0.1/podman-remote-release-windows_amd64.zip"
+url_api = "https://api.github.com/repos/podman-container-tools/podman/releases/assets/470621670"
+
 [[tools.protobuf]]
 version = "35.1"
 backend = "aqua:protocolbuffers/protobuf/protoc"
