@@ -75,6 +75,9 @@ WORKDIR /app
 # Copy the built binary
 COPY --from=builder /app/apps/yral-legacy/target/x86_64-unknown-linux-musl/prod-release/yral-legacy .
 
+# Copy the Leptos hash file (read next to the binary at runtime when LEPTOS_HASH_FILES=true)
+COPY --from=builder /app/apps/yral-legacy/target/x86_64-unknown-linux-musl/prod-release/hash.txt .
+
 # Copy the Leptos site assets (WASM, JS, CSS)
 COPY --from=builder /app/apps/yral-legacy/target/site ./site
 

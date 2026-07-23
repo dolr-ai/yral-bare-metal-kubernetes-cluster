@@ -47,7 +47,7 @@ env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
 
 [daemons.yral-auth-container]
 run = '''
-exec podman run --rm \
+exec fnox exec -- podman run --rm \
   -e APP_ENV -e GOOGLE_CLIENT_ID -e GOOGLE_CLIENT_SECRET \
   -e APPLE_CLIENT_ID -e APPLE_TEAM_ID -e APPLE_KEY_ID -e APPLE_AUTH_KEY_PEM \
   -e JWT_EC_PEM -e JWT_PUB_EC_PEM \
@@ -81,8 +81,11 @@ env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
 # Build first with: mise run yral-legacy-image
 
 [daemons.yral-legacy-container]
+# fnox exec decrypts secrets from fnox.toml into the env so podman's -e VAR
+# (without =value) copies them from the parent process into the container.
+# mise = true wraps the whole command with `mise x --` for tools + plaintext [env].
 run = '''
-exec podman run --rm \
+exec fnox exec -- podman run --rm \
   -e APP_ENV -e LEPTOS_ENV -e LEPTOS_SITE_ADDR -e LEPTOS_HASH_FILES \
   -e GOOGLE_CLIENT_ID -e GOOGLE_REDIRECT_URL -e YRAL_AUTH_REDIRECT_URL \
   -e YRAL_AUTH_CLIENT_ID \
@@ -116,7 +119,7 @@ stop_signal = "SIGINT"
 
 [daemons.yral-metadata-container]
 run = '''
-exec podman run --rm \
+exec fnox exec -- podman run --rm \
   -e APP_ENV -e RUST_LOG -e BIND_ADDRESS \
   -e JWT_PUBLIC_KEY -e YRAL_AUTH_PUBLIC_KEY -e BACKEND_ADMIN_IDENTITY \
   -e DRAGONFLY_REDIS_STORE_PASSWORD -e DRAGONFLY_REDIS_STORE_HOSTS \
@@ -157,7 +160,7 @@ stop_signal = "SIGINT"
 
 [daemons.off-chain-agent-container]
 run = '''
-exec podman run --rm \
+exec fnox exec -- podman run --rm \
   -e APP_ENV -e RUST_LOG \
   -e VIDEO_PROCESSING_WORKER_ENABLED -e VIDEO_PROCESSING_DEDUP_DELAY_SECONDS \
   -e VIDEO_PROCESSING_WORKER_BATCH_SIZE -e VIDEO_PROCESSING_WORKER_PARALLELISM \
