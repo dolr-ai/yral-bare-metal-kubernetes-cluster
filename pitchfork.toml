@@ -144,17 +144,6 @@ mise = true
 ready_http = "http://localhost:50051/healthz"
 stop_signal = "SIGINT"
 
-# ── off-chain-agent dev server (debug build) ────────────────────────────────
-# Same code as production, debug build for faster iteration.
-# Build first with: mise run off-chain-agent-build-local
-
-[daemons.off-chain-agent-local]
-run = "exec fnox exec -- ./target/debug/icp-off-chain-agent"
-dir = "apps/off-chain-agent"
-mise = true
-ready_http = "http://localhost:50051/healthz"
-stop_signal = "SIGINT"
-
 # ── off-chain-agent container (podman) ──────────────────────────────────────
 # Build first with: mise run off-chain-agent-image
 

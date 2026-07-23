@@ -272,6 +272,16 @@ run = "pitchfork start yral-metadata-container --force"
 description = "Stop yral-metadata dev server or container via pitchfork"
 run = "pitchfork stop yral-metadata yral-metadata-container"
 
+[tasks.yral-metadata-all]
+description = "Full yral-metadata workflow: build → run → test → image → image-run"
+run = '''
+mise run yral-metadata-build
+mise run yral-metadata-run
+mise run yral-metadata-test
+mise run yral-metadata-image
+mise run yral-metadata-image-run
+'''
+
 [tasks.yral-metadata-validate]
 description = "Validate yral-metadata on prod (read-only kubectl checks)"
 run = '''
@@ -298,20 +308,10 @@ description = "Build off-chain-agent (release, musl static binary)"
 dir = "apps/off-chain-agent"
 run = "cargo build --release --target x86_64-unknown-linux-musl"
 
-[tasks.off-chain-agent-build-local]
-description = "Build off-chain-agent for local dev (debug, same as production)"
-dir = "apps/off-chain-agent"
-run = "cargo build"
-
 [tasks.off-chain-agent-run]
 description = "Run off-chain-agent locally via pitchfork (release binary, port 50051)"
 depends = ["off-chain-agent-build"]
 run = "pitchfork start off-chain-agent --force"
-
-[tasks.off-chain-agent-run-local]
-description = "Run off-chain-agent locally via pitchfork (debug build, port 50051)"
-depends = ["off-chain-agent-build-local"]
-run = "pitchfork start off-chain-agent-local --force"
 
 [tasks.off-chain-agent-test]
 description = "Run off-chain-agent tests"
@@ -328,8 +328,18 @@ depends = ["off-chain-agent-image"]
 run = "pitchfork start off-chain-agent-container --force"
 
 [tasks.off-chain-agent-stop]
-description = "Stop off-chain-agent dev servers or container via pitchfork"
-run = "pitchfork stop off-chain-agent off-chain-agent-local off-chain-agent-container"
+description = "Stop off-chain-agent dev server or container via pitchfork"
+run = "pitchfork stop off-chain-agent off-chain-agent-container"
+
+[tasks.off-chain-agent-all]
+description = "Full off-chain-agent workflow: build → run → test → image → image-run"
+run = '''
+mise run off-chain-agent-build
+mise run off-chain-agent-run
+mise run off-chain-agent-test
+mise run off-chain-agent-image
+mise run off-chain-agent-image-run
+'''
 
 [tasks.off-chain-agent-validate]
 description = "Validate off-chain-agent on prod (read-only kubectl checks)"
