@@ -1,0 +1,26 @@
+# PowerDNS HTTP API Service — ClusterIP (internal only).
+#
+# Used by:
+#   - ExternalDNS (--pdns-server=http://powerdns-api.external-dns.svc.cluster.local:8081)
+#   - Zone init Job (creates zones via API on startup)
+#   - cert-manager (indirectly — cert-manager uses RFC2136, not the HTTP API)
+#
+# Not exposed externally — the API key provides auth, but there's no reason
+# to expose the DNS management API to the internet.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: powerdns-api
+  namespace: external-dns
+  labels:
+    app: powerdns
+spec:
+  type: ClusterIP
+  ports:
+    - name: api
+      port: 8081
+      targetPort: 8081
+      protocol: TCP
+  selector:
+    app: powerdns

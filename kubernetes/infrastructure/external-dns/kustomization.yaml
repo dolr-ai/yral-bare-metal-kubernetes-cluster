@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Self-hosted authoritative DNS + ExternalDNS.
+#
+# PowerDNS: authoritative DNS server (bind backend, zone files as ConfigMaps).
+# ExternalDNS: syncs annotated Kubernetes Services to PowerDNS via RFC2136.
+#
+# SOPS-encrypted secrets (pdns-secrets.sops.yaml) contain:
+#   - PowerDNS API key (read-only debugging API)
+#   - TSIG key (RFC2136 dynamic updates — shared with cert-manager + ExternalDNS)
+#
+# Flux applies this automatically on git push (see infrastructure-external-dns.yaml
+# in kubernetes/clusters/yral-k8s/). No manual apply needed.
+resources:
+  - namespace.yaml
+  - pdns-config.yaml
+  - pdns-bind-conf.yaml
+  - pdns-zone-saikat-dev.yaml
+  - pdns-deployment.yaml
+  - pdns-service-dns.yaml
+  - pdns-service-api.yaml
+  - external-dns-rbac.yaml
+  - external-dns-deployment.yaml
+  - pdns-secrets.sops.yaml

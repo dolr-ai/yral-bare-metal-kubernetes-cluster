@@ -1,0 +1,46 @@
+# my-website HTTPRoute — exposes the static site at https://saikat.dev.
+#
+# HTTP→HTTPS redirect (port 80) + HTTPS route (port 443, *.saikat.dev listener)
+# → my-website:80 in the my-website namespace.
+#
+# The wildcard cert (*.saikat.dev) is managed by cert-manager via DNS-01
+# RFC2136 against PowerDNS. See kubernetes/apps/my-website/certificate.yaml.
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: my-website-redirect
+  namespace: kube-system
+spec:
+  parentRefs:
+    - name: web-gateway
+      namespace: kube-system
+      sectionName: http
+  hostnames:
+    - saikat.dev
+    - www.saikat.dev
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: my-website
+  namespace: kube-system
+spec:
+  parentRefs:
+    - name: web-gateway
+      namespace: kube-system
+      sectionName: https-saikat-dev
+  hostnames:
+    - saikat.dev
+    - www.saikat.dev
+  rules:
+    - backendRefs:
+        - name: my-website
+          namespace: my-website
+          port: 80

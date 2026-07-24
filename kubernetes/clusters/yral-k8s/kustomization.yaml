@@ -44,6 +44,7 @@ resources:
   - infrastructure-tekton-pipelines.yaml
   - infrastructure-tekton-triggers.yaml
   - infrastructure-shipwright.yaml
+  - infrastructure-external-dns.yaml
   - networking.yaml
   - apps.yaml
 

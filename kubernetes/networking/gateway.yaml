@@ -46,6 +46,18 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+    - name: https-saikat-dev
+      port: 443
+      protocol: HTTPS
+      hostname: "*.saikat.dev"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: wildcard-saikat-dev-tls
+            kind: Secret
+      allowedRoutes:
+        namespaces:
+          from: All
     - name: kafka
       port: 9092
       protocol: TLS

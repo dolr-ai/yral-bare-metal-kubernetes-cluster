@@ -1,0 +1,80 @@
+# ExternalDNS — syncs annotated Kubernetes Services to PowerDNS records.
+#
+# Watches Services across all namespaces for the annotation:
+#   external-dns.alpha.kubernetes.io/hostname: saikat.dev
+#
+# Creates/updates A records in PowerDNS via RFC2136 dynamic updates (TSIG-signed).
+# Uses TXT registry for ownership tracking (--txt-owner-id=yral-k8s).
+#
+# Sources:
+#   - service: creates records from Service annotations + LoadBalancer/ClusterIP
+#   - crd: DNSEndpoint CRD for records without a Service (Phase 2 team delegation)
+#
+# Provider: rfc2136 (PowerDNS)
+#   - --rfc2136-host: PowerDNS DNS Service (ClusterIP or LoadBalancer, port 53)
+#   - --rfc2136-tsig-key-name: TSIG key name (must match PowerDNS config)
+#   - --rfc2136-tsig-secret: from Secret (must match cert-manager's TSIG key)
+#
+# Domain filter: saikat.dev (Phase 1). Phase 2: add yral.com.
+#
+# Policy: sync (create + delete records to match desired state).
+# ExternalDNS does NOT support leader election — single replica only.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-dns
+  namespace: external-dns
+  labels:
+    app: external-dns
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: external-dns
+  template:
+    metadata:
+      labels:
+        app: external-dns
+    spec:
+      serviceAccountName: external-dns
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
+      containers:
+        - name: external-dns
+          image: registry.k8s.io/external-dns/external-dns:v0.21.0
+          args:
+            - --source=service
+            - --source=crd
+            - --provider=rfc2136
+            - --rfc2136-host=powerdns-dns.external-dns.svc.cluster.local
+            - --rfc2136-port=53
+            - --rfc2136-zone=saikat.dev
+            - --rfc2136-tsig-keyname=saikat-dev-key
+            - --rfc2136-tsig-alg=hmac-sha512
+            - --rfc2136-tsig-secret=$(TSIG_KEY)
+            - --domain-filter=saikat.dev
+            - --registry=txt
+            - --txt-owner-id=yral-k8s
+            - --policy=sync
+            - --log-level=info
+          env:
+            - name: TSIG_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pdns-tsig-key
+                  key: tsig-key
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

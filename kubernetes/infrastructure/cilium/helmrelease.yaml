@@ -139,6 +139,15 @@ spec:
       algorithm: maglev
       mode: snat
 
+    # NOTE: L2 Announcements are intentionally NOT enabled.
+    # L2 ARP/NDP only works within a single L2 broadcast domain (same switch/subnet).
+    # Our cluster spans multiple Hetzner DCs (FSN1, HEL1) and will include nodes from
+    # other providers in the future. The only network requirement for adding nodes is
+    # internet connectivity with a static IP — no L2 adjacency, no provider-specific
+    # network features. Service exposure uses externalIPs (L3, works cross-provider
+    # via Cilium's VXLAN tunnel) and LoadBalancer services instead.
+    # Do not enable l2announcements without revisiting this constraint.
+
     socketLB:
       enabled: true
 
@@ -189,13 +198,17 @@ spec:
       enabled: true
       protocols: tcp,udp
 
+    # External IPs — enables Cilium to load-balance traffic arriving at
+    # service.spec.externalIPs. Used by the PowerDNS LoadBalancer Service to
+    # expose DNS on port 53 across multiple worker node IPs (cross-DC, cross-provider).
+    # This is an L3 feature — each node DNATs traffic to pods via Cilium's VXLAN tunnel.
+    externalIPs:
+      enabled: true
+
     # SNAT mode for consistency with loadBalancer.mode.
     nodePort:
       enabled: true
       mode: snat
-
-    externalIPs:
-      enabled: true
 
     l7Proxy: true
 

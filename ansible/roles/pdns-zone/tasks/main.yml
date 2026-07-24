@@ -1,0 +1,45 @@
+# Generate PowerDNS zone ConfigMaps from hosts.yml inventory.
+#
+# Runs on localhost. Reads worker hostvars from the inventory (no SSH to nodes).
+# Workers with `namecheap_nameserver` defined become nameservers in the zone.
+#
+# Variables (from playbook):
+#   pdns_zone_name: the domain name (e.g. "saikat.dev")
+#
+# Usage:
+#   ansible-playbook ansible/playbooks/operations/update-pdns-zones.yml -e pdns_zone_name=saikat.dev
+
+- name: Collect nameserver prefix/IP pairs from worker inventory
+  ansible.builtin.set_fact:
+    pdns_nameservers: >-
+      {{
+        groups['worker_nodes']
+        | map('extract', hostvars)
+        | selectattr('namecheap_nameserver', 'defined')
+        | list
+        | map(attribute='namecheap_nameserver')
+        | zip(groups['worker_nodes'] | map('extract', hostvars) | selectattr('namecheap_nameserver', 'defined') | map(attribute='ansible_host') | list)
+        | list
+      }}
+  when: false
+
+# Build the list step by step for clarity
+- name: Initialize nameserver list
+  ansible.builtin.set_fact:
+    pdns_nameservers: []
+
+- name: Add each worker to nameserver list
+  ansible.builtin.set_fact:
+    pdns_nameservers: "{{ pdns_nameservers + [{'prefix': hostvars[item].namecheap_nameserver, 'ip': hostvars[item].ansible_host}] }}"
+  loop: "{{ groups['worker_nodes'] }}"
+  when: hostvars[item].namecheap_nameserver is defined
+
+- name: Display nameserver list
+  ansible.builtin.debug:
+    var: pdns_nameservers
+
+- name: Generate zone ConfigMap from template
+  ansible.builtin.template:
+    src: pdns-zone.yaml.j2
+    dest: "{{ playbook_dir }}/../../../kubernetes/infrastructure/external-dns/pdns-zone-{{ pdns_zone_name | replace('.', '-') }}.yaml"
+    mode: '0644'

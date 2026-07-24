@@ -1,0 +1,130 @@
+---
+# ServiceAccount for the Tekton EventListener.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tekton-trigger-sa
+  namespace: my-website
+---
+# Role — permissions to create BuildRuns in the my-website namespace.
+# Reuses the ClusterRole from yral-auth (tekton-trigger-clusterrole) — only
+# create a RoleBinding here, not a new ClusterRole.
+# Per AGENTS.md: "Define the ClusterRole once (in the first app's tekton-trigger.yaml).
+# Other apps only create a ClusterRoleBinding referencing the existing ClusterRole."
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tekton-trigger-role
+  namespace: my-website
+rules:
+  - apiGroups: ["shipwright.io"]
+    resources: ["buildruns", "builds"]
+    verbs: ["create", "get", "list", "watch"]
+  - apiGroups: ["triggers.tekton.dev"]
+    resources: ["triggerbindings", "triggertemplates", "eventlisteners", "triggers", "interceptors"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tekton-trigger-binding
+  namespace: my-website
+subjects:
+  - kind: ServiceAccount
+    name: tekton-trigger-sa
+    namespace: my-website
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tekton-trigger-role
+---
+# ClusterRoleBinding — references the ClusterRole defined in yral-auth's tekton-trigger.yaml.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tekton-trigger-clusterbinding-my-website
+subjects:
+  - kind: ServiceAccount
+    name: tekton-trigger-sa
+    namespace: my-website
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-trigger-clusterrole
+---
+# TriggerBinding extracts fields from the GitHub push event payload.
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: github-push-binding
+  namespace: my-website
+spec:
+  params:
+    - name: repo-url
+      value: $(body.repository.html_url)
+    - name: revision
+      value: $(body.ref)
+    - name: commit-sha
+      value: $(body.after)
+    - name: image-tag
+      value: $(extensions.image_tag)
+---
+# TriggerTemplate creates a BuildRun with a timestamp-prefixed image tag.
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: my-website-buildrun-template
+  namespace: my-website
+spec:
+  params:
+    - name: repo-url
+      description: The Git repository URL
+    - name: revision
+      description: The Git ref (e.g. refs/heads/main)
+    - name: commit-sha
+      description: The full commit SHA
+    - name: image-tag
+      description: Timestamp-prefixed tag (YYYYMMDDHHMMSS-short-sha)
+  resourcetemplates:
+    - apiVersion: shipwright.io/v1beta1
+      kind: BuildRun
+      metadata:
+        generateName: my-website-auto-
+        namespace: my-website
+        labels:
+          app: my-website
+          trigger: github-push
+      spec:
+        build:
+          name: my-website
+        output:
+          image: harbor.yral.com/my-website/my-website:$(tt.params.image-tag)
+---
+# EventListener receives GitHub push events and creates BuildRuns.
+# CEL interceptor filters: only main branch, exclude fluxcdbot commits,
+# only trigger when files under apps/my-website/ or kubernetes/apps/my-website/ changed.
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: my-website-build-listener
+  namespace: my-website
+spec:
+  serviceAccountName: tekton-trigger-sa
+  triggers:
+    - name: github-push
+      bindings:
+        - kind: TriggerBinding
+          ref: github-push-binding
+      template:
+        ref: my-website-buildrun-template
+      interceptors:
+        - name: filter-push-main
+          ref:
+            name: cel
+          params:
+            - name: filter
+              value: "body.ref == 'refs/heads/main' && body.head_commit.author.username != 'fluxcdbot' && body.commits.exists(c, (c.added + c.modified + c.removed).exists(f, f.startsWith('apps/my-website/') || f.startsWith('kubernetes/apps/my-website/')))"
+            - name: overlays
+              value:
+                - key: image_tag
+                  expression: "body.head_commit.timestamp.translate('[-:TZ]', '') + '-' + body.after.truncate(8)"

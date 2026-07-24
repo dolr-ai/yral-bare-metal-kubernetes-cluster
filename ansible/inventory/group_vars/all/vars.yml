@@ -40,5 +40,26 @@ cloudflare_zone_name: "yral.com"
 kubernetes_api_hostname: "kubernetes-api.yral.com"
 cloudflare_app_wildcard_hostname: "*.yral.com"  # Proxied wildcard served by cilium-envoy on all nodes
 
+# Namecheap API — for custom nameserver (glue record) management
+# Used by the namecheap-dns role to register ns1–ns13 glue records.
+# Enable API access in Namecheap dashboard: Profile > Tools > Business & Dev Tools > API Access
+# Whitelist the Ansible control machine IP in the same dashboard.
+# ApiUser and UserName are the same (Namecheap account username) — not secret.
+# Only the API key is sensitive (vault indirection).
+namecheap_api_user: "saikatdas0790"                     # Plaintext — not secret
+namecheap_username: "saikatdas0790"                     # Plaintext — not secret (same as api_user)
+namecheap_api_key: "{{ vault_namecheap_api_key }}"      # Indirection to vault — secret
+
+# Namecheap custom nameservers — per-host annotation in hosts.yml
+# Workers with `namecheap_nameserver` defined (e.g. "ns1") are registered
+# as custom nameservers (glue records) at Namecheap via the namecheap-dns role.
+# The worker's ansible_host IP is used as the glue record IP.
+# The nameserver prefix is generic ("ns1") — the FQDN is constructed per-domain
+# by the role (e.g. "ns1.saikat.dev", "ns1.yral.com"). This way the same workers
+# serve as nameservers for all domains without changing hosts.yml.
+# 11 nameservers = Namecheap API max (ICANN allows 13, but Namecheap's setCustom API limits to 11).
+# These IPs must match the externalIPs in the powerdns-dns Service
+# (kubernetes/infrastructure/external-dns/pdns-service-dns.yaml).
+
 # Vast.ai API key for GPU instance provisioning
 vastai_api_key: "{{ vault_vastai_api_key }}"  # Indirection to vault

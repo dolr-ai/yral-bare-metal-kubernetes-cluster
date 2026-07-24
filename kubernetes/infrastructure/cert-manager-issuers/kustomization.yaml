@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - cluster-issuers.yaml
   - cloudflare-api-token.sops.yaml
+  - rfc2136-tsig-secret.sops.yaml

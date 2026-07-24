@@ -170,3 +170,11 @@ dir = "apps/off-chain-agent"
 mise = true
 ready_http = "http://localhost:50051/healthz"
 stop_signal = "SIGINT"
+
+[daemons.my-website-container]
+run = '''
+exec podman run --rm \
+  -p 8080:80 test/my-website
+'''
+mise = true
+ready_http = "http://localhost:8080/"

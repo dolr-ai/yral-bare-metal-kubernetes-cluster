@@ -1,0 +1,56 @@
+# PowerDNS DNS Service — LoadBalancer with externalIPs.
+#
+# externalIPs: the first 13 worker node IPs. Traffic arriving at any of these
+# IPs on port 53 (UDP+TCP) is load-balanced by Cilium to the PowerDNS pods.
+# This works cross-DC and cross-provider (Cilium routes via VXLAN tunnel to the pod).
+# No L2 announcements needed — externalIPs is an L3 feature.
+#
+# The externalIPs are the IPs registered as glue records at Namecheap
+# (ns1.saikat.dev → worker-1 IP, ..., ns13.saikat.dev → worker-13 IP).
+#
+# NOTE: externalIPs must be updated when workers are added/removed.
+# This is managed declaratively — update the list here and push to git.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: powerdns-dns
+  namespace: external-dns
+  labels:
+    app: powerdns
+spec:
+  type: LoadBalancer
+  externalIPs:
+    # ns1.saikat.dev
+    - 138.201.85.40
+    # ns2.saikat.dev
+    - 88.99.213.237
+    # ns3.saikat.dev
+    - 94.130.128.105
+    # ns4.saikat.dev
+    - 88.99.148.85
+    # ns5.saikat.dev
+    - 138.201.199.41
+    # ns6.saikat.dev
+    - 138.201.125.248
+    # ns7.saikat.dev
+    - 168.119.139.49
+    # ns8.saikat.dev
+    - 138.201.251.32
+    # ns9.saikat.dev
+    - 88.99.147.157
+    # ns10.saikat.dev
+    - 95.217.57.130
+    # ns11.saikat.dev
+    - 136.243.145.173
+  ports:
+    - name: dns-udp
+      port: 53
+      targetPort: 5300
+      protocol: UDP
+    - name: dns-tcp
+      port: 53
+      targetPort: 5300
+      protocol: TCP
+  selector:
+    app: powerdns

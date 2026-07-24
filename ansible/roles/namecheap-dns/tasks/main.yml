@@ -1,0 +1,110 @@
+# Create/update Namecheap custom nameservers (glue records) and set domain NS.
+#
+# Uses the Namecheap API (HTTP GET, XML response) via ansible.builtin.uri.
+# API docs: https://www.namecheap.com/support/api/methods/
+#
+# This role runs on all worker_nodes hosts. Workers with `namecheap_nameserver`
+# defined in hosts.yml are registered as custom nameservers — the worker's
+# ansible_host IP is used as the glue record IP (single source of truth).
+#
+# The setCustom call (setting the domain's NS records) runs only once — on the
+# first host in the play — to avoid duplicate API calls.
+#
+# Idempotent: checks existing state before making changes.
+#
+# Variables (from group_vars + playbook):
+#   namecheap_api_user:      API username (vault indirection)
+#   namecheap_api_key:       API key (vault indirection)
+#   namecheap_username:      Namecheap account username (vault indirection)
+#   namecheap_client_ip:     Whitelisted IP for API access (auto-detected if not set)
+#   namecheap_domain_sld:    Second-level domain (e.g. "saikat")
+#   namecheap_domain_tld:    Top-level domain (e.g. "dev")
+#   namecheap_nameserver:    Per-host annotation in hosts.yml (e.g. "ns1" — generic prefix)
+#
+# The FQDN is constructed as: {{ namecheap_nameserver }}.{{ namecheap_domain_sld }}.{{ namecheap_domain_tld }}
+# This allows the same workers to serve as nameservers for multiple domains.
+#
+# Namecheap API limits: up to 13 nameservers for .dev TLD (ICANN standard).
+
+- name: Detect delegate host's public IP
+  ansible.builtin.uri:
+    url: https://api.ipify.org
+    return_content: true
+  delegate_to: "{{ namecheap_delegate_host }}"
+  register: detected_ip
+  when: namecheap_client_ip is not defined
+
+- name: Set client IP from delegate host
+  ansible.builtin.set_fact:
+    namecheap_client_ip: "{{ detected_ip.content }}"
+  when: namecheap_client_ip is not defined
+
+- name: Build Namecheap API base URL
+  ansible.builtin.set_fact:
+    namecheap_api_url: "https://api.namecheap.com/xml.response"
+
+- name: Get current nameservers for domain
+  ansible.builtin.uri:
+    url: >-
+      {{ namecheap_api_url }}?ApiUser={{ namecheap_api_user }}&ApiKey={{ namecheap_api_key
+      }}&UserName={{ namecheap_username }}&ClientIp={{ namecheap_client_ip
+      }}&Command=namecheap.domains.dns.getList&SLD={{ namecheap_domain_sld
+      }}&TLD={{ namecheap_domain_tld }}
+    method: GET
+    return_content: true
+  delegate_to: "{{ namecheap_delegate_host }}"
+  register: namecheap_current_ns
+  changed_when: false
+
+- name: Parse current nameservers
+  ansible.builtin.set_fact:
+    namecheap_existing_ns: "{{ namecheap_current_ns.content | regex_findall('<Nameserver>([^<]+)</Nameserver>', '\\1') }}"
+  changed_when: false
+
+- name: Display current nameservers
+  ansible.builtin.debug:
+    msg: "Current NS for {{ namecheap_domain_sld }}.{{ namecheap_domain_tld }}: {{ namecheap_existing_ns }}"
+
+- name: Create or update glue record for this worker
+  ansible.builtin.include_tasks: manage_glue_record.yml
+  when: namecheap_nameserver is defined
+
+- name: Build desired nameserver list (run once on first host)
+  ansible.builtin.set_fact:
+    namecheap_desired_ns: "{{ ansible_play_hosts | map('extract', hostvars, 'namecheap_nameserver') | select('defined') | list }}"
+  when: inventory_hostname == ansible_play_hosts[0]
+
+- name: Append domain suffix to nameserver prefixes (run once on first host)
+  ansible.builtin.set_fact:
+    namecheap_desired_ns: "{{ namecheap_desired_ns | map('regex_replace', '^(.+)$', '\\1.' + namecheap_domain_sld + '.' + namecheap_domain_tld) | list }}"
+  when: inventory_hostname == ansible_play_hosts[0]
+
+- name: Set custom nameservers (run once, if different from current)
+  ansible.builtin.uri:
+    url: >-
+      {{ namecheap_api_url }}?ApiUser={{ namecheap_api_user }}&ApiKey={{ namecheap_api_key
+      }}&UserName={{ namecheap_username }}&ClientIp={{ namecheap_client_ip
+      }}&Command=namecheap.domains.dns.setCustom&SLD={{ namecheap_domain_sld
+      }}&TLD={{ namecheap_domain_tld }}&NameServers={{ namecheap_desired_ns | join(',') }}
+    method: GET
+    return_content: true
+  delegate_to: "{{ namecheap_delegate_host }}"
+  register: namecheap_set_ns_result
+  when:
+    - inventory_hostname == ansible_play_hosts[0]
+    - namecheap_existing_ns | sort != namecheap_desired_ns | sort
+  changed_when: true
+
+- name: Display setCustom result
+  ansible.builtin.debug:
+    msg: "Nameservers updated to: {{ namecheap_desired_ns | join(', ') }}"
+  when:
+    - inventory_hostname == ansible_play_hosts[0]
+    - namecheap_existing_ns | sort != namecheap_desired_ns | sort
+
+- name: Confirm nameservers already up to date
+  ansible.builtin.debug:
+    msg: "Nameservers already up to date: {{ namecheap_existing_ns | join(', ') }}"
+  when:
+    - inventory_hostname == ansible_play_hosts[0]
+    - namecheap_existing_ns | sort == namecheap_desired_ns | sort

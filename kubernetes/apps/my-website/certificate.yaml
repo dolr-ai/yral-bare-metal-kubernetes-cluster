@@ -1,0 +1,29 @@
+# Certificate for *.saikat.dev — wildcard via DNS-01 RFC2136.
+#
+# Uses the letsencrypt-prod ClusterIssuer with RFC2136 solver pointing at PowerDNS.
+# cert-manager sends TSIG-signed dynamic updates to PowerDNS to create
+# _acme-challenge TXT records for wildcard validation.
+#
+# The wildcard cert covers saikat.dev and all *.saikat.dev subdomains.
+# The Secret is created in the my-website namespace (where the Gateway listener
+# references it). For cross-namespace Gateway usage, the Secret must be in
+# the same namespace as the Gateway (kube-system) — see the Gateway manifest
+# for the certificateRefs configuration.
+#
+# Actually, per Gateway API, certificateRefs in the Gateway listener must be
+# in the same namespace as the Gateway. So the cert is created in kube-system.
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-saikat-dev-tls
+  namespace: kube-system
+spec:
+  secretName: wildcard-saikat-dev-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  commonName: "*.saikat.dev"
+  dnsNames:
+    - "*.saikat.dev"
+    - "saikat.dev"

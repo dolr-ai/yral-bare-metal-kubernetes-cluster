@@ -1,0 +1,12 @@
+# Flux ImageRepository — scans Harbor for new my-website image tags.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: my-website
+  namespace: flux-system
+spec:
+  image: harbor.yral.com/my-website/my-website
+  interval: 1m
+  secretRef:
+    name: harbor-scan-secret

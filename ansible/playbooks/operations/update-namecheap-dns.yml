@@ -1,0 +1,32 @@
+---
+# Register/update Namecheap custom nameservers (glue records) from inventory.
+#
+# Iterates over all worker_nodes hosts. Workers with `namecheap_nameserver`
+# defined in hosts.yml are registered as custom nameservers at Namecheap.
+# The worker's ansible_host IP is used as the glue record IP (single source of truth).
+#
+# API calls are delegated to control-plane-1 (static IP whitelisted in Namecheap dashboard).
+# Personal devices on WiFi don't have static IPs, so we can't whitelist them.
+# To whitelist a different node, change the `namecheap_delegate_host` var.
+#
+# Run this after PowerDNS is deployed and the DNS LoadBalancer Service has
+# externalIPs configured (matching the worker IPs in hosts.yml).
+#
+# Usage:
+#   ansible-playbook ansible/playbooks/operations/update-namecheap-dns.yml \
+#     -e namecheap_domain_sld=saikat -e namecheap_domain_tld=dev
+
+- name: Register Namecheap glue records and set custom nameservers
+  hosts: worker_nodes
+  # Serial — Namecheap API rate-limits parallel requests ("Too many requests").
+  # One worker at a time: getInfo → create/update, then move to the next.
+  serial: 1
+  gather_facts: false
+  vars:
+    # Domain defaults — override with -e namecheap_domain_sld=... -e namecheap_domain_tld=...
+    namecheap_domain_sld: "saikat"
+    namecheap_domain_tld: "dev"
+    # API calls delegate to this host (must be whitelisted in Namecheap dashboard)
+    namecheap_delegate_host: "control-plane-1"
+  roles:
+    - role: namecheap-dns

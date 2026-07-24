@@ -1,0 +1,64 @@
+# my-website Deployment — nginx serving SvelteKit static build.
+#
+# Image: built by Shipwright (BuildKit) from apps/my-website/Dockerfile.buildkit,
+# pushed to Harbor at harbor.yral.com/my-website/my-website.
+# Flux ImagePolicy auto-updates the image tag on new builds.
+#
+# 2 replicas on worker nodes. Readiness/liveness probes on /.
+# No probes on /healthz — this is a static site, the root path is the health check.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-website
+  namespace: my-website
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: my-website
+  template:
+    metadata:
+      labels:
+        app: my-website
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
+      imagePullSecrets:
+        - name: harbor-pull-secret
+      containers:
+        - name: nginx
+          image: harbor.yral.com/my-website/my-website:20260724000000-placeholder # {"$imagepolicy": "flux-system:my-website"}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi

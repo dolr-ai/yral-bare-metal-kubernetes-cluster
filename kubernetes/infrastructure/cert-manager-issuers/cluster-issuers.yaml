@@ -4,14 +4,21 @@
 #   letsencrypt-staging  — use while testing; no rate limits, certs are untrusted
 #   letsencrypt-prod     — use for real services; browser-trusted, strict rate limits
 #
-# DNS-01 challenge flow:
-#   cert-manager calls the Cloudflare API to create a _acme-challenge TXT record.
-#   Let's Encrypt validates via DNS — works through Cloudflare orange-cloud proxy.
-#   Supports wildcards (*.yral.com).
+# DNS-01 challenge flow (two solvers):
 #
-# Cloudflare API token secret:
-#   Name: cloudflare-api-token, Namespace: cert-manager, Key: api-token
-#   Managed by Flux via SOPS-encrypted cloudflare-api-token.sops.yaml in this directory.
+#   1. RFC2136 (self-hosted DNS): cert-manager sends TSIG-signed dynamic updates
+#      to PowerDNS to create _acme-challenge TXT records. Used for saikat.dev
+#      and yral.com (self-hosted zones). Supports wildcards.
+#      TSIG key: rfc2136-tsig-secret in cert-manager namespace.
+#
+#   2. Cloudflare (legacy): cert-manager calls the Cloudflare API to create
+#      _acme-challenge TXT records. Used for yral.com until the NS switch to
+#      self-hosted DNS is complete (Phase 2). Will be removed after migration.
+#      Cloudflare API token: cloudflare-api-token in cert-manager namespace.
+#
+# cert-manager tries solvers in order — RFC2136 first, then Cloudflare fallback.
+# The RFC2136 solver only matches domains PowerDNS is authoritative for (via
+# the nameserver field). Cloudflare solver handles everything else.
 #
 # Switching from staging to prod:
 #   1. Change cert-manager.io/cluster-issuer annotation on Gateway to letsencrypt-prod
@@ -29,6 +36,16 @@ spec:
     privateKeySecretRef:
       name: letsencrypt-staging-account-key
     solvers:
+      # RFC2136 — self-hosted PowerDNS (saikat.dev, yral.com)
+      - dns01:
+          rfc2136:
+            nameserver: powerdns-dns.external-dns.svc.cluster.local:53
+            tsigKeyName: saikat-dev-key
+            tsigAlgorithm: HMACSHA512
+            tsigSecretSecretRef:
+              name: rfc2136-tsig-secret
+              key: tsig-key
+      # Cloudflare — legacy fallback (yral.com until NS switch complete)
       - dns01:
           cloudflare:
             apiTokenSecretRef:
@@ -46,6 +63,16 @@ spec:
     privateKeySecretRef:
       name: letsencrypt-prod-account-key
     solvers:
+      # RFC2136 — self-hosted PowerDNS (saikat.dev, yral.com)
+      - dns01:
+          rfc2136:
+            nameserver: powerdns-dns.external-dns.svc.cluster.local:53
+            tsigKeyName: saikat-dev-key
+            tsigAlgorithm: HMACSHA512
+            tsigSecretSecretRef:
+              name: rfc2136-tsig-secret
+              key: tsig-key
+      # Cloudflare — legacy fallback (yral.com until NS switch complete)
       - dns01:
           cloudflare:
             apiTokenSecretRef:

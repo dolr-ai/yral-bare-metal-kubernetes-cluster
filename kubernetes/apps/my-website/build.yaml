@@ -1,0 +1,38 @@
+# Shipwright Build CR for my-website.
+#
+# Builds the SvelteKit static site image from source using BuildKit.
+# Source: the monorepo (dolr-ai/yral-bare-metal-kubernetes-cluster) at apps/my-website/
+# Strategy: buildkit (ClusterBuildStrategy, rootless BuildKit v0.31.1)
+# Output: harbor.yral.com/my-website/my-website
+#
+# BuildRuns are created automatically by the Tekton EventListener on git push
+# to main (when changes touch apps/my-website/).
+---
+apiVersion: shipwright.io/v1beta1
+kind: Build
+metadata:
+  name: my-website
+  namespace: my-website
+spec:
+  source:
+    type: Git
+    git:
+      url: https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git
+      revision: main
+      cloneSecret: github-clone-secret
+  strategy:
+    name: buildkit
+    kind: ClusterBuildStrategy
+  paramValues:
+    - name: dockerfile
+      value: apps/my-website/Dockerfile.buildkit
+    - name: cache
+      value: registry
+  output:
+    image: harbor.yral.com/my-website/my-website
+    pushSecret: harbor-pull-secret
+  retention:
+    succeededLimit: 3
+    failedLimit: 3
+    ttlAfterSucceeded: 1h
+    ttlAfterFailed: 24h

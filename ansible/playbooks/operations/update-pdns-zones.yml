@@ -1,0 +1,21 @@
+---
+# Generate PowerDNS zone ConfigMaps from hosts.yml inventory.
+#
+# Uses the per-host `namecheap_nameserver` annotations in hosts.yml as the
+# single source of truth for nameserver IPs. Generates a BIND zone file
+# as a Kubernetes ConfigMap YAML.
+#
+# Runs on localhost — does not SSH to any nodes. Reads inventory data only.
+#
+# After generation, commit the file and push — Flux applies it automatically.
+#
+# Usage:
+#   ansible-playbook ansible/playbooks/operations/update-pdns-zones.yml -e pdns_zone_name=saikat.dev
+
+- name: Generate PowerDNS zone ConfigMap from inventory
+  hosts: localhost
+  gather_facts: true
+  vars:
+    pdns_zone_name: "saikat.dev"
+  roles:
+    - role: pdns-zone

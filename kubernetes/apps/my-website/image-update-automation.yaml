@@ -1,0 +1,25 @@
+# Flux ImageUpdateAutomation — writes the latest my-website image tag
+# selected by the ImagePolicy back into the Deployment manifest in git.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageUpdateAutomation
+metadata:
+  name: my-website
+  namespace: flux-system
+spec:
+  interval: 5m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  git:
+    commit:
+      author:
+        name: fluxcdbot
+        email: fluxcdbot@users.noreply.github.com
+      messageTemplate: |
+        chore: update my-website image tag
+    push:
+      branch: main
+  update:
+    path: ./kubernetes/apps/my-website
+    strategy: Setters

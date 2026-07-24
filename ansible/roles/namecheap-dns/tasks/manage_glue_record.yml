@@ -1,0 +1,74 @@
+# Create or update a single Namecheap glue record.
+#
+# Uses per-host variables:
+#   namecheap_nameserver: the nameserver prefix (e.g. "ns1" — generic, no domain)
+#   ansible_host:         the worker node IP (used as the glue record IP)
+#
+# The FQDN is constructed: {{ namecheap_nameserver }}.{{ namecheap_domain_sld }}.{{ namecheap_domain_tld }}
+#
+# Flow:
+#   1. Check if the nameserver already exists (namecheap.domains.ns.getInfo)
+#   2. If not: create it (namecheap.domains.ns.create)
+#   3. If yes but IP differs: update it (namecheap.domains.ns.update)
+#   4. If yes and IP matches: skip (idempotent)
+
+- name: Construct nameserver FQDN
+  ansible.builtin.set_fact:
+    nameserver_fqdn: "{{ namecheap_nameserver }}.{{ namecheap_domain_sld }}.{{ namecheap_domain_tld }}"
+
+- name: Get info for existing nameserver
+  ansible.builtin.uri:
+    url: >-
+      {{ namecheap_api_url }}?ApiUser={{ namecheap_api_user }}&ApiKey={{ namecheap_api_key
+      }}&UserName={{ namecheap_username }}&ClientIp={{ namecheap_client_ip
+      }}&Command=namecheap.domains.ns.getInfo&SLD={{ namecheap_domain_sld
+      }}&TLD={{ namecheap_domain_tld }}&Nameserver={{ nameserver_fqdn }}
+    method: GET
+    return_content: true
+  delegate_to: "{{ namecheap_delegate_host }}"
+  register: ns_info_result
+  changed_when: false
+  failed_when: false
+
+- name: Check if nameserver exists (API returns HTTP 200 even for errors)
+  ansible.builtin.set_fact:
+    ns_exists: "{{ ns_info_result.content | regex_search('ApiResponse Status=\"OK\"') | bool }}"
+    current_ns_ip: "{{ ((ns_info_result.content | regex_search('IP>([^<]+)<', '\\1')) | default([], true) | first) | default('', true) }}"
+
+- name: Create new glue record
+  ansible.builtin.uri:
+    url: >-
+      {{ namecheap_api_url }}?ApiUser={{ namecheap_api_user }}&ApiKey={{ namecheap_api_key
+      }}&UserName={{ namecheap_username }}&ClientIp={{ namecheap_client_ip
+      }}&Command=namecheap.domains.ns.create&SLD={{ namecheap_domain_sld
+      }}&TLD={{ namecheap_domain_tld }}&Nameserver={{ nameserver_fqdn }}&IP={{ ansible_host }}
+    method: GET
+    return_content: true
+  delegate_to: "{{ namecheap_delegate_host }}"
+  register: ns_create_result
+  when: not ns_exists
+  changed_when: true
+
+- name: Update glue record IP
+  ansible.builtin.uri:
+    url: >-
+      {{ namecheap_api_url }}?ApiUser={{ namecheap_api_user }}&ApiKey={{ namecheap_api_key
+      }}&UserName={{ namecheap_username }}&ClientIp={{ namecheap_client_ip
+      }}&Command=namecheap.domains.ns.update&SLD={{ namecheap_domain_sld
+      }}&TLD={{ namecheap_domain_tld }}&Nameserver={{ nameserver_fqdn
+      }}&OldIP={{ current_ns_ip }}&IP={{ ansible_host }}
+    method: GET
+    return_content: true
+  delegate_to: "{{ namecheap_delegate_host }}"
+  register: ns_update_result
+  when:
+    - ns_exists
+    - current_ns_ip != ansible_host
+  changed_when: true
+
+- name: Display glue record status
+  ansible.builtin.debug:
+    msg: "Glue record {{ nameserver_fqdn }} -> {{ ansible_host }} already up to date"
+  when:
+    - ns_exists
+    - current_ns_ip == ansible_host
