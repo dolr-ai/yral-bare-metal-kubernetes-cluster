@@ -25,3 +25,4 @@ resources:
   - off-chain-agent.yaml
   - off-chain-agent-build.yaml
   - my-website.yaml
+  - my-website-build.yaml

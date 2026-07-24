@@ -5,6 +5,7 @@ resources:
   - deployment.yaml
   - service.yaml
   - reference-grant.yaml
+  - build-reference-grant.yaml
   - harbor-pull-secret.sops.yaml
   - github-clone-secret.sops.yaml
   - build.yaml

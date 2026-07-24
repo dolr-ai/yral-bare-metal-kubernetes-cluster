@@ -1,0 +1,48 @@
+# my-website build webhook HTTPRoute.
+#
+# Exposes the Tekton EventListener for my-website at
+# https://my-website-build.yral.com/ — GitHub sends push events here
+# to trigger Shipwright BuildRuns.
+#
+# Pattern: same as yral-auth-build, yral-legacy-build, etc.
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: my-website-build-redirect
+  namespace: kube-system
+spec:
+  parentRefs:
+    - name: web-gateway
+      namespace: kube-system
+      sectionName: http
+  hostnames:
+    - my-website-build.yral.com
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: my-website-build
+  namespace: kube-system
+spec:
+  parentRefs:
+    - name: web-gateway
+      namespace: kube-system
+      sectionName: https
+  hostnames:
+    - my-website-build.yral.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: el-my-website-build-listener
+          namespace: my-website
+          port: 8080
