@@ -55,7 +55,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
       containers:
         - name: powerdns
-          image: docker.io/powerdns/pdns-auth-53:5.3.1
+          image: docker.io/powerdns/pdns-auth-52:latest
           args:
             - --api-key=$(PDNS_API_KEY)
             - --include-dir=/etc/powerdns/tsig
