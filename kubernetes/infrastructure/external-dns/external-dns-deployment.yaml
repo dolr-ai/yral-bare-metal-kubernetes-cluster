@@ -58,7 +58,7 @@ spec:
             - --rfc2136-port=53
             - --rfc2136-zone=saikat.dev
             - --rfc2136-tsig-keyname=saikat-dev-key
-            - --rfc2136-tsig-algorithm=hmac-sha512
+            - --rfc2136-tsig-secret-alg=hmac-sha512
             - --rfc2136-tsig-secret=$(TSIG_KEY)
             - --domain-filter=saikat.dev
             - --registry=txt
