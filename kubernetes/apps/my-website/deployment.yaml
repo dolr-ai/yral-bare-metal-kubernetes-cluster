@@ -1,12 +1,3 @@
-# my-website Deployment — nginx serving SvelteKit static build.
-#
-# Image: built by Shipwright (BuildKit) from apps/my-website/Dockerfile.buildkit,
-# pushed to Harbor at harbor.yral.com/my-website/my-website.
-# Flux ImagePolicy auto-updates the image tag on new builds.
-#
-# 2 replicas on worker nodes. Readiness/liveness probes on /.
-# No probes on /healthz — this is a static site, the root path is the health check.
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -38,7 +29,7 @@ spec:
         - name: harbor-pull-secret
       containers:
         - name: nginx
-          image: harbor.yral.com/my-website/my-website:20260724000000-placeholder # {"$imagepolicy": "flux-system:my-website"}
+          image: harbor.yral.com/my-website/my-website:20260725025353-ffa91557 # {"$imagepolicy": "flux-system:my-website"}
           imagePullPolicy: Always
           ports:
             - containerPort: 80
