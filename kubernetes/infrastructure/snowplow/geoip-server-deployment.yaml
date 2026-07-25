@@ -30,7 +30,7 @@ spec:
     spec:
       initContainers:
         - name: geoipupdate
-          image: maxmindinc/geoipupdate:v7.0.1
+          image: maxmindinc/geoipupdate:v7.1.1
           env:
             - name: GEOIPUPDATE_ACCOUNT_ID
               valueFrom:
