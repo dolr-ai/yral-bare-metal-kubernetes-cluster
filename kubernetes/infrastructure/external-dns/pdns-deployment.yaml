@@ -36,6 +36,9 @@ spec:
     metadata:
       labels:
         app: powerdns
+      annotations:
+        # Force restart on TSIG key changes (secrets are mounted but don't trigger rollout)
+        reloader.stakater.com/reload: "pdns-tsig-key"
     spec:
       # Worker nodes only — keep DNS off control planes
       affinity:
