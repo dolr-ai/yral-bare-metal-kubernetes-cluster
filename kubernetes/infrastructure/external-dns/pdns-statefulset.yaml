@@ -35,6 +35,8 @@ spec:
       labels:
         app: powerdns
     spec:
+      securityContext:
+        fsGroup: 953
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

@@ -69,6 +69,8 @@ spec:
             - --managed-record-types=CNAME
             - --managed-record-types=NS
             - --log-level=info
+            - --kube-api-qps=20
+            - --kube-api-burst=40
           env:
             - name: TSIG_KEY
               valueFrom:
