@@ -104,14 +104,17 @@ metadata:
   namespace: external-dns
 spec:
   endpoints:
-    # saikat.dev + wildcard → all worker node IPs
-    # Same pattern as yral.com: any request to any worker is routed by the
-    # Cilium mesh to the node hosting the pod. No per-service routing.
-    # Update this list when adding/removing worker nodes.
+    # saikat.dev + wildcard → ALL node IPs (workers + control planes)
+    # Any request hitting any node is routed by the Cilium mesh to the node
+    # hosting the destination pod. No per-service routing.
+    # Update this list when adding/removing nodes.
     - dnsName: saikat.dev
       recordTTL: 300
       recordType: A
       targets:
+        - 37.27.109.138
+        - 65.21.137.111
+        - 65.108.76.154
         - 88.99.147.157
         - 88.99.148.85
         - 88.99.213.237
@@ -126,9 +129,11 @@ spec:
         - 95.216.101.114
         - 95.216.112.246
         - 95.216.225.124
+        - 95.216.228.60
         - 95.217.35.190
         - 95.217.43.62
         - 95.217.57.130
+        - 95.217.58.83
         - 95.217.74.238
         - 116.202.84.59
         - 116.202.234.107
@@ -151,6 +156,9 @@ spec:
       recordTTL: 300
       recordType: A
       targets:
+        - 37.27.109.138
+        - 65.21.137.111
+        - 65.108.76.154
         - 88.99.147.157
         - 88.99.148.85
         - 88.99.213.237
@@ -165,9 +173,11 @@ spec:
         - 95.216.101.114
         - 95.216.112.246
         - 95.216.225.124
+        - 95.216.228.60
         - 95.217.35.190
         - 95.217.43.62
         - 95.217.57.130
+        - 95.217.58.83
         - 95.217.74.238
         - 116.202.84.59
         - 116.202.234.107

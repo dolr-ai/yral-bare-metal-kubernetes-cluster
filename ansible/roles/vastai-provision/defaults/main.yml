@@ -1,4 +1,8 @@
 ---
+# vastai-provision — provisions GPU instances on Vast.ai (not Kubernetes).
+# Always >= 2 replicas on distinct offers so the service survives one preemption.
+# Shared infra SSH key attached. Override vars at invocation (never new playbook).
+#
 # Minimum combined VRAM across all GPUs in the instance, in GB.
 # e.g. 40 matches a 2x20GB machine or a 1x40GB machine.
 vastai_vram_min_gb: 40

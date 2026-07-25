@@ -5,18 +5,15 @@
 #   - HTTPS (port 443): TLS termination for all services
 #
 # Traffic path:
-#   DNS *.yral.com → A records for all 5 CP IPv4 addresses (round-robin)
-#   → any CP:80/443 (Cilium Envoy, hostNetwork mode — binds directly to host port)
-#   → TLS terminated with Let's Encrypt wildcard cert (*.yral.com)
+#   DNS *.yral.com / *.saikat.dev → A records for ALL node IPs (workers + CPs)
+#   → any node:80/443 (Cilium Envoy, hostNetwork mode — binds directly to host port)
+#   → Cilium mesh routes to the node hosting the destination pod
+#   → TLS terminated with Let's Encrypt wildcard cert
 #   → backend pod
 #
-# TLS certificate:
-#   Managed by cert-manager via DNS-01 challenge against Cloudflare API.
-#   *.yral.com wildcard covers all *.yral.com hostnames; no per-service cert changes needed.
-#   Wildcards only cover one subdomain level. If a service needs a deeper hostname
-#   (e.g. foo.name.yral.com), either move it to *.yral.com or add a dedicated listener.
-#
 # Adding a new service: create an HTTPRoute — no Gateway changes needed.
+# DNS A records (all node IPs) are managed via DNSEndpoint CRDs in
+# kubernetes/infrastructure/external-dns/.
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway

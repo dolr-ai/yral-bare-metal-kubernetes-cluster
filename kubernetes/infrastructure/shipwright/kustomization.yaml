@@ -1,3 +1,6 @@
+# Shipwright — CRD-native image building operator (CNCF Sandbox), wraps BuildKit (rootless).
+# Pinned to v0.20.3. BuildKit v0.31.1. Tekton v1.12.2 LTS is the execution engine.
+# Triggered by Flux on git push — no external CI needed for building app images.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:

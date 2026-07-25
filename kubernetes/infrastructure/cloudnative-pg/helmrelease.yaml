@@ -1,4 +1,10 @@
-# CloudNativePG operator
+# CloudNativePG operator — CRD-native Postgres operator (per-service model).
+#
+# One postgresql.cnpg.io/v1 Cluster per microservice in its own namespace.
+# No shared cluster-wide Postgres. App credentials as *.sops.yaml.
+# Use the -rw endpoint. Same-region podAffinity for latency-sensitive app+DB
+# pairs (requiredDuringSchedulingIgnoredDuringExecution on cnpg.io/cluster label
+# + topology.kubernetes.io/region).
 #
 # Chart: cloudnative-pg/cloudnative-pg
 # Releases: https://github.com/cloudnative-pg/cloudnative-pg/releases

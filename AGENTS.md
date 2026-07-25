@@ -122,58 +122,31 @@ Run `ansible-lint ansible/playbooks/operations/` before changes. Playbooks must 
 ### Hetzner + Provisioning
 - `provision` role uses Hetzner Robot API + installimage (Ubuntu).
 - OS partition 50G on workers (via `provision_os_partition_size`); full disk on CPs.
-- `storage-setup` is the Ceph OSD path for workers (GPT partition `rook-osd` label on nvme0n1p3 + wipe nvme1n1 + `dd` for bluestore signatures).
+- `storage-setup` is the Ceph OSD path for workers (see `kubernetes/infrastructure/rook-ceph/cluster/cephcluster.yaml` for disk layout details).
 - `cloudflare-dns` role (at end of add-* playbooks) and `node-remove` handle DNS automatically from `cloudflare_dns_records` in `hosts.yml`.
 - `namecheap-dns` role + `update-namecheap-dns.yml` playbook manages custom nameserver glue records at Namecheap from `namecheap_nameserver` per-host annotations in `hosts.yml`.
 
 **Full init flow (never partial):** provision → storage-setup → ssh-hardening → base-system (reboot if needed) → containerd → kubernetes → (init or join) → node-labels → cloudflare-dns.
 
 ### Kubernetes Cluster
-- v1.35 kubeadm, stacked etcd, odd # CPs (currently 5, one per Helsinki building for blast radius).
+- kubeadm, stacked etcd, odd # CPs (currently 5, one per Helsinki building for blast radius).
 - Control plane HA via Cloudflare DNS round-robin (`kubernetes-api.yral.com`).
-- Cilium v1.19.1 + WireGuard encryption. Gateway API for exposure.
+- Cilium + WireGuard encryption. Gateway API for exposure.
 - Serial node operations.
-
-**CoreDNS topology (cross-DC VXLAN unreliability):**
-Maintain `kubernetes/infrastructure/coredns/coredns-*-topology.yaml` (non-Flux, kubeadm-owned). Replicas must be `>=` number of distinct zones with workers. Always run the two `kubectl apply -f` commands after adding workers in new zones. `topology-mode: "Auto"` on the Service.
-
-### Storage (Rook/Ceph)
-Rook v1.19.3 + Ceph v20.2.1 (Tentacle). Default SC: `ceph-block` (2× replication, host failure domain, ~16.5 TB usable).
-
-**Worker disk layout (post-reprovision):** 50G btrfs OS | Ceph partition (`rook-osd` label) + whole-disk OSD.
-- `storage-setup` always runs the destructive path for workers.
-- `wait: false` on the cluster Kustomization (OSD updates are long-running; do not block dependent workloads).
-- Monitor with `ceph status` / `ceph osd status` / `ceph df` via toolbox.
-- **Never** put "ceph" in PARTLABEL. Always run the `dd` wipe step for bluestore signatures.
-
-Kafka is the explicit exception (`ceph-block-1replica`).
-
-### PostgreSQL
-**CloudNativePG operator only** (CRD-native, per-service model). No shared cluster-wide Postgres.
-
-- One `postgresql.cnpg.io/v1 Cluster` per microservice in its own namespace.
-- App credentials as `*.sops.yaml`.
-- Use `-rw` endpoint.
-- Same-region podAffinity for latency-sensitive app+DB pairs (requiredDuringSchedulingIgnoredDuringExecution on `cnpg.io/cluster` label + `topology.kubernetes.io/region`).
-- Operator in `kubernetes/infrastructure/cloudnative-pg/`.
+- CoreDNS topology: see `kubernetes/infrastructure/coredns/coredns-*-topology.yaml` (non-Flux, kubeadm-owned). Run `kubectl apply -f` after adding workers in new zones.
+- Storage (Rook/Ceph): see `kubernetes/infrastructure/rook-ceph/cluster/cephcluster.yaml` for versions, disk layout, and operational rules.
+- PostgreSQL (CloudNativePG): see `kubernetes/infrastructure/cloudnative-pg/helmrelease.yaml` for the per-service model and conventions.
 
 ### Backups
 Velero only (full cluster DR, 30-day self-managed `ttl: 720h`). Named prefix `velero/` in the bucket. No bucket lifecycle policy (Velero GC handles it).
 
 ### Networking & Exposure Model
 - Everything exposed via Cilium Gateway (Gateway + HTTPRoutes or TLSRoutes).
-- User-facing: direct to app Service.
-- Internal tools (no built-in auth): one `oauth2-proxy` Deployment/Service per app (in `oauth2-proxy` namespace). Shared `oauth2-proxy-secrets`.
-- Wildcard `*.yral.com` (orange cloud) + all-node A records = adding an HTTPRoute is sufficient; no DNS change needed.
-- Kafka: TLSRoute (SNI passthrough, per-broker hostnames), grey-cloud DNS only.
-- **Self-hosted DNS (PowerDNS + ExternalDNS):** Authoritative DNS hosted in-cluster on PowerDNS (worker nodes, `kubernetes/infrastructure/external-dns/`). Uses the **LMDB backend** (file-based key-value store on PVC — no external database, supports RFC2136 dynamic updates + TSIG keys). The bind backend does NOT support DNS updates (per PowerDNS docs). ExternalDNS uses `--provider=rfc2136` to sync annotated Services and **DNSEndpoint CRDs** to PowerDNS via TSIG-signed dynamic updates. cert-manager uses RFC2136 DNS-01 (same TSIG key) for wildcard certs. Zone + TSIG key created by init container using `pdnsutil`; all DNS records (NS, A, etc.) are declarative DNSEndpoint CRDs in git (`dnsendpoint-saikat-dev.yaml`) — single source of truth, visible in source code. Glue records at Namecheap managed via `ansible/roles/namecheap-dns/` (per-host `namecheap_nameserver` annotation in `hosts.yml`). 11 nameservers = Namecheap API max (ICANN allows 13, but Namecheap limits to 11). Phase 1: saikat.dev. Phase 2: yral.com (decommission Cloudflare).
+- DNS: wildcard + all-node A records (all workers + CPs). Adding an HTTPRoute is sufficient; no DNS change needed. See `kubernetes/networking/gateway.yaml` and `kubernetes/infrastructure/external-dns/dnsendpoint-saikat-dev.yaml` for details.
 - **No L2 Announcements:** Cilium L2 announcements are intentionally disabled. L2 ARP/NDP only works within a single L2 broadcast domain — our cluster spans multiple DCs and will include nodes from other providers. The only network requirement for adding nodes is internet connectivity with a static IP. Service exposure uses `externalIPs` (L3, cross-provider via VXLAN tunnel) and LoadBalancer services. Do not enable `l2announcements` without revisiting this constraint.
-- **SOPS encryption mechanism:** To encrypt `*.sops.yaml` files, extract the age key from Ansible vault (`ansible-vault view ansible/inventory/group_vars/all/vault.yml | grep AGE-SECRET-KEY`), write to temp file, then `SOPS_AGE_KEY_FILE=/tmp/sops-age.key sops --encrypt --in-place <file>.sops.yaml`. The `.sops.yaml` creation rules in repo root handle age key selection automatically — no need to pass `--age` explicitly. Always clean up the temp key file after.
 - **ReferenceGrant (cross-namespace routes):** When an HTTPRoute/TLSRoute in namespace A references a Service in namespace B, a `ReferenceGrant` must exist in the **target** namespace (B) allowing it. Without it, Cilium Gateway silently returns HTTP 500 for all requests (`ResolvedRefs: False, RefNotPermitted`). Always add the ReferenceGrant in the same commit as the HTTPRoute when they span namespaces.
-
 - **NetworkPolicy rule:** Never rely on `fromCIDRSet`/`namespaceSelector`/`podSelector` for gateway-originated traffic (cilium-envoy runs hostNetwork; appears as node IP). Use an explicit ingress rule with only a `ports:` clause (app-level auth does the real enforcement).
-
-**Dashboard:** Update `kubernetes/apps/dashboard/index.html` only for internal tools (oauth2-proxy-gated or otherwise internal). Public/user-facing services are NOT listed on the dashboard.
+- **SOPS encryption mechanism:** To encrypt `*.sops.yaml` files, extract the age key from Ansible vault (`ansible-vault view ansible/inventory/group_vars/all/vault.yml | grep AGE-SECRET-KEY`), write to temp file, then `SOPS_AGE_KEY_FILE=/tmp/sops-age.key sops --encrypt --in-place <file>.sops.yaml`. The `.sops.yaml` creation rules in repo root handle age key selection automatically — no need to pass `--age` explicitly. Always clean up the temp key file after.
 
 ### Local Environment & Parity
 The repo uses a single monorepo-wide `mise.toml` at the repository root as the source of truth for tool versions and task orchestration. Avoid adding per-project `mise.toml` files unless there is a strong, documented reason.
@@ -227,7 +200,7 @@ This ensures `mise bootstrap --yes && mise run setup` is the only command needed
 - For each new service onboarded, create mise tasks (`<app>-build`, `<app>-run`, `<app>-image`), add secrets to fnox, and add a pitchfork daemon entry
 
 ### GPU (Vast.ai)
-`vastai-provision` role + playbook (not Kubernetes). Always ≥2 replicas on distinct offers. Shared infra SSH key attached. Override vars at invocation (never new playbook).
+See `ansible/roles/vastai-provision/defaults/main.yml` for provisioning rules and constraints.
 
 ### Inventory
 `control_plane` / `worker_nodes` / `k8s_cluster`. Target via `-e target_host=...`.
@@ -256,13 +229,7 @@ In-cluster Harbor at `harbor.yral.com` is the registry for custom-built app imag
 - Use Flux `ImageRepository` + `ImagePolicy` + `ImageUpdateAutomation` for automatic tag updates from Harbor into git manifests.
 
 ### Image Building (Shipwright + BuildKit)
-In-cluster image building via Shipwright (CRD-native operator, CNCF Sandbox) wrapping BuildKit (rootless). Tekton Pipelines is the execution engine. Triggered by Flux on git push — no external CI needed for building app images.
-
-- Shipwright operator in `kubernetes/infrastructure/shipwright/`, Tekton in `kubernetes/infrastructure/tekton-pipelines/` (raw release YAML committed to repo, gotk-components.yaml style).
-- Define a `Build` + `BuildRun` CR per app (source: git, strategy: buildkit ClusterBuildStrategy, output: Harbor).
-- **`contextDir`**: Omit `spec.source.contextDir` to use the full repo root as build context. This is required when Cargo.toml uses local path deps (`../yral-common/`, `../yral-metadata/`) — the BuildKit context must include those directories. The `dockerfile` param value is relative to the repo root (e.g., `apps/off-chain-agent/Dockerfile.buildkit`). A `.dockerignore` at the repo root excludes `target/`, `node_modules/`, etc. from the build context.
-- BuildKit runs rootless (non-privileged, UID 1000) — no `privileged: true` needed.
-- Pin versions: Tekton v1.12.2 LTS (Shipwright v0.20.3 supports v1.3/v1.6/v1.9/v1.12 — NOT v1.14+), Shipwright v0.20.3, BuildKit v0.31.1.
+In-cluster image building via Shipwright (CRD-native, CNCF Sandbox) wrapping BuildKit (rootless). Tekton Pipelines is the execution engine. Triggered by Flux on git push — no external CI needed. See `kubernetes/infrastructure/shipwright/kustomization.yaml` and `kubernetes/infrastructure/tekton-pipelines/kustomization.yaml` for version pins and compatibility notes.
 
 **Test locally before deploying (Hard Rule):** Always build and test code changes locally before pushing to git and deploying to production. The full end-to-end workflow uses mise tasks for every step — both human operators and agents must use the same mise tooling:
 
@@ -276,51 +243,33 @@ In-cluster image building via Shipwright (CRD-native operator, CNCF Sandbox) wra
 
 Never push code changes to git without first verifying they compile and run locally. Waiting for an in-cluster Shipwright build to discover a compile error or runtime failure wastes 10+ minutes per iteration.
 
-**Available mise tasks per app** (replace `<app>` with `off-chain-agent`, `yral-auth`, `yral-legacy`, or `yral-metadata`):
-- `<app>-bootstrap` — install build prerequisites (musl/wasm targets, cargo-leptos, npm deps)
-- `<app>-build` — build release musl binary (same as what runs in production)
-- `<app>-build-local` — build debug binary (same code, no feature gating)
-- `<app>-test` — run unit tests
-- `<app>-run` — run release binary locally via pitchfork (fnox secrets injected)
-- `<app>-run-local` — run debug binary locally via pitchfork
-- `<app>-image` — build container image locally via podman (from repo root, with `.dockerignore`)
-- `<app>-image-run` — run container image locally via pitchfork (podman, port forwarded)
-- `<app>-stop` — stop any running local dev server or container
-- `<app>-validate` — read-only kubectl checks on production pods/readiness/logs
+**CI/CD Pipeline (Tekton Triggers → Shipwright → Harbor → Flux):** Git push → Tekton EventListener → BuildRun → Harbor image push → Flux ImageRepository/ImagePolicy/ImageUpdateAutomation → git commit updating deployment manifest → Flux Kustomization reconcile → new pods.
 
-**CI/CD Pipeline (Tekton Triggers → Shipwright → Harbor → Flux):** Git push → Tekton EventListener → BuildRun (via Shipwright/BuildKit) → Harbor image push → Flux ImageRepository/ImagePolicy/ImageUpdateAutomation → git commit updating deployment manifest → Flux Kustomization reconcile → new pods.
-
-- Per-app Tekton Trigger resources in `kubernetes/apps/<app>/tekton-trigger.yaml`: ServiceAccount, Role/RoleBinding, ClusterRole/ClusterRoleBinding, TriggerBinding, TriggerTemplate, EventListener.
+- Per-app Tekton Trigger resources in `kubernetes/apps/<app>/tekton-trigger.yaml`.
 - GitHub webhook → EventListener Service (exposed via Cilium Gateway HTTPRoute).
 - **Build webhook setup (per new app):** When adding a new app with Tekton build triggers:
   1. Create HTTPRoute for `<app>-build.yral.com` in `kubernetes/networking/routes/<app>-build.yaml` (HTTP→HTTPS redirect + HTTPS route to `el-<app>-build-listener` in the app namespace).
   2. Create ReferenceGrant in the app namespace (`kubernetes/apps/<app>/build-reference-grant.yaml`) allowing HTTPRoute from kube-system to reference the EventListener Service.
   3. Add both to their respective kustomization.yaml files.
   4. Create the GitHub webhook via `gh` CLI: `gh api repos/<owner>/<repo>/hooks --input - <<'EOF' { "name": "web", "active": true, "events": ["push"], "config": { "url": "https://<app>-build.yral.com/", "content_type": "json" } } EOF`
-  5. Push to git and wait for Flux to apply the HTTPRoute. The webhook starts working once the route is live.
-- **Filter out fluxcdbot commits**: The CEL interceptor MUST filter `body.head_commit.author.username != 'fluxcdbot'` to prevent a feedback loop (Flux ImageUpdateAutomation commits tag updates → triggers new build → new image → Flux commits again → infinite loop).
+  5. Push to git and wait for Flux to apply the HTTPRoute.
+- **Filter out fluxcdbot commits**: The CEL interceptor MUST filter `body.head_commit.author.username != 'fluxcdbot'` to prevent a feedback loop.
 
-**Image tagging (timestamp-prefixed, NOT raw commit SHA):** Tags are `YYYYMMDDHHMMSS-<8-char-sha>` (e.g. `20260716021700-a2e4e7b8`). The timestamp prefix ensures `Alphabetical:asc` in Flux ImagePolicy correctly selects the most recent build (chronological order = alphabetical order). Raw commit SHAs are meaningless alphabetically — `d424a6c2...` would outrank `a2e4e7b8...` regardless of commit time.
+**Image tagging (timestamp-prefixed, NOT raw commit SHA):** Tags are `YYYYMMDDHHMMSS-<8-char-sha>`. The timestamp prefix ensures `Alphabetical:asc` in Flux ImagePolicy correctly selects the most recent build.
 
 **Tekton Triggers CEL Interceptor (official pattern):**
 - Overlay `key`: just the field name (e.g. `image_tag`), NOT prefixed with `body.` or `extensions.`
 - Overlay `expression`: CEL expression evaluated against `body` (JSON payload), `header`, `extensions`, `requestURL`
 - TriggerBinding access: `$(extensions.image_tag)` — NOT `$(body.extensions.image_tag)`
 - Available CEL functions: `truncate(uint)`, `translate(regex, repl)`, `split(sep)`, `join(sep)`, `replace(old, new)`, `substring(start, end)`, `lowerAscii()`, `upperAscii()`, `parseJSON()`, `parseURL()`
-- Example overlay: `expression: "body.head_commit.timestamp.translate('[-:TZ]', '') + '-' + body.after.truncate(8)"`
 
 **Flux ImagePolicy (official — only 3 policy types exist):**
 - `SemVer` — semantic versioning range (e.g. `>=1.0.0`)
 - `Alphabetical` — string sort, `asc` picks Z (last/highest), `desc` picks A (first/lowest) — use `asc` for timestamp-prefixed tags
 - `Numerical` — numeric sort, same order semantics
-- `filterTags.pattern` — regex to filter tags; `filterTags.extract` — optional capture group extraction for sorting
-- NO `Latest` policy type exists — do not attempt to use it
-
-**Container runtime:** Use `podman` (managed by the root `mise.toml`) for local container tasks — `podman build`, `podman run`, `podman logs`. The `mise run yral-auth-image` and `mise run yral-auth-image-run` tasks wrap the standard build/run flow. Use `--platform linux/amd64` with `podman run` to run the exact same x86_64 images that run in the cluster — this ensures parity between local testing and production. Log into Harbor locally with `echo "$HARBOR_PASS" | podman login harbor.yral.com -u admin --password-stdin`.
+- NO `Latest` policy type exists.
 
 **Shared cluster-scoped resources (avoid kustomize "id matched 2 resources"):** When multiple app sub-kustomizations are included in the same parent Kustomization (`apps`), cluster-scoped resources (ClusterRole, ClusterRoleBinding) and shared namespace resources (e.g., `harbor-scan-secret` in `flux-system`) must be defined only ONCE. Duplicate definitions with the same name cause kustomize build failures.
-- **ClusterRole/ClusterRoleBinding for Tekton triggers**: Define the ClusterRole once (in the first app's tekton-trigger.yaml). Other apps only create a ClusterRoleBinding referencing the existing ClusterRole — do NOT redefine the ClusterRole.
-- **`harbor-scan-secret` in `flux-system`**: Define once (in yral-auth). Other apps' ImageRepository resources reference it by name — do NOT create a duplicate `harbor-scan-secret` in each app's kustomization.
 
 ## Questions for Agents (When in Doubt)
 
@@ -356,6 +305,4 @@ Process: identify section, make minimal prescriptive update, remove obsolete gui
 
 **AGENTS.md is the only memory to use.** Do not use agent-specific memory systems (e.g. `/memories/`, `.copilot/`, or similar) — that memory doesn't get shared between hosts and isn't checked into source control. It defeats the purpose of memory when we switch to another host. All persistent knowledge must live in AGENTS.md (committed to git) or in role/README files within the repo.
 
----
-
-**Original document was verbose with heavy duplication (especially forbidden kubectl lists, repeated YAML role/playbook examples, and long diagnostic narratives). This version collapses redundancy while preserving every hard rule, decision question, and operational constraint that actually drives behavior.**
+**Service-specific details belong colocated as comments on the manifests/code that implements them.** AGENTS.md contains only repo-wide rules and patterns. When a detail applies to one component (versions, disk layouts, flag values, API patterns), put it in a header comment block on the relevant YAML/Ansible file. This keeps AGENTS.md scannable and ensures the detail is visible exactly where it's needed.

@@ -1,3 +1,18 @@
+# Rook/Ceph cluster — the cluster's primary storage layer.
+#
+# Versions: Rook v1.19.3 + Ceph v20.2.1 (Tentacle).
+# Default StorageClass: ceph-block (2× replication, host failure domain, ~16.5 TB usable).
+# Kafka is the explicit exception (ceph-block-1replica).
+#
+# Worker disk layout (managed by ansible/roles/storage-setup, always destructive):
+#   50G btrfs OS | Ceph partition (GPT label "rook-osd" on nvme0n1p3) + whole-disk OSD on nvme1n1.
+#   Never put "ceph" in PARTLABEL. Always run the dd wipe step for bluestore signatures.
+#
+# The cluster Kustomization uses wait: false — OSD updates are long-running and
+# should not block dependent workloads.
+#
+# Monitoring: ceph status / ceph osd status / ceph df via the rook-ceph toolbox.
+---
 apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
