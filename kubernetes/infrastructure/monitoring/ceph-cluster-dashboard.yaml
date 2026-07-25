@@ -13,7 +13,7 @@ metadata:
   labels:
     grafana_dashboard: "1"
 data:
-  Ceph Cluster — Grafana dashboard.json: |
+  ceph-cluster.json: |
     {
       "annotations": {
         "list": [

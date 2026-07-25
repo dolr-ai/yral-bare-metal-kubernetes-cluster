@@ -13,7 +13,7 @@ metadata:
   labels:
     grafana_dashboard: "1"
 data:
-  Ceph Pools — Grafana dashboard.json: |
+  ceph-pools.json: |
     {
       "__elements": {},
       "annotations": {

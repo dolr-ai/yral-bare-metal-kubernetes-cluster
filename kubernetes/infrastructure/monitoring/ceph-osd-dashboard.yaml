@@ -13,7 +13,7 @@ metadata:
   labels:
     grafana_dashboard: "1"
 data:
-  Ceph OSD — Grafana dashboard.json: |
+  ceph-osd.json: |
     {
       "__elements": {},
       "annotations": {
