@@ -30,6 +30,10 @@ spec:
   replicas: 1
   strategy:
     type: Recreate
+    # Explicitly null out rollingUpdate so Flux SSA prunes it from the live object
+    # (previously set under RollingUpdate). Without this, the dry-run merge keeps
+    # the old rollingUpdate field, which Kubernetes rejects alongside type: Recreate.
+    rollingUpdate: null
   selector:
     matchLabels:
       app: geoip-server
