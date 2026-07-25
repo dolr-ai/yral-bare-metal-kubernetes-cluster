@@ -1,20 +1,17 @@
 # PowerDNS authoritative server configuration (non-sensitive settings).
 #
-# Uses the bind backend — zone files are text ConfigMaps (declarative, GitOps).
-# No database (no SQLite, no MySQL, no CNPG). Zone data is human-readable text.
+# Uses the LMDB backend — a file-based key-value store (no external database).
+# LMDB supports RFC2136 dynamic updates (since PowerDNS 5.0.0) and TSIG keys.
+# The bind backend does NOT support DNS updates (per PowerDNS docs).
 #
-# Dynamic updates (RFC2136) from ExternalDNS and cert-manager write to a journal
-# file on an emptyDir. The journal is ephemeral — on pod restart, ExternalDNS and
-# cert-manager re-create their records automatically.
-#
-# Sensitive settings:
-#   - TSIG key: mounted via --include-dir (Secret)
-#   - API key: passed via --api-key CLI flag (Secret, for read-only debugging API)
+# The LMDB file lives on a PVC (Rook/Ceph ceph-block). PowerDNS auto-creates
+# the schema on first start. Zone and TSIG key are created by the init container
+# using pdnsutil.
 #
 # Key settings:
-#   - launch=bind: BIND zone file backend (text files, no database)
-#   - bind-config: named.conf-style file listing zones
-#   - api=yes: HTTP API on port 8081 (read-only debugging, not for record management)
+#   - launch=lmdb: LMDB file backend (supports DNS update + TSIG)
+#   - lmdb-filename: path to the LMDB file (on PVC)
+#   - api=yes: HTTP API on port 8081 (read-only debugging + pdnsutil remote)
 #   - dnsupdate=yes: RFC2136 dynamic updates (ExternalDNS + cert-manager DNS-01)
 #   - local-port=5300: non-privileged port (Cilium LoadBalancer maps 53→5300)
 ---
@@ -25,16 +22,15 @@ metadata:
   namespace: external-dns
 data:
   pdns.conf: |
-    # Backend: BIND zone files (declarative text, no database)
-    launch=bind
-    bind-config=/etc/powerdns/bind/bind.conf
+    # Backend: LMDB (file-based, supports DNS update + TSIG)
+    launch=lmdb
+    lmdb-filename=/var/lib/powerdns/pdns.lmdb
 
     # DNS server settings
     local-address=0.0.0.0
     local-port=5300
 
     # HTTP API (read-only debugging — not used for record management)
-    # Records are managed via RFC2136 dynamic updates, not the HTTP API.
     api=yes
     webserver=yes
     webserver-address=0.0.0.0
@@ -42,9 +38,7 @@ data:
     webserver-allow-from=0.0.0.0/0
 
     # RFC2136 dynamic updates (ExternalDNS + cert-manager DNS-01)
-    # TSIG keys are loaded from --include-dir (Secret-mounted)
     dnsupdate=yes
-    dnsupdate-require-tsig=yes
     allow-dnsupdate-from=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
 
     # General settings

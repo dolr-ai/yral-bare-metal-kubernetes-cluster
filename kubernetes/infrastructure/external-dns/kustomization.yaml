@@ -2,7 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 # Self-hosted authoritative DNS + ExternalDNS.
 #
-# PowerDNS: authoritative DNS server (bind backend, zone files as ConfigMaps).
+# PowerDNS: authoritative DNS server (LMDB backend on PVC, supports RFC2136).
 # ExternalDNS: syncs annotated Kubernetes Services to PowerDNS via RFC2136.
 #
 # SOPS-encrypted secrets (pdns-secrets.sops.yaml) contain:
@@ -14,9 +14,7 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - pdns-config.yaml
-  - pdns-bind-conf.yaml
-  - pdns-zone-saikat-dev.yaml
-  - pdns-deployment.yaml
+  - pdns-statefulset.yaml
   - pdns-service-dns.yaml
   - pdns-service-api.yaml
   - external-dns-rbac.yaml

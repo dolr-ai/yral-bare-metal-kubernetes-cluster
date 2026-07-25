@@ -1,0 +1,169 @@
+# PowerDNS Authoritative Server — StatefulSet with LMDB backend.
+#
+# Uses LMDB (file-based key-value store) on a PVC. Supports RFC2136 dynamic
+# updates and TSIG keys (unlike the bind backend which doesn't support DNS update).
+#
+# Single replica for Phase 1 (LMDB doesn't support multiple writers).
+# Phase 2: migrate to gmysql backed by CNPG for HA with multiple replicas.
+#
+# Init container: creates the saikat.dev zone, imports the TSIG key, and sets
+# zone metadata (ALLOW-DNSUPDATE-FROM, TSIG-ALLOW-DNSUPDATE) using pdnsutil.
+# This runs before PowerDNS starts, against the LMDB file on the PVC.
+# Idempotent — checks if zone/key already exist before creating.
+#
+# Scheduling: worker nodes only (node affinity excludes control-plane).
+#
+# Ports:
+#   - 5300/UDP + 5300/TCP: DNS (LoadBalancer Service maps 53→5300)
+#   - 8081/TCP: HTTP API (ClusterIP — read-only debugging only)
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: powerdns
+  namespace: external-dns
+  labels:
+    app: powerdns
+spec:
+  serviceName: powerdns-api
+  replicas: 1
+  selector:
+    matchLabels:
+      app: powerdns
+  template:
+    metadata:
+      labels:
+        app: powerdns
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
+      initContainers:
+        - name: pdns-init
+          image: docker.io/powerdns/pdns-auth-52:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+
+              echo "Initializing PowerDNS LMDB backend..."
+
+              # Create zone if it doesn't exist
+              if pdnsutil --config-dir=/etc/powerdns list-zone saikat.dev > /dev/null 2>&1; then
+                echo "Zone saikat.dev already exists."
+              else
+                echo "Creating zone saikat.dev..."
+                pdnsutil --config-dir=/etc/powerdns create-zone saikat.dev
+                pdnsutil --config-dir=/etc/powerdns set-meta saikat.dev SOA-EDIT-DNSUPDATE INCREASE
+              fi
+
+              # Import TSIG key if it doesn't exist
+              if pdnsutil --config-dir=/etc/powerdns tsigkey list 2>/dev/null | grep -q saikat-dev-key; then
+                echo "TSIG key saikat-dev-key already exists."
+              else
+                echo "Importing TSIG key saikat-dev-key..."
+                pdnsutil --config-dir=/etc/powerdns tsigkey import saikat-dev-key hmac-sha512 "$TSIG_SECRET"
+              fi
+
+              # Set zone metadata for DNS updates
+              pdnsutil --config-dir=/etc/powerdns set-meta saikat.dev ALLOW-DNSUPDATE-FROM 0.0.0.0/0 ::/0
+              pdnsutil --config-dir=/etc/powerdns set-meta saikat.dev TSIG-ALLOW-DNSUPDATE saikat-dev-key
+
+              # Create NS records for all 11 nameservers
+              for i in $(seq 1 11); do
+                pdnsutil --config-dir=/etc/powerdns add-record saikat.dev @ NS "ns${i}.saikat.dev."
+              done
+
+              # Create A records for ns1-ns11 (matching hosts.yml + externalIPs)
+              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns1 A 138.201.85.40
+              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns2 A 88.99.213.237
+              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns3 A 94.130.128.105
+              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns4 A 88.99.148.85
+              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns5 A 138.201.199.41
+              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns6 A 138.201.125.248
+              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns7 A 168.119.139.49
+              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns8 A 138.201.251.32
+              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns9 A 88.99.147.157
+              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns10 A 95.217.57.130
+              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns11 A 136.243.145.173
+
+              echo "PowerDNS initialization complete."
+          env:
+            - name: TSIG_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: pdns-tsig-key
+                  key: tsig-key
+          volumeMounts:
+            - name: pdns-config
+              mountPath: /etc/powerdns/pdns.conf
+              subPath: pdns.conf
+              readOnly: true
+            - name: pdns-data
+              mountPath: /var/lib/powerdns
+      containers:
+        - name: powerdns
+          image: docker.io/powerdns/pdns-auth-52:latest
+          args:
+            - --api-key=$(PDNS_API_KEY)
+          ports:
+            - name: dns-udp
+              containerPort: 5300
+              protocol: UDP
+            - name: dns-tcp
+              containerPort: 5300
+              protocol: TCP
+            - name: api
+              containerPort: 8081
+              protocol: TCP
+          env:
+            - name: PDNS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pdns-api-key
+                  key: api-key
+          volumeMounts:
+            - name: pdns-config
+              mountPath: /etc/powerdns/pdns.conf
+              subPath: pdns.conf
+              readOnly: true
+            - name: pdns-data
+              mountPath: /var/lib/powerdns
+          readinessProbe:
+            tcpSocket:
+              port: 5300
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 5300
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+      volumes:
+        - name: pdns-config
+          configMap:
+            name: pdns-config
+  volumeClaimTemplates:
+    - metadata:
+        name: pdns-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: ceph-block
+        resources:
+          requests:
+            storage: 1Gi
