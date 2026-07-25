@@ -25,6 +25,7 @@ sops = "latest"
 # OS-filtered — apt entries are ignored on macOS, brew entries on Linux, etc.
 # Machine-baseline packages (build-essential, curl, git, etc.) live in ~/.dotfiles/mise.linux.toml.
 [bootstrap.packages]
+"apt:bind9-dnsutils" = "latest"
 "apt:libssl-dev" = "latest"
 "apt:musl-tools" = "latest"
 "apt:pkg-config" = "latest"

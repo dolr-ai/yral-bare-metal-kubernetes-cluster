@@ -69,6 +69,14 @@ Cross-namespace is the exception (shared infra like Cilium/cert-manager/monitori
 
 ## Policies
 
+### Missing CLI tools
+If a CLI tool is needed but not installed, do NOT use `sudo apt-get install` or any system package manager. Instead:
+1. Check if mise provides it — add to `[tools]` in `mise.toml` (e.g. `dig`/`nslookup` via `"apt:bind9-dnsutils"` in `[bootstrap.packages]`).
+2. If it's a system C library or OS package, add to `[bootstrap.packages]` in `mise.toml`.
+3. Run `mise install` (for tools) or `mise bootstrap packages apply --yes` (for system packages).
+4. If mise refuses to run (untrusted directory), run `mise trust` first, then retry.
+This keeps the environment fully declarative and reproducible from `mise.toml` alone.
+
 ### Edit Tooling Preference (Hard Rule)
 Never use terminal commands (`sed`, `awk`, `echo >`, `cat >`, `tee`, etc.) for text edits. Always use the VS Code edit tools (`replace_string_in_file`, `multi_replace_string_in_file`, `create_file`) so changes are visible in the diff editor for review. Terminal commands bypass the review workflow and can silently corrupt files.
 
@@ -284,6 +292,12 @@ Never push code changes to git without first verifying they compile and run loca
 
 - Per-app Tekton Trigger resources in `kubernetes/apps/<app>/tekton-trigger.yaml`: ServiceAccount, Role/RoleBinding, ClusterRole/ClusterRoleBinding, TriggerBinding, TriggerTemplate, EventListener.
 - GitHub webhook → EventListener Service (exposed via Cilium Gateway HTTPRoute).
+- **Build webhook setup (per new app):** When adding a new app with Tekton build triggers:
+  1. Create HTTPRoute for `<app>-build.yral.com` in `kubernetes/networking/routes/<app>-build.yaml` (HTTP→HTTPS redirect + HTTPS route to `el-<app>-build-listener` in the app namespace).
+  2. Create ReferenceGrant in the app namespace (`kubernetes/apps/<app>/build-reference-grant.yaml`) allowing HTTPRoute from kube-system to reference the EventListener Service.
+  3. Add both to their respective kustomization.yaml files.
+  4. Create the GitHub webhook via `gh` CLI: `gh api repos/<owner>/<repo>/hooks --input - <<'EOF' { "name": "web", "active": true, "events": ["push"], "config": { "url": "https://<app>-build.yral.com/", "content_type": "json" } } EOF`
+  5. Push to git and wait for Flux to apply the HTTPRoute. The webhook starts working once the route is live.
 - **Filter out fluxcdbot commits**: The CEL interceptor MUST filter `body.head_commit.author.username != 'fluxcdbot'` to prevent a feedback loop (Flux ImageUpdateAutomation commits tag updates → triggers new build → new image → Flux commits again → infinite loop).
 
 **Image tagging (timestamp-prefixed, NOT raw commit SHA):** Tags are `YYYYMMDDHHMMSS-<8-char-sha>` (e.g. `20260716021700-a2e4e7b8`). The timestamp prefix ensures `Alphabetical:asc` in Flux ImagePolicy correctly selects the most recent build (chronological order = alphabetical order). Raw commit SHAs are meaningless alphabetically — `d424a6c2...` would outrank `a2e4e7b8...` regardless of commit time.
