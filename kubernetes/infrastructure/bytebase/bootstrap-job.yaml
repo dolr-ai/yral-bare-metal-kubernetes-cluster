@@ -19,7 +19,7 @@ spec:
       initContainers:
         # Wait until Bytebase is accepting requests before running Terraform.
         - name: wait-for-bytebase
-          image: curlimages/curl:8.7.1
+          image: curlimages/curl:8.21.0
           command:
             - /bin/sh
             - -c
