@@ -23,6 +23,7 @@ use utils::{
     event_streaming::events::{EventCtx, EventUserDetails},
     send_wrap,
     types::NewIdentity,
+    user_identity::UserIdentity,
     MockPartialEq,
 };
 use yral_types::delegated_identity::DelegatedIdentityWire;
@@ -276,7 +277,7 @@ impl Default for AuthState {
                     .and_then(|c| {
                         let cans = c.ok()?;
                         Some(EventUserDetails {
-                            details: cans.profile_details(),
+                            details: UserIdentity::from(cans.profile_details()),
                             canister_id: cans.user_canister(),
                         })
                     })

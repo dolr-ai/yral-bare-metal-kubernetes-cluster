@@ -60,7 +60,6 @@ pub fn ShareContent(
 #[component]
 fn SocialShare(share_link: String, message: String) -> impl IntoView {
     let encoded_message = urlencoding::encode(&message);
-    // let encoded_link = urlencoding::encode(&profile_link);
 
     // Facebook share URL using Dialog API
     let fb_url =

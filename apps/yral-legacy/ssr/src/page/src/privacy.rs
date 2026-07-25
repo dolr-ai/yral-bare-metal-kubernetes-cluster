@@ -71,7 +71,7 @@ pub fn PrivacyPolicy() -> impl IntoView {
                                             <li>
                                                 Content Type and Non-Personal information related to ads.
                                             </li>
-                                            <li>Profile Information.</li>
+                                            <li>Account Information.</li>
                                         </ul>
                                     </li>
                                     <li>
@@ -156,7 +156,7 @@ pub fn PrivacyPolicy() -> impl IntoView {
                         We may share your information in ways including the following:
                         <ul class="pl-6 list-decimal">
                             <li>
-                                With other Yral users: your username, profile photograph,
+                                With other Yral users: your username,
                                 content that you post or send or share. You may also be able to
                                 control how your content is shared with other Yral users by
                                 adjusting personal settings.

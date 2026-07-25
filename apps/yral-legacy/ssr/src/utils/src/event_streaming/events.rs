@@ -98,9 +98,10 @@ impl HistoryCtx {
 #[cfg(feature = "ga4")]
 use crate::event_streaming::send_event_ssr_spawn;
 use crate::ml_feed::QuickPostDetails;
+use crate::user_identity::UserIdentity;
 use leptos::html::Video;
 use yral_canisters_common::{
-    utils::{posts::PostDetails, profile::ProfileDetails},
+    utils::posts::PostDetails,
     Canisters,
 };
 
@@ -122,7 +123,6 @@ pub enum AnalyticsEvent {
     LogoutClicked(LogoutClicked),
     LogoutConfirmation(LogoutConfirmation),
     ErrorEvent(ErrorEvent),
-    ProfileViewVideo(ProfileViewVideo),
     TokenCreationStarted(TokenCreationStarted),
     TokensTransferred(TokensTransferred),
     PageVisit(PageVisit),
@@ -130,7 +130,7 @@ pub enum AnalyticsEvent {
 
 #[derive(Clone)]
 pub struct EventUserDetails {
-    pub details: ProfileDetails,
+    pub details: UserIdentity,
     pub canister_id: Principal,
 }
 
@@ -723,37 +723,6 @@ impl ErrorEvent {
 }
 
 #[derive(Default)]
-pub struct ProfileViewVideo;
-
-impl ProfileViewVideo {
-    pub fn send_event(&self, ctx: EventCtx, post_details: PostDetails) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            let publisher_user_id = post_details.poster_principal;
-            let video_id = post_details.uid.clone();
-
-            let Some(user) = ctx.user_details() else {
-                return;
-            };
-
-            let _ = send_event_ssr_spawn(
-                "profile_view_video".to_string(),
-                json!({
-                    "publisher_user_id":publisher_user_id,
-                    "user_id": user.details.principal,
-                    "is_loggedIn": ctx.is_connected(),
-                    "display_name": user.details.display_name,
-                    "canister_id": user.canister_id,
-                    "video_id": video_id,
-                    "profile_feed": "main",
-                })
-                .to_string(),
-            );
-        }
-    }
-}
-
-#[derive(Default)]
 pub struct TokenCreationStarted;
 
 impl TokenCreationStarted {
@@ -791,7 +760,7 @@ impl TokensTransferred {
     pub fn send_event(&self, amount: String, to: Principal, cans_store: Canisters<true>) {
         #[cfg(all(feature = "hydrate", feature = "ga4"))]
         {
-            let details = cans_store.profile_details();
+            let details: UserIdentity = cans_store.profile_details().into();
 
             let user_id = details.principal;
             let canister_id = cans_store.user_canister();

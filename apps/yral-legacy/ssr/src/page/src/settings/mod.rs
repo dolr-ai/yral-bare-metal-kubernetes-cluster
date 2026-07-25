@@ -2,12 +2,8 @@ use component::back_btn::BackButton;
 use component::notification_toggle::NotificationToggle;
 use component::social::*;
 use component::title::TitleText;
-use leptos::either::Either;
 use leptos::prelude::*;
 use leptos_icons::*;
-use leptos_router::components::Redirect;
-use state::canisters::auth_state;
-use yral_canisters_common::utils::profile::ProfileDetails;
 
 #[component]
 #[allow(dead_code)]
@@ -58,60 +54,6 @@ fn MenuFooter() -> impl IntoView {
                 ></path>
             </svg>
         </div>
-    }
-}
-
-#[component]
-fn ProfileLoading() -> impl IntoView {
-    view! {
-        <div class="rounded-full animate-pulse basis-4/12 aspect-square overflow-clip bg-white/20"></div>
-        <div class="flex flex-col gap-2 animate-pulse basis-8/12">
-            <div class="w-full h-4 rounded-full bg-white/20"></div>
-            <div class="w-full h-4 rounded-full bg-white/20"></div>
-        </div>
-    }
-}
-
-#[component]
-fn ProfileLoaded(user_details: ProfileDetails) -> impl IntoView {
-    let auth_state = auth_state();
-    let is_connected = auth_state.is_logged_in_with_oauth();
-
-    view! {
-        <div class="rounded-full basis-4/12 aspect-square overflow-clip">
-            <img class="object-cover w-full h-full" src=user_details.profile_pic_or_random() />
-        </div>
-        <div
-            class="flex flex-col basis-8/12"
-            class=("w-12/12", move || !is_connected())
-            class=("sm:w-5/12", move || !is_connected())
-        >
-            <span class="text-xl text-white text-ellipsis line-clamp-1">
-                {user_details.display_name_or_fallback()}
-            </span>
-            <a class="text-primary-600 text-md" href="/profile/posts">
-                View Profile
-            </a>
-        </div>
-    }
-}
-
-#[component]
-fn ProfileInfo() -> impl IntoView {
-    let auth = auth_state();
-    view! {
-        <Suspense fallback=ProfileLoading>
-            {move || Suspend::new(async move {
-                let res = auth.auth_cans().await;
-                match res {
-                    Ok(cans) => {
-                        let user_details = cans.profile_details();
-                        Either::Left(view! { <ProfileLoaded user_details /> })
-                    }
-                    Err(e) => Either::Right(view! { <Redirect path=format!("/error?err={e}") /> }),
-                }
-            })}
-        </Suspense>
     }
 }
 

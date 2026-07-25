@@ -1,4 +1,4 @@
-pub const GENERAL_ITEMS: [(&str, &str); 15] = [
+pub const GENERAL_ITEMS: [(&str, &str); 13] = [
       (
         "What is Hot or Not?",
         "It is a short video content sharing platform, similar to Tik-Tok, built on the ICP (Internet Computer Protocol) blockchain. Hot or Not combines the entertainment of short-video social media with end-user monetisation by enabling users to speculate on the content and earn tokens. Hot or not is the second version of GoBazzinga, developed by GoBazzinga inc. taking forward the vision to create a social media platform that financially rewards the consumers of the platform instead of advertisers.",
@@ -21,7 +21,7 @@ pub const GENERAL_ITEMS: [(&str, &str); 15] = [
       ),
       (
         "Is Hot or Not 100% on-chain?",
-        "Everything on the app is stored on-chain, with the exception of the videos and profile pictures, which are hosted on Cloudflare. We are awaiting the storage subnets so that we can later put these things on-chain as well. On this forum, at https://forum.dfinity.org/t/long-term-r-d-storage-subnets-proposal/9390, you can read more about the storage subnets. User experience, cost, and simplicity were taken into consideration when choosing Cloudflare over non-ICP on-chain services like IPFS. Our roadmap outlines our goal of becoming entirely on-chain as we are committed to creating a decentralised system where users have complete control over their data and content.",
+        "Everything on the app is stored on-chain, with the exception of the videos, which are hosted on Cloudflare. We are awaiting the storage subnets so that we can later put these things on-chain as well. On this forum, at https://forum.dfinity.org/t/long-term-r-d-storage-subnets-proposal/9390, you can read more about the storage subnets. User experience, cost, and simplicity were taken into consideration when choosing Cloudflare over non-ICP on-chain services like IPFS. Our roadmap outlines our goal of becoming entirely on-chain as we are committed to creating a decentralised system where users have complete control over their data and content.",
       ),
       (
         "In how many languages Hot or Not is available?",
@@ -34,7 +34,6 @@ pub const GENERAL_ITEMS: [(&str, &str); 15] = [
               upload videos upto 60 seconds,
               like and share the videos that you enjoy,
               love your favourite creators to see more of their content,
-              customise your profile,
               create your own community of Lovers who enjoy your content, and
               scroll through endless content with our personalised feed.
                   There are lots of other features which will be launching on the app in the coming months, including the Hot or Not game. Stay tuned for the same.
@@ -63,16 +62,8 @@ pub const GENERAL_ITEMS: [(&str, &str); 15] = [
         "Refer to our community guidelines for the same. Go to Menu > Terms of Service to access community guidelines.",
       ),
       (
-        "How do I add or change my profile picture?",
-        "You can go to Menu > View Profile. Once you're on your profile page, you will see an edit icon on the top right hand corner of the screen. It will open an edit window which will allow you to change your profile picture and name.",
-      ),
-      (
-        "How can I add a profile name ?",
-        "You will be allotted a cute username and profile name automatically when you login. You can change your username once, but you can change your profile name as many times as you want by going to edit profile as explained in the answer above.",
-      ),
-      (
         "How can I delete my account?",
-        "Currently, there is no way to delete an account already created. You can change your Profile Picture and your Profile Name on your existing account. You can also create another account with a new Internet Identity, but this does not remove your videos from the platform. A video once uploaded cannot be deleted as of now, this service may be made available in the future.",
+        "Currently, there is no way to delete an account already created. You can also create another account with a new Internet Identity, but this does not remove your videos from the platform. A video once uploaded cannot be deleted as of now, this service may be made available in the future.",
       ),
 ];
 

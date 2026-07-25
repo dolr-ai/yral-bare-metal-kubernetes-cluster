@@ -58,21 +58,6 @@ fn yral_nav_items() -> Vec<NavItem> {
             render_data: NavItemRenderData::Upload,
             cur_selected: Signal::derive(move || matches!(path.get().as_str(), "/upload")),
         },
-        NavItem {
-            render_data: NavItemRenderData::Icon {
-                icon: ProfileIcon,
-                filled_icon: Some(ProfileIconFilled),
-                href: "/profile/token".into(),
-            },
-            cur_selected: Signal::derive(move || {
-                // is selected only if the user is viewing their own profile
-                let Some(user_principal) = user_principal.get() else {
-                    return false;
-                };
-                path.get()
-                    .starts_with(&format!("/profile/{user_principal}"))
-            }),
-        },
     ]
 }
 

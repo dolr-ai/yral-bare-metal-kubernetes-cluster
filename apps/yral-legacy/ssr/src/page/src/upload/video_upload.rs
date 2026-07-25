@@ -541,7 +541,7 @@ pub fn PostUploadScreen() -> impl IntoView {
                 <h1 class="mb-2 text-lg font-semibold">Video uploaded sucessfully</h1>
 
                 <p class="px-4 mb-8 text-center">
-                    "We're processing your video. It'll be in 'Your Videos' under My Profile soon. Happy scrolling!"
+                    "We're processing your video. It'll be available soon. Happy scrolling!"
                 </p>
                 <HighlightedLinkButton
                     alt_style=false

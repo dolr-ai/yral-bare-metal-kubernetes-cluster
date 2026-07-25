@@ -18,11 +18,6 @@ use page::{
     menu::Menu,
     post_view::single_post::SinglePost,
     privacy::PrivacyPolicy,
-    profile::{
-        edit::{username::ProfileUsernameEdit, ProfileEdit},
-        profile_post::ProfilePost,
-        LoggedInUserProfileView, ProfilePostsContext, ProfileView,
-    },
     refer_earn::ReferEarn,
     terms::TermsOfService,
     token::{info::TokenInfo, transfer::TokenTransfer},
@@ -100,7 +95,6 @@ pub fn App() -> impl IntoView {
     // Existing context providers
     provide_context(Canisters::default());
     provide_context(ContentSeedClient::default());
-    provide_context(ProfilePostsContext::default());
     provide_context(AuthorizedUserToSeedContent::default());
     provide_context(AudioState::default());
     provide_context(PostDetailsCacheCtx::default());
@@ -160,16 +154,11 @@ pub fn App() -> impl IntoView {
                     <GoogleAuthRedirectHandlerRoute />
                     <ParentRoute path=path!("") view=BaseRoute>
                         <Route path=path!("/post/:canister_id/:post_id") view=SinglePost />
-                        <Route path=path!("/profile/:canister_id/post/:post_id") view=ProfilePost />
                         <Route path=path!("/upload") view=UploadPostPage />
                         <Route path=path!("/upload-options") view=UploadOptionsPage />
                         <Route path=path!("/error") view=ServerErrorPage />
                         <Route path=path!("/menu") view=Menu />
                         <Route path=path!("/refer-earn") view=ReferEarn />
-                        <Route path=path!("/profile/edit") view=ProfileEdit />
-                        <Route path=path!("/profile/edit/username") view=ProfileUsernameEdit />
-                        <Route path=path!("/profile/:id/:tab") view=ProfileView />
-                        <Route path=path!("/profile/:tab") view=LoggedInUserProfileView />
                         <Route path=path!("/terms-of-service") view=TermsOfService />
                         <Route path=path!("/privacy-policy") view=PrivacyPolicy />
                         <Route path=path!("/about-us") view=AboutUs />

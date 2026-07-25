@@ -4321,7 +4321,7 @@ dependencies = [
  "html-escape",
  "itertools 0.14.0",
  "leptos_hot_reload",
- "prettyplease",
+ "prettyplease 0.2.37",
  "proc-macro-error2",
  "proc-macro2",
  "quote",
@@ -5410,6 +5410,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "prettyplease"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bfe0f4c752e450fc2faf62654f1c134747922825d5b04ca717b8874f41a40c0"
+dependencies = [
+ "proc-macro2",
+ "syn 3.0.2",
+]
+
+[[package]]
 name = "primeorder"
 version = "0.13.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5565,7 +5575,7 @@ dependencies = [
  "multimap",
  "once_cell",
  "petgraph 0.7.1",
- "prettyplease",
+ "prettyplease 0.2.37",
  "prost",
  "prost-types",
  "regex",
@@ -7888,7 +7898,7 @@ version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9557ce109ea773b399c9b9e5dca39294110b74f1f342cb347a80d1fce8c26a11"
 dependencies = [
- "prettyplease",
+ "prettyplease 0.2.37",
  "proc-macro2",
  "prost-build",
  "prost-types",
@@ -8382,6 +8392,7 @@ dependencies = [
  "yral-metadata-client",
  "yral-metadata-types",
  "yral-types",
+ "yral-username-gen",
 ]
 
 [[package]]
@@ -9060,16 +9071,16 @@ dependencies = [
  "anyhow",
  "candid",
  "candid_parser",
- "convert_case 0.6.0",
+ "convert_case 0.11.0",
  "ic-agent",
  "log",
- "prettyplease",
+ "prettyplease 0.3.0",
  "proc-macro2",
  "quote",
  "serde",
  "serde_bytes",
  "serde_json",
- "syn 2.0.114",
+ "syn 3.0.2",
  "tokio",
 ]
 

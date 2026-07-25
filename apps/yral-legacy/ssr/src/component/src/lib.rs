@@ -26,7 +26,6 @@ pub mod onboarding_flow;
 pub mod option;
 pub mod overlay;
 pub mod popup;
-pub mod profile_placeholders;
 pub mod share_popup;
 pub mod show_any;
 pub mod skeleton;

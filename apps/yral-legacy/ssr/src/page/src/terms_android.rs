@@ -74,7 +74,7 @@ pub fn TermsAndroid() -> impl IntoView {
     let blocking_bullets = vec![
         "Block or report other users",
         "Filter their content experience (e.g., by disabling NSFW content)",
-        "Control who interacts with their content and profile",
+        "Control who interacts with their content",
     ];
 
     let liability_bullets = vec![

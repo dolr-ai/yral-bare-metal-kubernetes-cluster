@@ -66,6 +66,7 @@ rust_decimal = { workspace = true }
 speedate = { workspace = true, optional = true }
 urlencoding = { workspace = true }
 yral-types = { workspace = true }
+yral-username-gen = { workspace = true }
 yral-canisters-client = { workspace = true }
 yral-canisters-common = { workspace = true }
 global-constants = { workspace = true }

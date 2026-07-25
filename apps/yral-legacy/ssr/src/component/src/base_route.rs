@@ -97,8 +97,7 @@ fn CtxProvider(children: Children) -> impl IntoView {
         let pathname = location.pathname.get();
         // Check if we're navigating away from video pages
         let is_video_page = pathname.contains("/hot-or-not/")
-            || pathname.contains("/post/")
-            || pathname.contains("/profile/") && pathname.contains("/post/");
+            || pathname.contains("/post/");
 
         if !is_video_page {
             AudioState::reset_to_muted();

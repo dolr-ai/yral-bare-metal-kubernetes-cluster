@@ -71,14 +71,7 @@ impl VideoWatchedHandler {
     ) {
         #[cfg(all(feature = "hydrate", feature = "ga4"))]
         {
-            // Detect source from current pathname
-            use leptos_router::hooks::use_location;
-            let location = use_location();
-            let source = if location.pathname.get_untracked().contains("/profile/") {
-                "profile"
-            } else {
-                "feed" // Default to feed for /hot-or-not/ and /post/ routes
-            };
+            let source = "feed";
 
             let (video_watched, set_video_watched) = signal(false);
             let (full_video_watched, set_full_video_watched) = signal(false);

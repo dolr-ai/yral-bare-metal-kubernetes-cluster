@@ -22,8 +22,8 @@ use state::app_state::AppState;
 use state::canisters::{auth_state, unauth_canisters};
 use tokens::TokenList;
 use utils::notifications::get_device_registeration_token;
+use utils::user_identity::UserIdentity;
 use utils::{send_wrap, UsernameOrPrincipal};
-use yral_canisters_common::utils::profile::ProfileDetails;
 use yral_metadata_client::MetadataClient;
 
 /// Controller for the login modal, passed through context
@@ -33,7 +33,7 @@ pub struct ShowLoginSignal(RwSignal<bool>);
 
 #[component]
 fn ProfileCard(
-    details: ProfileDetails,
+    details: UserIdentity,
     is_own_account: bool,
     is_connected: Signal<bool>,
 ) -> impl IntoView {
@@ -84,7 +84,7 @@ fn ProfileCardLoading() -> impl IntoView {
 }
 
 #[component]
-fn Header(details: ProfileDetails) -> impl IntoView {
+fn Header(details: UserIdentity) -> impl IntoView {
     let share_link = {
         let id = details.username_or_principal();
         format!("/wallet/{id}")
@@ -202,12 +202,12 @@ pub fn WalletImpl(id: UsernameOrPrincipal) -> impl IntoView {
         Ok::<_, ServerFnError>(user_canister)
     }));
 
-    let profile_info_res = OnceResource::new(send_wrap(async move {
-        let profile_details = cans
+    let user_info_res = OnceResource::new(send_wrap(async move {
+        let user_details = cans
             .get_profile_details(format!("{}", id.get_value()))
             .await
             .inspect_err(|e| log::warn!("{e}"))?;
-        Ok::<_, ServerFnError>(profile_details)
+        Ok::<_, ServerFnError>(user_details)
     }));
 
     // Edge Case: unauthenticated user navigates to wallet page
@@ -219,7 +219,7 @@ pub fn WalletImpl(id: UsernameOrPrincipal) -> impl IntoView {
         let is_own_account = match id.get_value() {
             UsernameOrPrincipal::Principal(p) => p == logged_in_user.user_principal(),
             UsernameOrPrincipal::Username(u) => {
-                Some(u) == logged_in_user.profile_details().username
+                Some(u) == UserIdentity::from(logged_in_user.profile_details()).username
             }
         };
         if is_own_account {
@@ -233,23 +233,23 @@ pub fn WalletImpl(id: UsernameOrPrincipal) -> impl IntoView {
     });
 
     // Edge Case: unauthenticated user navigates to wallet page
-    let profile_details_and_is_owner_result = Callback::new(move |()| async move {
+    let user_details_and_is_owner_result = Callback::new(move |()| async move {
         let authenticated_canister_resource = auth.auth_cans().await?;
         let is_own_account = match id.get_value() {
             UsernameOrPrincipal::Principal(p) => {
                 p == authenticated_canister_resource.user_principal()
             }
             UsernameOrPrincipal::Username(u) => {
-                Some(u) == authenticated_canister_resource.profile_details().username
+                Some(u) == UserIdentity::from(authenticated_canister_resource.profile_details()).username
             }
         };
-        let profile_details = if is_own_account {
-            authenticated_canister_resource.profile_details()
+        let user_details = if is_own_account {
+            UserIdentity::from(authenticated_canister_resource.profile_details())
         } else {
-            let profile_details = profile_info_res.await?;
-            profile_details.ok_or_else(|| ServerFnError::new("User canister not found"))?
+            let user_details = user_info_res.await?;
+            UserIdentity::from(user_details.ok_or_else(|| ServerFnError::new("User canister not found"))?)
         };
-        Ok::<_, ServerFnError>((profile_details, is_own_account))
+        Ok::<_, ServerFnError>((user_details, is_own_account))
     });
 
     let auth = auth_state();
@@ -265,10 +265,10 @@ pub fn WalletImpl(id: UsernameOrPrincipal) -> impl IntoView {
                 view! { <HeaderLoading /> }
             }>
                 {move || Suspend::new(async move {
-                    match profile_details_and_is_owner_result.run(()).await {
-                        Ok((profile_details, _)) => {
+                    match user_details_and_is_owner_result.run(()).await {
+                        Ok((user_details, _)) => {
                             Either::Left(
-                                view! { <Header details=profile_details /> },
+                                view! { <Header details=user_details /> },
                             )
                         },
                         Err(e) => {
@@ -280,12 +280,12 @@ pub fn WalletImpl(id: UsernameOrPrincipal) -> impl IntoView {
             <div class="flex flex-col gap-4 justify-center items-center px-4 mx-auto w-full max-w-md h-full">
                 <Suspense fallback=ProfileCardLoading>
                     {move || Suspend::new(async move {
-                        match profile_details_and_is_owner_result.run(()).await {
-                            Ok((profile_details, is_own_account)) => {
+                        match user_details_and_is_owner_result.run(()).await {
+                            Ok((user_details, is_own_account)) => {
                                 Either::Left(
                                     view! {
                                         <ProfileCard
-                                            details=profile_details
+                                            details=user_details
                                             is_connected
                                             is_own_account
                                         />

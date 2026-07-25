@@ -18,6 +18,7 @@ use yral_metadata_client::MetadataClient;
 
 use crate::event_streaming::events::EventCtx;
 use crate::event_streaming::events::HistoryCtx;
+use crate::user_identity::UserIdentity;
 use crate::mixpanel::state::MixpanelState;
 
 #[server]
@@ -239,7 +240,7 @@ impl MixpanelGlobalProps {
             is_logged_in,
             canister_id: cans.user_canister().to_text(),
             is_nsfw_enabled,
-            username: cans.profile_details().username,
+            username: UserIdentity::from(cans.profile_details()).username,
         }
     }
 
@@ -341,7 +342,7 @@ impl MixpanelGlobalProps {
             is_logged_in,
             canister_id: cans.user_canister().to_text(),
             is_nsfw_enabled,
-            username: cans.profile_details().username,
+            username: UserIdentity::from(cans.profile_details()).username,
         }
     }
 
@@ -349,12 +350,12 @@ impl MixpanelGlobalProps {
         #[cfg(feature = "hydrate")]
         {
             let path = window().location().pathname().unwrap_or_default();
-            path.try_into().unwrap_or(BottomNavigationCategory::Profile)
+            path.try_into().unwrap_or(BottomNavigationCategory::Menu)
         }
         #[cfg(not(feature = "hydrate"))]
         {
             log::error!("calling MixpanelGlobalProps::page_name from SSR is not sane");
-            BottomNavigationCategory::Profile
+            BottomNavigationCategory::Menu
         }
     }
 }
@@ -371,16 +372,13 @@ impl TryFrom<String> for BottomNavigationCategory {
     type Error = ();
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        if value.contains("/profile/") {
-            return Ok(BottomNavigationCategory::Profile);
-        } else if value.contains("/wallet/") {
+        if value.contains("/wallet/") {
             return Ok(BottomNavigationCategory::Wallet);
         }
 
         match value.as_str() {
             "/wallet" => Ok(BottomNavigationCategory::Wallet),
             "/upload" => Ok(BottomNavigationCategory::UploadVideo),
-            "/profile" => Ok(BottomNavigationCategory::Profile),
             "/menu" => Ok(BottomNavigationCategory::Menu),
             _ => Err(()),
         }
@@ -397,7 +395,6 @@ pub enum MixpanelVideoClickedCTAType {
     NsfwToggle,
     Mute,
     Unmute,
-    CreatorProfile,
     VideoPlay,
     Leaderboard,
 }
@@ -414,20 +411,12 @@ pub enum MixpanelMenuClickedCTAType {
     Leaderboard,
     Settings,
     AboutUs,
-    ViewProfile,
     Follow,
 }
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
-pub enum MixpanelProfileClickedCTAType {
-    Videos,
-    GamesPlayed,
-    MemeCoin,
-}
 
-#[derive(Serialize, Clone)]
-#[serde(rename_all = "snake_case")]
 pub enum StakeType {
     Sats,
     DolrAi,
@@ -440,7 +429,6 @@ pub enum StakeType {
 #[serde(rename_all = "snake_case")]
 pub enum BottomNavigationCategory {
     UploadVideo,
-    Profile,
     #[default]
     Menu,
     Wallet,
@@ -517,8 +505,6 @@ derive_event!(track_menu_page_viewed {});
 
 derive_event!(track_upload_page_viewed {});
 
-derive_event!(track_edit_profile_clicked { page_name: String });
-
 derive_event!(track_unlock_higher_bets_popup_shown {
     page_name: String,
     stake_amount: u64,
@@ -533,18 +519,7 @@ derive_event!(track_menu_clicked {
     cta_type: MixpanelMenuClickedCTAType
 });
 
-derive_event!(track_profile_tab_clicked {
-    is_own_profile: bool,
-    publisher_user_id: String,
-    cta_type: MixpanelProfileClickedCTAType
-});
-
 derive_event!(track_account_deleted { page_name: String });
-
-derive_event!(track_profile_page_viewed {
-    is_own_profile: bool,
-    publisher_user_id: String
-});
 
 derive_event!(track_withdraw_tokens_clicked {
     token_clicked: StakeType

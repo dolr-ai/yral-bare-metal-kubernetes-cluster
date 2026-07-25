@@ -3,11 +3,11 @@ use leptos_router::components::Redirect;
 use state::canisters::auth_state;
 
 use utils::notifications::get_device_registeration_token;
-use yral_canisters_common::utils::profile::ProfileDetails;
+use utils::user_identity::UserIdentity;
 use yral_metadata_client::MetadataClient;
 
 #[component]
-fn NotifInnerComponent(details: ProfileDetails) -> impl IntoView {
+fn NotifInnerComponent(details: UserIdentity) -> impl IntoView {
     let auth_state = auth_state();
 
     let on_token_click: Action<(), ()> = Action::new_unsync(move |()| async move {
@@ -50,7 +50,7 @@ pub fn Notif() -> impl IntoView {
                     match res {
                         Ok(cans) => {
                             Either::Left(
-                                view! { <NotifInnerComponent details=cans.profile_details() /> },
+                                view! { <NotifInnerComponent details=UserIdentity::from(cans.profile_details()) /> },
                             )
                         }
                         Err(e) => {

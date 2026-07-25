@@ -19,7 +19,6 @@ use state::canisters::auth_state;
 use state::content_seed_client::ContentSeedClient;
 use utils::mixpanel::mixpanel_events::*;
 use utils::send_wrap;
-use yral_canisters_common::utils::profile::ProfileDetails;
 
 #[component]
 fn MenuItem(
@@ -111,31 +110,6 @@ fn MenuFooter() -> impl IntoView {
 }
 
 #[component]
-fn ProfileLoading() -> impl IntoView {
-    view! {
-        <div class="rounded-full animate-pulse aspect-square size-12 md:size-14 lg:size-16 overflow-clip bg-white/20"></div>
-        <div class="flex flex-col gap-2 animate-pulse w-full">
-            <div class="w-full h-7  rounded-full bg-white/20"></div>
-            <div class="w-full h-4 md:h-5 rounded-full bg-white/20"></div>
-        </div>
-    }.into_any()
-}
-
-#[component]
-fn ProfileLoaded(#[prop(into)] user_details: ProfileDetails) -> impl IntoView {
-    view! {
-        <img class="size-12 md:size-14 lg:size-16 rounded-full aspect-square object-cover" src=user_details.profile_pic_or_random() />
-        <div class="flex flex-col gap-2 w-full">
-            <span class="text-lg md:text-xl text-neutral-50 text-ellipsis line-clamp-1 font-semibold">
-                @{user_details.username_or_fallback()}
-            </span>
-            <span class="text-xs md:text-sm text-neutral-400 line-clamp-1">{user_details.principal()}</span>
-        </div>
-    }
-    .into_any()
-}
-
-#[component]
 pub fn Menu() -> impl IntoView {
     let query_map = use_query_map();
     let show_content_modal = RwSignal::new(false);
@@ -211,12 +185,6 @@ pub fn Menu() -> impl IntoView {
 
     let upload_content_mount_point = NodeRef::<Div>::new();
 
-    let _view_profile_clicked = move || {
-        if let Some(global) = MixpanelGlobalProps::from_ev_ctx(auth.event_ctx()) {
-            MixPanelEvent::track_menu_clicked(global, MixpanelMenuClickedCTAType::ViewProfile);
-        }
-    };
-
     view! {
         <Title text=page_title />
 
@@ -228,16 +196,7 @@ pub fn Menu() -> impl IntoView {
                     </div>
                 </TitleText>
                 <div class="flex flex-col gap-4 items-center w-11/12 lg:w-8/12">
-                    // <a on:click=move |_| view_profile_clicked() href="/profile/posts" class="flex flex-row gap-4 justify-center items-center p-4 w-full bg-neutral-900 rounded-lg">
-                    //     <Suspense fallback=ProfileLoading>
-                    //         {move || Suspend::new(async move {
-                    //             let cans = auth.auth_cans().await;
-                    //             cans.map(|c| {
-                    //                 view! { <ProfileLoaded user_details=c.profile_details() /> }
-                    //             })
-                    //         })}
-                    //     </Suspense>
-                    // </a>
+
                     <Show when=move || !is_connected.get()>
                         <div class="px-8 w-full md:w-4/12 xl:w-2/12">
                             <div class="w-full">

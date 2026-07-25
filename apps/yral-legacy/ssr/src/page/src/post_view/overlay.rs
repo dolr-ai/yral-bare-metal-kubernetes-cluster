@@ -65,11 +65,6 @@ pub fn VideoDetailsOverlay(
         }
     });
 
-    let profile_url = format!("/profile/{}/tokens", post.username_or_principal());
-
-    let profile_click_video_id = post.uid.clone();
-    let post_clone = post.clone();
-
     let (nsfw_enabled, set_nsfw_enabled) = use_cookie_with_options::<bool, FromToStringCodec>(
         NSFW_ENABLED_COOKIE,
         UseCookieOptions::default()
@@ -136,19 +131,6 @@ pub fn VideoDetailsOverlay(
         }
     });
 
-    let mixpanel_track_profile_click = move || {
-        let video_id = profile_click_video_id.clone();
-        let Some(global) = MixpanelGlobalProps::from_ev_ctx(ev_ctx) else {
-            return;
-        };
-        MixPanelEvent::track_video_clicked(
-            global,
-            post.poster_principal.to_string(),
-            video_id,
-            MixpanelVideoClickedCTAType::CreatorProfile,
-        );
-    };
-
     let AudioState { muted, volume } = AudioState::get();
 
     view! {
@@ -159,22 +141,14 @@ pub fn VideoDetailsOverlay(
                 <div class="flex flex-row justify-between items-center w-full pointer-events-auto">
                     <div class="flex flex-row gap-2 items-center p-2 w-9/12 rounded-s-full bg-linear-to-r from-black/25 via-80% via-black/10">
                     <div class="flex w-fit">
-                        <a
-                            href=profile_url.clone()
-                            class="w-10 h-10 rounded-full border-2 md:w-12 md:h-12 overflow-clip border-primary-600"
-                        >
+                        <div class="w-10 h-10 rounded-full border-2 md:w-12 md:h-12 overflow-clip border-primary-600">
                             <img class="object-cover w-full h-full" src=post.propic_url fetchpriority="low" loading={if high_priority { "eager" } else { "lazy" }} />
-                        </a>
+                        </div>
                     </div>
                     <div class="flex flex-col justify-center min-w-0">
                         <div class="flex flex-row gap-1 items-center text-xs md:text-sm lg:text-base">
                             <span class="font-semibold truncate">
-                                <a
-                                    on:click=move |_| mixpanel_track_profile_click()
-                                    href=profile_url
-                                >
-                                    {display_name}
-                                </a>
+                                {display_name}
                             </span>
                             <span class="font-semibold">"|"</span>
                             <span class="flex flex-row gap-1 items-center">
