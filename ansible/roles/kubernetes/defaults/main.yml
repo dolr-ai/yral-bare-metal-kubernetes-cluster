@@ -4,4 +4,4 @@
 # Renovate will open a PR when a new patch or minor version is released.
 # To act on a minor-version bump (e.g., 1.35 → 1.36), follow the manual upgrade procedure:
 #   run upgrade-control-plane.yml (one CP at a time) → upgrade-worker.yml (one worker at a time).
-kubernetes_version: "1.35.3"
+kubernetes_version: "1.36.3"
