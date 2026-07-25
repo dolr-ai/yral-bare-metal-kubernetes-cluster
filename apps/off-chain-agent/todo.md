@@ -1,2 +1,1 @@
 - remove ffmpeg@7 after done with offchain changes
-- remove nix

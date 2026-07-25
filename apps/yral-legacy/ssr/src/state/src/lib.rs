@@ -4,7 +4,6 @@ pub mod app_state;
 pub mod app_type;
 pub mod audio_state;
 pub mod canisters;
-pub mod content_seed_client;
 
 #[cfg(not(feature = "ssr"))]
 pub mod server {

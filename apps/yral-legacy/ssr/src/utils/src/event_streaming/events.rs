@@ -1,5 +1,4 @@
 use candid::Principal;
-use leptos::html::Input;
 use leptos::prelude::Signal;
 use leptos::prelude::*;
 use serde_json::json;
@@ -109,11 +108,6 @@ pub enum AnalyticsEvent {
     VideoWatched(VideoWatched),
     LikeVideo(LikeVideo),
     ShareVideo(ShareVideo),
-    VideoUploadInitiated(VideoUploadInitiated),
-    VideoUploadUploadButtonClicked(VideoUploadUploadButtonClicked),
-    VideoUploadVideoSelected(VideoUploadVideoSelected),
-    VideoUploadUnsuccessful(VideoUploadUnsuccessful),
-    VideoUploadSuccessful(VideoUploadSuccessful),
     Refer(Refer),
     ReferShareLink(ReferShareLink),
     LoginSuccessful(LoginSuccessful),
@@ -279,164 +273,6 @@ impl ShareVideo {
                     "like_count": like_count,
                     "share_count": 0,
                     "nsfw_probability": nsfw_probability,
-                })
-                .to_string(),
-            );
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct VideoUploadInitiated;
-
-impl VideoUploadInitiated {
-    pub fn send_event(&self, ctx: EventCtx) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            // video_upload_initiated - analytics
-            let Some(user) = ctx.user_details() else {
-                return;
-            };
-            let _ = send_event_ssr_spawn(
-                "video_upload_initiated".to_string(),
-                json!({
-                    "user_id": user.details.principal,
-                    "display_name": user.details.display_name,
-                    "canister_id": user.canister_id,
-                    "creator_category": "NA",
-                })
-                .to_string(),
-            );
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct VideoUploadUploadButtonClicked;
-
-impl VideoUploadUploadButtonClicked {
-    pub fn send_event(&self, ctx: EventCtx, hashtag_inp: NodeRef<Input>, is_nsfw: NodeRef<Input>) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            // video_upload_upload_button_clicked - analytics
-            let Some(user) = ctx.user_details() else {
-                return;
-            };
-
-            let hashtag_count = hashtag_inp
-                .get_untracked()
-                .map_or_else(|| 0, |input| input.value().len());
-            let is_nsfw_val = is_nsfw
-                .get_untracked()
-                .map(|v| v.checked())
-                .unwrap_or_default();
-
-            Effect::new(move |_| {
-                let _ = send_event_ssr_spawn(
-                    "video_upload_upload_button_clicked".to_string(),
-                    json!({
-                        "user_id": user.details.principal,
-                        "display_name": user.details.display_name.clone().unwrap_or_default(),
-                        "canister_id": user.canister_id,
-                        "creator_category": "NA",
-                        "hashtag_count": hashtag_count,
-                        "is_NSFW": is_nsfw_val,
-                    })
-                    .to_string(),
-                );
-            });
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct VideoUploadVideoSelected;
-
-impl VideoUploadVideoSelected {
-    pub fn send_event(&self, ctx: EventCtx) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            // video_upload_video_selected - analytics
-            let Some(user) = ctx.user_details() else {
-                return;
-            };
-
-            let _ = send_event_ssr_spawn(
-                "video_upload_video_selected".to_string(),
-                json!({
-                    "user_id": user.details.principal,
-                    "display_name": user.details.display_name.unwrap_or_default(),
-                    "canister_id": user.canister_id,
-                    "creator_category": "NA",
-                })
-                .to_string(),
-            );
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct VideoUploadUnsuccessful;
-
-impl VideoUploadUnsuccessful {
-    pub fn send_event(&self, ctx: EventCtx, error: String, hashtags_len: usize, is_nsfw: bool) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            // video_upload_unsuccessful - analytics
-            let Some(user) = ctx.user_details() else {
-                return;
-            };
-
-            let _ = send_event_ssr_spawn(
-                "video_upload_unsuccessful".to_string(),
-                json!({
-                    "user_id": user.details.principal,
-                    "display_name": user.details.display_name.unwrap_or_default(),
-                    "canister_id": user.canister_id,
-                    "creator_category": "NA",
-                    "hashtag_count": hashtags_len,
-                    "is_NSFW": is_nsfw,
-                    "fail_reason": error,
-                })
-                .to_string(),
-            );
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct VideoUploadSuccessful;
-
-impl VideoUploadSuccessful {
-    pub fn send_event(
-        &self,
-        ctx: EventCtx,
-        video_id: String,
-        hashtags_len: usize,
-        is_nsfw: bool,
-        post_id: u64,
-    ) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            // video_upload_successful - analytics
-
-            use serde_json::json;
-            let Some(user) = ctx.user_details() else {
-                return;
-            };
-            let _ = send_event_ssr_spawn(
-                "video_upload_successful".to_string(),
-                json!({
-                    "user_id": user.details.principal,
-                    "publisher_user_id": user.details.principal,
-                    "display_name": user.details.display_name,
-                    "canister_id": user.canister_id,
-                    "creator_category": "NA",
-                    "hashtag_count": hashtags_len,
-                    "is_NSFW": is_nsfw,
-                    "is_filter_used": false,
-                    "video_id": video_id,
-                    "post_id": post_id,
                 })
                 .to_string(),
             );

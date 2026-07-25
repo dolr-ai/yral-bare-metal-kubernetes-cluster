@@ -1,24 +1,20 @@
 #![allow(dead_code)]
 
 use codee::string::FromToStringCodec;
-use component::content_upload::AuthorizedUserToSeedContent;
 use component::notification_toggle::NotificationToggle;
 use component::title::TitleText;
 use component::toggle::Toggle;
 use component::{connect::ConnectLogin, social::*};
 use consts::NSFW_ENABLED_COOKIE;
-use leptos::html::{Div, Input};
+use leptos::html::Input;
 use leptos::prelude::window;
 use leptos::prelude::*;
 use leptos_icons::*;
 use leptos_meta::*;
-use leptos_router::hooks::use_query_map;
 use leptos_use::{use_cookie_with_options, UseCookieOptions};
 use state::app_state::AppState;
 use state::canisters::auth_state;
-use state::content_seed_client::ContentSeedClient;
 use utils::mixpanel::mixpanel_events::*;
-use utils::send_wrap;
 
 #[component]
 fn MenuItem(
@@ -111,10 +107,6 @@ fn MenuFooter() -> impl IntoView {
 
 #[component]
 pub fn Menu() -> impl IntoView {
-    let query_map = use_query_map();
-    let show_content_modal = RwSignal::new(false);
-    let is_authorized_to_seed_content: AuthorizedUserToSeedContent = expect_context();
-
     let auth = auth_state();
     let is_connected = auth.is_logged_in_with_oauth();
 
@@ -142,48 +134,8 @@ pub fn Menu() -> impl IntoView {
         }
     });
 
-    Effect::new(move |_| {
-        let query_params = query_map.get();
-        let url = query_params.get("text")?;
-        if !url.is_empty() && is_connected.get() {
-            show_content_modal.set(true);
-        }
-        Some(())
-    });
-
-    let _authorized_fetch_res = auth.derive_resource(
-        move || (),
-        move |cans, _| {
-            send_wrap(async move {
-                let user_principal = cans.user_principal();
-                match is_authorized_to_seed_content.0.get_untracked() {
-                    Some((auth, principal)) if principal == user_principal => {
-                        is_authorized_to_seed_content
-                            .0
-                            .set(Some((auth, user_principal)))
-                    }
-                    _ => (),
-                }
-
-                let content_seed_client: ContentSeedClient = expect_context();
-
-                let res = content_seed_client
-                    .check_if_authorized(user_principal)
-                    .await
-                    .unwrap_or_default();
-
-                is_authorized_to_seed_content
-                    .0
-                    .set(Some((res, user_principal)));
-                Ok(())
-            })
-        },
-    );
-
     let app_state = use_context::<AppState>();
     let page_title = app_state.unwrap().name.to_owned() + " - Menu";
-
-    let upload_content_mount_point = NodeRef::<Div>::new();
 
     view! {
         <Title text=page_title />
@@ -207,7 +159,6 @@ pub fn Menu() -> impl IntoView {
                             {r#"Your YRAL account is ready. Log in with Google to save your progress and continue seamlessly."#}
                         </div>
                     </Show>
-                    <div node_ref=upload_content_mount_point />
                 </div>
             </div>
             <div class="flex flex-col gap-6 py-8 px-8 w-full">

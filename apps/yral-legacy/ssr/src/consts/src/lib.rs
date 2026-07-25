@@ -45,8 +45,6 @@ pub static SMILEY_GAME_STATS_URL: Lazy<Url> =
 
 pub static OFF_CHAIN_AGENT_GRPC_URL: Lazy<Url> =
     Lazy::new(|| Url::parse("https://offchain.yral.com:443").unwrap());
-pub static DOWNLOAD_UPLOAD_SERVICE: Lazy<Url> =
-    Lazy::new(|| Url::parse("https://upload.yral.com").unwrap());
 
 pub const ICP_LEDGER_CANISTER_ID: &str = "ryjl3-tyaaa-aaaaa-aaaba-cai";
 
@@ -100,8 +98,6 @@ MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEoqN3/0RNfrnrnYGxKBgy/qHnmITr
 
     pub const YRAL_AUTH_CLIENT_ID_ENV: &str = "YRAL_AUTH_CLIENT_ID";
 }
-
-pub const UPLOAD_URL: &str = "https://yral-upload-video.go-bazzinga.workers.dev";
 
 pub const DOLR_AI_ROOT_CANISTER: &str = "67bll-riaaa-aaaaq-aaauq-cai";
 pub const DOLR_AI_LEDGER_CANISTER: &str = "6rdgd-kyaaa-aaaaq-aaavq-cai";

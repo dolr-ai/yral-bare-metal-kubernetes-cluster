@@ -1,4 +1,4 @@
-pub const GENERAL_ITEMS: [(&str, &str); 13] = [
+pub const GENERAL_ITEMS: [(&str, &str); 10] = [
       (
         "What is Hot or Not?",
         "It is a short video content sharing platform, similar to Tik-Tok, built on the ICP (Internet Computer Protocol) blockchain. Hot or Not combines the entertainment of short-video social media with end-user monetisation by enabling users to speculate on the content and earn tokens. Hot or not is the second version of GoBazzinga, developed by GoBazzinga inc. taking forward the vision to create a social media platform that financially rewards the consumers of the platform instead of advertisers.",
@@ -13,7 +13,7 @@ pub const GENERAL_ITEMS: [(&str, &str); 13] = [
       ),
       (
         "How to be a part of the Hot or Not family?",
-        "If you're reading this, you are already a part of the family. In order to make the most of the app, we would recommend logging in through your Internet Identity or NFID, to start uploading videos and to enjoy a personalised feed and experience.",
+        "If you're reading this, you are already a part of the family. In order to make the most of the app, we would recommend logging in through your Internet Identity or NFID, to enjoy a personalised feed and experience.",
       ),
       (
         "What devices is “Hot or Not” available on?",
@@ -30,8 +30,6 @@ pub const GENERAL_ITEMS: [(&str, &str); 13] = [
       (
         "What are the things we can do on the app?",
         "You can do a lot of new things on the app, summarised as follows:
-              create videos upto 60 seconds,
-              upload videos upto 60 seconds,
               like and share the videos that you enjoy,
               love your favourite creators to see more of their content,
               create your own community of Lovers who enjoy your content, and
@@ -40,22 +38,8 @@ pub const GENERAL_ITEMS: [(&str, &str); 13] = [
               ",
       ),
       (
-        "How to upload videos on the platform?",
-        "You can upload a video on the platform only after login. After logging in, go to the “Plus Icon” on the home screen to access the Camera. You can upload a video from your gallery, or create a new video with the in-app camera. If the video is under 60 seconds, it will be uploaded to the platform. It may take upto 30 minutes for a video to show up in the home feed after upload.
-          Note: A video once uploaded cannot be deleted from the platform.
-          ",
-      ),
-      (
-        "How many videos in a day can we post?",
-        "There is currently no limit on the amount of videos you can post, as long as the videos are under 60 seconds each.",
-      ),
-      (
-        "How to use filters for unique content?",
-        "Filters are available in our in-app camera automatically. You can open the camera to access them, and scroll through to find your favourite one.",
-      ),
-      (
-        "How to edit the video created?",
-        "The facility of making edits to a video created within the app is not yet available. This feature will be added in the coming months, including text addition, sounds library, and stickers among other facilities.",
+        "How many videos in a day can we watch?",
+        "There is currently no limit on the amount of videos you can watch and interact with on the platform.",
       ),
       (
         "What type of content is prohibited ?",
@@ -63,7 +47,7 @@ pub const GENERAL_ITEMS: [(&str, &str); 13] = [
       ),
       (
         "How can I delete my account?",
-        "Currently, there is no way to delete an account already created. You can also create another account with a new Internet Identity, but this does not remove your videos from the platform. A video once uploaded cannot be deleted as of now, this service may be made available in the future.",
+        "Currently, there is no way to delete an account already created. You can also create another account with a new Internet Identity, but this does not remove your content from the platform. This service may be made available in the future.",
       ),
 ];
 

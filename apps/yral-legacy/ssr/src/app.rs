@@ -1,5 +1,4 @@
 use crate::error_template::{AppError, ErrorTemplate};
-use component::content_upload::AuthorizedUserToSeedContent;
 use component::{base_route::BaseRoute, nav::NavBar};
 use leptos::prelude::*;
 use leptos_meta::*;
@@ -11,7 +10,6 @@ use page::post_view::PostDetailsCacheCtx;
 // use page::pumpdump; // TODO: re-enable when pumpdump module is restored
 use page::terms_android::TermsAndroid;
 use page::terms_ios::TermsIos;
-use page::upload::UploadPostPage;
 use page::{
     err::ServerErrorPage,
     logout::Logout,
@@ -21,12 +19,11 @@ use page::{
     refer_earn::ReferEarn,
     terms::TermsOfService,
     token::{info::TokenInfo, transfer::TokenTransfer},
-    upload::UploadOptionsPage,
     wallet::Wallet,
 };
 use state::app_state::AppState;
 use state::app_type::AppType;
-use state::{audio_state::AudioState, content_seed_client::ContentSeedClient};
+use state::audio_state::AudioState;
 use utils::event_streaming::events::HistoryCtx;
 use utils::event_streaming::EventHistory;
 use utils::mixpanel::state::MixpanelState;
@@ -94,8 +91,6 @@ pub fn App() -> impl IntoView {
 
     // Existing context providers
     provide_context(Canisters::default());
-    provide_context(ContentSeedClient::default());
-    provide_context(AuthorizedUserToSeedContent::default());
     provide_context(AudioState::default());
     provide_context(PostDetailsCacheCtx::default());
 
@@ -154,8 +149,6 @@ pub fn App() -> impl IntoView {
                     <GoogleAuthRedirectHandlerRoute />
                     <ParentRoute path=path!("") view=BaseRoute>
                         <Route path=path!("/post/:canister_id/:post_id") view=SinglePost />
-                        <Route path=path!("/upload") view=UploadPostPage />
-                        <Route path=path!("/upload-options") view=UploadOptionsPage />
                         <Route path=path!("/error") view=ServerErrorPage />
                         <Route path=path!("/menu") view=Menu />
                         <Route path=path!("/refer-earn") view=ReferEarn />

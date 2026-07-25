@@ -378,7 +378,6 @@ impl TryFrom<String> for BottomNavigationCategory {
 
         match value.as_str() {
             "/wallet" => Ok(BottomNavigationCategory::Wallet),
-            "/upload" => Ok(BottomNavigationCategory::UploadVideo),
             "/menu" => Ok(BottomNavigationCategory::Menu),
             _ => Err(()),
         }
@@ -428,7 +427,6 @@ pub enum StakeType {
 #[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum BottomNavigationCategory {
-    UploadVideo,
     #[default]
     Menu,
     Wallet,
@@ -503,8 +501,6 @@ derive_event!(track_refer_and_earn_page_viewed {
 
 derive_event!(track_menu_page_viewed {});
 
-derive_event!(track_upload_page_viewed {});
-
 derive_event!(track_unlock_higher_bets_popup_shown {
     page_name: String,
     stake_amount: u64,
@@ -538,22 +534,9 @@ derive_event!(track_share_invites_clicked {
     referral_bonus: u64
 });
 
-derive_event!(track_video_upload_error_shown { error: String });
-
 derive_event!(track_onboarding_popup_shown {
     credited_amount: u64,
     popup_type: MixpanelOnboardingPopupType
-});
-
-derive_event!(track_select_file_clicked {});
-
-derive_event!(track_file_selection_success { file_type: String });
-
-derive_event!(track_video_upload_initiated {
-    caption_added: bool,
-    hashtags_added: bool,
-    upload_type: Option<String>,
-    token_type: String
 });
 
 derive_event!(track_bottom_navigation_clicked {
@@ -673,13 +656,6 @@ derive_event!(track_video_started {
     publisher_user_id: String
 });
 
-derive_event!(track_video_upload_success {
-    video_id: String,
-    creator_comission_percentage: u64,
-    upload_type: Option<String>,
-    token_type: String
-});
-
 derive_event!(track_third_party_wallet_transferred {
     token_transferred: f64,
     transferred_to: String,
@@ -688,14 +664,6 @@ derive_event!(track_third_party_wallet_transferred {
 });
 
 derive_event!(track_username_saved {});
-
-derive_event!(track_video_upload_type_selected {
-    upload_type: String
-});
-
-derive_event!(track_upload_type_continue_clicked {
-    upload_type: String
-});
 
 impl MixPanelEvent {
     fn clear_auth_journey_page() {
@@ -768,9 +736,6 @@ impl MixPanelEvent {
                     }
                     "/menu" => {
                         Self::track_menu_page_viewed(props);
-                    }
-                    "/upload-options" => {
-                        Self::track_upload_page_viewed(props);
                     }
                     "/profile/edit/username" => {
                         Self::track_edit_username_clicked(props);

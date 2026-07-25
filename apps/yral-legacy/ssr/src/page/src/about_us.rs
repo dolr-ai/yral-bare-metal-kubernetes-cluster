@@ -34,7 +34,7 @@ pub fn AboutUs() -> impl IntoView {
                 </div>
 
                 <div class="mb-6 text-sm text-left whitespace-pre-line md:text-lg md:text-center">
-                    {"Users can upload 60-second videos, interact with content, grow their communities, and enjoy customized content feeds. Using blockchain technology, Yral ensures users maintain control over their data, supporting Web3 principles of privacy and data ownership."}
+                    {"Users can browse 60-second videos, interact with content, grow their communities, and enjoy customized content feeds. Using blockchain technology, Yral ensures users maintain control over their data, supporting Web3 principles of privacy and data ownership."}
                 </div>
 
                 <div class="mb-8 text-sm text-left whitespace-pre-line md:text-lg md:text-center">
