@@ -1,14 +1,5 @@
 use anyhow::Result;
 
-mod build_common {
-    use anyhow::Result;
-
-    pub fn build_common() -> Result<()> {
-        // ml_feed gRPC client removed — recommendation service is no longer used
-        Ok(())
-    }
-}
-
 #[cfg(feature = "ssr")]
 mod build_ssr {
     use std::{env, path::PathBuf};
@@ -40,8 +31,6 @@ fn main() -> Result<()> {
     {
         build_ssr::build_ssr()?;
     }
-
-    build_common::build_common()?;
 
     Ok(())
 }

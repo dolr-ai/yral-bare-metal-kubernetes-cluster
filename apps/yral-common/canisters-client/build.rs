@@ -300,12 +300,12 @@ fn build_did_intfs(out_dir: &str) -> Result<()> {
                             let return_type = method_fn.sig.output.clone();
                             let visibility = method_fn.vis.clone();
                             let asyncness = method_fn.sig.asyncness;
-                            let unsafety = method_fn.sig.unsafety;
+                            let safety = method_fn.sig.safety.clone();
                             let abi = method_fn.sig.abi.clone();
                             let generics = &method_fn.sig.generics;
 
                             let new_method_toks = quote::quote! {
-                                #visibility #unsafety #asyncness #abi fn #wrapper_method_name_ident #generics (#arg_definitions) #return_type {
+                                #visibility #safety #asyncness #abi fn #wrapper_method_name_ident #generics (#arg_definitions) #return_type {
                                     let base_delay = ::std::time::Duration::from_millis(200);
                                     let max_retries: u32 = 5;
                                     let mut attempts: u32 = 0;

@@ -8,7 +8,6 @@ pub mod coming_soon;
 pub mod connect;
 pub mod content_upload;
 pub mod dashbox;
-pub mod feed_popup;
 pub mod hn_icons;
 pub mod ic_symbol;
 pub mod icons;

@@ -1,6 +1,4 @@
 use candid::Principal;
-use serde::Deserialize;
-use serde::Serialize;
 use yral_canisters_common::utils::posts::PostDetails;
 
 /// Piece of post details that should be available as quickly as possible to ensure fast loading of the infinite scroller
@@ -23,14 +21,4 @@ impl From<PostDetails> for QuickPostDetails {
             nsfw_probability: value.nsfw_probability,
         }
     }
-}
-
-/// PostItem compatible with existing code
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PostItem {
-    pub video_id: String,
-    pub canister_id: Principal,
-    pub post_id: String,
-    pub publisher_user_id: Principal,
-    pub views: u64,
 }

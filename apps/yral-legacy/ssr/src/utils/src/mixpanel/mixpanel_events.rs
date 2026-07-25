@@ -157,19 +157,9 @@ where
         props.get("visitor_id").and_then(Value::as_str).into()
     };
     let current_url = window().location().href().ok();
-    let origin = window()
-        .location()
-        .origin()
-        .ok()
-        .unwrap_or_else(|| "unknown".to_string());
     if let Some(url) = current_url {
-        if props["event"] == "home_page_viewed" {
-            props["current_url"] = origin.clone().into();
-            props["$current_url"] = origin.into();
-        } else {
-            props["current_url"] = url.clone().into();
-            props["$current_url"] = url.into();
-        }
+        props["current_url"] = url.clone().into();
+        props["$current_url"] = url.into();
     }
     let history = use_context::<HistoryCtx>();
     if let Some(history) = history {
@@ -385,12 +375,9 @@ impl TryFrom<String> for BottomNavigationCategory {
             return Ok(BottomNavigationCategory::Profile);
         } else if value.contains("/wallet/") {
             return Ok(BottomNavigationCategory::Wallet);
-        } else if value.contains("/hot-or-not/") {
-            return Ok(BottomNavigationCategory::Home);
         }
 
         match value.as_str() {
-            "/" => Ok(BottomNavigationCategory::Home),
             "/wallet" => Ok(BottomNavigationCategory::Wallet),
             "/upload" => Ok(BottomNavigationCategory::UploadVideo),
             "/profile" => Ok(BottomNavigationCategory::Profile),
@@ -456,7 +443,6 @@ pub enum BottomNavigationCategory {
     Profile,
     #[default]
     Menu,
-    Home,
     Wallet,
 }
 pub struct MixPanelEvent;
@@ -522,8 +508,6 @@ macro_rules! derive_event {
         );
     }
 }
-
-derive_event!(track_home_page_viewed {});
 
 derive_event!(track_refer_and_earn_page_viewed {
     referral_bonus: u64
@@ -804,9 +788,6 @@ impl MixPanelEvent {
             move |_| {
                 let props = p.clone();
                 match page.as_str() {
-                    "/" => {
-                        Self::track_home_page_viewed(props);
-                    }
                     "/refer-earn" => {
                         Self::track_refer_and_earn_page_viewed(props, REFERRAL_REWARD_SATS);
                     }

@@ -98,6 +98,8 @@ When using a tool or library for the first time (or encountering a non-trivial c
 ### Latest Stable Preference
 When making changes to a codebase (fixing bugs, migrating APIs, adding features), strive to bump all affected dependencies to their latest stable versions. If a change breaks a dependent, upgrade the dependent too — don't pin to an older version to avoid the migration. This keeps the codebase current and reduces accumulated technical debt. Always verify compilation locally before pushing.
 
+**Never revert backwards.** When a dependency has already been bumped (even by an automated tool like Dependabot/Renovate), never revert it to an older version to work around a break. Instead, fix the breakage by upgrading the *downstream* consumer (e.g. if `syn` 3 breaks `build.rs`, upgrade `prettyplease` to a syn-3-compatible version and fix the API change — do not revert `syn` to 2.x). Pinning to old versions accumulates technical debt and defeats the purpose of automated dependency management. Only revert if the user explicitly requests it.
+
 ### Sweeping Changes — Per-Component Verification (Hard Rule)
 When making sweeping changes (removing a feature, restructuring workspaces, bumping shared deps, etc.) that touch multiple components, **verify each affected component individually** before pushing:
 1. **Compile** — `cargo check` / `cargo build` / `mise run <app>-build` for each affected component.

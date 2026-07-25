@@ -10,7 +10,6 @@ pub mod post_view;
 pub mod privacy;
 pub mod profile;
 pub mod refer_earn;
-pub mod root;
 pub mod scrolling_post_view;
 pub mod terms;
 pub mod terms_android;

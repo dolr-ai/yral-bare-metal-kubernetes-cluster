@@ -42,16 +42,6 @@ fn yral_nav_items() -> Vec<NavItem> {
     vec![
         NavItem {
             render_data: NavItemRenderData::Icon {
-                icon: HomeSymbol,
-                filled_icon: Some(HomeSymbolFilled),
-                href: "/".into(),
-            },
-            cur_selected: Signal::derive(move || {
-                matches!(path.get().as_str(), "/") || path.get().contains("/hot-or-not")
-            }),
-        },
-        NavItem {
-            render_data: NavItemRenderData::Icon {
                 icon: WalletSymbol,
                 filled_icon: Some(WalletSymbolFilled),
                 href: "/wallet".into(),
@@ -156,14 +146,6 @@ fn NavIcon(
                 MixPanelEvent::track_bottom_navigation_clicked(global, category_name);
             }
         }
-
-        // Check if this is the Home button and perform hard refresh
-        // if icon == HomeSymbol {
-        //     ev.prevent_default();
-        //     if let Some(window) = use_window().as_ref() {
-        //         let _ = window.location().set_href("/");
-        //     }
-        // }
     };
     view! {
         <a href=move || href.get() on:click=on_click class="flex justify-center items-center">

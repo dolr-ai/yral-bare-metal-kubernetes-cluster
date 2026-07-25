@@ -32,22 +32,6 @@ impl FetchCursor {
     }
 }
 
-// pub fn get_feed_component_identifier() -> impl Fn() -> Option<&'static str> {
-//     move || {
-//         let loc = get_host();
-
-//         if loc == "yral.com"
-//             || loc == "localhost:3000"
-//             || loc == "hotornot.wtf"
-//         // || loc == "hot-or-not-web-leptos-ssr-staging.fly.dev"
-//         {
-//             Some("PostViewWithUpdatesMLFeed")
-//         } else {
-//             Some("PostViewWithUpdates")
-//         }
-//     }
-// }
-
 #[derive(Clone, Default)]
 pub struct FeedPostCtx<DetailResolver: Sync + Send + 'static = PostDetails> {
     pub key: usize,
