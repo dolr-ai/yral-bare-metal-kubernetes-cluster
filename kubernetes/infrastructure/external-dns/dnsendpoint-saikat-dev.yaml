@@ -96,3 +96,30 @@ spec:
       recordType: A
       targets:
         - 136.243.145.173
+---
+apiVersion: externaldns.k8s.io/v1alpha1
+kind: DNSEndpoint
+metadata:
+  name: saikat-dev-app-a
+  namespace: external-dns
+spec:
+  endpoints:
+    # saikat.dev + www.saikat.dev → control plane IPs (Cilium Envoy, hostNetwork, port 80/443)
+    - dnsName: saikat.dev
+      recordTTL: 300
+      recordType: A
+      targets:
+        - 95.216.228.60
+        - 65.21.137.111
+        - 95.217.58.83
+        - 65.108.76.154
+        - 37.27.109.138
+    - dnsName: www.saikat.dev
+      recordTTL: 300
+      recordType: A
+      targets:
+        - 95.216.228.60
+        - 65.21.137.111
+        - 95.217.58.83
+        - 65.108.76.154
+        - 37.27.109.138

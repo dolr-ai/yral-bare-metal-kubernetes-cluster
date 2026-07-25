@@ -5,27 +5,17 @@ metadata:
   name: external-dns
   namespace: external-dns
 ---
-# ClusterRole — ExternalDNS needs to read Services, Ingresses, and DNSEndpoint
-# CRDs across all namespaces to discover annotated hostnames.
+# ClusterRole — ExternalDNS needs to read DNSEndpoint CRDs and update their status.
+# Using --source=crd only (no service/ingress sources) to avoid EndpointSlice
+# listing timeout on large clusters.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: external-dns
 rules:
-  - apiGroups: [""]
-    resources: ["services", "endpoints", "pods", "nodes"]
-    verbs: ["get", "watch", "list"]
-  - apiGroups: ["networking.k8s.io"]
-    resources: ["ingresses"]
-    verbs: ["get", "watch", "list"]
-  - apiGroups: ["gateway.networking.k8s.io"]
-    resources: ["gateways", "httproutes", "grpcroutes", "tlsroutes", "tcproutes", "udproutes"]
-    verbs: ["get", "watch", "list"]
-  # DNSEndpoint CRD (for Phase 2 team delegation — wildcard records without a Service)
   - apiGroups: ["externaldns.k8s.io"]
     resources: ["dnsendpoints"]
     verbs: ["get", "watch", "list"]
-  # ExternalDNS needs to update DNSEndpoint status
   - apiGroups: ["externaldns.k8s.io"]
     resources: ["dnsendpoints/status"]
     verbs: ["update"]

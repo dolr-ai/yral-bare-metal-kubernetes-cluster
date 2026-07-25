@@ -1,19 +1,14 @@
-# my-website Service — ClusterIP with ExternalDNS annotation.
+# my-website Service — ClusterIP.
 #
-# The external-dns annotation tells ExternalDNS to create an A record for
-# saikat.dev in PowerDNS pointing to this service's ClusterIP (or the gateway
-# node IPs, depending on configuration).
-#
-# ExternalDNS watches this annotation and syncs the record to PowerDNS via
-# the HTTP API.
+# DNS records for saikat.dev are managed declaratively via DNSEndpoint CRDs
+# in kubernetes/infrastructure/external-dns/dnsendpoint-saikat-dev.yaml.
+# No external-dns annotation needed — ExternalDNS uses --source=crd only.
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: my-website
   namespace: my-website
-  annotations:
-    external-dns.alpha.kubernetes.io/hostname: saikat.dev
 spec:
   type: ClusterIP
   ports:

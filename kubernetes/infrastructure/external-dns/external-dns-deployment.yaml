@@ -1,9 +1,10 @@
-# ExternalDNS — syncs annotated Kubernetes Services to PowerDNS records.
+# ExternalDNS — syncs DNSEndpoint CRDs to PowerDNS records.
 #
-# Watches Services across all namespaces for the annotation:
-#   external-dns.alpha.kubernetes.io/hostname: saikat.dev
+# Uses --source=crd only (DNSEndpoint CRDs in kubernetes/infrastructure/external-dns/).
+# Service annotations are NOT used — all DNS records are declarative DNSEndpoint CRDs.
+# This avoids the EndpointSlice listing timeout on large clusters.
 #
-# Creates/updates A records in PowerDNS via RFC2136 dynamic updates (TSIG-signed).
+# Creates/updates records in PowerDNS via RFC2136 dynamic updates (TSIG-signed).
 # Uses TXT registry for ownership tracking (--txt-owner-id=yral-k8s).
 #
 # Sources:
@@ -51,7 +52,6 @@ spec:
         - name: external-dns
           image: registry.k8s.io/external-dns/external-dns:v0.21.0
           args:
-            - --source=service
             - --source=crd
             - --provider=rfc2136
             - --rfc2136-host=powerdns-dns.external-dns.svc.cluster.local
