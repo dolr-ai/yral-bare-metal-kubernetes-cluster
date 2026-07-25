@@ -64,6 +64,10 @@ spec:
             - --registry=txt
             - --txt-owner-id=yral-k8s
             - --policy=sync
+            - --managed-record-types=A
+            - --managed-record-types=AAAA
+            - --managed-record-types=CNAME
+            - --managed-record-types=NS
             - --log-level=info
           env:
             - name: TSIG_KEY

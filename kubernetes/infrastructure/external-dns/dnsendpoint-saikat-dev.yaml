@@ -1,0 +1,98 @@
+# saikat.dev DNS records — declarative, committed to git.
+#
+# These records are synced to PowerDNS by ExternalDNS via RFC2136 dynamic updates.
+# This is the single source of truth for saikat.dev DNS records.
+#
+# To add/modify a record: edit this file, commit, push. ExternalDNS syncs within 1m.
+#
+# The init container in pdns-statefulset.yaml only creates the zone infrastructure
+# (zone, SOA, TSIG key, metadata). All actual DNS records live here as DNSEndpoint CRDs.
+---
+apiVersion: externaldns.k8s.io/v1alpha1
+kind: DNSEndpoint
+metadata:
+  name: saikat-dev-ns
+  namespace: external-dns
+spec:
+  endpoints:
+    # NS records — all 11 custom nameservers
+    - dnsName: saikat.dev
+      recordTTL: 300
+      recordType: NS
+      targets:
+        - ns1.saikat.dev
+        - ns2.saikat.dev
+        - ns3.saikat.dev
+        - ns4.saikat.dev
+        - ns5.saikat.dev
+        - ns6.saikat.dev
+        - ns7.saikat.dev
+        - ns8.saikat.dev
+        - ns9.saikat.dev
+        - ns10.saikat.dev
+        - ns11.saikat.dev
+---
+apiVersion: externaldns.k8s.io/v1alpha1
+kind: DNSEndpoint
+metadata:
+  name: saikat-dev-nameserver-a
+  namespace: external-dns
+spec:
+  endpoints:
+    # Glue records — nameserver IPs (must match Namecheap glue records + pdns-service-dns externalIPs)
+    # These IPs come from hosts.yml (workers 1-11 with namecheap_nameserver annotation)
+    - dnsName: ns1.saikat.dev
+      recordTTL: 300
+      recordType: A
+      targets:
+        - 138.201.85.40
+    - dnsName: ns2.saikat.dev
+      recordTTL: 300
+      recordType: A
+      targets:
+        - 88.99.213.237
+    - dnsName: ns3.saikat.dev
+      recordTTL: 300
+      recordType: A
+      targets:
+        - 94.130.128.105
+    - dnsName: ns4.saikat.dev
+      recordTTL: 300
+      recordType: A
+      targets:
+        - 88.99.148.85
+    - dnsName: ns5.saikat.dev
+      recordTTL: 300
+      recordType: A
+      targets:
+        - 138.201.199.41
+    - dnsName: ns6.saikat.dev
+      recordTTL: 300
+      recordType: A
+      targets:
+        - 138.201.125.248
+    - dnsName: ns7.saikat.dev
+      recordTTL: 300
+      recordType: A
+      targets:
+        - 168.119.139.49
+    - dnsName: ns8.saikat.dev
+      recordTTL: 300
+      recordType: A
+      targets:
+        - 138.201.251.32
+    - dnsName: ns9.saikat.dev
+      recordTTL: 300
+      recordType: A
+      targets:
+        - 88.99.147.157
+    - dnsName: ns10.saikat.dev
+      recordTTL: 300
+      recordType: A
+      targets:
+        - 95.217.57.130
+    - dnsName: ns11.saikat.dev
+      recordTTL: 300
+      recordType: A
+      targets:
+        - 136.243.145.173

@@ -13,10 +13,12 @@ kind: Kustomization
 # in kubernetes/clusters/yral-k8s/). No manual apply needed.
 resources:
   - namespace.yaml
+  - dnsendpoint-crd.yaml
   - pdns-config.yaml
   - pdns-statefulset.yaml
   - pdns-service-dns.yaml
   - pdns-service-api.yaml
   - external-dns-rbac.yaml
   - external-dns-deployment.yaml
+  - dnsendpoint-saikat-dev.yaml
   - pdns-secrets.sops.yaml

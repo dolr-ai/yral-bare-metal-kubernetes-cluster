@@ -74,25 +74,7 @@ spec:
               pdnsutil --config-dir=/etc/powerdns set-meta saikat.dev ALLOW-DNSUPDATE-FROM 0.0.0.0/0 ::/0
               pdnsutil --config-dir=/etc/powerdns set-meta saikat.dev TSIG-ALLOW-DNSUPDATE saikat-dev-key
 
-              # Create NS records for all 11 nameservers
-              for i in $(seq 1 11); do
-                pdnsutil --config-dir=/etc/powerdns add-record saikat.dev @ NS "ns${i}.saikat.dev."
-              done
-
-              # Create A records for ns1-ns11 (matching hosts.yml + externalIPs)
-              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns1 A 138.201.85.40
-              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns2 A 88.99.213.237
-              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns3 A 94.130.128.105
-              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns4 A 88.99.148.85
-              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns5 A 138.201.199.41
-              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns6 A 138.201.125.248
-              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns7 A 168.119.139.49
-              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns8 A 138.201.251.32
-              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns9 A 88.99.147.157
-              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns10 A 95.217.57.130
-              pdnsutil --config-dir=/etc/powerdns add-record saikat.dev ns11 A 136.243.145.173
-
-              echo "PowerDNS initialization complete."
+              echo "PowerDNS initialization complete. DNS records are managed by ExternalDNS DNSEndpoint CRDs."
           env:
             - name: TSIG_SECRET
               valueFrom:
