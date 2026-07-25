@@ -216,7 +216,7 @@ data:
               "interval": "$interval",
               "intervalFactor": 1,
               "legendFormat": "Available - {{ name }}",
-              "metric": "ceph_pool_available_bytes",
+              "metric": "ceph_pool_avail_raw",
               "refId": "A",
               "step": 60
             },

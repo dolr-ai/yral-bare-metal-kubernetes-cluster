@@ -4251,7 +4251,7 @@ data:
               "datasource": {
                 "type": "prometheus"
               },
-              "expr": "sum(ceph_unclean_pgs{})",
+              "expr": "sum(ceph_pg_total - ceph_pg_clean{})",
               "format": "time_series",
               "interval": "$interval",
               "intervalFactor": 1,
@@ -4325,7 +4325,7 @@ data:
               "datasource": {
                 "type": "prometheus"
               },
-              "expr": "sum(ceph_pg_wait_backfill{})",
+              "expr": "sum(ceph_pg_backfill_wait{})",
               "format": "time_series",
               "interval": "$interval",
               "intervalFactor": 1,
@@ -4409,7 +4409,7 @@ data:
               "datasource": {
                 "type": "prometheus"
               },
-              "expr": "sum(ceph_pg_backfill{})",
+              "expr": "sum(ceph_pg_backfilling{})",
               "format": "time_series",
               "interval": "$interval",
               "intervalFactor": 1,
@@ -5397,7 +5397,7 @@ data:
               "interval": "$interval",
               "intervalFactor": 1,
               "legendFormat": "apply",
-              "metric": "ceph_osd_perf_apply_latency_seconds",
+              "metric": "ceph_osd_apply_latency_ms",
               "refId": "A",
               "step": 4
             },
@@ -5410,7 +5410,7 @@ data:
               "interval": "$interval",
               "intervalFactor": 1,
               "legendFormat": "commit",
-              "metric": "ceph_osd_perf_commit_latency_seconds",
+              "metric": "ceph_osd_commit_latency_ms",
               "refId": "B",
               "step": 4
             }

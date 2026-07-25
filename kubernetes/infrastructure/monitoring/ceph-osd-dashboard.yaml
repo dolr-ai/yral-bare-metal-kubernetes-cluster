@@ -621,7 +621,7 @@ data:
               "interval": "$interval",
               "intervalFactor": 1,
               "legendFormat": "Available",
-              "metric": "ceph_osd_avail_bytes",
+              "metric": "ceph_osd_stat_bytes - ceph_osd_stat_bytes_used",
               "refId": "A",
               "step": 60
             },
@@ -635,7 +635,7 @@ data:
               "interval": "$interval",
               "intervalFactor": 1,
               "legendFormat": "Used",
-              "metric": "ceph_osd_avail_bytes",
+              "metric": "ceph_osd_stat_bytes - ceph_osd_stat_bytes_used",
               "refId": "B",
               "step": 60
             }
@@ -1389,7 +1389,7 @@ data:
               "interval": "$interval",
               "intervalFactor": 1,
               "legendFormat": "apply",
-              "metric": "ceph_osd_perf_apply_latency_seconds",
+              "metric": "ceph_osd_apply_latency_ms",
               "refId": "A",
               "step": 4
             },
@@ -1403,7 +1403,7 @@ data:
               "interval": "$interval",
               "intervalFactor": 1,
               "legendFormat": "commit",
-              "metric": "ceph_osd_perf_commit_latency_seconds",
+              "metric": "ceph_osd_commit_latency_ms",
               "refId": "B",
               "step": 4
             }

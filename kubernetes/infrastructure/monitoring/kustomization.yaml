@@ -11,6 +11,7 @@ resources:
   - kafka-connect-podmonitor.yaml
   - kafka-exporter-servicemonitor.yaml
   - rook-ceph-servicemonitor.yaml
+  - rook-ceph-exporter-servicemonitor.yaml
   - kafka-pipeline-dashboard.yaml
   - ceph-cluster-dashboard.yaml
   - ceph-osd-dashboard.yaml
