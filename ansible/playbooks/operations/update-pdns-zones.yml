@@ -1,9 +1,9 @@
 ---
-# Generate PowerDNS zone ConfigMaps from hosts.yml inventory.
+# Generate DNSEndpoint CRD YAML from hosts.yml inventory.
 #
 # Uses the per-host `namecheap_nameserver` annotations in hosts.yml as the
-# single source of truth for nameserver IPs. Generates a BIND zone file
-# as a Kubernetes ConfigMap YAML.
+# source of truth for nameserver IPs. All nodes (workers + control planes)
+# are included in the domain A records for mesh routing.
 #
 # Runs on localhost — does not SSH to any nodes. Reads inventory data only.
 #

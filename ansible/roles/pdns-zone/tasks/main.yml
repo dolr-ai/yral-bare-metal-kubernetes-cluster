@@ -1,7 +1,8 @@
-# Generate PowerDNS zone ConfigMaps from hosts.yml inventory.
+# Generate DNSEndpoint CRD YAML from hosts.yml inventory.
 #
-# Runs on localhost. Reads worker hostvars from the inventory (no SSH to nodes).
+# Runs on localhost. Reads hostvars from the inventory (no SSH to nodes).
 # Workers with `namecheap_nameserver` defined become nameservers in the zone.
+# All nodes (workers + control planes) are included in the domain A records.
 #
 # Variables (from playbook):
 #   pdns_zone_name: the domain name (e.g. "saikat.dev")
@@ -9,21 +10,6 @@
 # Usage:
 #   ansible-playbook ansible/playbooks/operations/update-pdns-zones.yml -e pdns_zone_name=saikat.dev
 
-- name: Collect nameserver prefix/IP pairs from worker inventory
-  ansible.builtin.set_fact:
-    pdns_nameservers: >-
-      {{
-        groups['worker_nodes']
-        | map('extract', hostvars)
-        | selectattr('namecheap_nameserver', 'defined')
-        | list
-        | map(attribute='namecheap_nameserver')
-        | zip(groups['worker_nodes'] | map('extract', hostvars) | selectattr('namecheap_nameserver', 'defined') | map(attribute='ansible_host') | list)
-        | list
-      }}
-  when: false
-
-# Build the list step by step for clarity
 - name: Initialize nameserver list
   ansible.builtin.set_fact:
     pdns_nameservers: []
@@ -38,8 +24,16 @@
   ansible.builtin.debug:
     var: pdns_nameservers
 
-- name: Generate zone ConfigMap from template
+- name: Collect all node IPs (workers + control planes)
+  ansible.builtin.set_fact:
+    pdns_all_node_ips: "{{ (groups['worker_nodes'] + groups['control_plane']) | map('extract', hostvars) | map(attribute='ansible_host') | sort }}"
+
+- name: Display all node IPs
+  ansible.builtin.debug:
+    var: pdns_all_node_ips
+
+- name: Generate DNSEndpoint YAML from template
   ansible.builtin.template:
-    src: pdns-zone.yaml.j2
-    dest: "{{ playbook_dir }}/../../../kubernetes/infrastructure/external-dns/pdns-zone-{{ pdns_zone_name | replace('.', '-') }}.yaml"
+    src: dnsendpoint.yaml.j2
+    dest: "{{ playbook_dir }}/../../../kubernetes/infrastructure/external-dns/dnsendpoint-{{ pdns_zone_name | replace('.', '-') }}.yaml"
     mode: '0644'
