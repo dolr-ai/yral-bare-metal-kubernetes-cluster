@@ -13,13 +13,14 @@
 # are unaffected and keep running with the previous database until the new pod is
 # ready.
 #
-# Strategy: Recreate (not RollingUpdate). The geoip-db PVC is ReadWriteOnce, so
-# only one pod can attach it at a time. RollingUpdate with maxSurge would try to
-# start the new pod while the old one still holds the PVC — if they land on
-# different nodes the new pod deadlocks in PodInitializing (volume conflict).
-# Recreate tears down the old pod first, freeing the PVC for the new one. The
-# brief downtime is acceptable: enrich pods cache the GeoIP DB and keep serving
-# during the restart window.
+# Strategy: maxSurge=0 + maxUnavailable=1 (effectively Recreate without the SSA
+# field-pruning problem). The geoip-db PVC is ReadWriteOnce, so only one pod can
+# attach it at a time. With default RollingUpdate (maxSurge=25%), the new pod
+# would spin up while the old one still holds the PVC — if they land on different
+# nodes the new pod deadlocks in PodInitializing (volume conflict). Setting
+# maxSurge=0 + maxUnavailable=1 forces Kubernetes to tear down the old pod first,
+# freeing the PVC for the new one. The brief downtime is acceptable: enrich pods
+# cache the GeoIP DB and keep serving during the restart window.
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -29,11 +30,10 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate
-    # Explicitly null out rollingUpdate so Flux SSA prunes it from the live object
-    # (previously set under RollingUpdate). Without this, the dry-run merge keeps
-    # the old rollingUpdate field, which Kubernetes rejects alongside type: Recreate.
-    rollingUpdate: null
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       app: geoip-server
