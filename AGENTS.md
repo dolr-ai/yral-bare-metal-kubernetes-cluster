@@ -18,7 +18,7 @@ Concise architectural rules and constraints for this repository. Follow to maint
 
 **Allowed read-only only:** `kubectl get/describe/logs/events/top/diff/auth/can-i`, `kubectl version`, `kubectl api-*`, etc.
 
-**For Flux Kustomizations specifically:** Always `flux suspend kustomization <name>` first, then remove from git. Flux will prune. Never `kubectl delete` directly.
+**For Flux Kustomizations specifically:** Prefer committing the change to git and pushing — Flux's garbage collector prunes removed resources on the next reconcile (the webhook triggers this within seconds of a push; the 1m interval is the backstop). No manual `flux suspend` is needed for ordinary resource removals (HTTPRoutes, Deployments, Services, etc.). Suspend the Kustomization first only when: (a) removing the `Kustomization` CR itself (you want its controller stopped before its own deletion), or (b) touching resources an ImageUpdateAutomation pipeline writes back to (to avoid commit-overwrite races between manual reconcile and IUA). Never `kubectl delete` a Flux-managed resource directly — always remove from git and let Flux prune.
 
 **Non-Flux exceptions (CoreDNS manifests only):** `kubectl apply -f` the committed `coredns-*-topology.yaml` files after node changes. Commit first.
 
@@ -284,7 +284,7 @@ Never push code changes to git without first verifying they compile and run loca
 7. About to create a new playbook? → Fit into existing via a new atomic role, or ask first.
 8. About to SSH-mutate a node? → Stop. Role it.
 9. About to touch multiple nodes? → Stop. Serial only; complete + verify before next.
-10. About to `kubectl delete` a Flux Kustomization? → Suspend first, then git rm.
+10. About to `kubectl delete` a Flux Kustomization/resource? → Make the change in git and push (Flux prunes). `flux suspend` first only if removing the Kustomization CR itself or IUA-managed resources.
 11. About to `kubectl apply/delete` a Flux-managed resource? → Make the change in git and push.
 
 ## Deployment / Upgrade Workflow

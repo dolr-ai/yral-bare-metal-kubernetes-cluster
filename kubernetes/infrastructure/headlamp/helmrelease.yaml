@@ -4,9 +4,16 @@
 # Exposed at https://headlamp.yral.com via oauth2-proxy (Google Workspace SSO).
 #
 # Plugins installed:
-#   - Flux: ghcr.io/headlamp-k8s/headlamp-plugin-flux:v0.5.0 (flux v0.5.0)
+#   - Flux: ghcr.io/headlamp-k8s/headlamp-plugin-flux:v0.6.0
 #     Releases: https://github.com/headlamp-k8s/plugins/releases
-#     Loaded via initContainer copying into emptyDir volume at /build/plugins
+#     Loaded via initContainer copying from OCI image into emptyDir at /build/plugins
+#   - Rook-Ceph: headlamp-rook-plugin v1.0.2 (package name: rook)
+#     Releases: https://github.com/privilegedescalation/headlamp-rook-plugin/releases
+#     Read-only plugin: CephCluster health, block pools, CSI pods, PV/PVC/StorageClass
+#     columns, app-bar health badge. Surfaces CRD-level state (not deep Ceph metrics —
+#     those live in Grafana, see kubernetes/infrastructure/monitoring/ceph-*-dashboard.yaml).
+#     Loaded via initContainer downloading the release tarball and extracting into
+#     /build/plugins (the plugin is distributed only as a GitHub Release tarball, no OCI image).
 #
 # Chart: https://kubernetes-sigs.github.io/headlamp/
 # Version: check latest at https://github.com/kubernetes-sigs/headlamp/releases
@@ -90,6 +97,23 @@ spec:
           - /bin/sh
           - -c
           - mkdir -p /build/plugins && cp -r /plugins/* /build/plugins/ && chown -R 100:101 /build
+        securityContext:
+          runAsNonRoot: false
+          privileged: false
+          runAsUser: 0
+          runAsGroup: 0
+        volumeMounts:
+          - name: headlamp-plugins
+            mountPath: /build/plugins
+      - name: headlamp-rook-plugin
+        image: curlimages/curl:8.21.0@sha256:7c12af72ceb38b7432ab85e1a265cff6ae58e06f95539d539b654f2cfa64bb13
+        command:
+          - /bin/sh
+          - -c
+          - |
+            curl -fsSL https://github.com/privilegedescalation/headlamp-rook-plugin/releases/download/v1.0.2/rook-1.0.2.tar.gz |
+            tar xz -C /build/plugins &&
+            chown -R 100:101 /build
         securityContext:
           runAsNonRoot: false
           privileged: false

@@ -1,0 +1,39 @@
+---
+# ServiceMonitor for Rook-Ceph mgr Prometheus metrics.
+#
+# Rook enables the ceph mgr prometheus module (cephcluster.yaml:
+# monitoring.enabled: true), which exposes metrics on port 9283 of the mgr
+# pods. The Rook operator auto-creates ServiceMonitor resources in the
+# rook-ceph namespace, but kube-prometheus-stack's Prometheus only selects
+# ServiceMonitors carrying the label `release: kube-prometheus-stack` (its
+# default serviceMonitorSelector). Rook's auto-created ServiceMonitors do not
+# carry that label, so they are silently ignored.
+#
+# This ServiceMonitor is committed in the monitoring namespace (where
+# Prometheus expects them) with the required label, bridging that gap.
+#
+# Metrics: ceph_cluster_*, ceph_pool_*, ceph_osd_*, ceph_mon_*, ceph_pg_*, etc.
+# Dashboards: ceph-cluster-dashboard.yaml, ceph-osd-dashboard.yaml,
+#   ceph-pools-dashboard.yaml (all loaded via the Grafana sidecar).
+#
+# Source: https://rook.io/docs/rook/latest/Storage-Configuration/Monitoring/ceph-monitoring/
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: rook-ceph-mgr
+  namespace: monitoring
+  labels:
+    # Required: Prometheus in kube-prometheus-stack only picks up ServiceMonitors
+    # that match its serviceMonitorSelector: {release: kube-prometheus-stack}
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - rook-ceph
+  selector:
+    matchLabels:
+      app: rook-ceph-mgr
+  endpoints:
+    - port: http-metrics
+      interval: 30s
+      path: /metrics

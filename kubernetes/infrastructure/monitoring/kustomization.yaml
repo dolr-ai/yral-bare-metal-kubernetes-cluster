@@ -10,7 +10,11 @@ resources:
   - flux-podmonitor.yaml
   - kafka-connect-podmonitor.yaml
   - kafka-exporter-servicemonitor.yaml
+  - rook-ceph-servicemonitor.yaml
   - kafka-pipeline-dashboard.yaml
+  - ceph-cluster-dashboard.yaml
+  - ceph-osd-dashboard.yaml
+  - ceph-pools-dashboard.yaml
   # Alerting: Google Chat notifications for resource saturation events.
   - alerting-google-chat-secret.sops.yaml
   - alerting-contact-point.yaml

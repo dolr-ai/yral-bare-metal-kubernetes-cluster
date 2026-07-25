@@ -3,7 +3,6 @@ kind: Kustomization
 resources:
   - hubble-ui.yaml
   - grafana.yaml
-  - ceph-dashboard.yaml
   - headlamp.yaml
   - snowplow-collector.yaml
   - dashboard.yaml

@@ -9,8 +9,6 @@ resources:
   - service-hubble-ui.yaml
   - deployment-grafana.yaml
   - service-grafana.yaml
-  - deployment-ceph-dashboard.yaml
-  - service-ceph-dashboard.yaml
   - deployment-headlamp.yaml
   - service-headlamp.yaml
   - deployment-dashboard.yaml
