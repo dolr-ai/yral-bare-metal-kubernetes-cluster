@@ -7,16 +7,6 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
-    ffmpeg \
-    libavutil-dev \
-    libavformat-dev \
-    libavfilter-dev \
-    libavdevice-dev \
-    libavcodec-dev \
-    libswscale-dev \
-    libswresample-dev \
-    libblas-dev \
-    liblapack-dev \
     unzip \
     wget
 

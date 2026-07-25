@@ -3,7 +3,6 @@ use crate::consts::YRAL_METADATA_URL;
 use crate::events::push_notifications::NotificationClient;
 use crate::kvrocks::KvrocksClient;
 use crate::rewards::RewardsModule;
-use crate::scratchpad::ScratchpadClient;
 use crate::types::RedisPool;
 use crate::utils::naitik_multi_service_client::NaitikMultiServiceClient;
 use crate::yral_auth::dragonfly::{
@@ -27,8 +26,6 @@ pub struct AppState {
     pub agent: ic_agent::Agent,
     pub yral_metadata_client: MetadataClient<true>,
     pub auth: Authenticator<HttpsConnector<HttpConnector>>,
-    /// Google Chat App authenticator (for sending messages with interactive buttons)
-    pub gchat_auth: Authenticator<HttpsConnector<HttpConnector>>,
 
     pub notification_client: NotificationClient,
     pub yral_auth_dragonfly: Arc<DragonflyPool>,
@@ -39,7 +36,6 @@ pub struct AppState {
     pub config: AppConfig,
     pub user_migration_api_key: String,
     pub kvrocks_client: KvrocksClient,
-    pub scratchpad_client: ScratchpadClient,
 
     pub naitik_multi_service_client: NaitikMultiServiceClient,
 }
@@ -61,14 +57,12 @@ impl AppState {
         }
 
         let kvrocks_client = init_kvrocks_client().await;
-        let scratchpad_client = init_scratchpad_client().await;
 
         AppState {
             admin_identity: init_identity(),
             yral_metadata_client: init_yral_metadata_client(&app_config),
             agent,
             auth: init_auth().await,
-            gchat_auth: init_gchat_auth().await,
             notification_client: NotificationClient::new(
                 env::var("YRAL_METADATA_NOTIFICATION_API_KEY").unwrap_or_default(),
             ),
@@ -82,7 +76,6 @@ impl AppState {
             user_migration_api_key: env::var("YRAL_OFF_CHAIN_USER_MIGRATION_API_KEY")
                 .expect("YRAL_OFF_CHAIN_USER_MIGRATION_API_KEY is not set"),
             kvrocks_client,
-            scratchpad_client,
             naitik_multi_service_client: NaitikMultiServiceClient::new(),
         }
     }
@@ -94,20 +87,6 @@ impl AppState {
         match token.token() {
             Some(t) => t.to_string(),
             _ => panic!("No access token found"),
-        }
-    }
-
-    /// Get access token for Google Chat API using the yral-mobile service account
-    pub async fn get_gchat_access_token(&self) -> String {
-        let auth = &self.gchat_auth;
-        let token = auth
-            .token(&["https://www.googleapis.com/auth/chat.bot"])
-            .await
-            .expect("Failed to get Google Chat access token");
-
-        match token.token() {
-            Some(t) => t.to_string(),
-            _ => panic!("No Google Chat access token found"),
         }
     }
 
@@ -179,21 +158,6 @@ pub async fn init_auth() -> Authenticator<HttpsConnector<HttpConnector>> {
         .unwrap()
 }
 
-/// Initialize Google Chat App authenticator using YRAL_MOBILE_SERVICE_ACCOUNT_KEY
-/// This is needed to send messages as the Chat App (so interactive buttons work)
-pub async fn init_gchat_auth() -> Authenticator<HttpsConnector<HttpConnector>> {
-    let sa_key_file = env::var("YRAL_MOBILE_SERVICE_ACCOUNT_KEY")
-        .expect("YRAL_MOBILE_SERVICE_ACCOUNT_KEY is required");
-
-    let sa_key = yup_oauth2::parse_service_account_key(sa_key_file)
-        .expect("Invalid YRAL_MOBILE_SERVICE_ACCOUNT_KEY");
-
-    ServiceAccountAuthenticator::builder(sa_key)
-        .build()
-        .await
-        .expect("Failed to build Google Chat authenticator")
-}
-
 async fn init_leaderboard_redis_pool() -> RedisPool {
     let redis_url =
         std::env::var("LEADERBOARD_REDIS_URL").expect("Either LEADERBOARD_REDIS_URL must be set");
@@ -246,10 +210,4 @@ async fn init_kvrocks_client() -> KvrocksClient {
             }
         }
     }
-}
-
-async fn init_scratchpad_client() -> ScratchpadClient {
-    crate::scratchpad::init_scratchpad_client()
-        .await
-        .expect("Failed to connect to scratchpad Dragonfly - this is required for the application to function")
 }

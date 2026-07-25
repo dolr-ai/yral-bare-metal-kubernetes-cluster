@@ -117,10 +117,6 @@ async fn process_event_impl(
     event: Event,
     shared_state: Arc<AppState>,
 ) -> Result<(), anyhow::Error> {
-    event
-        .check_video_deduplication(&shared_state.clone())
-        .await?;
-
     event.update_view_count_canister(&shared_state.clone());
 
     // #[cfg(not(feature = "local-bin"))]
@@ -157,10 +153,6 @@ async fn process_event_impl_v2(
     event: Event,
     shared_state: Arc<AppState>,
 ) -> Result<(), anyhow::Error> {
-    event
-        .check_video_deduplication(&shared_state.clone())
-        .await?;
-
     event.update_view_count_canister(&shared_state.clone());
 
     // #[cfg(not(feature = "local-bin"))]

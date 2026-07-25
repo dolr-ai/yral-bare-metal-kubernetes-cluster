@@ -5,11 +5,8 @@ use std::{
 };
 
 use config::{Config, ConfigError, Environment, File};
-use once_cell::sync::Lazy;
 use serde::Deserialize;
 use serde_with::serde_as;
-
-use crate::consts::STORJ_INTERFACE_TOKEN;
 
 #[serde_as]
 #[derive(Deserialize, Clone)]
@@ -21,7 +18,6 @@ pub struct AppConfig {
 
 impl AppConfig {
     pub fn load() -> Result<Self, ConfigError> {
-        Lazy::force(&STORJ_INTERFACE_TOKEN);
         // set env var
         let sa_key_file = env::var("GOOGLE_SA_KEY").expect("GOOGLE_SA_KEY");
         env::set_var("SERVICE_ACCOUNT_JSON", sa_key_file.clone());

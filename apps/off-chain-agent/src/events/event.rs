@@ -1,12 +1,9 @@
 use crate::consts::{USER_INFO_SERVICE_CANISTER_ID, USER_POST_SERVICE_CANISTER_ID};
 use crate::events::types::{
     VideoDurationWatchedPayload, VideoDurationWatchedPayloadV2, VideoStartedPayload,
-    VideoUploadSuccessfulPayload,
 };
 use crate::{app_state::AppState, events::WarehouseEvent};
 use log::{debug, error};
-
-pub mod storj;
 
 #[derive(Debug)]
 pub struct Event {
@@ -16,49 +13,6 @@ pub struct Event {
 impl Event {
     pub fn new(event: WarehouseEvent) -> Self {
         Self { event }
-    }
-
-    pub async fn check_video_deduplication(
-        &self,
-        app_state: &AppState,
-    ) -> Result<(), anyhow::Error> {
-        if self.event.event == "video_upload_successful" {
-            let params: Result<VideoUploadSuccessfulPayload, _> =
-                serde_json::from_str(&self.event.params);
-
-            let params = match params {
-                Ok(params) => params,
-                Err(e) => {
-                    error!("Failed to parse video_upload_successful params: {e:?}");
-                    return Err(anyhow::anyhow!(
-                        "failed to parse video_upload_successful params: {e:?}"
-                    ));
-                }
-            };
-
-            let video_processing_pool = app_state.yral_redis_store_dragonfly.clone();
-            let video_id = params.video_id;
-            let post_id = params.post_id.clone();
-            let publisher_user_id = params.publisher_user_id.to_text();
-            let canister_id = Some(params.canister_id.to_text());
-
-            let job = crate::video_processing::worker::new_upload_job(
-                video_id.clone(),
-                publisher_user_id,
-                post_id,
-                canister_id,
-            );
-
-            // Await the durable write so upload processing fails visibly instead of dropping NSFW handoff state.
-            crate::video_processing::queue::enqueue_video_processing_job(
-                &video_processing_pool,
-                job,
-            )
-            .await?;
-            log::info!("Durable video processing job queued for video_id: {video_id}");
-        }
-
-        Ok(())
     }
 
     // TODO: canister_id being used

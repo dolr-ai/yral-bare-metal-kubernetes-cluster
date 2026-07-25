@@ -6,20 +6,15 @@ use std::sync::Arc;
 use anyhow::Result;
 use axum::extract::DefaultBodyLimit;
 use axum::http::StatusCode;
-use axum::routing::post;
 use axum::{routing::get, Router};
 use canister::canister_health_handler;
 use config::AppConfig;
-use events::event::storj::enqueue_storj_backfill_item;
-use offchain_service::report_approved_handler;
 use tower::make::Shared;
 use tower_http::cors::CorsLayer;
 use tracing::instrument;
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::SwaggerUi;
-
-use error::*;
 
 mod app_state;
 mod auth;
@@ -31,15 +26,11 @@ mod events;
 pub mod kvrocks;
 pub mod leaderboard;
 mod middleware;
-mod offchain_service;
-pub mod pipeline;
 mod posts;
 mod rewards;
-pub mod scratchpad;
 mod types;
 pub mod user;
 pub mod utils;
-mod video_processing;
 pub mod yral_auth;
 
 use app_state::AppState;
@@ -56,7 +47,6 @@ async fn main_impl() -> Result<()> {
     let conf = AppConfig::load()?;
 
     let shared_state = Arc::new(AppState::new(conf.clone()).await);
-    video_processing::worker::spawn_worker(shared_state.clone())?;
 
     let router = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .nest("/api/v1/posts", posts::posts_router(shared_state.clone()))
@@ -91,11 +81,6 @@ async fn main_impl() -> Result<()> {
     let http = Router::new()
         .route("/healthz", get(health_handler))
         .route("/canister-health", get(canister_health_handler))
-        .route("/report-approved", post(report_approved_handler))
-        .route(
-            "/enqueue_storj_backfill_item",
-            post(enqueue_storj_backfill_item),
-        )
         .fallback_service(router)
         .layer(DefaultBodyLimit::max(50 * 1024 * 1024)) // 50MB limit
         .layer(CorsLayer::permissive())
