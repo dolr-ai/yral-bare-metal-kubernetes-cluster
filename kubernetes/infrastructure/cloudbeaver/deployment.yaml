@@ -47,7 +47,7 @@ spec:
               readOnly: true
       containers:
         - name: cloudbeaver
-          image: dbeaver/cloudbeaver:26.0.3
+          image: dbeaver/cloudbeaver:26.1.3
           ports:
             - containerPort: 8978
               name: http
