@@ -347,7 +347,7 @@ spec:
         spec:
           containers:
             - name: clickhouse
-              image: clickhouse/clickhouse-server:26.2.5.45
+              image: clickhouse/clickhouse-server:26.7.1.1315
               env:
                 - name: KAFKA_SASL_PASSWORD
                   valueFrom:
