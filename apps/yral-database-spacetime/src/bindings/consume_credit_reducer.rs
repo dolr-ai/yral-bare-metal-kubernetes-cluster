@@ -6,57 +6,46 @@ use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
-pub(super) struct IncrementRateLimitArgs {
+pub(super) struct ConsumeCreditArgs {
     pub principal: String,
-    pub property: String,
-    pub is_registered: bool,
 }
 
-impl From<IncrementRateLimitArgs> for super::Reducer {
-    fn from(args: IncrementRateLimitArgs) -> Self {
-        Self::IncrementRateLimit {
+impl From<ConsumeCreditArgs> for super::Reducer {
+    fn from(args: ConsumeCreditArgs) -> Self {
+        Self::ConsumeCredit {
             principal: args.principal,
-            property: args.property,
-            is_registered: args.is_registered,
         }
     }
 }
 
-impl __sdk::InModule for IncrementRateLimitArgs {
+impl __sdk::InModule for ConsumeCreditArgs {
     type Module = super::RemoteModule;
 }
 
 #[allow(non_camel_case_types)]
-/// Extension trait for access to the reducer `increment_rate_limit`.
+/// Extension trait for access to the reducer `consume_credit`.
 ///
 /// Implemented for [`super::RemoteReducers`].
-pub trait increment_rate_limit {
-    /// Request that the remote module invoke the reducer `increment_rate_limit` to run as soon as possible.
+pub trait consume_credit {
+    /// Request that the remote module invoke the reducer `consume_credit` to run as soon as possible.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
-    /// /// Use [`increment_rate_limit:increment_rate_limit_then`] to run a callback after the reducer completes.
-    fn increment_rate_limit(
-        &self,
-        principal: String,
-        property: String,
-        is_registered: bool,
-    ) -> __sdk::Result<()> {
-        self.increment_rate_limit_then(principal, property, is_registered, |_, _| {})
+    /// /// Use [`consume_credit:consume_credit_then`] to run a callback after the reducer completes.
+    fn consume_credit(&self, principal: String) -> __sdk::Result<()> {
+        self.consume_credit_then(principal, |_, _| {})
     }
 
-    /// Request that the remote module invoke the reducer `increment_rate_limit` to run as soon as possible,
+    /// Request that the remote module invoke the reducer `consume_credit` to run as soon as possible,
     /// registering `callback` to run when we are notified that the reducer completed.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and its status can be observed with the `callback`.
-    fn increment_rate_limit_then(
+    fn consume_credit_then(
         &self,
         principal: String,
-        property: String,
-        is_registered: bool,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -64,24 +53,16 @@ pub trait increment_rate_limit {
     ) -> __sdk::Result<()>;
 }
 
-impl increment_rate_limit for super::RemoteReducers {
-    fn increment_rate_limit_then(
+impl consume_credit for super::RemoteReducers {
+    fn consume_credit_then(
         &self,
         principal: String,
-        property: String,
-        is_registered: bool,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
             + 'static,
     ) -> __sdk::Result<()> {
-        self.imp.invoke_reducer_with_callback(
-            IncrementRateLimitArgs {
-                principal,
-                property,
-                is_registered,
-            },
-            callback,
-        )
+        self.imp
+            .invoke_reducer_with_callback(ConsumeCreditArgs { principal }, callback)
     }
 }

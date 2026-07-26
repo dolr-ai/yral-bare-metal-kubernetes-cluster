@@ -10,8 +10,6 @@ use super::rate_limit_response_type::RateLimitResponse;
 #[sats(crate = __lib)]
 struct GetRateLimitArgs {
     pub principal: String,
-    pub property: String,
-    pub is_registered: bool,
 }
 
 impl __sdk::InModule for GetRateLimitArgs {
@@ -23,15 +21,13 @@ impl __sdk::InModule for GetRateLimitArgs {
 ///
 /// Implemented for [`super::RemoteProcedures`].
 pub trait get_rate_limit {
-    fn get_rate_limit(&self, principal: String, property: String, is_registered: bool) {
-        self.get_rate_limit_then(principal, property, is_registered, |_, _| {});
+    fn get_rate_limit(&self, principal: String) {
+        self.get_rate_limit_then(principal, |_, _| {});
     }
 
     fn get_rate_limit_then(
         &self,
         principal: String,
-        property: String,
-        is_registered: bool,
 
         __callback: impl FnOnce(&super::ProcedureEventContext, Result<RateLimitResponse, __sdk::InternalError>)
             + Send
@@ -43,8 +39,6 @@ impl get_rate_limit for super::RemoteProcedures {
     fn get_rate_limit_then(
         &self,
         principal: String,
-        property: String,
-        is_registered: bool,
 
         __callback: impl FnOnce(&super::ProcedureEventContext, Result<RateLimitResponse, __sdk::InternalError>)
             + Send
@@ -53,11 +47,7 @@ impl get_rate_limit for super::RemoteProcedures {
         self.imp
             .invoke_procedure_with_callback::<_, RateLimitResponse>(
                 "get_rate_limit",
-                GetRateLimitArgs {
-                    principal,
-                    property,
-                    is_registered,
-                },
+                GetRateLimitArgs { principal },
                 __callback,
             );
     }

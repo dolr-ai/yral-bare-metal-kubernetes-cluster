@@ -95,32 +95,32 @@ impl<'ctx> __sdk::TableWithPrimaryKey for RateLimitTableHandle<'ctx> {
     }
 }
 
-/// Access to the `id` unique index on the table `rate_limit`,
+/// Access to the `principal` unique index on the table `rate_limit`,
 /// which allows point queries on the field of the same name
-/// via the [`RateLimitIdUnique::find`] method.
+/// via the [`RateLimitPrincipalUnique::find`] method.
 ///
 /// Users are encouraged not to explicitly reference this type,
 /// but to directly chain method calls,
-/// like `ctx.db.rate_limit().id().find(...)`.
-pub struct RateLimitIdUnique<'ctx> {
-    imp: __sdk::UniqueConstraintHandle<RateLimit, u64>,
+/// like `ctx.db.rate_limit().principal().find(...)`.
+pub struct RateLimitPrincipalUnique<'ctx> {
+    imp: __sdk::UniqueConstraintHandle<RateLimit, String>,
     phantom: std::marker::PhantomData<&'ctx super::RemoteTables>,
 }
 
 impl<'ctx> RateLimitTableHandle<'ctx> {
-    /// Get a handle on the `id` unique index on the table `rate_limit`.
-    pub fn id(&self) -> RateLimitIdUnique<'ctx> {
-        RateLimitIdUnique {
-            imp: self.imp.get_unique_constraint::<u64>("id"),
+    /// Get a handle on the `principal` unique index on the table `rate_limit`.
+    pub fn principal(&self) -> RateLimitPrincipalUnique<'ctx> {
+        RateLimitPrincipalUnique {
+            imp: self.imp.get_unique_constraint::<String>("principal"),
             phantom: std::marker::PhantomData,
         }
     }
 }
 
-impl<'ctx> RateLimitIdUnique<'ctx> {
-    /// Find the subscribed row whose `id` column value is equal to `col_val`,
+impl<'ctx> RateLimitPrincipalUnique<'ctx> {
+    /// Find the subscribed row whose `principal` column value is equal to `col_val`,
     /// if such a row is present in the client cache.
-    pub fn find(&self, col_val: &u64) -> Option<RateLimit> {
+    pub fn find(&self, col_val: &String) -> Option<RateLimit> {
         self.imp.find(col_val)
     }
 }
@@ -128,7 +128,7 @@ impl<'ctx> RateLimitIdUnique<'ctx> {
 #[doc(hidden)]
 pub(super) fn register_table(client_cache: &mut __sdk::ClientCache<super::RemoteModule>) {
     let _table = client_cache.get_or_make_table::<RateLimit>("rate_limit");
-    _table.add_unique_constraint::<u64>("id", |row| &row.id);
+    _table.add_unique_constraint::<String>("principal", |row| &row.principal);
 }
 
 #[doc(hidden)]

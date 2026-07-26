@@ -1,55 +1,72 @@
 [workspace]
 resolver = "3"
 members = [
-    "apps/task-runner",
-    "apps/yral-common/alloydb-client",
-    "apps/yral-common/canisters-client",
-    "apps/yral-common/canisters-common",
-    "apps/yral-common/config-cf-kv",
-    "apps/yral-common/config-cf-kv-worker",
-    "apps/yral-common/config-keys",
-    "apps/yral-common/identity",
-    "apps/yral-common/metrics",
-    "apps/yral-common/pump-n-dump-common",
-    "apps/yral-common/qstash-types",
-    "apps/yral-common/sns-validation",
-    "apps/yral-common/types",
-    "apps/yral-common/username-gen",
-    "apps/yral-database-spacetime",
+  "apps/task-runner",
+  "apps/yral-common/alloydb-client",
+  "apps/yral-common/canisters-client",
+  "apps/yral-common/canisters-common",
+  "apps/yral-common/config-cf-kv",
+  "apps/yral-common/config-cf-kv-worker",
+  "apps/yral-common/config-keys",
+  "apps/yral-common/identity",
+  "apps/yral-common/metrics",
+  "apps/yral-common/pump-n-dump-common",
+  "apps/yral-common/qstash-types",
+  "apps/yral-common/sns-validation",
+  "apps/yral-common/types",
+  "apps/yral-common/username-gen",
+  "apps/yral-database-spacetime",
 ]
 
 # All apps under apps/ are independent Cargo workspaces (not members of this root workspace).
 # Submodules: apps/website, apps/yral, apps/yral-backend-canister, apps/yral-mobile
 # Native dirs: apps/yral-auth, apps/yral-legacy, apps/yral-metadata, apps/off-chain-agent
 exclude = [
-    "apps/off-chain-agent",
-    "apps/website",
-    "apps/yral",
-    "apps/yral-auth",
-    "apps/yral-backend-canister",
-    "apps/yral-legacy",
-    "apps/yral-metadata",
-    "apps/yral-mobile",
+  "apps/off-chain-agent",
+  "apps/website",
+  "apps/yral",
+  "apps/yral-auth",
+  "apps/yral-backend-canister",
+  "apps/yral-legacy",
+  "apps/yral-metadata",
+  "apps/yral-mobile",
 ]
 
 [workspace.dependencies]
 anyhow = "1.0.103"
 async-trait = "0.1"
-canisters-client = { package = "yral-canisters-client", path = "apps/yral-common/canisters-client" }
 candid = "0.10.20"
+canisters-client = {
+  package = "yral-canisters-client",
+  path = "apps/yral-common/canisters-client"
+}
 enum_dispatch = "0.3"
 futures-util = "0.3.31"
-global-constants = { package = "global-constants", path = "apps/yral-common/global-constants" }
+global-constants = {
+  package = "global-constants",
+  path = "apps/yral-common/global-constants"
+}
 hex = "0.4.3"
-hon-worker-common = { package = "hon-worker-common", path = "apps/yral-common/hon-worker-common", features = [
+hon-worker-common = {
+  package = "hon-worker-common",
+  path = "apps/yral-common/hon-worker-common",
+  features = [
     "client",
-] }
+  ]
+}
 ic-agent = { version = "0.49.0", default-features = false }
-identity = { package = "yral-identity", path = "apps/yral-common/identity", default-features = false }
+identity = {
+  package = "yral-identity",
+  path = "apps/yral-common/identity",
+  default-features = false
+}
 k256 = { version = "0.13.4", default-features = false, features = ["jwk"] }
 log = "0.4.33"
 num-bigint = "0.4.6"
-pump-n-dump-common = { package = "yral-pump-n-dump-common", path = "apps/yral-common/pump-n-dump-common" }
+pump-n-dump-common = {
+  package = "yral-pump-n-dump-common",
+  path = "apps/yral-common/pump-n-dump-common"
+}
 reqwest = "0.13.4"
 serde = { version = "1.0.210", features = ["derive"] }
 serde_bytes = "0.11.15"
@@ -61,8 +78,14 @@ thiserror = "2.0.3"
 trait-variant = "0.1.2"
 types = { package = "yral-types", path = "apps/yral-common/types" }
 url = "2.5.4"
-username-gen = { package = "yral-username-gen", path = "apps/yral-common/username-gen" }
+username-gen = {
+  package = "yral-username-gen",
+  path = "apps/yral-common/username-gen"
+}
 uuid = { version = "1.11.0", features = ["serde"] }
 web-time = "1.0.0"
-yral-canisters-common = { package = "yral-canisters-common", path = "apps/yral-common/canisters-common" }
+yral-canisters-common = {
+  package = "yral-canisters-common",
+  path = "apps/yral-common/canisters-common"
+}
 yral-metrics = { package = "yral-metrics", path = "apps/yral-common/metrics" }

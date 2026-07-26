@@ -10,8 +10,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 log = { workspace = true }
-# `unstable` enables `#[spacetimedb::procedure]` (the read path for the mobile
-# app via REST `POST /v1/database/{db}/call/:name`). Procedures are
-# unstable-gated in spacetimedb 2.6.1; the ungate PR #5164 postdates the 2.6
-# line. The Maincloud 2.6.1 host already routes `CallProcedure` correctly.
-spacetimedb = { workspace = true, features = ["unstable"] }
+# `features = ["unstable"]` enables `#[spacetimedb::procedure]` and
+# `#[spacetimedb::http::handler]` (unstable-gated in spacetimedb 2.6.1).
+# Add it back when a feature needs procedures or HTTP handlers.
+spacetimedb = { workspace = true }

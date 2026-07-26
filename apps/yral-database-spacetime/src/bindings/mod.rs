@@ -6,49 +6,21 @@
 #![allow(unused, clippy::all)]
 use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
-pub mod create_video_gen_request_reducer;
-pub mod decrement_rate_limit_paid_property_only_reducer;
-pub mod decrement_rate_limit_paid_reducer;
-pub mod decrement_rate_limit_reducer;
+pub mod consume_credit_reducer;
 pub mod get_rate_limit_procedure;
 pub mod get_videogen_config_procedure;
-pub mod increment_rate_limit_paid_reducer;
-pub mod increment_rate_limit_reducer;
-pub mod property_rate_limit_table;
-pub mod property_rate_limit_type;
 pub mod rate_limit_response_type;
 pub mod rate_limit_table;
 pub mod rate_limit_type;
-pub mod token_type_type;
-pub mod update_video_gen_status_reducer;
-pub mod user_request_counter_table;
-pub mod user_request_counter_type;
-pub mod video_gen_request_status_type;
-pub mod video_gen_request_table;
-pub mod video_gen_request_type;
-pub mod videogen_config_response_type;
+pub mod refund_credit_reducer;
 
-pub use create_video_gen_request_reducer::create_video_gen_request;
-pub use decrement_rate_limit_paid_property_only_reducer::decrement_rate_limit_paid_property_only;
-pub use decrement_rate_limit_paid_reducer::decrement_rate_limit_paid;
-pub use decrement_rate_limit_reducer::decrement_rate_limit;
+pub use consume_credit_reducer::consume_credit;
 pub use get_rate_limit_procedure::get_rate_limit;
 pub use get_videogen_config_procedure::get_videogen_config;
-pub use increment_rate_limit_paid_reducer::increment_rate_limit_paid;
-pub use increment_rate_limit_reducer::increment_rate_limit;
-pub use property_rate_limit_table::*;
-pub use property_rate_limit_type::PropertyRateLimit;
 pub use rate_limit_response_type::RateLimitResponse;
 pub use rate_limit_table::*;
 pub use rate_limit_type::RateLimit;
-pub use token_type_type::TokenType;
-pub use update_video_gen_status_reducer::update_video_gen_status;
-pub use user_request_counter_table::*;
-pub use user_request_counter_type::UserRequestCounter;
-pub use video_gen_request_status_type::VideoGenRequestStatus;
-pub use video_gen_request_table::*;
-pub use video_gen_request_type::VideoGenRequest;
-pub use videogen_config_response_type::VideogenConfigResponse;
+pub use refund_credit_reducer::refund_credit;
 
 #[derive(Clone, PartialEq, Debug)]
 
@@ -58,44 +30,8 @@ pub use videogen_config_response_type::VideogenConfigResponse;
 /// to indicate which reducer caused the event.
 
 pub enum Reducer {
-    CreateVideoGenRequest {
-        principal: String,
-        model_name: String,
-        prompt: String,
-        property: String,
-        token_type: TokenType,
-        is_registered: bool,
-        is_paid: bool,
-        payment_amount: Option<String>,
-    },
-    DecrementRateLimit {
-        principal: String,
-        property: String,
-    },
-    DecrementRateLimitPaid {
-        principal: String,
-        property: String,
-    },
-    DecrementRateLimitPaidPropertyOnly {
-        property: String,
-    },
-    IncrementRateLimit {
-        principal: String,
-        property: String,
-        is_registered: bool,
-    },
-    IncrementRateLimitPaid {
-        principal: String,
-        property: String,
-        is_registered: bool,
-        is_paid: bool,
-        payment_amount: Option<String>,
-    },
-    UpdateVideoGenStatus {
-        principal: String,
-        counter: u64,
-        status: VideoGenRequestStatus,
-    },
+    ConsumeCredit { principal: String },
+    RefundCredit { principal: String },
 }
 
 impl __sdk::InModule for Reducer {
@@ -105,92 +41,26 @@ impl __sdk::InModule for Reducer {
 impl __sdk::Reducer for Reducer {
     fn reducer_name(&self) -> &'static str {
         match self {
-            Reducer::CreateVideoGenRequest { .. } => "create_video_gen_request",
-            Reducer::DecrementRateLimit { .. } => "decrement_rate_limit",
-            Reducer::DecrementRateLimitPaid { .. } => "decrement_rate_limit_paid",
-            Reducer::DecrementRateLimitPaidPropertyOnly { .. } => {
-                "decrement_rate_limit_paid_property_only"
-            }
-            Reducer::IncrementRateLimit { .. } => "increment_rate_limit",
-            Reducer::IncrementRateLimitPaid { .. } => "increment_rate_limit_paid",
-            Reducer::UpdateVideoGenStatus { .. } => "update_video_gen_status",
+            Reducer::ConsumeCredit { .. } => "consume_credit",
+            Reducer::RefundCredit { .. } => "refund_credit",
             _ => unreachable!(),
         }
     }
     #[allow(clippy::clone_on_copy)]
     fn args_bsatn(&self) -> Result<Vec<u8>, __sats::bsatn::EncodeError> {
         match self {
-                        Reducer::CreateVideoGenRequest{
-                principal,
-                model_name,
-                prompt,
-                property,
-                token_type,
-                is_registered,
-                is_paid,
-                payment_amount,
-}             => __sats::bsatn::to_vec(&create_video_gen_request_reducer::CreateVideoGenRequestArgs {
-                principal: principal.clone(),
-                model_name: model_name.clone(),
-                prompt: prompt.clone(),
-                property: property.clone(),
-                token_type: token_type.clone(),
-                is_registered: is_registered.clone(),
-                is_paid: is_paid.clone(),
-                payment_amount: payment_amount.clone(),
-}),
-            Reducer::DecrementRateLimit{
-                principal,
-                property,
-}             => __sats::bsatn::to_vec(&decrement_rate_limit_reducer::DecrementRateLimitArgs {
-                principal: principal.clone(),
-                property: property.clone(),
-}),
-            Reducer::DecrementRateLimitPaid{
-                principal,
-                property,
-}             => __sats::bsatn::to_vec(&decrement_rate_limit_paid_reducer::DecrementRateLimitPaidArgs {
-                principal: principal.clone(),
-                property: property.clone(),
-}),
-            Reducer::DecrementRateLimitPaidPropertyOnly{
-                property,
-}             => __sats::bsatn::to_vec(&decrement_rate_limit_paid_property_only_reducer::DecrementRateLimitPaidPropertyOnlyArgs {
-                property: property.clone(),
-}),
-            Reducer::IncrementRateLimit{
-                principal,
-                property,
-                is_registered,
-}             => __sats::bsatn::to_vec(&increment_rate_limit_reducer::IncrementRateLimitArgs {
-                principal: principal.clone(),
-                property: property.clone(),
-                is_registered: is_registered.clone(),
-}),
-            Reducer::IncrementRateLimitPaid{
-                principal,
-                property,
-                is_registered,
-                is_paid,
-                payment_amount,
-}             => __sats::bsatn::to_vec(&increment_rate_limit_paid_reducer::IncrementRateLimitPaidArgs {
-                principal: principal.clone(),
-                property: property.clone(),
-                is_registered: is_registered.clone(),
-                is_paid: is_paid.clone(),
-                payment_amount: payment_amount.clone(),
-}),
-            Reducer::UpdateVideoGenStatus{
-                principal,
-                counter,
-                status,
-}             => __sats::bsatn::to_vec(&update_video_gen_status_reducer::UpdateVideoGenStatusArgs {
-                principal: principal.clone(),
-                counter: counter.clone(),
-                status: status.clone(),
-}),
+            Reducer::ConsumeCredit { principal } => {
+                __sats::bsatn::to_vec(&consume_credit_reducer::ConsumeCreditArgs {
+                    principal: principal.clone(),
+                })
+            }
+            Reducer::RefundCredit { principal } => {
+                __sats::bsatn::to_vec(&refund_credit_reducer::RefundCreditArgs {
+                    principal: principal.clone(),
+                })
+            }
             _ => unreachable!(),
-}
+        }
     }
 }
 
@@ -198,10 +68,7 @@ impl __sdk::Reducer for Reducer {
 #[allow(non_snake_case)]
 #[doc(hidden)]
 pub struct DbUpdate {
-    property_rate_limit: __sdk::TableUpdate<PropertyRateLimit>,
     rate_limit: __sdk::TableUpdate<RateLimit>,
-    user_request_counter: __sdk::TableUpdate<UserRequestCounter>,
-    video_gen_request: __sdk::TableUpdate<VideoGenRequest>,
 }
 
 impl TryFrom<__ws::v2::TransactionUpdate> for DbUpdate {
@@ -210,18 +77,9 @@ impl TryFrom<__ws::v2::TransactionUpdate> for DbUpdate {
         let mut db_update = DbUpdate::default();
         for table_update in __sdk::transaction_update_iter_table_updates(raw) {
             match &table_update.table_name[..] {
-                "property_rate_limit" => db_update
-                    .property_rate_limit
-                    .append(property_rate_limit_table::parse_table_update(table_update)?),
                 "rate_limit" => db_update
                     .rate_limit
                     .append(rate_limit_table::parse_table_update(table_update)?),
-                "user_request_counter" => db_update.user_request_counter.append(
-                    user_request_counter_table::parse_table_update(table_update)?,
-                ),
-                "video_gen_request" => db_update
-                    .video_gen_request
-                    .append(video_gen_request_table::parse_table_update(table_update)?),
 
                 unknown => {
                     return Err(__sdk::InternalError::unknown_name(
@@ -248,24 +106,9 @@ impl __sdk::DbUpdate for DbUpdate {
     ) -> AppliedDiff<'_> {
         let mut diff = AppliedDiff::default();
 
-        diff.property_rate_limit = cache
-            .apply_diff_to_table::<PropertyRateLimit>(
-                "property_rate_limit",
-                &self.property_rate_limit,
-            )
-            .with_updates_by_pk(|row| &row.id);
         diff.rate_limit = cache
             .apply_diff_to_table::<RateLimit>("rate_limit", &self.rate_limit)
-            .with_updates_by_pk(|row| &row.id);
-        diff.user_request_counter = cache
-            .apply_diff_to_table::<UserRequestCounter>(
-                "user_request_counter",
-                &self.user_request_counter,
-            )
-            .with_updates_by_pk(|row| &row.id);
-        diff.video_gen_request = cache
-            .apply_diff_to_table::<VideoGenRequest>("video_gen_request", &self.video_gen_request)
-            .with_updates_by_pk(|row| &row.id);
+            .with_updates_by_pk(|row| &row.principal);
 
         diff
     }
@@ -273,17 +116,8 @@ impl __sdk::DbUpdate for DbUpdate {
         let mut db_update = DbUpdate::default();
         for table_rows in raw.tables {
             match &table_rows.table[..] {
-                "property_rate_limit" => db_update
-                    .property_rate_limit
-                    .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
                 "rate_limit" => db_update
                     .rate_limit
-                    .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
-                "user_request_counter" => db_update
-                    .user_request_counter
-                    .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
-                "video_gen_request" => db_update
-                    .video_gen_request
                     .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
                 unknown => {
                     return Err(
@@ -298,17 +132,8 @@ impl __sdk::DbUpdate for DbUpdate {
         let mut db_update = DbUpdate::default();
         for table_rows in raw.tables {
             match &table_rows.table[..] {
-                "property_rate_limit" => db_update
-                    .property_rate_limit
-                    .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
                 "rate_limit" => db_update
                     .rate_limit
-                    .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
-                "user_request_counter" => db_update
-                    .user_request_counter
-                    .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
-                "video_gen_request" => db_update
-                    .video_gen_request
                     .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
                 unknown => {
                     return Err(
@@ -325,10 +150,7 @@ impl __sdk::DbUpdate for DbUpdate {
 #[allow(non_snake_case)]
 #[doc(hidden)]
 pub struct AppliedDiff<'r> {
-    property_rate_limit: __sdk::TableAppliedDiff<'r, PropertyRateLimit>,
     rate_limit: __sdk::TableAppliedDiff<'r, RateLimit>,
-    user_request_counter: __sdk::TableAppliedDiff<'r, UserRequestCounter>,
-    video_gen_request: __sdk::TableAppliedDiff<'r, VideoGenRequest>,
     __unused: std::marker::PhantomData<&'r ()>,
 }
 
@@ -342,22 +164,7 @@ impl<'r> __sdk::AppliedDiff<'r> for AppliedDiff<'r> {
         event: &EventContext,
         callbacks: &mut __sdk::DbCallbacks<RemoteModule>,
     ) {
-        callbacks.invoke_table_row_callbacks::<PropertyRateLimit>(
-            "property_rate_limit",
-            &self.property_rate_limit,
-            event,
-        );
         callbacks.invoke_table_row_callbacks::<RateLimit>("rate_limit", &self.rate_limit, event);
-        callbacks.invoke_table_row_callbacks::<UserRequestCounter>(
-            "user_request_counter",
-            &self.user_request_counter,
-            event,
-        );
-        callbacks.invoke_table_row_callbacks::<VideoGenRequest>(
-            "video_gen_request",
-            &self.video_gen_request,
-            event,
-        );
     }
 }
 
@@ -1018,15 +825,7 @@ impl __sdk::SpacetimeModule for RemoteModule {
     type QueryBuilder = __sdk::QueryBuilder;
 
     fn register_tables(client_cache: &mut __sdk::ClientCache<Self>) {
-        property_rate_limit_table::register_table(client_cache);
         rate_limit_table::register_table(client_cache);
-        user_request_counter_table::register_table(client_cache);
-        video_gen_request_table::register_table(client_cache);
     }
-    const ALL_TABLE_NAMES: &'static [&'static str] = &[
-        "property_rate_limit",
-        "rate_limit",
-        "user_request_counter",
-        "video_gen_request",
-    ];
+    const ALL_TABLE_NAMES: &'static [&'static str] = &["rate_limit"];
 }

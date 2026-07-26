@@ -203,21 +203,17 @@ This ensures `mise bootstrap --yes && mise run setup` is the only command needed
 
 ### SpacetimeDB Usage Rules
 **No raw SQL from application code (Hard Rule).** SpacetimeDB supports raw SQL over its REST/WS APIs, but we avoid it in app code to keep data access typed and declarative:
-- **Rust services** interact with a SpacetimeDB database via the **generated `spacetimedb-sdk` bindings** (`spacetime generate` → `src/bindings/`): typed reducer calls (`connection.reducers().foo(args)`), typed procedure calls (`connection.procedures().foo_then(args, |ctx, res| ...)`) with typed `SpacetimeType` returns, and typed table accessors. Never send raw SQL strings from Rust.
+- **Rust services** interact with a SpacetimeDB database via the **generated `spacetimedb-sdk` bindings** (`spacetime generate` → `src/bindings/`): typed reducer calls, typed procedure calls with typed `SpacetimeType` returns, and typed table accessors. Never send raw SQL strings from Rust.
 - **Mobile / non-SDK clients** (no Kotlin/Swift SpacetimeDB SDK exists) call module **procedures** via REST (`POST /v1/database/{db}/call/:name`, JSON array body → typed JSON `SpacetimeType` return). The client never constructs SQL.
 - **CLI `spacetimedb-cli sql` / `spacetimedb-cli call`** is acceptable for imperative debugging/one-off inspection only — never wire it into application code or scripts.
 Rationale: SpacetimeDB REST `/sql` has no bind parameters (only `:sender` for RLS), so interpolating values risks SQL injection and loses type safety. The generated bindings + procedures are the typed, safe paths.
 
-**Procedures vs HTTP handlers vs reducers:**
-- **Reducers** (`#[spacetimedb::reducer]`) — transactional, can't return data to callers (clients read via subscriptions/SQL). Use for all mutations.
-- **Procedures** (`#[spacetimedb::procedure]`, `features = ["unstable"]`) — non-transactional (open explicit `ctx.with_tx`), can return typed `SpacetimeType` values to the caller, `ctx.sender()` available, generated SDK bindings. **Prefer for per-user/typed-return reads** (e.g. fetching a quota). Called via `POST /v1/database/{db}/call/:name` (REST) or `conn.procedures().foo_then(...)` (WS SDK).
+**Procedures vs HTTP handlers vs reducers** (SpacetimeDB module patterns, spacetimedb 2.6.1):
+- **Reducers** (`#[spacetimedb::reducer]`) — transactional, can't return data to callers. Use for all mutations.
+- **Procedures** (`#[spacetimedb::procedure]`, `features = ["unstable"]`) — non-transactional (open explicit `ctx.with_tx`), can return typed `SpacetimeType` values to the caller, `ctx.sender()` available, generated SDK bindings. **Prefer for per-user/typed-return reads.**
 - **HTTP handlers** (`#[spacetimedb::http::handler]` + `#[spacetimedb::http::router]`, `features = ["unstable"]`, exposed at `/v1/database/{db}/route/*path`) — bypass SpacetimeDB auth by design (`sender` is `Identity::ZERO`), arbitrary `http::Response`. **Prefer for truly public/identity-agnostic endpoints** where "no auth" is the feature — webhook receivers, public config dumps, health checks, pre-signed URL issuers.
-Both procedures and HTTP handlers require `features = ["unstable"]` in the module's `Cargo.toml` in spacetimedb 2.6.1.
-
-**Table index macro syntax (spacetimedb 2.x):**
-- Multi-column btree index: `index(accessor = by_x_y, btree(columns = [x, y]))` — `accessor` takes a bare ident (the method name), NOT `name =` (which expects a string literal and only sets the internal SQL name).
-- `#[unique]` on a column auto-creates a unique btree index — no separate `index(...)` needed.
-- The table `accessor = foo` generates a trait `foo` with method `foo()` on `spacetimedb::Local` (what `ctx.db.foo()` calls). Importing `spacetimedb::Table` is required for `.insert()/.iter()/.id().update()`; the per-table accessor traits are auto-in-scope in the same module.
+Both procedures and HTTP handlers require `features = ["unstable"]` in the module's `Cargo.toml` (unstable-gated in spacetimedb 2.6.1).
+Module-specific syntax details (table index macro, accessor traits) belong as comments in the module source, not here.
 
 ### External Service Config & Secrets (SpacetimeDB + general)
 For any external service the repo calls (SpacetimeDB Maincloud, third-party APIs, etc.):

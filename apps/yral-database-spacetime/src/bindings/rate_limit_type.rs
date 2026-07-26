@@ -7,13 +7,9 @@ use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 pub struct RateLimit {
-    pub id: u64,
     pub principal: String,
-    pub property: String,
-    pub request_count: u64,
-    pub window_start: u64,
-    pub config_max: Option<u64>,
-    pub config_window: Option<u64>,
+    pub remaining: u64,
+    pub day_start: __sdk::Timestamp,
 }
 
 impl __sdk::InModule for RateLimit {
@@ -24,26 +20,18 @@ impl __sdk::InModule for RateLimit {
 ///
 /// Provides typed access to columns for query building.
 pub struct RateLimitCols {
-    pub id: __sdk::__query_builder::Col<RateLimit, u64>,
     pub principal: __sdk::__query_builder::Col<RateLimit, String>,
-    pub property: __sdk::__query_builder::Col<RateLimit, String>,
-    pub request_count: __sdk::__query_builder::Col<RateLimit, u64>,
-    pub window_start: __sdk::__query_builder::Col<RateLimit, u64>,
-    pub config_max: __sdk::__query_builder::Col<RateLimit, Option<u64>>,
-    pub config_window: __sdk::__query_builder::Col<RateLimit, Option<u64>>,
+    pub remaining: __sdk::__query_builder::Col<RateLimit, u64>,
+    pub day_start: __sdk::__query_builder::Col<RateLimit, __sdk::Timestamp>,
 }
 
 impl __sdk::__query_builder::HasCols for RateLimit {
     type Cols = RateLimitCols;
     fn cols(table_name: &'static str) -> Self::Cols {
         RateLimitCols {
-            id: __sdk::__query_builder::Col::new(table_name, "id"),
             principal: __sdk::__query_builder::Col::new(table_name, "principal"),
-            property: __sdk::__query_builder::Col::new(table_name, "property"),
-            request_count: __sdk::__query_builder::Col::new(table_name, "request_count"),
-            window_start: __sdk::__query_builder::Col::new(table_name, "window_start"),
-            config_max: __sdk::__query_builder::Col::new(table_name, "config_max"),
-            config_window: __sdk::__query_builder::Col::new(table_name, "config_window"),
+            remaining: __sdk::__query_builder::Col::new(table_name, "remaining"),
+            day_start: __sdk::__query_builder::Col::new(table_name, "day_start"),
         }
     }
 }
@@ -52,14 +40,14 @@ impl __sdk::__query_builder::HasCols for RateLimit {
 ///
 /// Provides typed access to indexed columns for query building.
 pub struct RateLimitIxCols {
-    pub id: __sdk::__query_builder::IxCol<RateLimit, u64>,
+    pub principal: __sdk::__query_builder::IxCol<RateLimit, String>,
 }
 
 impl __sdk::__query_builder::HasIxCols for RateLimit {
     type IxCols = RateLimitIxCols;
     fn ix_cols(table_name: &'static str) -> Self::IxCols {
         RateLimitIxCols {
-            id: __sdk::__query_builder::IxCol::new(table_name, "id"),
+            principal: __sdk::__query_builder::IxCol::new(table_name, "principal"),
         }
     }
 }

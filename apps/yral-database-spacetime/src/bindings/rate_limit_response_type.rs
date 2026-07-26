@@ -7,11 +7,8 @@ use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 pub struct RateLimitResponse {
-    pub request_count: u64,
-    pub window_start: u64,
-    pub window_duration_seconds: u64,
-    pub max_requests_per_window_per_user: u64,
-    pub is_limited: bool,
+    pub remaining: u64,
+    pub limit: u64,
 }
 
 impl __sdk::InModule for RateLimitResponse {

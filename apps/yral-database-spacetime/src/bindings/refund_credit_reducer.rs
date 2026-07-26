@@ -6,49 +6,46 @@ use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
-pub(super) struct DecrementRateLimitPaidArgs {
+pub(super) struct RefundCreditArgs {
     pub principal: String,
-    pub property: String,
 }
 
-impl From<DecrementRateLimitPaidArgs> for super::Reducer {
-    fn from(args: DecrementRateLimitPaidArgs) -> Self {
-        Self::DecrementRateLimitPaid {
+impl From<RefundCreditArgs> for super::Reducer {
+    fn from(args: RefundCreditArgs) -> Self {
+        Self::RefundCredit {
             principal: args.principal,
-            property: args.property,
         }
     }
 }
 
-impl __sdk::InModule for DecrementRateLimitPaidArgs {
+impl __sdk::InModule for RefundCreditArgs {
     type Module = super::RemoteModule;
 }
 
 #[allow(non_camel_case_types)]
-/// Extension trait for access to the reducer `decrement_rate_limit_paid`.
+/// Extension trait for access to the reducer `refund_credit`.
 ///
 /// Implemented for [`super::RemoteReducers`].
-pub trait decrement_rate_limit_paid {
-    /// Request that the remote module invoke the reducer `decrement_rate_limit_paid` to run as soon as possible.
+pub trait refund_credit {
+    /// Request that the remote module invoke the reducer `refund_credit` to run as soon as possible.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
-    /// /// Use [`decrement_rate_limit_paid:decrement_rate_limit_paid_then`] to run a callback after the reducer completes.
-    fn decrement_rate_limit_paid(&self, principal: String, property: String) -> __sdk::Result<()> {
-        self.decrement_rate_limit_paid_then(principal, property, |_, _| {})
+    /// /// Use [`refund_credit:refund_credit_then`] to run a callback after the reducer completes.
+    fn refund_credit(&self, principal: String) -> __sdk::Result<()> {
+        self.refund_credit_then(principal, |_, _| {})
     }
 
-    /// Request that the remote module invoke the reducer `decrement_rate_limit_paid` to run as soon as possible,
+    /// Request that the remote module invoke the reducer `refund_credit` to run as soon as possible,
     /// registering `callback` to run when we are notified that the reducer completed.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and its status can be observed with the `callback`.
-    fn decrement_rate_limit_paid_then(
+    fn refund_credit_then(
         &self,
         principal: String,
-        property: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -56,22 +53,16 @@ pub trait decrement_rate_limit_paid {
     ) -> __sdk::Result<()>;
 }
 
-impl decrement_rate_limit_paid for super::RemoteReducers {
-    fn decrement_rate_limit_paid_then(
+impl refund_credit for super::RemoteReducers {
+    fn refund_credit_then(
         &self,
         principal: String,
-        property: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
             + 'static,
     ) -> __sdk::Result<()> {
-        self.imp.invoke_reducer_with_callback(
-            DecrementRateLimitPaidArgs {
-                principal,
-                property,
-            },
-            callback,
-        )
+        self.imp
+            .invoke_reducer_with_callback(RefundCreditArgs { principal }, callback)
     }
 }

@@ -4,8 +4,6 @@
 #![allow(unused, clippy::all)]
 use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
-use super::videogen_config_response_type::VideogenConfigResponse;
-
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 struct GetVideogenConfigArgs {}
@@ -26,10 +24,8 @@ pub trait get_videogen_config {
     fn get_videogen_config_then(
         &self,
 
-        __callback: impl FnOnce(
-                &super::ProcedureEventContext,
-                Result<VideogenConfigResponse, __sdk::InternalError>,
-            ) + Send
+        __callback: impl FnOnce(&super::ProcedureEventContext, Result<u64, __sdk::InternalError>)
+            + Send
             + 'static,
     );
 }
@@ -38,17 +34,14 @@ impl get_videogen_config for super::RemoteProcedures {
     fn get_videogen_config_then(
         &self,
 
-        __callback: impl FnOnce(
-                &super::ProcedureEventContext,
-                Result<VideogenConfigResponse, __sdk::InternalError>,
-            ) + Send
+        __callback: impl FnOnce(&super::ProcedureEventContext, Result<u64, __sdk::InternalError>)
+            + Send
             + 'static,
     ) {
-        self.imp
-            .invoke_procedure_with_callback::<_, VideogenConfigResponse>(
-                "get_videogen_config",
-                GetVideogenConfigArgs {},
-                __callback,
-            );
+        self.imp.invoke_procedure_with_callback::<_, u64>(
+            "get_videogen_config",
+            GetVideogenConfigArgs {},
+            __callback,
+        );
     }
 }
