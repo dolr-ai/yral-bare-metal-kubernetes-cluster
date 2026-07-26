@@ -6,15 +6,15 @@ use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
-#[derive(Copy, Eq, Hash)]
-pub enum Alliance {
-    Good,
-
-    Neutral,
-
-    Evil,
+pub struct VideogenConfigResponse {
+    pub property: String,
+    pub max_requests_per_window_registered: u64,
+    pub max_requests_per_window_unregistered: u64,
+    pub window_duration_seconds: u64,
+    pub max_requests_per_property_all_users: Option<u64>,
+    pub property_rate_limit_window_duration_seconds: Option<u64>,
 }
 
-impl __sdk::InModule for Alliance {
+impl __sdk::InModule for VideogenConfigResponse {
     type Module = super::RemoteModule;
 }

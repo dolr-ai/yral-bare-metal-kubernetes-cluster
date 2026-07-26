@@ -4,50 +4,51 @@
 #![allow(unused, clippy::all)]
 use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
-use super::alliance_type::Alliance;
-
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
-pub(super) struct ChooseAllianceArgs {
-    pub alliance: Alliance,
+pub(super) struct DecrementRateLimitPaidArgs {
+    pub principal: String,
+    pub property: String,
 }
 
-impl From<ChooseAllianceArgs> for super::Reducer {
-    fn from(args: ChooseAllianceArgs) -> Self {
-        Self::ChooseAlliance {
-            alliance: args.alliance,
+impl From<DecrementRateLimitPaidArgs> for super::Reducer {
+    fn from(args: DecrementRateLimitPaidArgs) -> Self {
+        Self::DecrementRateLimitPaid {
+            principal: args.principal,
+            property: args.property,
         }
     }
 }
 
-impl __sdk::InModule for ChooseAllianceArgs {
+impl __sdk::InModule for DecrementRateLimitPaidArgs {
     type Module = super::RemoteModule;
 }
 
 #[allow(non_camel_case_types)]
-/// Extension trait for access to the reducer `choose_alliance`.
+/// Extension trait for access to the reducer `decrement_rate_limit_paid`.
 ///
 /// Implemented for [`super::RemoteReducers`].
-pub trait choose_alliance {
-    /// Request that the remote module invoke the reducer `choose_alliance` to run as soon as possible.
+pub trait decrement_rate_limit_paid {
+    /// Request that the remote module invoke the reducer `decrement_rate_limit_paid` to run as soon as possible.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
-    /// /// Use [`choose_alliance:choose_alliance_then`] to run a callback after the reducer completes.
-    fn choose_alliance(&self, alliance: Alliance) -> __sdk::Result<()> {
-        self.choose_alliance_then(alliance, |_, _| {})
+    /// /// Use [`decrement_rate_limit_paid:decrement_rate_limit_paid_then`] to run a callback after the reducer completes.
+    fn decrement_rate_limit_paid(&self, principal: String, property: String) -> __sdk::Result<()> {
+        self.decrement_rate_limit_paid_then(principal, property, |_, _| {})
     }
 
-    /// Request that the remote module invoke the reducer `choose_alliance` to run as soon as possible,
+    /// Request that the remote module invoke the reducer `decrement_rate_limit_paid` to run as soon as possible,
     /// registering `callback` to run when we are notified that the reducer completed.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and its status can be observed with the `callback`.
-    fn choose_alliance_then(
+    fn decrement_rate_limit_paid_then(
         &self,
-        alliance: Alliance,
+        principal: String,
+        property: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -55,16 +56,22 @@ pub trait choose_alliance {
     ) -> __sdk::Result<()>;
 }
 
-impl choose_alliance for super::RemoteReducers {
-    fn choose_alliance_then(
+impl decrement_rate_limit_paid for super::RemoteReducers {
+    fn decrement_rate_limit_paid_then(
         &self,
-        alliance: Alliance,
+        principal: String,
+        property: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
             + 'static,
     ) -> __sdk::Result<()> {
-        self.imp
-            .invoke_reducer_with_callback(ChooseAllianceArgs { alliance }, callback)
+        self.imp.invoke_reducer_with_callback(
+            DecrementRateLimitPaidArgs {
+                principal,
+                property,
+            },
+            callback,
+        )
     }
 }

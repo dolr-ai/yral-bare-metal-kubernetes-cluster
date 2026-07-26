@@ -4,53 +4,51 @@
 #![allow(unused, clippy::all)]
 use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
-use super::class_type::Class;
-
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
-pub(super) struct CreateCharacterArgs {
-    pub class: Class,
-    pub nickname: String,
+pub(super) struct DecrementRateLimitArgs {
+    pub principal: String,
+    pub property: String,
 }
 
-impl From<CreateCharacterArgs> for super::Reducer {
-    fn from(args: CreateCharacterArgs) -> Self {
-        Self::CreateCharacter {
-            class: args.class,
-            nickname: args.nickname,
+impl From<DecrementRateLimitArgs> for super::Reducer {
+    fn from(args: DecrementRateLimitArgs) -> Self {
+        Self::DecrementRateLimit {
+            principal: args.principal,
+            property: args.property,
         }
     }
 }
 
-impl __sdk::InModule for CreateCharacterArgs {
+impl __sdk::InModule for DecrementRateLimitArgs {
     type Module = super::RemoteModule;
 }
 
 #[allow(non_camel_case_types)]
-/// Extension trait for access to the reducer `create_character`.
+/// Extension trait for access to the reducer `decrement_rate_limit`.
 ///
 /// Implemented for [`super::RemoteReducers`].
-pub trait create_character {
-    /// Request that the remote module invoke the reducer `create_character` to run as soon as possible.
+pub trait decrement_rate_limit {
+    /// Request that the remote module invoke the reducer `decrement_rate_limit` to run as soon as possible.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
-    /// /// Use [`create_character:create_character_then`] to run a callback after the reducer completes.
-    fn create_character(&self, class: Class, nickname: String) -> __sdk::Result<()> {
-        self.create_character_then(class, nickname, |_, _| {})
+    /// /// Use [`decrement_rate_limit:decrement_rate_limit_then`] to run a callback after the reducer completes.
+    fn decrement_rate_limit(&self, principal: String, property: String) -> __sdk::Result<()> {
+        self.decrement_rate_limit_then(principal, property, |_, _| {})
     }
 
-    /// Request that the remote module invoke the reducer `create_character` to run as soon as possible,
+    /// Request that the remote module invoke the reducer `decrement_rate_limit` to run as soon as possible,
     /// registering `callback` to run when we are notified that the reducer completed.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and its status can be observed with the `callback`.
-    fn create_character_then(
+    fn decrement_rate_limit_then(
         &self,
-        class: Class,
-        nickname: String,
+        principal: String,
+        property: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -58,17 +56,22 @@ pub trait create_character {
     ) -> __sdk::Result<()>;
 }
 
-impl create_character for super::RemoteReducers {
-    fn create_character_then(
+impl decrement_rate_limit for super::RemoteReducers {
+    fn decrement_rate_limit_then(
         &self,
-        class: Class,
-        nickname: String,
+        principal: String,
+        property: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
             + 'static,
     ) -> __sdk::Result<()> {
-        self.imp
-            .invoke_reducer_with_callback(CreateCharacterArgs { class, nickname }, callback)
+        self.imp.invoke_reducer_with_callback(
+            DecrementRateLimitArgs {
+                principal,
+                property,
+            },
+            callback,
+        )
     }
 }

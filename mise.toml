@@ -48,6 +48,13 @@ AWS_ACCESS_KEY_ID = "XO5X9A1W8AMHY3DSTKMS"
 AWS_ENDPOINT_URL = "https://fsn1.your-objectstorage.com"
 AWS_DEFAULT_REGION = "fsn1"
 KUBECONFIG = "{{env.HOME}}/.kube/config"
+# SpacetimeDB Maincloud (SaaS) — DB identity/name for the yral-database-spacetime
+# module. The Maincloud base URL is fixed; the DB name matches `spacetime.json`.
+# Plaintext only (no secrets here); the admin token (if needed for write
+# reducers from a cluster service) lives in fnox. See AGENTS.md
+# "External Service Config & Secrets".
+SPACETIMEDB_MAINCLOUD_URL = "https://maincloud.spacetimedb.com"
+SPACETIMEDB_DB_NAME = "yral-database-spacetime-4lbo7"
 
 [tasks.bootstrap]
 description = "Create .venv, install Python tooling, and extract infra SSH key from vault"
@@ -101,6 +108,31 @@ description = "Install system packages, repo toolchain, and Python tooling (secr
 run = "mise bootstrap packages apply --yes && mise install && mise run bootstrap && echo 'Environment is ready'"
 
 # ── SpacetimeDB ─────────────────────────────────────────────────────────────
+# The yral-database-spacetime module is a SpacetimeDB wasm module (cdylib),
+# not a containerized Rust service. The loop is: build (wasm) → generate
+# (client bindings) → test → run (local publish) → publish (Maincloud) →
+# validate. No -image/-image-run tasks (Maincloud deploy = `spacetime publish`).
+# `spacetimedb-cli build` does NOT read `spacetime.json` for its module path
+# (only dev/publish/generate do), so we pass `-p` explicitly — the path matches
+# `spacetime.json`'s `module-path` field.
+
+[tasks.spacetime-build]
+description = "Build the yral-database-spacetime wasm module (release)"
+run = "spacetimedb-cli build -p apps/yral-database-spacetime"
+
+[tasks.spacetime-generate]
+description = "Regenerate Rust client bindings from the module schema (replaces src/bindings/)"
+run = "spacetimedb-cli generate --lang rust --out-dir apps/yral-database-spacetime/src/bindings --module-path apps/yral-database-spacetime"
+
+[tasks.spacetime-test]
+description = "Run yral-database-spacetime tests"
+dir = "apps/yral-database-spacetime"
+run = "cargo test"
+
+[tasks.spacetime-run]
+description = "Start local SpacetimeDB server (pitchfork) and publish the module locally"
+depends = ["spacetime-build"]
+run = "pitchfork start spacetimedb && spacetimedb-cli publish --server local $SPACETIMEDB_DB_NAME --yes"
 
 [tasks.spacetime-dev]
 description = "Start SpacetimeDB server (pitchfork) and run dev mode (build, generate bindings, publish, watch for changes)"
@@ -109,6 +141,39 @@ run = "pitchfork start spacetimedb && spacetimedb-cli dev"
 [tasks.spacetime-stop]
 description = "Stop SpacetimeDB server via pitchfork"
 run = "pitchfork stop spacetimedb"
+
+[tasks.spacetime-publish]
+description = "Publish the yral-database-spacetime module to SpacetimeDB Maincloud (creates or hot-swaps the DB)"
+depends = ["spacetime-build"]
+run = "spacetimedb-cli publish --server maincloud $SPACETIMEDB_DB_NAME"
+
+[tasks.spacetime-validate]
+description = "Validate yral-database-spacetime on Maincloud (read-only checks: tables, row counts, procedure calls)"
+run = '''
+echo "=== Tables ==="
+spacetimedb-cli sql --server maincloud $SPACETIMEDB_DB_NAME "SELECT table_name, table_access FROM st_table WHERE table_type = 'user'"
+echo ""
+echo "=== Rate limit row count ==="
+spacetimedb-cli sql --server maincloud $SPACETIMEDB_DB_NAME "SELECT count(*) AS cnt FROM rate_limit"
+echo ""
+echo "=== Video gen request row count ==="
+spacetimedb-cli sql --server maincloud $SPACETIMEDB_DB_NAME "SELECT count(*) AS cnt FROM video_gen_request"
+echo ""
+echo "=== Procedure: get_videogen_config ==="
+curl -s -X POST -H "Content-Type: application/json" -d '[]' $SPACETIMEDB_MAINCLOUD_URL/v1/database/$SPACETIMEDB_DB_NAME/call/get_videogen_config
+echo ""
+'''
+
+[tasks.spacetime-all]
+description = "Full yral-database-spacetime workflow: build → generate → test → run → publish → validate"
+run = '''
+mise run spacetime-build
+mise run spacetime-generate
+mise run spacetime-test
+mise run spacetime-run
+mise run spacetime-publish
+mise run spacetime-validate
+'''
 
 # ── yral-auth ────────────────────────────────────────────────────────────────
 

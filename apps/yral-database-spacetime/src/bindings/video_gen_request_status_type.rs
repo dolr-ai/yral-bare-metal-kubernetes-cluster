@@ -6,15 +6,16 @@ use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
-#[derive(Copy, Eq, Hash)]
-pub enum Class {
-    Fighter,
+pub enum VideoGenRequestStatus {
+    Pending,
 
-    Caster,
+    Processing,
 
-    Medic,
+    Complete(String),
+
+    Failed(String),
 }
 
-impl __sdk::InModule for Class {
+impl __sdk::InModule for VideoGenRequestStatus {
     type Module = super::RemoteModule;
 }
