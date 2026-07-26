@@ -38,13 +38,14 @@ git submodule update --init --recursive
 
 ## Current submodules
 
-| Submodule                     | Source repo                                      |
-| ----------------------------- | ------------------------------------------------ |
-| `apps/yral/`                  | git@github.com:dolr-ai/yral.git                  |
-| `apps/yral-mobile/`           | git@github.com:dolr-ai/yral-mobile.git           |
-| `apps/yral-backend-canister/` | git@github.com:dolr-ai/yral-backend-canister.git |
-| `apps/website/`               | git@github.com:dolr-ai/website.git               |
-| `apps/my-website/`            | https://github.com/saikatdas0790/my-website.git  |
+| Submodule                          | Source repo                                           |
+| ---------------------------------- | ----------------------------------------------------- |
+| `apps/yral/`                       | git@github.com:dolr-ai/yral.git                       |
+| `apps/yral-mobile/`                | git@github.com:dolr-ai/yral-mobile.git                |
+| `apps/yral-backend-canister/`      | git@github.com:dolr-ai/yral-backend-canister.git      |
+
+| `apps/website/`                    | git@github.com:dolr-ai/website.git                    |
+| `apps/my-website/`                 | https://github.com/saikatdas0790/my-website.git       |
 
 ## In-repo applications (not submodules)
 
