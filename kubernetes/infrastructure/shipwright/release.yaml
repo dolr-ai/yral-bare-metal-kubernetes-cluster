@@ -158,7 +158,7 @@ spec:
       serviceAccountName: shipwright-build-controller
       containers:
         - name: shipwright-build
-          image: ghcr.io/shipwright-io/build/shipwright-build-controller:v0.20.3@sha256:3e1e083162416800e4291a31f7da35dca2fa5da4806f3dc460395dc92177248c
+          image: ghcr.io/shipwright-io/build/shipwright-build-controller:v0.20.6@sha256:76c2d562800d229a1bb2ebf1a640d6229f4d3309181e153ab0669317da88f035
           env:
             - name: WATCH_NAMESPACE
               valueFrom:
