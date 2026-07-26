@@ -33,7 +33,6 @@ sns-root = []
 sns-swap = []
 sns-index = []
 services = [
-    "rate-limits",
     "user-info-service",
 ]
 rate-limits = []

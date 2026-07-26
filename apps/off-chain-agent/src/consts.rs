@@ -23,13 +23,6 @@ pub static OFF_CHAIN_AGENT_URL: Lazy<Url> = Lazy::new(|| {
     Url::parse(&url).unwrap()
 });
 
-// Rate Limiting Constants
-pub static RATE_LIMITS_CANISTER_ID: Lazy<Principal> = Lazy::new(|| {
-    "h2jgv-ayaaa-aaaas-qbh4a-cai"
-        .parse()
-        .expect("Rate limits canister ID to be valid")
-});
-
 // User Info Service Constants
 pub static USER_INFO_SERVICE_CANISTER_ID: Lazy<Principal> = Lazy::new(|| {
     "ivkka-7qaaa-aaaas-qbg3q-cai"

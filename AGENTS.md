@@ -218,7 +218,7 @@ Module-specific syntax details (table index macro, accessor traits) belong as co
 ### External Service Config & Secrets (SpacetimeDB + general)
 For any external service the repo calls (SpacetimeDB Maincloud, third-party APIs, etc.):
 - **Locally:** plaintext values (URLs, DB names, identities) → `mise.toml [env]`; secrets (tokens, admin keys) → `fnox` (age-encrypted, committed).
-- **In-cluster:** plaintext → k8s `ConfigMap`; secrets → SOPS-encrypted `*.sops.yaml`. **Only provision cluster config if a service in our cluster actually calls the external service.** External clients (mobile apps, out-of-workspace backends like the Prakash video-storage service) carry their own config and do not consume our cluster ConfigMaps/SOPS.
+- **In-cluster:** plaintext → k8s `ConfigMap`; secrets → SOPS-encrypted `*.sops.yaml`. **Only provision cluster config if a service in our cluster actually calls the external service.** External clients (mobile apps, out-of-workspace backends) carry their own config and do not consume our cluster ConfigMaps/SOPS.
 - Wire config into the consuming app via its existing config mechanism (e.g. mobile `BuildConfig`/config module; Rust service `mise.toml [env]` + `fnox exec`).
 
 ### GPU (Vast.ai)
