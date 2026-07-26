@@ -72,7 +72,7 @@ impl From<Delegation> for ic_types::messages::Delegation {
             .map(|p| CanisterId::unchecked_from_principal(PrincipalId(p)))
             .collect();
 
-        Self::new_with_targets(pubkey, expiration, targets)
+        Self::new(pubkey, expiration).with_targets(targets)
     }
 }
 
@@ -98,6 +98,7 @@ impl From<Message> for HttpCanisterUpdate {
             sender: value.sender.into(),
             ingress_expiry: ingress_expiry_ns,
             nonce: value.nonce.map(|n| n.into()),
+            sender_info: None,
         }
     }
 }

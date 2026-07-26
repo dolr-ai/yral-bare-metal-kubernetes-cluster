@@ -93,6 +93,9 @@ elif [ -f ~/.kube/config ]; then
 else
   echo '  ⚠ Vault password file not found — skipping kubeconfig extraction'
 fi
+
+rustup install
+rustup update
 '''
 
 [tasks.ansible-vault-decrypt]
@@ -326,11 +329,6 @@ kubectl -n yral-legacy logs "$FIRST_POD" --tail=20
 '''
 
 # ── yral-metadata ───────────────────────────────────────────────────────────
-
-[tasks.yral-metadata-bootstrap]
-description = "Install yral-metadata build prerequisites (musl target)"
-depends = ["bootstrap"]
-run = "rustup target add x86_64-unknown-linux-musl"
 
 [tasks.yral-metadata-build]
 description = "Build yral-metadata server (release, musl static binary)"
