@@ -23,7 +23,7 @@ spec:
   # When upgrading, update this image and follow Ceph's upgrade guide before
   # bumping the Rook chart version (one component at a time per AGENTS.md).
   cephVersion:
-    image: quay.io/ceph/ceph:v20.2.1
+    image: quay.io/ceph/ceph:v20.2.2
     allowUnsupported: false
 
   # Rook stores its own metadata (keyring, config) under this host path.
