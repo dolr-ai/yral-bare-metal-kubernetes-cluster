@@ -25735,7 +25735,7 @@ spec:
       serviceAccountName: tekton-pipelines-controller
       containers:
         - name: tekton-pipelines-controller
-          image: ghcr.io/tektoncd/pipeline/controller-10a3e32792f33651396d02b6855a6e36:v1.12.2@sha256:76728a24a606d6f2205ae50e31bb08a1b185b60a2456fe7d9c73c175047ce5aa
+          image: ghcr.io/tektoncd/pipeline/controller-10a3e32792f33651396d02b6855a6e36:v1.14.1@sha256:8797fd2970e3271ae53d5664c2929ab8a9fa98fc48fa3fd76d685c890f8a35b1
           args: [
             # These images are built on-demand by `ko resolve` and are replaced
             # by image references by digest.
