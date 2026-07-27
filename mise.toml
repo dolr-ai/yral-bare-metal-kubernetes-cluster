@@ -468,11 +468,6 @@ kubectl -n yral-metadata logs "$FIRST_POD" --tail=20
 
 # ── off-chain-agent ─────────────────────────────────────────────────────────
 
-[tasks.off-chain-agent-bootstrap]
-description = "Install off-chain-agent build prerequisites (musl target)"
-depends = ["bootstrap"]
-run = "rustup target add x86_64-unknown-linux-musl"
-
 [tasks.off-chain-agent-build]
 description = "Build off-chain-agent (release, musl static binary)"
 dir = "apps/off-chain-agent"
