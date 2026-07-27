@@ -36,7 +36,6 @@ COPY apps/yral-legacy/Cargo.toml apps/yral-legacy/Cargo.lock ./
 
 # Copy the workspace members
 COPY apps/yral-legacy/ssr/ ./ssr/
-COPY apps/yral-legacy/telemetry_axum/ ./telemetry_axum/
 COPY apps/yral-legacy/rust-toolchain.toml ./
 COPY apps/yral-legacy/tailwind.config.js ./
 COPY apps/yral-legacy/package.json ./
