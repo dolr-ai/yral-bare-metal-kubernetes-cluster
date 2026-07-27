@@ -17,7 +17,7 @@ spec:
     spec:
       initContainers:
         - name: copy-config
-          image: busybox:1.36
+          image: busybox:1.38
           env:
             - name: BYTEBASE_POSTGRES_PASSWORD
               valueFrom:
