@@ -26739,7 +26739,7 @@ spec:
       serviceAccountName: tekton-pipelines-resolvers
       containers:
         - name: controller
-          image: ghcr.io/tektoncd/pipeline/resolvers-ff86b24f130c42b88983d3c13993056d:v1.12.2@sha256:6047be2af74b86129eb22b76ca908754c932208573e0a62a5f498da99b552e6a
+          image: ghcr.io/tektoncd/pipeline/resolvers-ff86b24f130c42b88983d3c13993056d:v1.14.1@sha256:1d1a5e2efc61afef37d43905fe3598c3230fbe90c832d440a0885d1a41e7f5ee
           command:
             - /sbin/tini
             - --
