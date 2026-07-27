@@ -4,8 +4,8 @@
 # ── Stage 1: Build ──────────────────────────────────────────────────────────
 FROM rust:latest AS builder
 
-# Install build dependencies (git needed for CARGO_NET_GIT_FETCH_WITH_CLI)
-RUN apt-get update && apt-get install -y --no-install-recommends musl-tools git && \
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends musl-tools && \
     rm -rf /var/lib/apt/lists/*
 
 # Install mise (for Node.js — needed by tailwindcss via cargo-leptos)
@@ -39,7 +39,6 @@ COPY apps/yral-auth/style/ ./style/
 COPY apps/yral-auth/public/ ./public/
 COPY apps/yral-auth/tailwind.config.js ./
 COPY apps/yral-auth/package.json ./
-COPY apps/yral-auth/.cargo/ ./.cargo/
 COPY apps/yral-auth/rust-toolchain.toml ./
 
 # Copy local path dependencies (relative to repo root, placed adjacent to yral-auth)
@@ -58,9 +57,6 @@ ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
 ENV LEPTOS_ENV="PROD"
 ENV LEPTOS_TAILWIND_VERSION="v4.0.15"
 ENV LEPTOS_BIN_TARGET_TRIPLE="x86_64-unknown-linux-musl"
-
-# Use git CLI for fetching git deps (libgit2 has SSL issues with large repos like dfinity/ic)
-ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
 
 # Build the app
 RUN cargo leptos build --release --lib-features release-lib --bin-features release-bin
