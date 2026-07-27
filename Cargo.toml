@@ -35,7 +35,7 @@ exclude = [
 [workspace.dependencies]
 anyhow = "1.0.103"
 async-trait = "0.1"
-candid = "0.10.20"
+candid = "0.10.32"
 canisters-client = {
   package = "yral-canisters-client",
   path = "apps/yral-common/canisters-client"

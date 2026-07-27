@@ -265,12 +265,6 @@ checksum = "4c7f02d4ea65f2c1853089ffd8d2787bdbc63de2f0d29dedbcf8ccdfa0ccd4cf"
 
 [[package]]
 name = "base64"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
-
-[[package]]
-name = "base64"
 version = "0.21.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
@@ -292,15 +286,6 @@ name = "beef"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a8241f3ebb85c056b509d4327ad0358fbbba6ffb340bf388f26350aeda225b1"
-
-[[package]]
-name = "bincode"
-version = "1.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1f45e9417d87227c7a56d22e471c6206462cba514c7590c09aff4cf6d1ddcad"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "binread"
@@ -415,7 +400,7 @@ version = "3.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6dee98b0db6a962de883bf5d20362dee4d7ca0d12fe39a7c6c73c844e1cd7c1f"
 dependencies = [
- "darling 0.23.0",
+ "darling",
  "ident_case",
  "prettyplease 0.2.37",
  "proc-macro2",
@@ -491,16 +476,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649"
 
 [[package]]
-name = "byte-unit"
-version = "4.0.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da78b32057b8fdfc352504708feeba7216dcd65a2c9ab02978cbd288d1279b6c"
-dependencies = [
- "serde",
- "utf8-width",
-]
-
-[[package]]
 name = "bytecheck"
 version = "0.6.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -551,18 +526,6 @@ checksum = "86566c496f2f47d9b8147a4c8b02ffdb69c919fe0c2b2e7195d22cbba0e635c9"
 dependencies = [
  "bytes",
  "serde_core",
-]
-
-[[package]]
-name = "cached"
-version = "0.49.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e8e463fceca5674287f32d252fb1d94083758b8709c160efae66d263e5f4eba"
-dependencies = [
- "hashbrown 0.14.5",
- "instant",
- "once_cell",
- "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -744,42 +707,6 @@ checksum = "ba5a308b75df32fe02788e748662718f03fde005016435c444eea572398219fd"
 dependencies = [
  "bytes",
  "memchr",
-]
-
-[[package]]
-name = "comparable"
-version = "0.5.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8582d59b2e3f69e206fc893a30ed094317e922c4d6cda583e26191589ec747e"
-dependencies = [
- "comparable_derive",
- "comparable_helper",
- "pretty_assertions",
- "serde",
-]
-
-[[package]]
-name = "comparable_derive"
-version = "0.5.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95d4cd19b75655e4cfb0731d1bca92cecc41b05f40f109d84890c97197379ca6"
-dependencies = [
- "convert_case 0.6.0",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "comparable_helper"
-version = "0.5.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95c88d7d5400a6f4d64b21bd3e31e817707ce2be337717f370e461657ae2ba8b"
-dependencies = [
- "convert_case 0.6.0",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -1012,36 +939,12 @@ dependencies = [
 
 [[package]]
 name = "darling"
-version = "0.20.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc7f46116c46ff9ab3eb1597a45688b6715c6e628b5c133e288e709a29bcb4ee"
-dependencies = [
- "darling_core 0.20.11",
- "darling_macro 0.20.11",
-]
-
-[[package]]
-name = "darling"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25ae13da2f202d56bd7f91c25fba009e7717a1e4a1cc98a76d844b65ae912e9d"
 dependencies = [
- "darling_core 0.23.0",
- "darling_macro 0.23.0",
-]
-
-[[package]]
-name = "darling_core"
-version = "0.20.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d00b9596d185e565c2207a0b01f8bd1a135483d02d9b7b0a54b11da8d53412e"
-dependencies = [
- "fnv",
- "ident_case",
- "proc-macro2",
- "quote",
- "strsim",
- "syn 2.0.119",
+ "darling_core",
+ "darling_macro",
 ]
 
 [[package]]
@@ -1059,22 +962,11 @@ dependencies = [
 
 [[package]]
 name = "darling_macro"
-version = "0.20.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc34b93ccb385b40dc71c6fceac4b2ad23662c7eeb248cf10d529b7e055b6ead"
-dependencies = [
- "darling_core 0.20.11",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "darling_macro"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac3984ec7bd6cfa798e62b4a642426a5be0e68f9401cfc2a01e3fa9ea2fcdb8d"
 dependencies = [
- "darling_core 0.23.0",
+ "darling_core",
  "quote",
  "syn 2.0.119",
 ]
@@ -1084,26 +976,6 @@ name = "data-encoding"
 version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4ae5f15dda3c708c0ade84bfee31ccab44a3da4f88015ed22f63732abe300c8"
-
-[[package]]
-name = "datasize"
-version = "0.2.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e65c07d59e45d77a8bda53458c24a828893a99ac6cdd9c84111e09176ab739a2"
-dependencies = [
- "datasize_derive",
-]
-
-[[package]]
-name = "datasize_derive"
-version = "0.2.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "613e4ee15899913285b7612004bbd490abd605be7b11d35afada5902fb6b91d5"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
 
 [[package]]
 name = "decorum"
@@ -1158,12 +1030,6 @@ dependencies = [
  "rustc_version",
  "syn 2.0.119",
 ]
-
-[[package]]
-name = "diff"
-version = "0.1.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56254986775e3233ffa9c4d7d3faaf6d36a2c09d30b20687e9f88bc8bafc16c8"
 
 [[package]]
 name = "digest"
@@ -1399,15 +1265,6 @@ name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
-
-[[package]]
-name = "erased-serde"
-version = "0.3.31"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c138974f9d5e7fe373eb04df7cae98833802ae4b11c24ac7039a21d5af4b26c"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "errno"
@@ -1935,12 +1792,6 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.14.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
-
-[[package]]
-name = "hashbrown"
 version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1"
@@ -1985,9 +1836,6 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "hex-literal"
@@ -2206,7 +2054,7 @@ dependencies = [
  "async-watch",
  "backoff",
  "bytes",
- "cached 0.56.0",
+ "cached",
  "candid",
  "ecdsa",
  "ed25519-consensus",
@@ -2217,8 +2065,8 @@ dependencies = [
  "http",
  "http-body",
  "http-body-util",
- "ic-certification 3.2.0",
- "ic-ed25519 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ic-certification",
+ "ic-ed25519",
  "ic-transport-types",
  "ic-verify-bls-signature",
  "ic_principal",
@@ -2249,67 +2097,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ic-base-types"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "byte-unit",
- "bytes",
- "candid",
- "comparable",
- "hex",
- "ic-crypto-sha2",
- "ic-heap-bytes",
- "ic-protobuf",
- "phantom_newtype",
- "prost",
- "serde",
- "serde_bytes",
- "strum 0.26.3",
- "strum_macros 0.26.4",
-]
-
-[[package]]
-name = "ic-btc-interface"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b07cca9319498684a7477a77a66d87377ecd698b5465a3b8523484fcca16bff"
-dependencies = [
- "candid",
- "datasize",
- "serde",
- "serde_bytes",
-]
-
-[[package]]
-name = "ic-btc-replica-types"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "candid",
- "ic-error-types",
- "ic-interfaces-adapter-client",
- "ic-protobuf",
- "serde",
- "serde_bytes",
-]
-
-[[package]]
-name = "ic-certification"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "hex",
- "ic-crypto-tree-hash",
- "ic-crypto-utils-threshold-sig",
- "ic-crypto-utils-threshold-sig-der",
- "ic-types",
- "serde",
- "serde_cbor",
- "tree-deserializer",
-]
-
-[[package]]
 name = "ic-certification"
 version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2319,212 +2106,6 @@ dependencies = [
  "serde",
  "serde_bytes",
  "sha2 0.10.9",
-]
-
-[[package]]
-name = "ic-crypto-iccsa"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "base64 0.13.1",
- "hex",
- "ic-certification 0.9.0",
- "ic-crypto-internal-basic-sig-der-utils",
- "ic-crypto-internal-types",
- "ic-crypto-sha2",
- "ic-crypto-tree-hash",
- "ic-types",
- "serde",
- "serde_bytes",
- "serde_cbor",
- "simple_asn1",
-]
-
-[[package]]
-name = "ic-crypto-interfaces-sig-verification"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "ic-types",
-]
-
-[[package]]
-name = "ic-crypto-internal-basic-sig-cose"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "ic-crypto-internal-basic-sig-rsa-pkcs1",
- "ic-ed25519 0.6.0 (git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd)",
- "ic-secp256r1",
- "ic-types",
- "serde",
- "serde_cbor",
-]
-
-[[package]]
-name = "ic-crypto-internal-basic-sig-der-utils"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "simple_asn1",
-]
-
-[[package]]
-name = "ic-crypto-internal-basic-sig-rsa-pkcs1"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "ic-crypto-sha2",
- "ic-types",
- "num-bigint",
- "num-traits",
- "pkcs8",
- "rsa",
- "serde",
- "sha2 0.10.9",
- "simple_asn1",
-]
-
-[[package]]
-name = "ic-crypto-internal-bls12-381-type"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "cached 0.49.3",
- "hex",
- "ic_bls12_381",
- "itertools 0.12.1",
- "pairing",
- "parking_lot",
- "paste",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
- "sha2 0.10.9",
- "subtle",
- "zeroize",
-]
-
-[[package]]
-name = "ic-crypto-internal-seed"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "hex",
- "ic-crypto-sha2",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
- "serde",
- "zeroize",
-]
-
-[[package]]
-name = "ic-crypto-internal-threshold-sig-bls12381"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "base64 0.13.1",
- "cached 0.49.3",
- "hex",
- "ic-crypto-internal-bls12-381-type",
- "ic-crypto-internal-seed",
- "ic-crypto-internal-types",
- "ic-crypto-secrets-containers",
- "ic-crypto-sha2",
- "ic-types",
- "parking_lot",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
- "serde",
- "serde_bytes",
- "serde_cbor",
- "strum_macros 0.26.4",
- "subtle",
- "zeroize",
-]
-
-[[package]]
-name = "ic-crypto-internal-types"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "hex",
- "ic-protobuf",
- "phantom_newtype",
- "serde",
- "serde_cbor",
- "strum 0.26.3",
- "strum_macros 0.26.4",
- "thiserror 2.0.18",
- "zeroize",
-]
-
-[[package]]
-name = "ic-crypto-secrets-containers"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "serde",
- "zeroize",
-]
-
-[[package]]
-name = "ic-crypto-sha2"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "sha2 0.10.9",
-]
-
-[[package]]
-name = "ic-crypto-standalone-sig-verifier"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "ic-crypto-iccsa",
- "ic-crypto-internal-basic-sig-cose",
- "ic-crypto-internal-basic-sig-der-utils",
- "ic-crypto-internal-basic-sig-rsa-pkcs1",
- "ic-ed25519 0.6.0 (git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd)",
- "ic-secp256k1",
- "ic-secp256r1",
- "ic-types",
- "simple_asn1",
-]
-
-[[package]]
-name = "ic-crypto-tree-hash"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "ic-crypto-internal-types",
- "ic-crypto-sha2",
- "ic-protobuf",
- "serde",
- "serde_bytes",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "ic-crypto-utils-threshold-sig"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "base64 0.13.1",
- "ic-crypto-internal-threshold-sig-bls12381",
- "ic-crypto-internal-types",
- "ic-types",
-]
-
-[[package]]
-name = "ic-crypto-utils-threshold-sig-der"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "ic-crypto-internal-types",
- "ic-types",
- "pem",
- "simple_asn1",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -2545,144 +2126,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ic-ed25519"
-version = "0.6.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "curve25519-dalek",
- "ed25519-dalek",
- "hex-literal",
- "hkdf",
- "ic_principal",
- "pem",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
- "thiserror 2.0.18",
- "zeroize",
-]
-
-[[package]]
-name = "ic-error-types"
-version = "0.2.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "ic-heap-bytes",
- "regex-lite",
- "serde",
- "strum 0.26.3",
- "strum_macros 0.26.4",
-]
-
-[[package]]
-name = "ic-heap-bytes"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "candid",
- "ic-heap-bytes-derive",
- "paste",
- "prometheus",
- "tempfile",
-]
-
-[[package]]
-name = "ic-heap-bytes-derive"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "darling 0.20.11",
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "ic-interfaces-adapter-client"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "strum_macros 0.26.4",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "ic-limits"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-
-[[package]]
-name = "ic-management-canister-types-private"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "candid",
- "ic-base-types",
- "ic-btc-interface",
- "ic-btc-replica-types",
- "ic-error-types",
- "ic-protobuf",
- "ic-types-cycles",
- "ic-utils",
- "num-traits",
- "serde",
- "serde_bytes",
- "serde_cbor",
- "strum 0.26.3",
- "strum_macros 0.26.4",
-]
-
-[[package]]
-name = "ic-protobuf"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "bincode",
- "candid",
- "comparable",
- "erased-serde",
- "ic-error-types",
- "prost",
- "serde",
- "serde_json",
- "slog",
- "strum 0.26.3",
-]
-
-[[package]]
-name = "ic-secp256k1"
-version = "0.3.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "hex-literal",
- "hmac",
- "ic_principal",
- "k256",
- "num-bigint",
- "pem",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
- "sha2 0.10.9",
- "simple_asn1",
- "zeroize",
-]
-
-[[package]]
-name = "ic-secp256r1"
-version = "0.2.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "hmac",
- "num-bigint",
- "p256",
- "pem",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
- "sha2 0.10.9",
- "simple_asn1",
- "zeroize",
-]
-
-[[package]]
 name = "ic-transport-types"
 version = "0.49.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2690,7 +2133,7 @@ checksum = "ede9080798410ed4777b6c4e02f011467b256fb9ddd393fc48aef86eb96442e6"
 dependencies = [
  "candid",
  "hex",
- "ic-certification 3.2.0",
+ "ic-certification",
  "leb128",
  "serde",
  "serde_bytes",
@@ -2698,121 +2141,6 @@ dependencies = [
  "serde_repr",
  "sha2 0.10.9",
  "thiserror 2.0.18",
-]
-
-[[package]]
-name = "ic-types"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "base64 0.13.1",
- "bincode",
- "candid",
- "chrono",
- "hex",
- "ic-base-types",
- "ic-btc-replica-types",
- "ic-crypto-internal-types",
- "ic-crypto-sha2",
- "ic-crypto-tree-hash",
- "ic-error-types",
- "ic-heap-bytes",
- "ic-limits",
- "ic-management-canister-types-private",
- "ic-protobuf",
- "ic-types-cycles",
- "ic-utils",
- "ic-validate-eq",
- "ic-validate-eq-derive",
- "maplit",
- "more-asserts",
- "once_cell",
- "phantom_newtype",
- "prost",
- "rand 0.8.6",
- "serde",
- "serde_bytes",
- "serde_cbor",
- "serde_json",
- "serde_with",
- "strum 0.26.3",
- "strum_macros 0.26.4",
- "thiserror 2.0.18",
- "thousands",
-]
-
-[[package]]
-name = "ic-types-cycles"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "candid",
- "ic-heap-bytes",
- "ic-protobuf",
- "serde",
- "strum 0.26.3",
- "strum_macros 0.26.4",
- "thousands",
-]
-
-[[package]]
-name = "ic-utils"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "hex",
- "scoped_threadpool",
- "serde",
- "serde_bytes",
-]
-
-[[package]]
-name = "ic-validate-eq"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "ic-validate-eq-derive",
-]
-
-[[package]]
-name = "ic-validate-eq-derive"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "ic-validator"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "hex",
- "ic-crypto-iccsa",
- "ic-crypto-interfaces-sig-verification",
- "ic-crypto-sha2",
- "ic-crypto-standalone-sig-verifier",
- "ic-crypto-tree-hash",
- "ic-limits",
- "ic-types",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "ic-validator-ingress-message"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "base64 0.13.1",
- "getrandom 0.2.17",
- "hex",
- "ic-crypto-interfaces-sig-verification",
- "ic-crypto-standalone-sig-verifier",
- "ic-crypto-utils-threshold-sig-der",
- "ic-types",
- "ic-validator",
- "time",
 ]
 
 [[package]]
@@ -2841,7 +2169,6 @@ dependencies = [
  "pairing",
  "rand_core 0.6.4",
  "subtle",
- "zeroize",
 ]
 
 [[package]]
@@ -3179,9 +2506,6 @@ name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
-dependencies = [
- "spin",
-]
 
 [[package]]
 name = "lean_string"
@@ -3207,12 +2531,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68ab91017fe16c622486840e4c83c9a37afeff978bd239b5293d61ece587de66"
 
 [[package]]
-name = "libm"
-version = "0.2.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
-
-[[package]]
 name = "libredox"
 version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3220,12 +2538,6 @@ checksum = "c943259e342f1e06ff2da7a83eabdfe7f92ce10262688dbf1895ff0b3e6e4652"
 dependencies = [
  "libc",
 ]
-
-[[package]]
-name = "linux-raw-sys"
-version = "0.4.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d26c52dbd32dccf2d10cac7725f8eae5296885fb5703b261f7d0a0739ec807ab"
 
 [[package]]
 name = "linux-raw-sys"
@@ -3293,12 +2605,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 
 [[package]]
-name = "maplit"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
-
-[[package]]
 name = "matchit"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3360,12 +2666,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "more-asserts"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fafa6961cabd9c63bcd77a45d7e3b7f3b552b70417831fb0f56db717e72407e"
-
-[[package]]
 name = "native-tls"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3406,22 +2706,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "num-bigint-dig"
-version = "0.8.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e661dda6640fad38e827a6d4a310ff4763082116fe217f279885c97f511bb0b7"
-dependencies = [
- "lazy_static",
- "libm",
- "num-integer",
- "num-iter",
- "num-traits",
- "rand 0.8.6",
- "smallvec",
- "zeroize",
-]
-
-[[package]]
 name = "num-conv"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3437,23 +2721,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "num-iter"
-version = "0.1.46"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c92800bd69a1eac91786bcfe9da64a897eb72911b8dc3095decbd07429e8048b"
-dependencies = [
- "num-integer",
- "num-traits",
-]
-
-[[package]]
 name = "num-traits"
 version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
- "libm",
 ]
 
 [[package]]
@@ -3618,18 +2891,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "phantom_newtype"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "candid",
- "ic-heap-bytes",
- "num-traits",
- "serde",
- "slog",
-]
-
-[[package]]
 name = "phf_shared"
 version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3669,17 +2930,6 @@ name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
-
-[[package]]
-name = "pkcs1"
-version = "0.7.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8ffb9f10fa047879315e6625af03c164b16962a5368d724ed16323b68ace47f"
-dependencies = [
- "der",
- "pkcs8",
- "spki",
-]
 
 [[package]]
 name = "pkcs8"
@@ -3739,16 +2989,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pretty_assertions"
-version = "1.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ae130e2f271fbc2ac3a40fb1d07180839cdbbe443c7a27e1e3c13c5cac0116d"
-dependencies = [
- "diff",
- "yansi",
-]
-
-[[package]]
 name = "prettyplease"
 version = "0.2.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3796,28 +3036,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "procfs"
-version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc5b72d8145275d844d4b5f6d4e1eef00c8cd889edb6035c21675d1bb1f45c9f"
-dependencies = [
- "bitflags",
- "hex",
- "procfs-core",
- "rustix 0.38.44",
-]
-
-[[package]]
-name = "procfs-core"
-version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "239df02d8349b06fc07398a3a1697b06418223b1c7725085e801e7c0fc6a12ec"
-dependencies = [
- "bitflags",
- "hex",
-]
-
-[[package]]
 name = "prometheus"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3826,35 +3044,10 @@ dependencies = [
  "cfg-if",
  "fnv",
  "lazy_static",
- "libc",
  "memchr",
  "parking_lot",
- "procfs",
  "protobuf",
  "thiserror 2.0.18",
-]
-
-[[package]]
-name = "prost"
-version = "0.14.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "528ac67416ff8646872a3c02cad9cc4ee5dc9f9540c9b10771855c95cb2e5ae1"
-dependencies = [
- "bytes",
- "prost-derive",
-]
-
-[[package]]
-name = "prost-derive"
-version = "0.14.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b570b25f7617e43d59005d0990ccb79e950a423952cea19671b7a876da390adf"
-dependencies = [
- "anyhow",
- "itertools 0.11.0",
- "proc-macro2",
- "quote",
- "syn 2.0.119",
 ]
 
 [[package]]
@@ -4226,12 +3419,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "regex-lite"
-version = "0.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cab834c73d247e67f4fae452806d17d3c7501756d98c8808d7c9c7aa7d18f973"
-
-[[package]]
 name = "regex-syntax"
 version = "0.6.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4394,27 +3581,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsa"
-version = "0.9.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8573f03f5883dcaebdfcf4725caa1ecb9c15b2ef50c43a07b816e06799bb12d"
-dependencies = [
- "const-oid 0.9.6",
- "digest 0.10.7",
- "num-bigint-dig",
- "num-integer",
- "num-traits",
- "pkcs1",
- "pkcs8",
- "rand_core 0.6.4",
- "sha2 0.10.9",
- "signature",
- "spki",
- "subtle",
- "zeroize",
-]
-
-[[package]]
 name = "rust-embed"
 version = "8.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4483,19 +3649,6 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.44"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fdb5bc1ae2baa591800df16c9ca78619bf65c0488b41b96ccec5d11220d8c154"
-dependencies = [
- "bitflags",
- "errno",
- "libc",
- "linux-raw-sys 0.4.15",
- "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "rustix"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6fe4565b9518b83ef4f91bb47ce29620ca828bd32cb7e408f0062e9930ba190"
@@ -4503,7 +3656,7 @@ dependencies = [
  "bitflags",
  "errno",
  "libc",
- "linux-raw-sys 0.12.1",
+ "linux-raw-sys",
  "windows-sys 0.61.2",
 ]
 
@@ -4652,12 +3805,6 @@ name = "scoped-tls"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1cf6437eb19a8f4a6cc0f7dca544973b0b78843adbfeb3683d1a94a0024a294"
-
-[[package]]
-name = "scoped_threadpool"
-version = "0.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d51f5df5af43ab3f1360b429fa5e0152ac5ce8c0bd6485cae490332e96846a8"
 
 [[package]]
 name = "scopeguard"
@@ -4886,7 +4033,7 @@ version = "3.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "84d57bc0c8b9a17920c178daa6bb924850d54a9c97ab45194bb8c17ad66bb660"
 dependencies = [
- "darling 0.23.0",
+ "darling",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
@@ -5019,18 +4166,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbbb5d9659141646ae647b42fe094daf6c6192d1620870b449d9557f748b2daa"
 
 [[package]]
-name = "simple_asn1"
-version = "0.6.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d585997b0ac10be3c5ee635f1bab02d512760d14b7c468801ac8a01d9ae5f1d"
-dependencies = [
- "num-bigint",
- "num-traits",
- "thiserror 2.0.18",
- "time",
-]
-
-[[package]]
 name = "siphasher"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5041,18 +4176,6 @@ name = "slab"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
-
-[[package]]
-name = "slog"
-version = "2.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b3b8565691b22d2bdfc066426ed48f837fc0c5f2c8cad8d9718f7f99d6995c1"
-dependencies = [
- "anyhow",
- "erased-serde",
- "rustversion",
- "serde_core",
-]
 
 [[package]]
 name = "smallvec"
@@ -5156,7 +4279,7 @@ dependencies = [
  "spacetimedb-lib",
  "spacetimedb-primitives",
  "spacetimedb-sats",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
 ]
 
@@ -5354,12 +4477,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "spin"
-version = "0.9.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3763264f6b73151db08c50ff20d7d8a0b8796e021cdea7ceedad07b80155fa0e"
-
-[[package]]
 name = "spki"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5442,16 +4559,7 @@ version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
 dependencies = [
- "strum_macros 0.25.3",
-]
-
-[[package]]
-name = "strum"
-version = "0.26.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fec0f0aef304996cf250b31b5a10dee7980c85da9d759361292b8bca5a18f06"
-dependencies = [
- "strum_macros 0.26.4",
+ "strum_macros",
 ]
 
 [[package]]
@@ -5461,19 +4569,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23dc1fa9ac9c169a78ba62f0b841814b7abae11bdd047b9c58f893439e309ea0"
 dependencies = [
  "heck 0.4.1",
- "proc-macro2",
- "quote",
- "rustversion",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "strum_macros"
-version = "0.26.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c6bee85a5a24955dc440386795aa378cd9cf82acd5f764469152d2270e581be"
-dependencies = [
- "heck 0.5.0",
  "proc-macro2",
  "quote",
  "rustversion",
@@ -5590,7 +4685,7 @@ dependencies = [
  "fastrand",
  "getrandom 0.4.3",
  "once_cell",
- "rustix 1.1.4",
+ "rustix",
  "windows-sys 0.61.2",
 ]
 
@@ -5653,12 +4748,6 @@ dependencies = [
  "quote",
  "syn 2.0.119",
 ]
-
-[[package]]
-name = "thousands"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3bf63baf9f5039dadc247375c29eb13706706cfde997d0330d05aa63a77d8820"
 
 [[package]]
 name = "time"
@@ -5927,16 +5016,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tree-deserializer"
-version = "0.9.0"
-source = "git+https://github.com/dfinity/ic.git?rev=f64306fa954b1ede91bd557663e1651e292bb4bd#f64306fa954b1ede91bd557663e1651e292bb4bd"
-dependencies = [
- "ic-crypto-tree-hash",
- "leb128",
- "serde",
-]
-
-[[package]]
 name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6041,12 +5120,6 @@ name = "utf-8"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09cc8ee72d2a9becf2f2febe0205bbed8fc6615b7cb429ad062dc7b7ddd036a9"
-
-[[package]]
-name = "utf8-width"
-version = "0.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "159a7cadce548703edd50d24069bc294c5415ecab0a480e0cd1ca06d112dc94a"
 
 [[package]]
 name = "utf8_iter"
@@ -6649,12 +5722,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aee1b19627c7c60102ab80d3a9cbe18de90bfe03bfa6c3715447681f0e8c8af6"
 
 [[package]]
-name = "yansi"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
-
-[[package]]
 name = "yoke"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6769,8 +5836,6 @@ dependencies = [
  "candid",
  "getrandom 0.2.17",
  "ic-agent",
- "ic-types",
- "ic-validator-ingress-message",
  "k256",
  "rand 0.8.6",
  "serde",

@@ -69,7 +69,7 @@ yral-identity = {
   workspace = true,
   default-features = false,
   features = [
-    "ic-git",
+    "verify",
   ]
 }
 yral-types = { path = "../../yral-common/types" }

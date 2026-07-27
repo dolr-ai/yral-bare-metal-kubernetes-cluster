@@ -17,7 +17,7 @@ publish = false
 
 [workspace.dependencies]
 axum = { version = "0.8.4", features = ["macros"] }
-candid = "0.10.3"
+candid = "0.10.32"
 console_error_panic_hook = "0.1"
 console_log = "1"
 http = "1.1.0"
@@ -197,7 +197,6 @@ yral-identity = {
   path = "../yral-common/identity",
   default-features = false,
   features = [
-    "ic-git",
     "wasm-bindgen",
   ]
 }

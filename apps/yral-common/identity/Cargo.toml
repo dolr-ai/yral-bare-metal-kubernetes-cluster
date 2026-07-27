@@ -4,8 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-ic-validator-ingress-message = { git = "https://github.com/dfinity/ic.git", default-features = false, rev = "f64306fa954b1ede91bd557663e1651e292bb4bd", optional = true }
-ic-types = { git = "https://github.com/dfinity/ic.git", rev = "f64306fa954b1ede91bd557663e1651e292bb4bd", optional = true }
 ic-agent = { workspace = true, default-features = false, optional = true }
 candid.workspace = true
 web-time.workspace = true
@@ -13,12 +11,15 @@ thiserror.workspace = true
 serde.workspace = true
 getrandom = { version = "0.2.15", optional = true }
 
+# Signature verification (vendored — replaces ic-validator-ingress-message from dfinity/ic.git)
+k256 = { version = "0.13.3", default-features = false, features = ["ecdsa", "pkcs8"], optional = true }
+
 [dev-dependencies]
-k256 = "0.13.3"
+k256 = { version = "0.13.3", features = ["ecdsa"] }
 rand = "0.8.5"
 
 [features]
-default = ["ic-agent", "ic-git"]
+default = ["ic-agent", "verify"]
 ic-agent = ["dep:ic-agent"]
-ic-git = ["ic-validator-ingress-message", "ic-types"]
-wasm-bindgen = ["ic-agent/wasm-bindgen", "getrandom/js", "ic-validator-ingress-message/js"]
+verify = ["dep:k256", "ic-agent"]
+wasm-bindgen = ["ic-agent/wasm-bindgen", "getrandom/js"]

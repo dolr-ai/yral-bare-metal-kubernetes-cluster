@@ -1,8 +1,8 @@
 mod error;
 #[cfg(feature = "ic-agent")]
 pub mod ic_agent;
-#[cfg(feature = "ic-git")]
-pub mod ic_git;
+#[cfg(feature = "verify")]
+pub mod verify;
 pub mod msg_builder;
 
 use candid::Principal;
@@ -28,14 +28,14 @@ pub struct Signature {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Debug)]
-struct Delegation {
+pub struct Delegation {
     pub pubkey: Vec<u8>,
     pub expiration_ns: u64,
     pub targets: Option<Vec<Principal>>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Debug)]
-struct SignedDelegation {
+pub struct SignedDelegation {
     pub delegation: Delegation,
     pub signature: Vec<u8>,
 }
