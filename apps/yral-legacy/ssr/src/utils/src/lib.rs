@@ -13,7 +13,6 @@ pub mod mixpanel;
 pub mod ml_feed;
 pub mod notifications;
 pub mod posts;
-pub mod report;
 pub mod route;
 pub mod sentry;
 pub mod time;

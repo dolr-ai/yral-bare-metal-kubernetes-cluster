@@ -35,6 +35,5 @@ sns-index = []
 services = [
     "user-info-service",
 ]
-rate-limits = []
 user-info-service = []
 user-post-service = []

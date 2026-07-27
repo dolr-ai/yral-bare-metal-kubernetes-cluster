@@ -6,7 +6,6 @@ use canisters_client::{
     ic::USER_POST_SERVICE_ID,
     local::USER_INFO_SERVICE_ID,
     post_cache::PostCache,
-    rate_limits::RateLimits,
     sns_governance::SnsGovernance,
     sns_index::SnsIndex,
     sns_ledger::SnsLedger,
@@ -16,7 +15,7 @@ use canisters_client::{
     user_post_service::UserPostService,
 };
 use consts::{
-    canister_ids::{POST_CACHE_ID, RATE_LIMITS_ID},
+    canister_ids::POST_CACHE_ID,
     METADATA_API_BASE,
 };
 use ic_agent::{identity::DelegatedIdentity, Identity};
@@ -379,11 +378,6 @@ impl<const A: bool> Canisters<A> {
     pub async fn sns_swap(&self, canister_id: Principal) -> SnsSwap<'_> {
         let agent = self.agent.get_agent().await;
         SnsSwap(canister_id, agent)
-    }
-
-    pub async fn rate_limits(&self) -> RateLimits<'_> {
-        let agent = self.agent.get_agent().await;
-        RateLimits(RATE_LIMITS_ID, agent)
     }
 }
 
