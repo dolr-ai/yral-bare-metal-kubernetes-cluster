@@ -233,22 +233,58 @@ trap cleanup EXIT
 
 for canister in \
   user_post_service \
-  user_info_service \
-  rate_limits
+  user_info_service
   do
   dfx canister create --no-wallet "$canister"
 done
 
 for canister in \
   user_post_service \
-  user_info_service \
-  rate_limits
+  user_info_service
   do
   dfx build "$canister"
   gzip -f -1 "./target/wasm32-unknown-unknown/release/${canister}.wasm"
 done
 
 cargo test
+'''
+
+[tasks.canister-harvest]
+description = "Harvest cycles from a single mainnet canister via the task_runner harvest test (materializes ACTIONS_IDENTITY_PEM from fnox, cleans up after). Pass HARVEST_CANISTER_ID=<id> to target a specific canister."
+dir = "apps/yral-backend-canister"
+run = '''
+set -euo pipefail
+
+PEM_FILE="$PWD/actions_identity.pem"
+
+# Materialize the actions identity from fnox (age-encrypted in fnox.toml).
+# Clean up on exit so the PEM never lingers on disk.
+cleanup() {
+  if [ -f "$PEM_FILE" ]; then
+    shred -u "$PEM_FILE" 2>/dev/null || rm -f "$PEM_FILE"
+  fi
+}
+trap cleanup EXIT
+
+fnox get ACTIONS_IDENTITY_PEM > "$PEM_FILE"
+chmod 600 "$PEM_FILE"
+
+if [ ! -s "$PEM_FILE" ]; then
+  echo "Error: ACTIONS_IDENTITY_PEM secret is empty or missing from fnox."
+  echo "Set it with: fnox set ACTIONS_IDENTITY_PEM --provider age < <pem-file>"
+  exit 1
+fi
+
+export DFX_WARNING=-mainnet_plaintext_identity
+
+if [ -n "${HARVEST_CANISTER_ID:-}" ]; then
+  echo "==> Harvesting canister: $HARVEST_CANISTER_ID"
+else
+  echo "==> Harvesting first canister from principal.csv"
+  echo "    (set HARVEST_CANISTER_ID=<id> to target a specific canister)"
+fi
+
+cargo test -p task_runner -- --ignored harvest_single_canister --nocapture
 '''
 
 [tasks.canister-generate-candid]
@@ -260,7 +296,6 @@ set -euo pipefail
 ALL_CANISTERS=(
   user_post_service
   user_info_service
-  rate_limits
 )
 
 if [ $# -gt 0 ]; then
