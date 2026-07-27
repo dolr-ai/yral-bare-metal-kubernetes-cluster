@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package offchain_canister;
-
-// Interface exported by the server.
-service OffChainCanister {
-}
-
-message Empty {}

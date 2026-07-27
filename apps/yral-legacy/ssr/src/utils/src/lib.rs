@@ -52,11 +52,6 @@ pub fn mp4_url(uid: impl Display) -> String {
     format!("{CF_STREAM_BASE}/{uid}/downloads/default.mp4")
 }
 
-#[cfg(all(feature = "ga4", feature = "ssr"))]
-pub mod off_chain {
-    tonic::include_proto!("off_chain");
-}
-
 #[cfg(not(feature = "hydrate"))]
 pub fn send_wrap<Fut: Future + Send>(
     t: Fut,

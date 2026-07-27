@@ -4,28 +4,18 @@
 
     # Enable HTTP/2 and HTTP/3
     servers {
-        protocols h1 h2 h2c
+        protocols h1 h2
     }
 }
 
-# gRPC service - needs HTTP/2
+# off-chain-agent REST API (plain HTTP reverse proxy)
 # Replace YOUR_DOMAIN with actual domain (e.g., offchain.yral.com)
 offchain.yral.com {
-    # gRPC reverse proxy with HTTP/2 support
     reverse_proxy offchain-agent:50051 {
-        # Enable HTTP/2 to backend for gRPC
-        transport http {
-            versions h2c
-        }
-
-        # Headers for gRPC
         header_up Host {host}
         header_up X-Real-IP {remote_host}
         header_up X-Forwarded-For {remote_host}
         header_up X-Forwarded-Proto {scheme}
-
-        # Flush immediately for streaming
-        flush_interval -1
     }
 
     # Security headers

@@ -66,13 +66,6 @@ pub async fn http_logging_middleware(
     // Extract safe headers (excluding sensitive ones)
     let request_headers = extract_safe_headers(req.headers());
 
-    // Check if this is a gRPC request (skip body capture for gRPC)
-    let is_grpc = req
-        .headers()
-        .get(http::header::CONTENT_TYPE)
-        .and_then(|v| v.to_str().ok())
-        == Some("application/grpc");
-
     let content_type = req
         .headers()
         .get(http::header::CONTENT_TYPE)
@@ -80,7 +73,7 @@ pub async fn http_logging_middleware(
         .map(|s| s.to_string());
 
     // Buffer request body bytes (cheap - no parsing yet)
-    let (req, request_body_bytes) = if !is_grpc && should_capture_body(content_type.as_deref()) {
+    let (req, request_body_bytes) = if should_capture_body(content_type.as_deref()) {
         match buffer_request_body_bytes(req).await {
             Ok(result) => result,
             Err(e) => {
@@ -116,7 +109,7 @@ pub async fn http_logging_middleware(
 
         // Buffer response body bytes
         let (res, response_body_bytes) =
-            if !is_grpc && should_capture_body(response_content_type.as_deref()) {
+            if should_capture_body(response_content_type.as_deref()) {
                 match buffer_response_body_bytes(res).await {
                     Ok(result) => result,
                     Err(e) => {

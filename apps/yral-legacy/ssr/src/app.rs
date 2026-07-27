@@ -25,7 +25,6 @@ use state::app_state::AppState;
 use state::app_type::AppType;
 use state::audio_state::AudioState;
 use utils::event_streaming::events::HistoryCtx;
-use utils::event_streaming::EventHistory;
 use utils::mixpanel::state::MixpanelState;
 use utils::types::PostParams;
 use yral_canisters_common::Canisters;
@@ -109,12 +108,6 @@ pub fn App() -> impl IntoView {
             let loc = use_location();
             history_ctx.push(&loc.pathname.get());
         });
-    }
-
-    // Analytics
-    #[cfg(feature = "ga4")]
-    {
-        provide_context(EventHistory::default());
     }
 
     view! {

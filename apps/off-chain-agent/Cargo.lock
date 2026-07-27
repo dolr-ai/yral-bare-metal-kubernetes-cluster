@@ -3444,15 +3444,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "num_threads"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c7398b9c8b70908f6371f47ed36737907c87c52af34c268fed0bf0ceb92ead9"
-dependencies = [
- "libc",
-]
-
-[[package]]
 name = "object"
 version = "0.37.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3482,7 +3473,6 @@ dependencies = [
  "hmac",
  "http 1.4.2",
  "http-body-util",
- "hyper-util",
  "ic-agent",
  "ic-utils",
  "image",
@@ -3527,7 +3517,6 @@ dependencies = [
  "yral-metrics",
  "yral-types",
  "yral-username-gen",
- "yup-oauth2",
 ]
 
 [[package]]
@@ -4676,15 +4665,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rustls-pemfile"
-version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dce314e5fee3f39953d46bb63bb8a46d40c2f8fb7cc5a3b6cab2bde9721d6e50"
-dependencies = [
- "rustls-pki-types",
-]
-
-[[package]]
 name = "rustls-pki-types"
 version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5495,9 +5475,7 @@ checksum = "91e7d9e3bb61134e77bde20dd4825b97c010155709965fedf0f49bb138e52a9d"
 dependencies = [
  "deranged",
  "itoa",
- "libc",
  "num-conv",
- "num_threads",
  "powerfmt",
  "serde",
  "time-core",
@@ -6558,33 +6536,6 @@ dependencies = [
  "candid",
  "rand 0.9.5",
  "rand_xoshiro",
-]
-
-[[package]]
-name = "yup-oauth2"
-version = "11.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ed5f19242090128c5809f6535cc7b8d4e2c32433f6c6005800bbc20a644a7f0"
-dependencies = [
- "anyhow",
- "async-trait",
- "base64 0.22.1",
- "futures",
- "http 1.4.2",
- "http-body-util",
- "hyper 1.11.0",
- "hyper-rustls 0.27.9",
- "hyper-util",
- "log",
- "percent-encoding",
- "rustls 0.23.42",
- "rustls-pemfile",
- "seahash",
- "serde",
- "serde_json",
- "time",
- "tokio",
- "url",
 ]
 
 [[package]]

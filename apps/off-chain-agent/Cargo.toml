@@ -35,7 +35,6 @@ hex = "0.4.3"
 hmac = "0.12"
 http = "1.0.0"
 http-body-util = "0.1.2"
-hyper-util = { version = "0.1.8", features = ["client", "client-legacy"] }
 ic-agent = "0.49.0"
 ic-utils = "0.49.0"
 image = "0.25"
@@ -116,7 +115,6 @@ yral-metadata-types = { path = "../yral-metadata/types" }
 yral-metrics = { path = "../yral-common/metrics" }
 yral-types = { path = "../yral-common/types" }
 yral-username-gen = { path = "../yral-common/username-gen" }
-yup-oauth2 = "11.0.0"
 
 [features]
 prod-bin = []

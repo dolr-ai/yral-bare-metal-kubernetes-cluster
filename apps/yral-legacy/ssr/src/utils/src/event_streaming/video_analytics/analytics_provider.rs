@@ -1,7 +1,4 @@
 use crate::event_streaming::events::EventCtx;
-use crate::mixpanel::mixpanel_events::{
-    MixPanelEvent, MixpanelGlobalProps, MixpanelVideoClickedCTAType,
-};
 use crate::ml_feed::QuickPostDetails;
 
 #[derive(Clone)]
@@ -22,47 +19,4 @@ pub enum VideoAnalyticsEvent {
 
 pub trait VideoAnalyticsProvider: Send + Sync {
     fn track_event(&self, event: VideoAnalyticsEvent, ctx: EventCtx);
-}
-
-#[cfg(feature = "ga4")]
-pub struct MixpanelProvider;
-
-#[cfg(feature = "ga4")]
-impl VideoAnalyticsProvider for MixpanelProvider {
-    fn track_event(&self, event: VideoAnalyticsEvent, ctx: EventCtx) {
-        let Some(mut global) = MixpanelGlobalProps::from_ev_ctx(ctx) else {
-            return;
-        };
-
-        match event {
-            VideoAnalyticsEvent::VideoStarted { post, is_logged_in } => {
-                global.is_logged_in = is_logged_in;
-                MixPanelEvent::track_video_started(
-                    global,
-                    post.video_uid.clone(),
-                    post.publisher_user_id.to_text(),
-                );
-            }
-            VideoAnalyticsEvent::VideoViewed { post, is_logged_in } => {
-                global.is_logged_in = is_logged_in;
-                MixPanelEvent::track_video_viewed(
-                    global,
-                    post.video_uid.clone(),
-                    post.publisher_user_id.to_text(),
-                );
-            }
-            VideoAnalyticsEvent::VideoMuted { post, muted } => {
-                MixPanelEvent::track_video_clicked(
-                    global,
-                    post.publisher_user_id.to_text(),
-                    post.video_uid.clone(),
-                    if muted {
-                        MixpanelVideoClickedCTAType::Mute
-                    } else {
-                        MixpanelVideoClickedCTAType::Unmute
-                    },
-                );
-            }
-        }
-    }
 }

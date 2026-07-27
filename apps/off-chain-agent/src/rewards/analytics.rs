@@ -127,7 +127,7 @@ pub async fn send_btc_rewarded_event(
             "ts": timestamp,
         });
 
-        // Send to event pipeline (BigQuery etc.)
+        // Send to event pipeline (self-loopback to /api/v2/events)
         if let Err(e) =
             send_event_to_pipeline("btc_rewarded", event_params).await
         {

@@ -4,7 +4,6 @@ gha-creds-*.json
 .env
 .env.local
 **/.DS_Store
-google_service_account.json
 /.cargo
 .zed/*
 .vscode/

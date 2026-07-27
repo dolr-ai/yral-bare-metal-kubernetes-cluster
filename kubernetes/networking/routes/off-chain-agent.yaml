@@ -1,6 +1,6 @@
 # off-chain-agent HTTPRoute
 #
-# Exposes the off-chain-agent gRPC API service at offchain.yral.com.
+# Exposes the off-chain-agent REST API service at offchain.yral.com.
 #
 # TLS is terminated by the Cilium Gateway (web-gateway in kube-system)
 # using the wildcard *.yral.com certificate.

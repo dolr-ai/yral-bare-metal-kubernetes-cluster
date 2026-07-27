@@ -77,14 +77,14 @@ pub async fn handle_delete_post(
         }
     }
 
-    insert_video_delete_row_to_bigquery(state.clone(), canister_id, post_id, video_id.clone())
+    record_video_delete(state.clone(), canister_id, post_id, video_id.clone())
         .await
         .map_err(|e| {
-            log::error!("Failed to insert video delete row to bigquery: {e}");
+            log::error!("Failed to record video delete row: {e}");
 
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to insert video to bigquery: {e}"),
+                format!("Failed to record video delete: {e}"),
             )
         })?;
 
@@ -189,8 +189,8 @@ pub async fn handle_delete_post_v2(
         }
     }
 
-    // Insert to BigQuery with V2 function (String post_id)
-    insert_video_delete_row_to_bigquery_v2(
+    // Record video deletion in Kvrocks (V2, String post_id)
+    record_video_delete_v2(
         state.clone(),
         publisher_canister_id.to_string(),
         post_id,
@@ -198,11 +198,11 @@ pub async fn handle_delete_post_v2(
     )
     .await
     .map_err(|e| {
-        log::error!("Failed to insert video delete row to bigquery: {e}");
+        log::error!("Failed to record video delete row: {e}");
 
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to insert video to bigquery: {e}"),
+            format!("Failed to record video delete: {e}"),
         )
     })?;
 
@@ -216,7 +216,7 @@ pub struct VideoUniqueRow {
     pub created_at: String,
 }
 
-pub async fn insert_video_delete_row_to_bigquery(
+pub async fn record_video_delete(
     state: Arc<AppState>,
     canister_id: String,
     post_id: u64,
@@ -235,7 +235,7 @@ pub async fn insert_video_delete_row_to_bigquery(
     Ok(())
 }
 
-pub async fn insert_video_delete_row_to_bigquery_v2(
+pub async fn record_video_delete_v2(
     state: Arc<AppState>,
     canister_id: String,
     post_id: String, // Changed from u64 to String

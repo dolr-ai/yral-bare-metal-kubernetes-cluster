@@ -59,8 +59,6 @@ hmac = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true }
 sns-validation = { workspace = true }
 js-sys = { workspace = true }
-tonic = { workspace = true }
-prost = { workspace = true }
 priority-queue = { workspace = true }
 rust_decimal = { workspace = true }
 speedate = { workspace = true, optional = true }
@@ -76,7 +74,6 @@ yral-metadata-client = { workspace = true }
 yral-metadata-types = { workspace = true }
 uuid = { workspace = true, features = ["v4", "js"] }
 regex = { workspace = true, optional = true }
-tonic-build = { workspace = true }
 anyhow = { workspace = true }
 send_wrapper = { workspace = true }
 indexmap = { workspace = true }
@@ -89,7 +86,6 @@ yral-identity = { workspace = true }
 consts = { workspace = true }
 
 [build-dependencies]
-tonic-build = { workspace = true }
 anyhow = { workspace = true }
 [features]
 hydrate = [
@@ -100,7 +96,6 @@ hydrate = [
     "dep:web-sys",
     "reqwest/native-tls",
     "dep:rand_chacha",
-    "tonic/codegen",
     "speedate",
     "send_wrapper/futures",
     "consts/hydrate",
@@ -127,10 +122,6 @@ ssr = [
     "bb8",
     "bb8-redis",
     "hmac",
-    "tonic/tls",
-    "tonic/tls-webpki-roots",
-    "tonic/transport",
-    "tonic-build/transport",
     "speedate",
     "dep:regex",
     "consts/ssr",
@@ -153,7 +144,6 @@ oauth-hydrate = ["consts/oauth-hydrate"]
 redis-kv = ["consts/redis-kv"]
 cloudflare = ["dep:gob-cloudflare", "consts/cloudflare"]
 backend-admin = ["consts/backend-admin"]
-ga4 = ["consts/ga4"]
 mock-wallet-history = ["dep:rand_chacha", "consts/mock-wallet-history"]
 release-bin = [
     "ssr",
@@ -162,7 +152,6 @@ release-bin = [
     "redis-kv",
     "backend-admin",
     "oauth-ssr",
-    "ga4",
     "consts/release-bin",
 ]
 release-lib = [
@@ -172,6 +161,5 @@ release-lib = [
     "backend-admin",
     "dep:openidconnect",
     "oauth-hydrate",
-    "ga4",
     "consts/release-lib",
 ]

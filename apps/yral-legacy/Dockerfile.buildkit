@@ -62,7 +62,7 @@ ENV LEPTOS_BIN_TARGET_TRIPLE="x86_64-unknown-linux-musl"
 ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
 
 # Build the app (uses bin-profile-release=prod-release from Cargo.toml metadata)
-# Note: release-bin features (cloudflare, backend-admin, oauth-ssr, ga4) have pre-existing
+# Note: release-bin features (cloudflare, backend-admin, oauth-ssr) have pre-existing
 # Leptos 0.8 migration errors — fix those before enabling --bin-features release-bin.
 # The KV store now always uses DragonflyKV (ReDB fallback removed from init/mod.rs).
 RUN cargo leptos build --release

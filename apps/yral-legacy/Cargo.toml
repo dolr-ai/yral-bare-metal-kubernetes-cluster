@@ -7,7 +7,6 @@ members = [
   "ssr/src/page",
   "ssr/src/state",
   "ssr/src/utils",
-  "telemetry_axum",
 ]
 
 resolver = "2"
@@ -102,7 +101,6 @@ once_cell = "1.19.0"
 openidconnect = { version = "3.5.0" }
 page = { path = "./ssr/src/page" }
 priority-queue = "2.1.0"
-prost = "0.13.0"
 rand = { version = "0.9.0", default-features = false, features = ["small_rng"] }
 rand_chacha = { version = "0.3.1" }
 redis = {
@@ -152,21 +150,6 @@ sentry-tracing = "0.37.0"
 serde_json = "1.0"
 speedate = { version = "0.14.4" }
 state = { path = "./ssr/src/state" }
-tonic = {
-  version = "0.12.0",
-  default-features = false,
-  features = [
-    "codegen",
-    "prost",
-  ]
-}
-tonic-build = {
-  version = "0.12.0",
-  default-features = false,
-  features = [
-    "prost",
-  ]
-}
 tracing-futures = "0.2.5"
 tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "std"] }
@@ -226,24 +209,6 @@ yral-pump-n-dump-common = {
 }
 yral-types = { path = "../yral-common/types" }
 yral-username-gen = { path = "../yral-common/username-gen" }
-
-# OpenTelemetry dependencies for telemetry_axum
-opentelemetry = { version = "0.24.0", features = ["trace"] }
-opentelemetry-appender-tracing = { version = "0.5.0" }
-opentelemetry-http = { version = "0.13.0" }
-opentelemetry-otlp = {
-  version = "0.17.0",
-  default-features = false,
-  features = [
-    "grpc-tonic",
-    "http-proto",
-    "reqwest-rustls",
-    "tls",
-  ]
-}
-opentelemetry_sdk = { version = "0.24.1", features = ["rt-tokio"] }
-telemetry_axum = { path = "./telemetry_axum" }
-tracing-opentelemetry = { version = "0.25.0" }
 
 [profile.prod-release]
 inherits = "release"

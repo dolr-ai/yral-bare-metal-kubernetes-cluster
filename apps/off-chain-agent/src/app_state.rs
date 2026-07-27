@@ -11,21 +11,17 @@ use crate::yral_auth::dragonfly::{
 };
 use anyhow::{anyhow, Context, Result};
 use candid::Principal;
-use hyper_util::client::legacy::connect::HttpConnector;
 use ic_agent::identity::Secp256k1Identity;
 use ic_agent::Agent;
 use std::env;
 use std::sync::Arc;
 use yral_metadata_client::MetadataClient;
-use yup_oauth2::hyper_rustls::HttpsConnector;
-use yup_oauth2::{authenticator::Authenticator, ServiceAccountAuthenticator};
 
 #[derive(Clone)]
 pub struct AppState {
     pub admin_identity: Secp256k1Identity,
     pub agent: ic_agent::Agent,
     pub yral_metadata_client: MetadataClient<true>,
-    pub auth: Authenticator<HttpsConnector<HttpConnector>>,
 
     pub notification_client: NotificationClient,
     pub yral_auth_dragonfly: Arc<DragonflyPool>,
@@ -62,7 +58,6 @@ impl AppState {
             admin_identity: init_identity(),
             yral_metadata_client: init_yral_metadata_client(&app_config),
             agent,
-            auth: init_auth().await,
             notification_client: NotificationClient::new(
                 env::var("YRAL_METADATA_NOTIFICATION_API_KEY").unwrap_or_default(),
             ),
@@ -77,16 +72,6 @@ impl AppState {
                 .expect("YRAL_OFF_CHAIN_USER_MIGRATION_API_KEY is not set"),
             kvrocks_client,
             naitik_multi_service_client: NaitikMultiServiceClient::new(),
-        }
-    }
-
-    pub async fn get_access_token(&self, scopes: &[&str]) -> String {
-        let auth = &self.auth;
-        let token = auth.token(scopes).await.unwrap();
-
-        match token.token() {
-            Some(t) => t.to_string(),
-            _ => panic!("No access token found"),
         }
     }
 
@@ -144,18 +129,6 @@ pub async fn init_agent() -> Agent {
             panic!("Unable to create agent, error: {err:?}");
         }
     }
-}
-
-pub async fn init_auth() -> Authenticator<HttpsConnector<HttpConnector>> {
-    let sa_key_file = env::var("GOOGLE_SA_KEY").expect("GOOGLE_SA_KEY is required");
-
-    // Load your service account key
-    let sa_key = yup_oauth2::parse_service_account_key(sa_key_file).expect("GOOGLE_SA_KEY.json");
-
-    ServiceAccountAuthenticator::builder(sa_key)
-        .build()
-        .await
-        .unwrap()
 }
 
 async fn init_leaderboard_redis_pool() -> RedisPool {

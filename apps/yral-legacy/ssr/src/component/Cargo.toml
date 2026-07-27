@@ -61,8 +61,6 @@ hmac = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true }
 sns-validation = { workspace = true }
 js-sys = { workspace = true }
-tonic = { workspace = true }
-prost = { workspace = true }
 priority-queue = { workspace = true }
 rust_decimal = { workspace = true }
 speedate = { workspace = true, optional = true }
@@ -75,7 +73,6 @@ ciborium = { workspace = true }
 yral-metadata-client = { workspace = true }
 uuid = { workspace = true, features = ["v4", "js"] }
 regex = { workspace = true, optional = true }
-tonic-build = { workspace = true }
 anyhow = { workspace = true }
 send_wrapper = { workspace = true }
 jsonwebtoken = { workspace = true, optional = true }
@@ -95,7 +92,6 @@ hydrate = [
     "dep:web-sys",
     "reqwest/native-tls",
     "dep:rand_chacha",
-    "tonic/codegen",
     "speedate",
     "send_wrapper/futures",
     "consts/hydrate",
@@ -124,10 +120,6 @@ ssr = [
     "bb8",
     "bb8-redis",
     "hmac",
-    "tonic/tls",
-    "tonic/tls-webpki-roots",
-    "tonic/transport",
-    "tonic-build/transport",
     "speedate",
     "dep:regex",
     "consts/ssr",
@@ -177,7 +169,6 @@ backend-admin = [
     "utils/backend-admin",
     "state/backend-admin",
 ]
-ga4 = ["consts/ga4", "utils/ga4", "state/ga4"]
 mock-wallet-history = [
     "dep:rand_chacha",
     "consts/mock-wallet-history",
@@ -191,7 +182,6 @@ release-bin = [
     "redis-kv",
     "backend-admin",
     "oauth-ssr",
-    "ga4",
     "consts/release-bin",
     "utils/release-bin",
     "state/release-bin",
@@ -203,7 +193,6 @@ release-lib = [
     "backend-admin",
     "dep:openidconnect",
     "oauth-hydrate",
-    "ga4",
     "consts/release-lib",
     "utils/release-lib",
     "state/release-lib",

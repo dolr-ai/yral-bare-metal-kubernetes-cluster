@@ -94,8 +94,6 @@ impl HistoryCtx {
     }
 }
 
-#[cfg(feature = "ga4")]
-use crate::event_streaming::send_event_ssr_spawn;
 use crate::ml_feed::QuickPostDetails;
 use crate::user_identity::UserIdentity;
 use leptos::html::Video;
@@ -191,47 +189,7 @@ pub struct LikeVideo;
 
 impl LikeVideo {
     pub fn send_event(&self, ctx: EventCtx, post_details: PostDetails, likes: RwSignal<u64>) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            let publisher_user_id = post_details.poster_principal;
-            let video_id = post_details.uid.clone();
-            let hastag_count = post_details.hastags.len();
-            let is_nsfw = post_details.is_nsfw;
-            let view_count = post_details.views;
-            let post_id = post_details.post_id;
-            let publisher_canister_id = post_details.canister_id;
-            let nsfw_probability = post_details.nsfw_probability;
-
-            // like_video - analytics
-
-            let Some(user) = ctx.user_details() else {
-                return;
-            };
-
-            let _ = send_event_ssr_spawn(
-                "like_video".to_string(),
-                json!({
-                    "publisher_user_id":publisher_user_id,
-                    "user_id": user.details.principal,
-                    "is_loggedIn": ctx.is_connected(),
-                    "display_name": user.details.display_name,
-                    "canister_id": user.canister_id,
-                    "video_id": video_id,
-                    "video_category": "NA",
-                    "creator_category": "NA",
-                    "hashtag_count": hastag_count,
-                    "is_NSFW": is_nsfw,
-                    "feed_type": "NA",
-                    "view_count": view_count,
-                    "like_count": likes.get(),
-                    "share_count": 0,
-                    "post_id": post_id,
-                    "publisher_canister_id": publisher_canister_id,
-                    "nsfw_probability": nsfw_probability,
-                })
-                .to_string(),
-            );
-        }
+        let _ = (ctx, post_details, likes);
     }
 }
 
@@ -240,43 +198,7 @@ pub struct ShareVideo;
 
 impl ShareVideo {
     pub fn send_event(&self, ctx: EventCtx, post_details: PostDetails) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            let publisher_user_id = post_details.poster_principal;
-            let video_id = post_details.uid.clone();
-            let hastag_count = post_details.hastags.len();
-            let is_nsfw = post_details.is_nsfw;
-            let view_count = post_details.views;
-            let like_count = post_details.likes;
-            let nsfw_probability = post_details.nsfw_probability;
-
-            let Some(user) = ctx.user_details() else {
-                return;
-            };
-
-            // share_video - analytics
-            let _ = send_event_ssr_spawn(
-                "share_video".to_string(),
-                json!({
-                    "publisher_user_id":publisher_user_id,
-                    "user_id": user.details.principal,
-                    "is_loggedIn": ctx.is_connected(),
-                    "display_name": user.details.display_name,
-                    "canister_id": user.canister_id,
-                    "video_id": video_id,
-                    "video_category": "NA",
-                    "creator_category": "NA",
-                    "hashtag_count": hastag_count,
-                    "is_NSFW": is_nsfw,
-                    "feed_type": "NA",
-                    "view_count": view_count,
-                    "like_count": like_count,
-                    "share_count": 0,
-                    "nsfw_probability": nsfw_probability,
-                })
-                .to_string(),
-            );
-        }
+        let _ = (ctx, post_details);
     }
 }
 
@@ -285,34 +207,7 @@ pub struct Refer;
 
 impl Refer {
     pub fn send_event(&self, ctx: EventCtx) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            // refer - analytics
-
-            let Some(user) = ctx.user_details() else {
-                return;
-            };
-            let details = user.details;
-            let user_id = details.principal;
-            let display_name = details.display_name;
-            let canister_id = user.canister_id;
-
-            let history_ctx: HistoryCtx = expect_context();
-            let prev_site = history_ctx.prev_url_untracked();
-
-            // refer - analytics
-            let _ = send_event_ssr_spawn(
-                "refer".to_string(),
-                json!({
-                    "user_id":user_id,
-                    "is_loggedIn": ctx.is_connected(),
-                    "display_name": display_name,
-                    "canister_id": canister_id,
-                    "refer_location": prev_site,
-                })
-                .to_string(),
-            );
-        }
+        let _ = ctx;
     }
 }
 
@@ -321,34 +216,7 @@ pub struct ReferShareLink;
 
 impl ReferShareLink {
     pub fn send_event(&self, ctx: EventCtx) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            // refer_share_link - analytics
-            let Some(user) = ctx.user_details() else {
-                return;
-            };
-            let details = user.details;
-
-            let user_id = details.principal;
-            let display_name = details.display_name;
-            let canister_id = user.canister_id;
-
-            let history_ctx: HistoryCtx = expect_context();
-            let prev_site = history_ctx.prev_url_untracked();
-
-            // refer_share_link - analytics
-            let _ = send_event_ssr_spawn(
-                "refer_share_link".to_string(),
-                json!({
-                    "user_id":user_id,
-                    "is_loggedIn": ctx.is_connected(),
-                    "display_name": display_name,
-                    "canister_id": canister_id,
-                    "refer_location": prev_site,
-                })
-                .to_string(),
-            );
-        }
+        let _ = ctx;
     }
 }
 
@@ -357,31 +225,7 @@ pub struct LoginSuccessful;
 
 impl LoginSuccessful {
     pub fn send_event(&self, canisters: Canisters<true>) -> Result<(), anyhow::Error> {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            // login_successful - analytics
-
-            use ic_agent::Identity;
-
-            let user_id = canisters.identity().sender().map_err(|_| {
-                leptos::logging::error!("No sender found for login successful event");
-                anyhow::anyhow!("No sender found for login successful event")
-            })?;
-            let canister_id = canisters.user_canister();
-
-            // login_successful - analytics
-            let _ = send_event_ssr_spawn(
-                "login_successful".to_string(),
-                json!({
-                    "login_method": "google", // TODO: change this when more providers are added
-                    "user_id": user_id.to_string(),
-                    "canister_id": canister_id.to_string(),
-                    "is_new_user": false,                   // TODO: add this info
-                })
-                .to_string(),
-            );
-        }
-
+        let _ = canisters;
         Ok(())
     }
 }
@@ -391,23 +235,7 @@ pub struct LoginMethodSelected;
 
 impl LoginMethodSelected {
     pub fn send_event(&self, prov: ProviderKind) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            // login_method_selected - analytics
-            let _ = send_event_ssr_spawn(
-                "login_method_selected".to_string(),
-                json!({
-                    "login_method": match prov {
-                        #[cfg(any(feature = "oauth-ssr", feature = "oauth-hydrate"))]
-                        ProviderKind::YralAuth => "yral",
-                        #[cfg(not(any(feature = "oauth-ssr", feature = "oauth-hydrate")))]
-                        _ => "local",
-                    },
-                    "attempt_count": 1,
-                })
-                .to_string(),
-            );
-        }
+        let _ = prov;
     }
 }
 
@@ -416,27 +244,7 @@ pub struct LoginJoinOverlayViewed;
 
 impl LoginJoinOverlayViewed {
     pub fn send_event(&self, ctx: EventCtx) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            // login_join_overlay_viewed - analytics
-
-            use crate::event_streaming::EventHistory;
-            let Some(user) = ctx.user_details() else {
-                return;
-            };
-            let event_history: EventHistory = expect_context();
-
-            let user_id = user.details.principal;
-
-            let _ = send_event_ssr_spawn(
-                "login_join_overlay_viewed".to_string(),
-                json!({
-                    "user_id_viewer": user_id,
-                    "previous_event": event_history.event_name.get_untracked(),
-                })
-                .to_string(),
-            );
-        }
+        let _ = ctx;
     }
 }
 
@@ -445,23 +253,7 @@ pub struct LoginCta;
 
 impl LoginCta {
     pub fn send_event(&self, cta_location: String) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            // login_cta - analytics
-
-            use crate::event_streaming::EventHistory;
-
-            let event_history: EventHistory = expect_context();
-
-            let _ = send_event_ssr_spawn(
-                "login_cta".to_string(),
-                json!({
-                    "previous_event": event_history.event_name.get_untracked(),
-                    "cta_location": cta_location,
-                })
-                .to_string(),
-            );
-        }
+        let _ = cta_location;
     }
 }
 
@@ -470,28 +262,7 @@ pub struct LogoutClicked;
 
 impl LogoutClicked {
     pub fn send_event(&self, ctx: EventCtx) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            let Some(user) = ctx.user_details() else {
-                return;
-            };
-            let details = user.details;
-            // logout_clicked - analytics
-
-            let user_id = details.principal;
-            let display_name = details.display_name;
-            let canister_id = user.canister_id;
-
-            let _ = send_event_ssr_spawn(
-                "logout_clicked".to_string(),
-                json!({
-                    "user_id_viewer": user_id,
-                    "display_name": display_name,
-                    "canister_id": canister_id,
-                })
-                .to_string(),
-            );
-        }
+        let _ = ctx;
     }
 }
 
@@ -500,28 +271,7 @@ pub struct LogoutConfirmation;
 
 impl LogoutConfirmation {
     pub fn send_event(&self, ctx: EventCtx) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            let Some(user) = ctx.user_details() else {
-                return;
-            };
-            let details = user.details;
-
-            let user_id = details.principal;
-            let display_name = details.display_name;
-            let canister_id = user.canister_id;
-            // logout_confirmation - analytics
-
-            let _ = send_event_ssr_spawn(
-                "logout_confirmation".to_string(),
-                json!({
-                    "user_id_viewer": user_id,
-                    "display_name": display_name,
-                    "canister_id": canister_id,
-                })
-                .to_string(),
-            );
-        }
+        let _ = ctx;
     }
 }
 
@@ -530,31 +280,7 @@ pub struct ErrorEvent;
 
 impl ErrorEvent {
     pub fn send_event(&self, ctx: EventCtx, error_str: String) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            use crate::event_streaming::EventHistory;
-
-            let event_history: EventHistory = expect_context();
-            let Some(user) = ctx.user_details() else {
-                return;
-            };
-            let details = user.details;
-
-            let user_id = details.principal;
-            let canister_id = user.canister_id;
-
-            // error_event - analytics
-            let _ = send_event_ssr_spawn(
-                "error_event".to_string(),
-                json!({
-                    "user_id": user_id,
-                    "canister_id": canister_id,
-                    "description": error_str,
-                    "previous_event": event_history.event_name.get_untracked(),
-                })
-                .to_string(),
-            );
-        }
+        let _ = (ctx, error_str);
     }
 }
 
@@ -563,29 +289,7 @@ pub struct TokenCreationStarted;
 
 impl TokenCreationStarted {
     pub fn send_event(&self, ctx: EventCtx, sns_init_payload: SnsInitPayload) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            let Some(user) = ctx.user_details() else {
-                return;
-            };
-            let details = user.details;
-
-            let user_id = details.principal;
-            let canister_id = user.canister_id;
-
-            // token_creation_started - analytics
-            let _ = send_event_ssr_spawn(
-                "token_creation_started".to_string(),
-                json!({
-                    "user_id": user_id,
-                    "canister_id": canister_id,
-                    "token_name": sns_init_payload.token_name,
-                    "token_symbol": sns_init_payload.token_symbol,
-                    "name": sns_init_payload.name
-                })
-                .to_string(),
-            );
-        }
+        let _ = (ctx, sns_init_payload);
     }
 }
 
@@ -594,25 +298,7 @@ pub struct TokensTransferred;
 
 impl TokensTransferred {
     pub fn send_event(&self, amount: String, to: Principal, cans_store: Canisters<true>) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            let details: UserIdentity = cans_store.profile_details().into();
-
-            let user_id = details.principal;
-            let canister_id = cans_store.user_canister();
-
-            // tokens_transferred - analytics
-            let _ = send_event_ssr_spawn(
-                "tokens_transferred".to_string(),
-                json!({
-                    "user_id": user_id,
-                    "canister_id": canister_id,
-                    "amount": amount,
-                    "to": to
-                })
-                .to_string(),
-            );
-        }
+        let _ = (amount, to, cans_store);
     }
 }
 
@@ -621,27 +307,7 @@ pub struct PageVisit;
 
 impl PageVisit {
     pub fn send_event(&self, user_id: Principal, is_connected: bool, pathname: String) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            use leptos_use::{use_timeout_fn, UseTimeoutFnReturn};
-
-            let UseTimeoutFnReturn { start, .. } = use_timeout_fn(
-                move |_| {
-                    let _ = send_event_ssr_spawn(
-                        "yral_page_visit".to_string(),
-                        json!({
-                            "user_id": user_id,
-                            "is_loggedIn": is_connected,
-                            "pathname": pathname,
-                        })
-                        .to_string(),
-                    );
-                },
-                10000.0,
-            );
-
-            start(());
-        }
+        let _ = (user_id, is_connected, pathname);
     }
 }
 
@@ -650,21 +316,6 @@ pub struct SatsWithdrawn;
 
 impl SatsWithdrawn {
     pub fn send_event(&self, ctx: EventCtx, amount_withdrawn: f64) {
-        #[cfg(all(feature = "hydrate", feature = "ga4"))]
-        {
-            let Some(user) = ctx.user_details() else {
-                return;
-            };
-            let _ = send_event_ssr_spawn(
-                "sats_withdrawn".to_string(),
-                json!({
-                    "user_id": user.details.principal,
-                    "canister_id": user.canister_id,
-                    "is_loggedin": ctx.is_connected(),
-                    "amount_withdrawn": amount_withdrawn,
-                })
-                .to_string(),
-            );
-        }
+        let _ = (ctx, amount_withdrawn);
     }
 }

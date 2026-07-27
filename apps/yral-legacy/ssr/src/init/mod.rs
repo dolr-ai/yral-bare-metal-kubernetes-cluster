@@ -64,21 +64,6 @@ fn init_yral_auth_migration_key() -> jsonwebtoken::EncodingKey {
     enc_key
 }
 
-#[cfg(feature = "ga4")]
-async fn init_grpc_offchain_channel() -> tonic::transport::Channel {
-    use consts::OFF_CHAIN_AGENT_GRPC_URL;
-    use tonic::transport::{Channel, ClientTlsConfig};
-
-    let tls_config = ClientTlsConfig::new().with_webpki_roots();
-    let off_chain_agent_url = OFF_CHAIN_AGENT_GRPC_URL.as_ref();
-    Channel::from_static(off_chain_agent_url)
-        .tls_config(tls_config)
-        .expect("Couldn't update TLS config for off-chain agent")
-        .connect()
-        .await
-        .expect("Couldn't connect to off-chain agent")
-}
-
 #[cfg(feature = "backend-admin")]
 fn init_admin_canisters() -> state::admin_canisters::AdminCanisters {
     use state::admin_canisters::AdminCanisters;
@@ -137,8 +122,6 @@ impl AppStateBuilder {
             yral_oauth_client: init_yral_oauth(),
             #[cfg(feature = "oauth-ssr")]
             yral_auth_migration_key: init_yral_auth_migration_key(),
-            #[cfg(feature = "ga4")]
-            grpc_offchain_channel: init_grpc_offchain_channel().await,
             hon_worker_jwt: {
                 use state::server::HonWorkerJwt;
                 let jwt = env::var("HON_WORKER_JWT").expect("`HON_WORKER_JWT` is required!");

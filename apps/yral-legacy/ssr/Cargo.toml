@@ -59,8 +59,6 @@ hmac = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true }
 sns-validation = { workspace = true }
 js-sys = { workspace = true }
-tonic = { workspace = true }
-prost = { workspace = true }
 priority-queue = { workspace = true }
 rust_decimal = { workspace = true }
 speedate = { workspace = true, optional = true }
@@ -74,7 +72,6 @@ yral-metadata-client = { workspace = true, optional = true }
 yral-metadata-types = { workspace = true, optional = true }
 uuid = { workspace = true, features = ["v4", "js"] }
 regex = { workspace = true, optional = true }
-tonic-build = { workspace = true }
 anyhow = { workspace = true }
 send_wrapper = { workspace = true }
 indexmap.workspace = true
@@ -84,8 +81,6 @@ tracing-subscriber = { workspace = true, optional = true }
 tracing-futures = { workspace = true, optional = true }
 sentry = { workspace = true, optional = true }
 sentry-tower = { workspace = true, optional = true }
-telemetry_axum = { workspace = true, optional = true }
-opentelemetry_sdk = { workspace = true, optional = true }
 jsonwebtoken = { workspace = true, optional = true }
 
 # local deps
@@ -100,7 +95,6 @@ page.workspace = true
 
 
 [build-dependencies]
-tonic-build = { workspace = true }
 anyhow = { workspace = true }
 [features]
 hydrate = [
@@ -110,7 +104,6 @@ hydrate = [
     "ic-agent/wasm-bindgen",
     "dep:web-sys",
     "reqwest/native-tls",
-    "tonic/codegen",
     "speedate",
     "send_wrapper/futures",
     "consts/hydrate",
@@ -141,10 +134,6 @@ ssr = [
     "bb8",
     "bb8-redis",
     "hmac",
-    "tonic/tls",
-    "tonic/tls-webpki-roots",
-    "tonic/transport",
-    "tonic-build/transport",
     "speedate",
     "dep:regex",
     "consts/ssr",
@@ -159,7 +148,6 @@ ssr = [
     "dep:tracing-futures",
     "dep:sentry",
     "dep:sentry-tower",
-    # "enable-otlp",
 ]
 # Fetch mock referral history instead of history via canister
 mock-referral-history = [
@@ -221,7 +209,6 @@ backend-admin = [
     "component/backend-admin",
     "page/backend-admin",
 ]
-ga4 = ["consts/ga4", "utils/ga4", "state/ga4", "component/ga4", "page/ga4"]
 mock-wallet-history = [
     "dep:rand_chacha",
     "consts/mock-wallet-history",
@@ -230,7 +217,7 @@ mock-wallet-history = [
     "component/mock-wallet-history",
     "page/mock-wallet-history",
 ]
-enable-otlp = ["dep:telemetry_axum", "dep:opentelemetry_sdk"]
+enable-otlp = []
 release-bin = [
     "ssr",
     "cloudflare",
@@ -238,7 +225,6 @@ release-bin = [
     "redis-kv",
     "backend-admin",
     "oauth-ssr",
-    "ga4",
     "consts/release-bin",
     "utils/release-bin",
     "state/release-bin",
@@ -252,7 +238,6 @@ release-lib = [
     "backend-admin",
     "dep:openidconnect",
     "oauth-hydrate",
-    "ga4",
     "consts/release-lib",
     "utils/release-lib",
     "state/release-lib",

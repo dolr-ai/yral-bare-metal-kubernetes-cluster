@@ -43,9 +43,6 @@ pub static ANALYTICS_SERVER_URL: Lazy<Url> =
 pub static SMILEY_GAME_STATS_URL: Lazy<Url> =
     Lazy::new(|| Url::parse("https://us-central1-yral-mobile.cloudfunctions.net").unwrap());
 
-pub static OFF_CHAIN_AGENT_GRPC_URL: Lazy<Url> =
-    Lazy::new(|| Url::parse("https://offchain.yral.com:443").unwrap());
-
 pub const ICP_LEDGER_CANISTER_ID: &str = "ryjl3-tyaaa-aaaaa-aaaba-cai";
 
 pub const CF_KV_ML_CACHE_NAMESPACE_ID: &str = "ea145fc839bd42f9bf2d34b950ddbda5";
