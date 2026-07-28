@@ -1,0 +1,12 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "ci: check lint build",
+            "type": "shell",
+            "command": "npm ci && npm run check && npm run lint && npm run build",
+            "group": "test",
+            "problemMatcher": []
+        }
+    ]
+}

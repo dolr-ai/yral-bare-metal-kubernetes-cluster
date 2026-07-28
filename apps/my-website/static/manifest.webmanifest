@@ -1,0 +1,37 @@
+{
+  "short_name": "Saikat's Website",
+  "name": "Saikat's Website",
+  "icons": [
+    {
+      "src": "/assets/logos/logo-square-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/assets/logos/logo-square-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#FAE8FF",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#10B981",
+  "shortcuts": [
+    {
+      "name": "Blog",
+      "short_name": "Blog",
+      "description": "View all published blog posts",
+      "url": "/blog",
+      "icons": [
+        {
+          "src": "/assets/logos/logo-square-192.png",
+          "type": "image/png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "description": "This is a website where I blog about full stack JavaScript including things like SvelteJS, TailwindCSS, NodeJS, Linux, PostgreSQL among a few and showcase projects I've worked on"
+}

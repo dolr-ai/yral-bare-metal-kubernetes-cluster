@@ -1,0 +1,8 @@
+---
+# Plaintext vars committed to version control.
+# Only the API token is sensitive; zone_id and account_id are public identifiers.
+
+# Cloudflare Configuration
+cloudflare_api_token: "{{ vault_cloudflare_api_token }}"
+cloudflare_zone_id: "4250af23497bb7a306e4450a7709a997"       # <-- fill in your zone ID
+cloudflare_account_id: "21783118d91fac275d5bc116c37da809"    # <-- fill in your account ID

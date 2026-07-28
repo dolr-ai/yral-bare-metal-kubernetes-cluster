@@ -1,0 +1,11 @@
+---
+# Plaintext vars committed to version control.
+# Only the API token is sensitive; zone_id and account_id are public identifiers.
+
+# Cloudflare Configuration
+cloudflare_api_token: "{{ vault_cloudflare_api_token }}"
+cloudflare_zone_id: "abc123xyz"     # your zone ID — safe to commit
+cloudflare_account_id: "def456uvw"  # your account ID — safe to commit
+
+# Add more vault-backed variables as needed:
+# some_api_key: "{{ vault_some_api_key }}"

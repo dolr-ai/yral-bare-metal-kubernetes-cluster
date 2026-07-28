@@ -45,12 +45,12 @@ git submodule update --init --recursive
 | `apps/yral-backend-canister/`      | git@github.com:dolr-ai/yral-backend-canister.git      |
 
 | `apps/website/`                    | git@github.com:dolr-ai/website.git                    |
-| `apps/my-website/`                 | https://github.com/saikatdas0790/my-website.git       |
 
 ## In-repo applications (not submodules)
 
 | App                             | Deployed at                                                 |
 | ------------------------------- | ----------------------------------------------------------- |
+| `apps/my-website/`             | `saikat.dev`                                                |
 | `apps/yral-auth/`               | `auth.yral.com`                                             |
 | `apps/yral-legacy/`             | `legacy.yral.com`                                           |
 | `apps/yral-metadata/`           | `metadata.yral.com`                                         |

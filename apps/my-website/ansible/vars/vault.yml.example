@@ -1,0 +1,8 @@
+---
+# Encrypted secrets - actual values
+# This file must be encrypted with: ansible-vault encrypt vars/vault.yml
+# NEVER commit this file in plaintext
+
+# Only truly sensitive values belong here.
+# Public identifiers (zone_id, account_id) live in vars/main.yml instead.
+vault_cloudflare_api_token: "your_cloudflare_api_token_here"
