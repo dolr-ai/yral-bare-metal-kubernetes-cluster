@@ -133,7 +133,7 @@ hydrate = [
     "send_wrapper/futures",
     "consts/hydrate",
     "utils/hydrate",
-    "yral-metadata-client/native-tls"
+    "yral-metadata-client/rustls-tls"
 ]
 ssr = [
     "dep:axum",

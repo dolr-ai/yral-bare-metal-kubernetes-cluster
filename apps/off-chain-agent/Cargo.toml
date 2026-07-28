@@ -36,7 +36,7 @@ hex = { workspace = true }
 hmac = { workspace = true }
 http = { workspace = true }
 http-body-util = { workspace = true }
-ic-agent = { workspace = true }
+ic-agent = { workspace = true, features = ["pem"] }
 ic-utils = { workspace = true }
 image = { workspace = true }
 jsonwebtoken = { workspace = true, features = ["use_pem"] }
@@ -73,7 +73,7 @@ reqwest = {
 rustls = { workspace = true, features = ["ring"] }
 serde = { workspace = true, features = ["derive"] }
 serde_bytes = { workspace = true }
-serde_json = { workspace = true, default-features = false }
+serde_json = { workspace = true }
 serde_with = { workspace = true }
 sha1 = { workspace = true }
 sha2 = { workspace = true }

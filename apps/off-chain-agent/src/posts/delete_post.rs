@@ -66,7 +66,7 @@ pub async fn handle_delete_post(
         Ok(canisters_client::user_post_service::Result_::Err(_)) => {
             return Err((
                 StatusCode::BAD_REQUEST,
-                "Delete post failed - either the post doesn't exist or already deleted"to_string(),
+                "Delete post failed - either the post doesn't exist or already deleted".to_string(),
             ))
         }
         Err(e) => {

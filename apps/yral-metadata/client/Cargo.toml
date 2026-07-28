@@ -7,9 +7,13 @@ edition = "2021"
 
 [dependencies]
 ic-agent = { workspace = true }
-identity = { workspace = true, default-features = false, features = [
-  "ic-agent",
-] }
+identity = {
+  workspace = true,
+  default-features = false,
+  features = [
+    "ic-agent",
+  ]
+}
 reqwest = {
   workspace = true,
   default-features = false,
@@ -23,5 +27,4 @@ types = { package = "yral-metadata-types", path = "../types" }
 
 [features]
 default = []
-native-tls = ["reqwest/native-tls"]
 rustls-tls = ["reqwest/rustls"]

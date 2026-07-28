@@ -24,7 +24,7 @@ elsa = { workspace = true }
 email_address = { workspace = true }
 env_logger = { workspace = true }
 futures = { workspace = true }
-ic-agent = { workspace = true }
+ic-agent = { workspace = true, features = ["pem"] }
 identity = { workspace = true, default-features = false, features = [
   "verify",
 ] }
@@ -54,7 +54,7 @@ reqwest = {
     "rustls",
   ]
 }
-rustls = { workspace = true }
+rustls = { workspace = true, features = ["ring"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_with = { workspace = true }
