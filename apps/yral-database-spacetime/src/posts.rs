@@ -20,8 +20,8 @@
 //!   `SpacetimeType` return). Reducers for writes, procedures for reads.
 //!
 //! ## Admin model
-//! Admin identities are hardcoded as a `const ADMINS` array at the top
-//! of this file. Admin reducers (`add_post`, `add_post_v1`,
+//! Admin identities are hardcoded as a `const ADMINS` array in
+//! `constants.rs`. Admin reducers (`add_post`, `add_post_v1`,
 //! `update_post_status`, `admin_delete_post`, `upsert_post`) check
 //! `is_admin(ctx)` which compares `ctx.sender()` against this list.
 //! To add/remove an admin, edit the `ADMINS` constant and republish.
@@ -132,24 +132,6 @@ pub struct FetchPostsResult {
 // Constants
 // ─────────────────────────────────────────────────────────────────────────
 
-/// Hardcoded admin identities. Add an identity by hex-decoding its 32-byte
-/// big-endian representation. To get an identity's hex string, run
-/// `spacetime publish` and note the publisher identity, or connect a service
-/// (off-chain-agent, backfill binary) and log its `Identity::to_hex()`.
-///
-/// Example:
-/// ```ignore
-/// Identity::from_be_byte_array([
-///     0xc2, 0x00, 0x..., // 32 bytes from the hex string (big-endian)
-/// ])
-/// ```
-const ADMINS: &[Identity] = &[
-    // TODO: add the module publisher identity here after first publish.
-    // TODO: add the off-chain-agent's SpacetimeDB identity here.
-    // TODO: add the backfill binary's SpacetimeDB identity here.
-    // TODO: add the external Prakash/Naitik service identity here.
-];
-
 /// Maximum number of items a single paginated query can return.
 const MAX_PAGE_SIZE: u64 = 100;
 
@@ -233,7 +215,7 @@ pub fn add_post(
     creator: Identity,
     status: PostStatus,
 ) -> Result<(), String> {
-    if !ADMINS.contains(&ctx.sender()) {
+    if !crate::constants::ADMINS.contains(&ctx.sender()) {
         return Err("Unauthorized".to_string());
     }
     if ctx.db.posts().id().find(id.clone()).is_some() {
@@ -265,7 +247,7 @@ pub fn update_post_status(
     post_id: String,
     status: PostStatus,
 ) -> Result<(), String> {
-    if !ADMINS.contains(&ctx.sender()) {
+    if !crate::constants::ADMINS.contains(&ctx.sender()) {
         return Err("Unauthorized".to_string());
     }
     let mut post = match ctx.db.posts().id().find(post_id) {
@@ -294,7 +276,7 @@ pub fn delete_post(ctx: &ReducerContext, post_id: String) -> Result<(), String> 
         Some(p) => p,
         None => return Err("PostNotFound".to_string()),
     };
-    if !ADMINS.contains(&ctx.sender()) && post.creator != ctx.sender() {
+    if !crate::constants::ADMINS.contains(&ctx.sender()) && post.creator != ctx.sender() {
         return Err("Unauthorized".to_string());
     }
     if post.status == PostStatus::Deleted {
@@ -334,7 +316,7 @@ pub fn add_view_details(
 /// app-store rollout).
 #[spacetimedb::reducer]
 pub fn upsert_post(ctx: &ReducerContext, post: Post) -> Result<(), String> {
-    if !ADMINS.contains(&ctx.sender()) {
+    if !crate::constants::ADMINS.contains(&ctx.sender()) {
         return Err("Unauthorized".to_string());
     }
     // Delete if exists, then insert (upsert by primary key).

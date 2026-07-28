@@ -115,6 +115,9 @@ In all `Cargo.toml` (and other manifest) files, list dependencies **alphabetical
 ### Workspace Dependency Versioning (Hard Rule)
 All dependency **versions** must be declared once in the root `Cargo.toml` `[workspace.dependencies]` section — never specify versions in individual member `Cargo.toml` files. Member crates use `{ workspace = true }` (optionally adding `features = [...]` if needed). This keeps all members in sync and avoids version drift. If a new dependency is needed, add it to `[workspace.dependencies]` first, then reference it with `workspace = true` in the member.
 
+### Shared vs Module-Local Constants
+Maintain a top-level `constants.rs` beside `lib.rs` for constants shared between multiple modules within a crate. Module-specific constants stay at the top of the module file that uses them. Only promote a constant to `constants.rs` when at least two modules reference it.
+
 ### Error Handling
 In roles: use `fail`, `assert`, `changed_when: false`, `failed_when: false` + explicit checks.
 In playbooks: none (orchestration only).

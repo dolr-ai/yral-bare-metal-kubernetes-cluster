@@ -295,22 +295,12 @@ impl ServerCtx {
     }
 
     pub async fn init_kv_store() -> KVStoreImpl {
-        #[cfg(not(feature = "redis-kv"))]
-        {
-            use crate::kv::redb_kv::ReDBKV;
-            KVStoreImpl::ReDB(ReDBKV::new().unwrap())
-        }
-        #[cfg(feature = "redis-kv")]
-        {
-            use crate::kv::dragonfly_kv::DragonflyKV;
+        use crate::kv::spacetime_kv::SpacetimeKV;
 
-            log::info!("Initializing Dragonfly KV store");
-            KVStoreImpl::Dragonfly(
-                DragonflyKV::new()
-                    .await
-                    .expect("Failed to initialize RedisKV"),
-            )
-        }
+        log::info!("Initializing SpacetimeDB KV store");
+        KVStoreImpl::Spacetime(
+            SpacetimeKV::new().expect("Failed to initialize SpacetimeKV"),
+        )
     }
 
     pub async fn new() -> Self {

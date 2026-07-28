@@ -7,6 +7,10 @@ data:
   PORT: "8080"
   APP_ENV: "production"
 
+  # SpacetimeDB config (KV store + identity token for REST calls)
+  SPACETIMEDB_URL: "https://maincloud.spacetimedb.com"
+  SPACETIMEDB_DB_NAME: "yral-database-spacetime-4lbo7"
+
   # Google OAuth (public client ID)
   GOOGLE_CLIENT_ID: "804814798298-taifmq3k6olk9bjr1cqb9gfnp1mssqqb.apps.googleusercontent.com"
 

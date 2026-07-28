@@ -11,7 +11,10 @@ use spacetimedb_sdk::__codegen::{
 	__ws,
 };
 
+pub mod auth_kv_entry_type;
 pub mod fetch_posts_result_type;
+pub mod kv_get_result_type;
+pub mod kv_has_result_type;
 pub mod post_type;
 pub mod post_details_for_frontend_type;
 pub mod post_page_type;
@@ -20,6 +23,8 @@ pub mod post_view_details_from_frontend_type;
 pub mod add_post_reducer;
 pub mod add_view_details_reducer;
 pub mod delete_post_reducer;
+pub mod kv_delete_reducer;
+pub mod kv_set_reducer;
 pub mod update_post_status_reducer;
 pub mod upsert_post_reducer;
 pub mod posts_table;
@@ -27,8 +32,13 @@ pub mod fetch_posts_procedure;
 pub mod get_draft_posts_of_user_procedure;
 pub mod get_post_by_id_procedure;
 pub mod get_posts_of_user_procedure;
+pub mod kv_get_procedure;
+pub mod kv_has_procedure;
 
+pub use auth_kv_entry_type::AuthKvEntry;
 pub use fetch_posts_result_type::FetchPostsResult;
+pub use kv_get_result_type::KvGetResult;
+pub use kv_has_result_type::KvHasResult;
 pub use post_type::Post;
 pub use post_details_for_frontend_type::PostDetailsForFrontend;
 pub use post_page_type::PostPage;
@@ -38,12 +48,16 @@ pub use posts_table::*;
 pub use add_post_reducer::add_post;
 pub use add_view_details_reducer::add_view_details;
 pub use delete_post_reducer::delete_post;
+pub use kv_delete_reducer::kv_delete;
+pub use kv_set_reducer::kv_set;
 pub use update_post_status_reducer::update_post_status;
 pub use upsert_post_reducer::upsert_post;
 pub use fetch_posts_procedure::fetch_posts;
 pub use get_draft_posts_of_user_procedure::get_draft_posts_of_user;
 pub use get_post_by_id_procedure::get_post_by_id;
 pub use get_posts_of_user_procedure::get_posts_of_user;
+pub use kv_get_procedure::kv_get;
+pub use kv_has_procedure::kv_has;
 
 #[derive(Clone, PartialEq, Debug)]
 
@@ -68,6 +82,13 @@ pub enum Reducer {
     DeletePost {
         post_id: String,
 }    ,
+    KvDelete {
+        key: String,
+}    ,
+    KvSet {
+        key: String,
+        value: String,
+}    ,
     UpdatePostStatus {
         post_id: String,
         status: PostStatus,
@@ -88,6 +109,8 @@ impl __sdk::Reducer for Reducer {
                         Reducer::AddPost { .. } => "add_post",
             Reducer::AddViewDetails { .. } => "add_view_details",
             Reducer::DeletePost { .. } => "delete_post",
+            Reducer::KvDelete { .. } => "kv_delete",
+            Reducer::KvSet { .. } => "kv_set",
             Reducer::UpdatePostStatus { .. } => "update_post_status",
             Reducer::UpsertPost { .. } => "upsert_post",
             _ => unreachable!(),
@@ -122,6 +145,18 @@ fn args_bsatn(&self) -> Result<Vec<u8>, __sats::bsatn::EncodeError> {
                 post_id,
 }             => __sats::bsatn::to_vec(&delete_post_reducer::DeletePostArgs {
                 post_id: post_id.clone(),
+}),
+            Reducer::KvDelete{
+                key,
+}             => __sats::bsatn::to_vec(&kv_delete_reducer::KvDeleteArgs {
+                key: key.clone(),
+}),
+            Reducer::KvSet{
+                key,
+                value,
+}             => __sats::bsatn::to_vec(&kv_set_reducer::KvSetArgs {
+                key: key.clone(),
+                value: value.clone(),
 }),
             Reducer::UpdatePostStatus{
                 post_id,

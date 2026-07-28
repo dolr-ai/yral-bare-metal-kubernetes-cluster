@@ -1,6 +1,7 @@
 pub mod dragonfly_kv;
 pub mod redb_kv;
 pub mod redis_kv;
+pub mod spacetime_kv;
 
 use enum_dispatch::enum_dispatch;
 use redis::RedisError;
@@ -33,4 +34,5 @@ pub enum KVStoreImpl {
     ReDB(redb_kv::ReDBKV),
     Redis(redis_kv::RedisKV),
     Dragonfly(dragonfly_kv::DragonflyKV),
+    Spacetime(spacetime_kv::SpacetimeKV),
 }

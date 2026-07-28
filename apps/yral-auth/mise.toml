@@ -8,6 +8,12 @@ node = "latest"
 [env]
 APP_ENV = 'production'
 
+# SpacetimeDB config (KV store + identity token for REST calls).
+# The admin token is the yral-auth JWT — SpacetimeDB derives an admin Identity
+# from the iss + sub claims. Stored in fnox.toml as SPACETIMEDB_ADMIN_TOKEN.
+SPACETIMEDB_URL = 'https://maincloud.spacetimedb.com'
+SPACETIMEDB_DB_NAME = 'yral-database-spacetime-4lbo7'
+
 # Plaintext (non-sensitive) values — public OAuth identifiers and public keys.
 GOOGLE_CLIENT_ID = '804814798298-taifmq3k6olk9bjr1cqb9gfnp1mssqqb.apps.googleusercontent.com'
 APPLE_CLIENT_ID = 'com.yral.yral-auth'
