@@ -61,16 +61,16 @@ enum_dispatch = "0.3"
 futures = "0.3.30"
 futures-util = "0.3.31"
 getrandom = { version = "0.3.3", default-features = false }
+global-constants = {
+  package = "global-constants",
+  path = "apps/yral-common/global-constants"
+}
 gloo = "0.11.0"
 gloo-utils = "0.2.0"
 gob-cloudflare = {
   git = "https://github.com/yral-dapp/gob-cloudflare",
   rev = "c847ba87ecc73a33520b24bd62503420d7e23e3e",
   default-features = false
-}
-global-constants = {
-  package = "global-constants",
-  path = "apps/yral-common/global-constants"
 }
 hex = "0.4.3"
 hmac = "0.12.1"
@@ -93,11 +93,11 @@ js-sys = "0.3.69"
 jsonwebtoken = "9.3.1"
 k256 = { version = "0.13.4", default-features = false }
 leptos = "0.8.15"
-leptos-use = "0.16.2-beta2"
 leptos_axum = "0.8.7"
 leptos_icons = "0.6.1"
 leptos_meta = "0.8.5"
 leptos_router = "0.8.11"
+leptos-use = "0.16.2-beta2"
 log = "0.4.33"
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
@@ -110,7 +110,7 @@ pump-n-dump-common = {
   package = "yral-pump-n-dump-common",
   path = "apps/yral-common/pump-n-dump-common"
 }
-rand = "0.8.5"
+rand = { version = "0.8.5", default-features = false }
 rand_chacha = "0.3.1"
 reactive_graph = "0.2.5"
 redb = "2.0.0"
@@ -120,10 +120,7 @@ reqwest = { version = "0.13.4", default-features = false }
 rust_decimal = "1.36"
 rustls = { version = "0.23.26", default-features = false }
 send_wrapper = "0.6.0"
-sentry = {
-  version = "0.37.0",
-  default-features = false
-}
+sentry = { version = "0.37.0", default-features = false }
 sentry-tower = "0.37.0"
 sentry-tracing = "0.37.0"
 serde = "1.0.210"
@@ -139,8 +136,8 @@ speedate = "0.14.4"
 thiserror = "2.0.3"
 tokio = "1"
 tower = "0.5"
-tower-http = "0.6"
 tower_governor = "0.8.0"
+tower-http = "0.6"
 tracing = "0.1"
 tracing-futures = "0.2.5"
 tracing-log = "0.2.0"

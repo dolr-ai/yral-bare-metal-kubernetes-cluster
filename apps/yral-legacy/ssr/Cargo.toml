@@ -139,7 +139,6 @@ hydrate = [
     "leptos_router",
     "ic-agent/wasm-bindgen",
     "dep:web-sys",
-    "reqwest/native-tls",
     "speedate",
     "send_wrapper/futures",
     "consts/hydrate",

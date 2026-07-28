@@ -6,18 +6,26 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-types = { path = "../types", package = "yral-metadata-types" }
-yral-identity = { workspace = true, default-features = false, features = [
-    "ic-agent",
-] }
-reqwest = { workspace = true, default-features = false, features = [
-    "json",
-    "http2",
-] }
-thiserror.workspace = true
 ic-agent.workspace = true
+reqwest = {
+  workspace = true,
+  default-features = false,
+  features = [
+    "http2",
+    "json",
+  ]
+}
+thiserror.workspace = true
+types = { package = "yral-metadata-types", path = "../types" }
+yral-identity = {
+  workspace = true,
+  default-features = false,
+  features = [
+    "ic-agent",
+  ]
+}
 
 [features]
+default = ["native-tls"]
 native-tls = ["reqwest/native-tls"]
 rustls-tls = ["reqwest/rustls-tls"]
-default = ["native-tls"]
