@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-serde.workspace = true
+serde = { workspace = true, features = ["derive"] }
 trait-variant.workspace = true
 candid.workspace = true
 log.workspace = true

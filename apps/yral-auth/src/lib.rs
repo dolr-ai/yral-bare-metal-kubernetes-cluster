@@ -13,6 +13,8 @@ pub mod oauth;
 #[cfg(feature = "ssr")]
 pub mod oauth_provider;
 mod page;
+#[cfg(feature = "ssr")]
+pub mod spacetime;
 pub mod utils;
 
 #[cfg(feature = "hydrate")]

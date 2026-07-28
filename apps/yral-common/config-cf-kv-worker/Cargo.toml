@@ -5,6 +5,6 @@ edition = "2021"
 
 [dependencies]
 yral-config-keys = { path = "../config-keys" }
-serde.workspace = true
+serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 worker = { version = "0.4.2" }

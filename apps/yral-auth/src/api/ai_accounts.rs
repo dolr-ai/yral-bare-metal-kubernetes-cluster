@@ -12,11 +12,11 @@ use ic_agent::{
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 use web_time::Duration;
-use yral_identity::msg_builder::Message;
-use yral_identity::Signature;
-use yral_types::delegated_identity::DelegatedIdentityWire;
+use identity::msg_builder::Message;
+use identity::Signature;
+use types::delegated_identity::DelegatedIdentityWire;
 
-pub fn ai_account_message() -> yral_identity::msg_builder::Message {
+pub fn ai_account_message() -> identity::msg_builder::Message {
     Message::default().method_name("yral_auth_v2_create_ai_account".into())
 }
 

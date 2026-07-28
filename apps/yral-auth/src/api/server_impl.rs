@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use url::Url;
 use web_time::Duration;
-use yral_types::delegated_identity::DelegatedIdentityWire;
+use types::delegated_identity::DelegatedIdentityWire;
 
 use crate::{
     api::ai_accounts::get_ai_accounts_for_principal,

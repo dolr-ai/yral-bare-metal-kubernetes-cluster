@@ -5,11 +5,11 @@ edition = "2024"
 
 [dependencies]
 candid.workspace = true
-serde.workspace = true
+serde = { workspace = true, features = ["derive"] }
 identity = { workspace = true }
 ic-agent = { workspace = true, optional = true }
 num-bigint.workspace = true
-url.workspace = true
+url = { workspace = true, features = ["serde"] }
 thiserror.workspace = true
 serde_with.workspace = true
 global-constants.workspace = true

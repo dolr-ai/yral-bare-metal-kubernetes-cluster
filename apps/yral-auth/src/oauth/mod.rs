@@ -12,7 +12,7 @@ use base64::{prelude::BASE64_URL_SAFE_NO_PAD, Engine};
 use candid::Principal;
 use serde::{Deserialize, Serialize};
 use url::Url;
-use yral_identity::Signature;
+use identity::Signature;
 
 use crate::{consts::ACCESS_TOKEN_MAX_AGE, error::AuthErrorKind};
 

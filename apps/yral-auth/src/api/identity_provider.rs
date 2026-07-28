@@ -11,8 +11,8 @@ use crate::{
     utils::identity::generate_random_identity_and_save,
 };
 
-pub fn login_hint_message() -> yral_identity::msg_builder::Message {
-    use yral_identity::msg_builder::Message;
+pub fn login_hint_message() -> identity::msg_builder::Message {
+    use identity::msg_builder::Message;
 
     Message::default().method_name("yral_auth_v2_login_hint".into())
 }

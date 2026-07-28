@@ -20,7 +20,7 @@ use ic_agent::{
 use leptos::prelude::*;
 use leptos_axum::{extract_with_state, ResponseOptions};
 use web_time::Duration;
-use yral_types::delegated_identity::DelegatedIdentityWire;
+use types::delegated_identity::DelegatedIdentityWire;
 
 use crate::{
     consts::OFF_CHAIN_AGENT_URL,

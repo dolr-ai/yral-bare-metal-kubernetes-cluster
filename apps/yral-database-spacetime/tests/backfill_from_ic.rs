@@ -51,16 +51,18 @@ const IC_BATCH_SIZE: u64 = 1000;
 
 /// Map an IC `Principal` to a SpacetimeDB `Identity`.
 ///
-/// IC Principals are variable-length (1-29 bytes). We zero-pad to 32 bytes
-/// in big-endian order. This is deterministic and collision-free for
-/// distinct principals.
+/// SpacetimeDB derives an `Identity` deterministically from the `iss` + `sub`
+/// claims of an OIDC JWT via `Identity::from_claims(issuer, subject)`. The
+/// yral-auth `id_token` has `iss` = the yral-auth server URL and `sub` = the
+/// IC principal text. We use the same derivation here so the backfilled
+/// `creator` identities match what users get when they log in.
+///
+/// The issuer URL comes from the `YRAL_AUTH_ISSUER` env var (defaults to
+/// `https://auth.yral.com`).
 fn principal_to_identity(principal: &Principal) -> Identity {
-    let bytes = principal.as_slice();
-    let mut arr = [0u8; 32];
-    // Copy principal bytes into the least-significant end (right-aligned).
-    let offset = 32 - bytes.len();
-    arr[offset..].copy_from_slice(bytes);
-    Identity::from_be_byte_array(arr)
+    let issuer = std::env::var("YRAL_AUTH_ISSUER")
+        .unwrap_or_else(|_| "https://auth.yral.com".to_string());
+    Identity::from_claims(&issuer, &principal.to_text())
 }
 
 /// Map an IC `PostStatus` to the SpacetimeDB `PostStatus`.

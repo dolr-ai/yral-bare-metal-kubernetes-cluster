@@ -2,7 +2,7 @@ use candid::Principal;
 use jsonwebtoken::jwk::Jwk;
 use serde::{Deserialize, Serialize};
 use url::Url;
-use yral_types::delegated_identity::DelegatedIdentityWire;
+use types::delegated_identity::DelegatedIdentityWire;
 
 use super::CodeChallenge;
 
@@ -50,6 +50,12 @@ pub struct IdTokenClaims {
     email: Option<String>,
     #[serde(default)]
     ext_ai_account_delegated_identities: Vec<DelegatedIdentityWire>,
+    /// Signals to clients that this `id_token` is also a valid SpacetimeDB
+    /// token — pass it to `DbConnection::builder().with_token(id_token)`.
+    /// SpacetimeDB derives a deterministic `Identity` from the `iss` + `sub`
+    /// claims. See `apps/yral-auth/src/spacetime/mod.rs` for details.
+    #[serde(default)]
+    ext_spacetimedb_token: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

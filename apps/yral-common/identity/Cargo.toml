@@ -8,7 +8,7 @@ ic-agent = { workspace = true, default-features = false, optional = true }
 candid.workspace = true
 web-time.workspace = true
 thiserror.workspace = true
-serde.workspace = true
+serde = { workspace = true, features = ["derive"] }
 getrandom = { version = "0.2.15", optional = true }
 
 # Signature verification (vendored — replaces ic-validator-ingress-message from dfinity/ic.git)

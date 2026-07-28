@@ -1,7 +1,7 @@
 use web_time::Duration;
 
 use candid::Principal;
-use yral_types::delegated_identity::DelegatedIdentityWire;
+use types::delegated_identity::DelegatedIdentityWire;
 
 use super::{AccessTokenClaims, AuthCodeClaims, IdTokenClaims, RefreshTokenClaims};
 use crate::{consts::AUTH_TOKEN_KID, oauth::AuthQuery, utils::time::current_epoch_secs};
@@ -78,6 +78,7 @@ pub fn generate_access_token_and_id_token_jwt(
         ext_delegated_identity: identity,
         email,
         ext_ai_account_delegated_identities: ai_account_delegated_identities,
+        ext_spacetimedb_token: true,
     };
 
     let header = jwt_header();
