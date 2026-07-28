@@ -25,7 +25,7 @@ pub enum Error {
     Config(#[from] config::ConfigError),
     #[error("{0}")]
     #[schema(value_type = IdentityErrorDetail)]
-    Identity(#[from] yral_identity::Error),
+    Identity(#[from] identity::Error),
     #[error("{0}")]
     #[schema(value_type = RedisErrorDetail)]
     Redis(#[from] RedisError),

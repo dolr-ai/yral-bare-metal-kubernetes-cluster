@@ -29,7 +29,7 @@ impl Event {
                     // Handle V3 payload
                     tokio::spawn(async move {
                         use std::cmp::Ordering;
-                        use yral_canisters_client::user_post_service::{
+                        use canisters_client::user_post_service::{
                             PostViewDetailsFromFrontend as UserPostViewDetails, UserPostService,
                         };
 
@@ -149,7 +149,7 @@ impl Event {
                             // through UserPostService instead.
                             tokio::spawn(async move {
                                 use std::cmp::Ordering;
-                                use yral_canisters_client::user_post_service::{
+                                use canisters_client::user_post_service::{
                                     PostViewDetailsFromFrontend as UserPostViewDetails,
                                     UserPostService,
                                 };

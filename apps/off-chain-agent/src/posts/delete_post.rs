@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use types::PostRequest;
 use verify::VerifiedPostRequest;
-use yral_canisters_client::user_post_service::UserPostService;
+use canisters_client::user_post_service::UserPostService;
 
 use crate::kvrocks::{KvrocksClient, VideoDeleted};
 use crate::{
@@ -62,11 +62,11 @@ pub async fn handle_delete_post(
     // Call the canister to delete the post
     let delete_res = user_post_service.delete_post(post_id.to_string()).await;
     match delete_res {
-        Ok(yral_canisters_client::user_post_service::Result_::Ok) => (),
-        Ok(yral_canisters_client::user_post_service::Result_::Err(_)) => {
+        Ok(canisters_client::user_post_service::Result_::Ok) => (),
+        Ok(canisters_client::user_post_service::Result_::Err(_)) => {
             return Err((
                 StatusCode::BAD_REQUEST,
-                "Delete post failed - either the post doesn't exist or already deleted".to_string(),
+                "Delete post failed - either the post doesn't exist or already deleted"to_string(),
             ))
         }
         Err(e) => {
@@ -148,8 +148,8 @@ pub async fn handle_delete_post_v2(
         // UserPostService.delete_post takes a String
         let delete_res = user_post_service.delete_post(post_id.clone()).await;
         match delete_res {
-            Ok(yral_canisters_client::user_post_service::Result_::Ok) => (),
-            Ok(yral_canisters_client::user_post_service::Result_::Err(_)) => {
+            Ok(canisters_client::user_post_service::Result_::Ok) => (),
+            Ok(canisters_client::user_post_service::Result_::Err(_)) => {
                 return Err((
                     StatusCode::BAD_REQUEST,
                     "Delete post failed - either the post doesn't exist or already deleted"
@@ -172,8 +172,8 @@ pub async fn handle_delete_post_v2(
 
         let delete_res = user_post_service.delete_post(post_id.clone()).await;
         match delete_res {
-            Ok(yral_canisters_client::user_post_service::Result_::Ok) => (),
-            Ok(yral_canisters_client::user_post_service::Result_::Err(_)) => {
+            Ok(canisters_client::user_post_service::Result_::Ok) => (),
+            Ok(canisters_client::user_post_service::Result_::Err(_)) => {
                 return Err((
                     StatusCode::BAD_REQUEST,
                     "Delete post failed - either the post doesn't exist or already deleted"

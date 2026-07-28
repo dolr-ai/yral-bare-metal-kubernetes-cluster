@@ -5,7 +5,7 @@ use anyhow::Result;
 use candid::Principal;
 use redis::AsyncCommands;
 use std::sync::Arc;
-use yral_canisters_client::user_info_service::{SessionType, UserInfoService};
+use canisters_client::user_info_service::{SessionType, UserInfoService};
 
 #[derive(Clone)]
 pub struct UserVerification {
@@ -93,10 +93,10 @@ async fn check_user_registration(user_principal: Principal, app_state: &Arc<AppS
     };
 
     match result {
-        yral_canisters_client::user_info_service::Result8::Ok(session_type) => {
+        canisters_client::user_info_service::Result8::Ok(session_type) => {
             matches!(session_type, SessionType::RegisteredSession)
         }
-        yral_canisters_client::user_info_service::Result8::Err(e) => {
+        canisters_client::user_info_service::Result8::Err(e) => {
             if e.contains("User not found") {
                 // TODO: migrate to user_post_service/user_info_service
                 // Previously fell back to IndividualUserTemplate.get_session_type().

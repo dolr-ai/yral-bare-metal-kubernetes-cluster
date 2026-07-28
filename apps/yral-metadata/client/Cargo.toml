@@ -6,7 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ic-agent.workspace = true
+ic-agent = { workspace = true }
+identity = { workspace = true, default-features = false, features = [
+  "ic-agent",
+] }
 reqwest = {
   workspace = true,
   default-features = false,
@@ -15,17 +18,10 @@ reqwest = {
     "json",
   ]
 }
-thiserror.workspace = true
+thiserror = { workspace = true }
 types = { package = "yral-metadata-types", path = "../types" }
-yral-identity = {
-  workspace = true,
-  default-features = false,
-  features = [
-    "ic-agent",
-  ]
-}
 
 [features]
-default = ["native-tls"]
+default = []
 native-tls = ["reqwest/native-tls"]
-rustls-tls = ["reqwest/rustls-tls"]
+rustls-tls = ["reqwest/rustls"]

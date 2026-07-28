@@ -506,7 +506,6 @@ kubectl -n yral-legacy logs "$FIRST_POD" --tail=20
 
 [tasks.yral-metadata-build]
 description = "Build yral-metadata server (release, musl static binary)"
-dir = "apps/yral-metadata"
 run = "cargo build --release --target x86_64-unknown-linux-musl -p yral-metadata-server"
 
 [tasks.yral-metadata-run]
@@ -516,8 +515,7 @@ run = "pitchfork start yral-metadata --force"
 
 [tasks.yral-metadata-test]
 description = "Run yral-metadata tests"
-dir = "apps/yral-metadata"
-run = "cargo test"
+run = "cargo test -p yral-metadata-server -p yral-metadata-client -p yral-metadata-types"
 
 [tasks.yral-metadata-image]
 description = "Build the yral-metadata container image locally (podman)"
@@ -560,8 +558,7 @@ kubectl -n yral-metadata logs "$FIRST_POD" --tail=20
 
 [tasks.off-chain-agent-build]
 description = "Build off-chain-agent (release, musl static binary)"
-dir = "apps/off-chain-agent"
-run = "cargo build --release --target x86_64-unknown-linux-musl"
+run = "cargo build --release --target x86_64-unknown-linux-musl -p off-chain-agent"
 
 [tasks.off-chain-agent-run]
 description = "Run off-chain-agent locally via pitchfork (release binary, port 50051)"
@@ -570,8 +567,7 @@ run = "pitchfork start off-chain-agent --force"
 
 [tasks.off-chain-agent-test]
 description = "Run off-chain-agent tests"
-dir = "apps/off-chain-agent"
-run = "cargo test"
+run = "cargo test -p off-chain-agent"
 
 [tasks.off-chain-agent-image]
 description = "Build the off-chain-agent container image locally (podman)"

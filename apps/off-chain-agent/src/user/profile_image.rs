@@ -12,7 +12,7 @@ use crate::{
     utils::delegated_identity::get_user_info_from_delegated_identity_wire,
     utils::s3::upload_profile_image_to_s3,
 };
-use yral_canisters_client::user_info_service::{ProfileUpdateDetails, UserInfoService};
+use canisters_client::user_info_service::{ProfileUpdateDetails, UserInfoService};
 
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct UploadProfileImageRequest {
@@ -125,14 +125,14 @@ pub async fn handle_upload_profile_image(
         .update_profile_details(update_details)
         .await
     {
-        Ok(yral_canisters_client::user_info_service::Result_::Ok) => {
+        Ok(canisters_client::user_info_service::Result_::Ok) => {
             tracing::info!(
                 "Successfully updated profile image for user {} in canister: {}",
                 user_principal,
                 profile_image_url
             );
         }
-        Ok(yral_canisters_client::user_info_service::Result_::Err(e)) => {
+        Ok(canisters_client::user_info_service::Result_::Err(e)) => {
             tracing::error!("Failed to update profile in canister: {}", e);
             if e.contains("not authorized") || e.contains("Not authorized") {
                 return Err((

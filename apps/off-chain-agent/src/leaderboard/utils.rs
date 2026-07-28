@@ -1,7 +1,7 @@
 use candid::Principal;
 use std::collections::HashMap;
 use yral_metadata_client::MetadataClient;
-use yral_username_gen::random_username_from_principal;
+use username_gen::random_username_from_principal;
 
 use super::redis_ops::LeaderboardRedis;
 

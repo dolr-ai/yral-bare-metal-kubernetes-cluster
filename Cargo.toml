@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+  "apps/off-chain-agent",
   "apps/task-runner",
   "apps/yral-auth",
   "apps/yral-common/alloydb-client",
@@ -24,24 +25,26 @@ members = [
   "apps/yral-legacy/ssr/src/page",
   "apps/yral-legacy/ssr/src/state",
   "apps/yral-legacy/ssr/src/utils",
+  "apps/yral-metadata/client",
+  "apps/yral-metadata/server",
+  "apps/yral-metadata/types",
 ]
 
-# All apps under apps/ are independent Cargo workspaces (not members of this root workspace).
-# Submodules: apps/website, apps/yral, apps/yral-backend-canister, apps/yral-mobile
-# Native dirs: apps/yral-auth, apps/yral-legacy, apps/yral-metadata, apps/off-chain-agent
+# apps/yral-backend-canister is an independent Cargo workspace (IC canister, WASM target)
+# and is not a member of this root workspace.
+# apps/website and apps/yral-mobile are non-Cargo projects (no need to exclude).
 exclude = [
-  "apps/off-chain-agent",
-  "apps/website",
   "apps/yral-backend-canister",
-  "apps/yral-metadata",
-  "apps/yral-mobile",
 ]
 
 [workspace.dependencies]
 anyhow = "1.0.103"
+async-channel = "2.3.1"
 async-trait = "0.1"
 axum = "0.8.7"
 axum-extra = "0.12.5"
+aws-config = "1.5"
+aws-sdk-s3 = "1.65"
 base64 = "0.22.1"
 bb8 = "0.9.1"
 bb8-redis = "0.26.0"
@@ -50,14 +53,20 @@ canisters-client = {
   package = "yral-canisters-client",
   path = "apps/yral-common/canisters-client"
 }
+chrono = "0.4"
+chrono-tz = "0.10"
 ciborium = "0.2.2"
 circular-buffer = "0.1.7"
 codee = "0.3.0"
+config = "0.14.0"
 console_error_panic_hook = "0.1"
 console_log = "0.1"
 crc32fast = "1.4.0"
 dotenv = "0.15.0"
+elsa = "1.11.2"
+email_address = "0.2.9"
 enum_dispatch = "0.3"
+env_logger = "0.11.3"
 futures = "0.3.30"
 futures-util = "0.3.31"
 getrandom = { version = "0.3.3", default-features = false }
@@ -79,8 +88,10 @@ hon-worker-common = {
   path = "apps/yral-common/hon-worker-common",
 }
 http = "1.1.0"
+http-body-util = "0.1.2"
 ic-agent = { version = "0.49.0", default-features = false }
 ic-certification = "3.0.3"
+ic-utils = "0.49.0"
 icondata = "0.3.0"
 icondata_core = "0.1.0"
 identity = {
@@ -88,6 +99,7 @@ identity = {
   path = "apps/yral-common/identity",
   default-features = false
 }
+image = "0.25"
 indexmap = "2.8.0"
 js-sys = "0.3.69"
 jsonwebtoken = "9.3.1"
@@ -127,13 +139,22 @@ serde = "1.0.210"
 serde_bytes = "0.11.15"
 serde_json = "1.0.128"
 serde_with = "3.12.0"
+sha1 = "0.10"
 sha2 = "0.10.8"
 simple_logger = "4.0"
 sns-validation = { path = "apps/yral-common/sns-validation" }
 spacetimedb = "2.6.1"
 spacetimedb-sdk = "2.6.1"
 speedate = "0.14.4"
+storj-interface = {
+  git = "https://github.com/dolr-ai/storj-interface",
+  rev = "b824766e5a528deafa56fbb01ecb9f7e09a79e50",
+  version = "0.1.0"
+}
+strum = "0.26"
+strum_macros = "0.26"
 thiserror = "2.0.3"
+time = "0.3.36"
 tokio = "1"
 tower = "0.5"
 tower_governor = "0.8.0"
@@ -150,6 +171,9 @@ username-gen = {
   package = "yral-username-gen",
   path = "apps/yral-common/username-gen"
 }
+utoipa = "5.3.1"
+utoipa-axum = "0.2.0"
+utoipa-swagger-ui = "9.0.2"
 uts2ts = "0.4.1"
 uuid = "1.11.0"
 wasm-bindgen = "=0.2.108"

@@ -4,11 +4,11 @@ use chrono::Utc;
 use futures::stream::{self, StreamExt};
 use serde_json::json;
 use std::sync::Arc;
-use yral_canisters_client::user_info_service::{SessionType, UserInfoService};
+use canisters_client::user_info_service::{SessionType, UserInfoService};
 use yral_canisters_common::utils::token::{
     CkBtcOperations, SatsOperations, TokenOperations, TokenOperationsProvider,
 };
-use yral_username_gen::random_username_from_principal;
+use username_gen::random_username_from_principal;
 
 // Conversion rate: 1 USD = 886 SATS (ckBTC satoshis)
 const USD_TO_CKBTC_SATS_RATE: f64 = 886.0;
@@ -47,10 +47,10 @@ async fn check_user_registration(user_principal: Principal, app_state: &Arc<AppS
     };
 
     match result {
-        yral_canisters_client::user_info_service::Result8::Ok(session_type) => {
+        canisters_client::user_info_service::Result8::Ok(session_type) => {
             matches!(session_type, SessionType::RegisteredSession)
         }
-        yral_canisters_client::user_info_service::Result8::Err(e) => {
+        canisters_client::user_info_service::Result8::Err(e) => {
             if e.contains("User not found") {
                 // TODO: migrate to user_post_service/user_info_service
                 // Previously fell back to IndividualUserTemplate.get_session_type().

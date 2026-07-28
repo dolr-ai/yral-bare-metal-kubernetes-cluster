@@ -18,7 +18,7 @@ use types::{
     SetUserMetadataReqMetadata, SetUserMetadataRes, SetUserSignedInMetadataReq,
     UnregisterDeviceReq, UnregisterDeviceRes, UserMetadata, UserMetadataV2,
 };
-use yral_identity::ic_agent::sign_message;
+use identity::ic_agent::sign_message;
 
 pub use types::{DeviceRegistrationToken, NotificationKey};
 
@@ -306,7 +306,7 @@ impl<const A: bool> MetadataClient<A> {
         )?;
         let sender = identity
             .sender()
-            .map_err(|_| Error::Identity(yral_identity::Error::SenderNotFound))?;
+            .map_err(|_| Error::Identity(::identity::Error::SenderNotFound))?;
         let api_url = self
             .base_url
             .join("notifications/")

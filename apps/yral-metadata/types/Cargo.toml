@@ -6,11 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde.workspace = true
-candid.workspace = true 
-thiserror.workspace = true
-chrono.workspace = true
-yral-identity = { workspace = true, default-features = false }
-serde_json.workspace = true
-utoipa = { version = "5.3.1" }
-utoipa-swagger-ui = { version = "9.0.2" }
+candid = { workspace = true }
+chrono = { workspace = true }
+identity = { workspace = true, default-features = false }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+utoipa = { workspace = true }
+utoipa-swagger-ui = { workspace = true }

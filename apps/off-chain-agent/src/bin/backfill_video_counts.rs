@@ -8,7 +8,7 @@ use std::env;
 use std::fs::OpenOptions;
 use std::io::Write as IoWrite;
 use std::time::Instant;
-use yral_canisters_client::user_post_service::{FetchPostsArgs, UserPostService};
+use canisters_client::user_post_service::{FetchPostsArgs, UserPostService};
 
 const LUA_MAX_SCRIPT: &str = r#"
 local key = KEYS[1]

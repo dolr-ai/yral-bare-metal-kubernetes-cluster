@@ -11,7 +11,7 @@ use crate::{
         USER_INFO_SERVICE_CANISTER_ID, USER_POST_SERVICE_CANISTER_ID,
     },
 };
-use yral_canisters_client::{
+use canisters_client::{
     user_info_service::UserInfoService, user_post_service::UserPostService,
 };
 

@@ -6,7 +6,7 @@ use axum::{
 use candid::Principal;
 use chrono::Utc;
 use std::sync::Arc;
-use yral_username_gen::random_username_from_principal;
+use username_gen::random_username_from_principal;
 
 use super::redis_ops::LeaderboardRedis;
 use super::types::*;

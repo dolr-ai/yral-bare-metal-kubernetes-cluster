@@ -14,7 +14,7 @@ use crate::{
     user::utils::get_agent_from_delegated_identity_wire,
     utils::delegated_identity::get_user_info_from_delegated_identity_wire,
 };
-use yral_canisters_client::user_info_service::UserInfoService;
+use canisters_client::user_info_service::UserInfoService;
 
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct FollowUserNotificationRequest {
@@ -93,7 +93,7 @@ pub async fn handle_follow_user(
         .follow_user(request.target_principal)
         .await
     {
-        Ok(yral_canisters_client::user_info_service::Result_::Ok) => {
+        Ok(canisters_client::user_info_service::Result_::Ok) => {
             tracing::info!(
                 "User {} successfully followed {}",
                 follower_principal,
@@ -114,7 +114,7 @@ pub async fn handle_follow_user(
             // 5. Return success
             Ok(Json(FollowUserResponse { success: true }))
         }
-        Ok(yral_canisters_client::user_info_service::Result_::Err(e)) => {
+        Ok(canisters_client::user_info_service::Result_::Err(e)) => {
             tracing::error!("Failed to follow user: {}", e);
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,

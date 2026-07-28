@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use utoipa::ToSchema;
-pub use yral_identity::{msg_builder::Message, Error, Signature};
+pub use identity::{msg_builder::Message, Error, Signature};
 
 pub type ApiResult<T> = Result<T, ApiError>;
 

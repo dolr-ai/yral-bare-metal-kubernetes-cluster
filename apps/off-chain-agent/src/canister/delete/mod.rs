@@ -5,7 +5,7 @@ use futures::stream::StreamExt;
 use ic_agent::Agent;
 use redis::AsyncCommands;
 use tracing::instrument;
-use yral_canisters_client::{
+use canisters_client::{
     user_info_service::UserInfoService, user_post_service::UserPostService,
 };
 
@@ -66,9 +66,9 @@ pub async fn delete_canister_data(
                     .get_user_profile_details_v_7(user_principal)
                     .await
                 {
-                    Ok(yral_canisters_client::user_info_service::Result7::Ok(profile)) => {
+                    Ok(canisters_client::user_info_service::Result7::Ok(profile)) => {
                         match profile.account_type {
-                            yral_canisters_client::user_info_service::UserAccountType::BotAccount {
+                            canisters_client::user_info_service::UserAccountType::BotAccount {
                                 owner,
                             } => {
                                 log::info!(
@@ -80,7 +80,7 @@ pub async fn delete_canister_data(
                             _ => None,
                         }
                     }
-                    Ok(yral_canisters_client::user_info_service::Result7::Err(e)) => {
+                    Ok(canisters_client::user_info_service::Result7::Err(e)) => {
                         log::warn!(
                             "Failed to get profile for {principal_text} from canister: {e}"
                         );
@@ -312,8 +312,8 @@ async fn delete_posts_from_canister(agent: &Agent, posts: Vec<UserPostV2>) {
                         .delete_post(post.post_id.clone()) // post_id is already String
                         .await
                     {
-                        Ok(yral_canisters_client::user_post_service::Result_::Ok) => Ok(()),
-                        Ok(yral_canisters_client::user_post_service::Result_::Err(_)) => {
+                        Ok(canisters_client::user_post_service::Result_::Ok) => Ok(()),
+                        Ok(canisters_client::user_post_service::Result_::Err(_)) => {
                             log::error!(
                                 "Failed to delete post {} from UserPostService",
                                 post.post_id

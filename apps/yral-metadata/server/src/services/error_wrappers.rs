@@ -10,7 +10,7 @@ use config;
 use jsonwebtoken::errors as jwt_errors;
 use serde_json;
 use utoipa::ToSchema;
-use yral_identity;
+use identity;
 
 // Define detailed error structs
 #[allow(non_snake_case)]
@@ -112,8 +112,8 @@ pub struct IdentityErrorDetail {
     pub message: String,
 }
 
-impl From<yral_identity::Error> for IdentityErrorDetail {
-    fn from(e: yral_identity::Error) -> Self {
+impl From<identity::Error> for IdentityErrorDetail {
+    fn from(e: identity::Error) -> Self {
         Self {
             message: e.to_string(),
         }

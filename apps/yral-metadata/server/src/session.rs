@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use types::ApiResult;
 use utoipa::ToSchema;
-use yral_canisters_client::{
+use canisters_client::{
     ic::USER_INFO_SERVICE_ID,
     user_info_service::{Result_, SessionType as UserServiceSessionType, UserInfoService},
 };
