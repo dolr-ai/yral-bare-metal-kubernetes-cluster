@@ -23,7 +23,7 @@ use consts::auth::{REFRESH_MAX_AGE, REFRESH_TOKEN_COOKIE};
 use crate::{delegate_identity, AnonymousIdentity};
 
 use self::store::{KVStore, KVStoreImpl};
-use yral_types::delegated_identity::DelegatedIdentityWire;
+use types::delegated_identity::DelegatedIdentityWire;
 
 use super::RefreshTokenLegacy;
 

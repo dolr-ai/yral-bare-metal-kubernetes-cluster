@@ -1,7 +1,7 @@
 use candid::Principal;
 use ic_agent::Identity;
 use leptos::prelude::*;
-use yral_canisters_client::{
+use canisters_client::{
     ic::USER_INFO_SERVICE_ID, sns_swap::SnsSwap,
     user_info_service::UserInfoService,
 };

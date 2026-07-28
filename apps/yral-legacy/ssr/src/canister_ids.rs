@@ -1,1 +1,1 @@
-pub use yral_canisters_client::ic::*;
+pub use canisters_client::ic::*;

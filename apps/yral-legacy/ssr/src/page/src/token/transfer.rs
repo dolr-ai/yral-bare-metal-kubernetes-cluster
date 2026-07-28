@@ -16,7 +16,7 @@ use utils::send_wrap;
 use utils::{event_streaming::events::TokensTransferred, web::paste_from_clipboard};
 
 use leptos_use::use_event_listener;
-use yral_canisters_client::sns_root::ListSnsCanistersArg;
+use canisters_client::sns_root::ListSnsCanistersArg;
 use yral_canisters_common::utils::token::balance::TokenBalance;
 use yral_canisters_common::utils::token::TokenMetadata;
 use yral_canisters_common::{Canisters, CanistersAuthWire};

@@ -80,8 +80,8 @@ mod backend_admin {
     use hon_worker_common::WORKER_URL;
     use leptos::prelude::*;
     use state::server::HonWorkerJwt;
-    use yral_canisters_client::user_info_service::Result_;
-    use yral_canisters_client::user_info_service::Result8 as UserServiceResult8;
+    use canisters_client::user_info_service::Result_;
+    use canisters_client::user_info_service::Result8 as UserServiceResult8;
 
     pub async fn issue_referral_rewards_impl(
         worker_req: ReferralReqWithSignature,
@@ -111,7 +111,7 @@ mod backend_admin {
         _user_canister: Principal,
     ) -> Result<bool, ServerFnError> {
         use state::admin_canisters::admin_canisters;
-        use yral_canisters_client::user_info_service::SessionType as UserServiceSessionType;
+        use canisters_client::user_info_service::SessionType as UserServiceSessionType;
 
         let admin_cans = admin_canisters();
 

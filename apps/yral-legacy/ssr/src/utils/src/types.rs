@@ -1,7 +1,7 @@
 use candid::Principal;
 use serde::{Deserialize, Serialize};
-use yral_canisters_client::user_post_service::PostStatus as PostStatusCandid;
-use yral_types::delegated_identity::DelegatedIdentityWire;
+use canisters_client::user_post_service::PostStatus as PostStatusCandid;
+use types::delegated_identity::DelegatedIdentityWire;
 
 pub type PostId = (Principal, String);
 

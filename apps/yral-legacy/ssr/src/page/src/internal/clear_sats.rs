@@ -6,7 +6,7 @@ use num_bigint::Sign;
 use reqwest::Url;
 use state::{canisters::auth_state, server::HonWorkerJwt};
 use utils::{send_wrap, try_or_redirect_opt};
-use yral_canisters_client::user_info_service::{Result8, SessionType};
+use canisters_client::user_info_service::{Result8, SessionType};
 use yral_canisters_common::{utils::token::load_sats_balance, Canisters};
 
 use crate::wallet::tokens::BalanceFetcherType;
@@ -22,8 +22,8 @@ pub async fn clear_sats(
         .get_profile_details_v_4(user_principal)
         .await?;
     let profile_owner = match profile_owner {
-        yral_canisters_client::user_info_service::Result3::Ok(details) => details,
-        yral_canisters_client::user_info_service::Result3::Err(e) => {
+        canisters_client::user_info_service::Result3::Ok(details) => details,
+        canisters_client::user_info_service::Result3::Err(e) => {
             return Err(ServerFnError::new(format!(
                 "failed to get profile details: {e}"
             )));

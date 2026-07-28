@@ -25,7 +25,7 @@ use openidconnect::{
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use web_time::Duration;
-use yral_types::delegated_identity::DelegatedIdentityWire;
+use types::delegated_identity::DelegatedIdentityWire;
 
 use super::{set_cookies, update_user_identity};
 

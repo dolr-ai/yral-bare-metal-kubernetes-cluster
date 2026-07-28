@@ -6,7 +6,7 @@
 use candid::Principal;
 use serde::{Deserialize, Serialize};
 use yral_canisters_common::utils::profile::{propic_from_principal, ProfileDetails};
-use yral_username_gen::random_username_from_principal;
+use username_gen::random_username_from_principal;
 
 /// Display-name length cap mirroring `ProfileDetails` semantics.
 const USERNAME_MAX_LEN: usize = 29;

@@ -15,7 +15,7 @@ use global_constants::USERNAME_MAX_LEN;
 use leptos::prelude::*;
 use leptos_router::{hooks::use_query, params::Params};
 use leptos_use::{use_cookie_with_options, UseCookieOptions};
-use rand::{distr::Alphanumeric, rngs::SmallRng, Rng, SeedableRng};
+use rand::{distributions::Alphanumeric, rngs::SmallRng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use yral_canisters_common::{utils::time::current_epoch, Canisters};
 
@@ -26,7 +26,7 @@ use utils::{
     user_identity::UserIdentity,
     MockPartialEq,
 };
-use yral_types::delegated_identity::DelegatedIdentityWire;
+use types::delegated_identity::DelegatedIdentityWire;
 
 pub fn unauth_canisters() -> Canisters<false> {
     expect_context()

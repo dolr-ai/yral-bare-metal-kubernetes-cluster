@@ -95,4 +95,4 @@ oauth-ssr = ["dep:openidconnect", "dep:jsonwebtoken", "dep:canisters-client", "c
 # use yral_canisters_common::utils::time::current_epoch;
 
 # use crate::consts::auth::DELEGATION_MAX_AGE;
-# use yral_types::delegated_identity::DelegatedIdentityWire;
+# use types::delegated_identity::DelegatedIdentityWire;

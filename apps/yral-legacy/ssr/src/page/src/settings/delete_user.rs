@@ -2,7 +2,7 @@ use consts::OFF_CHAIN_AGENT_URL;
 use leptos::prelude::ServerFnError;
 use reqwest::Client;
 use serde_json::json;
-use yral_types::delegated_identity::DelegatedIdentityWire;
+use types::delegated_identity::DelegatedIdentityWire;
 
 pub async fn initiate_delete_user(identity: DelegatedIdentityWire) -> Result<(), ServerFnError> {
     let client = Client::new();

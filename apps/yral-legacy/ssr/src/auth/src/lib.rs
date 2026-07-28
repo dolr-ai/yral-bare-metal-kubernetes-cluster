@@ -17,7 +17,7 @@ use web_time::Duration;
 use yral_canisters_common::utils::time::current_epoch;
 
 use consts::auth::DELEGATION_MAX_AGE;
-use yral_types::delegated_identity::DelegatedIdentityWire;
+use types::delegated_identity::DelegatedIdentityWire;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AnonymousIdentity {
