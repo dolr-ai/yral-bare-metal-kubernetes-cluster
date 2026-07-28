@@ -9,6 +9,14 @@ fnox = "latest"
 gh = "latest"
 "github:clockworklabs/SpacetimeDB" = "latest"
 "aqua:WebAssembly/binaryen" = "latest"
+# Mobile tooling — macOS only (Android + iOS development). These tools
+# require macOS frameworks and are not installable on Linux. They are
+# conditionally installed only on macOS machines.
+java = { version = "latest", os = ["macos"] }
+ruby = { version = "latest", os = ["macos"] }
+cocoapods = { version = "latest", os = ["macos"] }
+swiftlint = { version = "latest", os = ["macos"] }
+maestro = { version = "latest", os = ["macos"] }
 helm = "latest"
 kubectl = "latest"
 node = "latest"
@@ -55,6 +63,53 @@ KUBECONFIG = "{{env.HOME}}/.kube/config"
 # "External Service Config & Secrets".
 SPACETIMEDB_MAINCLOUD_URL = "https://maincloud.spacetimedb.com"
 SPACETIMEDB_DB_NAME = "yral-database-spacetime-4lbo7"
+
+# ── yral-auth ─────────────────────────────────────────────────────────────
+# SpacetimeDB config (KV store + identity token for REST calls).
+# The admin token is the yral-auth JWT — SpacetimeDB derives an admin Identity
+# from the iss + sub claims. Stored in fnox.toml as SPACETIMEDB_ADMIN_TOKEN.
+# SPACETIMEDB_URL is the name yral-auth's SpacetimeKV expects (same value as
+# SPACETIMEDB_MAINCLOUD_URL).
+SPACETIMEDB_URL = "https://maincloud.spacetimedb.com"
+# Plaintext (non-sensitive) values — public OAuth identifiers and public keys.
+GOOGLE_CLIENT_ID = "804814798298-taifmq3k6olk9bjr1cqb9gfnp1mssqqb.apps.googleusercontent.com"
+APPLE_CLIENT_ID = "com.yral.yral-auth"
+APPLE_TEAM_ID = "2UL556KNXC"
+APPLE_KEY_ID = "9DWVYWDYD8"
+# Public keys (used for verification by other services — not secrets)
+JWT_PUB_EC_PEM = '''
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEoqN3/0RNfrnrnYGxKBgy/qHnmITr
++6ucjxStx7tjA30QJZlWzo0atxmY8y9dUR+eKQI0SnbQds4xLEU8+JGm8Q==
+-----END PUBLIC KEY-----'''
+CLIENT_JWT_PUB_ED_PEM = '''
+-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAKpZNfPOONR9AXiaGmHv8AHemm4SNK0uh+mf523ho5KU=
+-----END PUBLIC KEY-----'''
+
+# ── off-chain-agent ──────────────────────────────────────────────────────
+RUST_LOG = "info"
+OFF_CHAIN_AGENT_URL = "http://localhost:50051/"
+
+# ── yral-legacy ───────────────────────────────────────────────────────────
+LEPTOS_SITE_ADDR = "0.0.0.0:8080"
+LEPTOS_HASH_FILES = "true"
+# Plaintext (non-sensitive) values — public OAuth identifiers
+GOOGLE_REDIRECT_URL = "http://127.0.0.1:8080/auth/google_redirect"
+YRAL_AUTH_REDIRECT_URL = "http://127.0.0.1:8080/auth/yral_redirect"
+# Yral-auth client ID (same as yral-auth's GOOGLE_CLIENT_ID)
+YRAL_AUTH_CLIENT_ID = "804814798298-taifmq3k6olk9bjr1cqb9gfnp1mssqqb.apps.googleusercontent.com"
+
+# ── yral-metadata ─────────────────────────────────────────────────────────
+# Bind address for the Axum server
+BIND_ADDRESS = "0.0.0.0:7000"
+
+# ── yral-mobile ───────────────────────────────────────────────────────────
+# Kafka bootstrap server for e2e test assertions (checks module).
+KAFKA_BOOTSTRAP = "kafka.yral.com:9092"
+# Gradle — use the project wrapper (./gradlew) for all builds.
+# These improve build performance and reliability.
+GRADLE_OPTS = "-Dorg.gradle.daemon=true -Dorg.gradle.caching=true"
 
 [tasks.bootstrap]
 description = "Create .venv, install Python tooling, and extract infra SSH key from vault"

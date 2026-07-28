@@ -377,6 +377,13 @@ url = "https://get.helm.sh/helm-v4.2.3-darwin-amd64.tar.gz"
 checksum = "sha256:02c6137bb5f050479193afad5a28804e9edc3beeab7e7b53a6e1499c9ba387ef"
 url = "https://get.helm.sh/helm-v4.2.3-windows-amd64.tar.gz"
 
+[[tools.java]]
+version = "26.0.2"
+backend = "core:java"
+
+[tools.java.options]
+shorthand_vendor = "openjdk"
+
 [[tools.kubectl]]
 version = "1.36.2"
 backend = "aqua:kubernetes/kubernetes/kubectl"
@@ -408,6 +415,10 @@ url = "https://dl.k8s.io/v1.36.2/bin/darwin/amd64/kubectl"
 [tools.kubectl."platforms.windows-x64"]
 checksum = "sha256:df04d82234b28ffbdcd36e79d596b85da6e9c736e1a7a55ff6910c648ff47af2"
 url = "https://dl.k8s.io/v1.36.2/bin/windows/amd64/kubectl.exe"
+
+[[tools.maestro]]
+version = "cli-2.7.0"
+backend = "github:mobile-dev-inc/maestro"
 
 [[tools.node]]
 version = "26.5.0"
@@ -602,6 +613,15 @@ url = "https://download.redis.io/releases/redis-8.8.0.tar.gz"
 [tools.redis."platforms.windows-x64"]
 url = "https://download.redis.io/releases/redis-8.8.0.tar.gz"
 
+[[tools.ruby]]
+version = "4.0.6"
+backend = "core:ruby"
+
+[tools.ruby.options]
+compile = "true"
+ruby_build_repo = "https://github.com/rbenv/ruby-build.git"
+ruby_install = "false"
+
 [[tools.rust]]
 version = "stable"
 backend = "core:rust"
@@ -665,3 +685,7 @@ url_api = "https://api.github.com/repos/getsops/sops/releases/assets/461838690"
 
 [tools.sops."platforms.windows-x64".provenance.slsa]
 url = "https://github.com/getsops/sops/releases/download/v3.13.2/sops-v3.13.2.intoto.jsonl"
+
+[[tools.swiftlint]]
+version = "0.65.0"
+backend = "aqua:realm/SwiftLint"

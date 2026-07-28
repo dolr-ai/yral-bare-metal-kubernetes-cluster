@@ -157,7 +157,7 @@ Velero only (full cluster DR, 30-day self-managed `ttl: 720h`). Named prefix `ve
 - **SOPS encryption mechanism:** To encrypt `*.sops.yaml` files, extract the age key from Ansible vault (`ansible-vault view ansible/inventory/group_vars/all/vault.yml | grep AGE-SECRET-KEY`), write to temp file, then `SOPS_AGE_KEY_FILE=/tmp/sops-age.key sops --encrypt --in-place <file>.sops.yaml`. The `.sops.yaml` creation rules in repo root handle age key selection automatically — no need to pass `--age` explicitly. Always clean up the temp key file after.
 
 ### Local Environment & Parity
-The repo uses a single monorepo-wide `mise.toml` at the repository root as the source of truth for tool versions and task orchestration. Avoid adding per-project `mise.toml` files unless there is a strong, documented reason.
+The repo uses a single monorepo-wide `mise.toml` at the repository root as the source of truth for tool versions, task orchestration, and all app-specific environment variables. There are **no per-app `mise.toml`, `fnox.toml`, or `pitchfork.toml` files** — all env vars, secrets, and daemon definitions live in the root `mise.toml`, root `fnox.toml`, and root `pitchfork.toml` respectively. App-specific env vars are grouped by `# ── <app> ──` comment headers in the root `[env]` section. Avoid adding per-project config files unless there is a strong, documented reason.
 
 **mise (not direnv)** for env var management and tool versioning. Plaintext environment values belong in the `mise.toml` `[env]` section; secrets are managed by **fnox** (age-encrypted, committed to git in `fnox.toml`). No `.env` file is generated or loaded — `_.file = '.env'` was removed.
 
@@ -169,7 +169,7 @@ There are **two distinct age keys** in this repo. Do not confuse them:
 - fnox uses the infra SSH ed25519 private key, which it internally converts to an age identity.
 - Private key: `vault_github_actions_ssh_private_key` from Ansible vault, extracted to `./.yral-infra-ed25519` (repo-root, gitignored) by `mise run bootstrap`. **Not** `~/.ssh/id_ed25519` — that's the user's personal key.
 - `FNOX_AGE_KEY_FILE = './.yral-infra-ed25519'` is set in `mise.toml [env]` — fnox picks it up automatically. No manual `export` needed.
-- `fnox.toml` at repo root (and per-app `fnox.toml` files) define encrypted secret definitions. The encrypted ciphertext is safe to commit to git.
+- `fnox.toml` at repo root defines all encrypted secret definitions (no per-app `fnox.toml` files). Secrets that had the same name but different values across apps (e.g. `BACKEND_ADMIN_IDENTITY`) are prefixed with the app name (e.g. `OFF_CHAIN_AGENT_BACKEND_ADMIN_IDENTITY`, `YRAL_LEGACY_BACKEND_ADMIN_IDENTITY`, `YRAL_METADATA_BACKEND_ADMIN_IDENTITY`). The encrypted ciphertext is safe to commit to git.
 - Rotating a secret: `fnox set <KEY> --provider age` (re-encrypts in `fnox.toml`, commit the change). For multi-line values (PEM keys/certs), pipe via stdin: `printf '%s' "$VALUE" | fnox set <KEY> --provider age`.
 - Running commands with secrets: `fnox exec -- <command>`, or `fnox export -f env -o .env` for tools that need a file (e.g. `podman --env-file`).
 - `fnox.local.toml` is gitignored for machine-specific overrides.
@@ -189,7 +189,7 @@ There are **two distinct age keys** in this repo. Do not confuse them:
 
 **Prefer mise tasks over raw tooling commands.** Don't run `cargo leptos build`, `podman build`, `npm install`, etc. directly — use the corresponding `mise run` task instead (e.g. `mise run yral-auth-build`, `mise run yral-auth-image`). This ensures env vars from `[env]` and fnox secrets are loaded, `depends` chains run, and the workflow is reproducible. If a needed workflow doesn't exist as a mise task, create one rather than running the raw command.
 
-**Long-running processes (dev servers, containers) managed by pitchfork.** `pitchfork.toml` at the repo root defines daemons with ready checks, restart policies, and automatic cleanup. Use `mise run yral-auth-run` (which calls `pitchfork start`) instead of running a server directly — pitchfork ensures the process is tracked, health-checked, and cleanly stopped when you exit. Daemons use `mise = true` (pitchfork's built-in mise integration wraps commands with `mise x --`) and `dir` to load per-app `mise.toml [env]`. Secrets are injected via `fnox exec` inside the daemon command. Stop with `mise run yral-auth-stop` or `pitchfork stop --all`.
+**Long-running processes (dev servers, containers) managed by pitchfork.** `pitchfork.toml` at the repo root defines daemons with ready checks, restart policies, and automatic cleanup. Use `mise run yral-auth-run` (which calls `pitchfork start`) instead of running a server directly — pitchfork ensures the process is tracked, health-checked, and cleanly stopped when you exit. Daemons use `mise = true` (pitchfork's built-in mise integration wraps commands with `mise x --`) and `dir` to set the working directory. All env vars and secrets come from the root `mise.toml [env]` and root `fnox.toml` (no per-app config files). Secrets are injected via `fnox exec` inside the daemon command. Stop with `mise run yral-auth-stop` or `pitchfork stop --all`.
 
 **Version locking:** `mise.lock` is committed. Bump tool versions explicitly in `mise.toml`, then `mise lock` to refresh the lockfile. Never use floating `"latest"` without a lockfile entry.
 
@@ -200,12 +200,12 @@ There are **two distinct age keys** in this repo. Do not confuse them:
 
 This ensures `mise bootstrap --yes && mise run setup` is the only command needed to go from a fresh machine to a working environment.
 
-**Per-service local dev convention (all services):** Every service we host and maintain follows the same pattern for local development:
-- **Tasks and plaintext env vars** → `mise.toml` (per-app `[tasks]` and `[env]` sections, or root `mise.toml` for shared values)
-- **Secrets** → `fnox.toml` (age-encrypted, committed to git)
-- **Long-running dev servers** → `pitchfork.toml` (with ready checks, restart policies, automatic cleanup)
+**Per-service local dev convention (all services):** Every service we host and maintain follows the same pattern for local development. **All configuration is centralized in the repo root** — there are no per-app `mise.toml`, `fnox.toml`, or `pitchfork.toml` files:
+- **Tasks and plaintext env vars** → root `mise.toml` (app-specific env vars grouped by `# ── <app> ──` comment headers in `[env]`; tasks use `<app>-` prefix)
+- **Secrets** → root `fnox.toml` (age-encrypted, committed to git; app-specific secrets grouped by `# <app>` comment headers; same-named secrets prefixed with app name to disambiguate)
+- **Long-running dev servers** → root `pitchfork.toml` (with ready checks, restart policies, automatic cleanup)
 - Reuse shared secrets (Dragonfly TLS certs, Harbor credentials, etc.) across services — don't duplicate values, reference the same fnox secret definitions
-- For each new service onboarded, create mise tasks (`<app>-build`, `<app>-run`, `<app>-image`), add secrets to fnox, and add a pitchfork daemon entry
+- For each new service onboarded, add env vars to root `mise.toml [env]`, create mise tasks (`<app>-build`, `<app>-run`, `<app>-image`), add secrets to root `fnox.toml`, and add a pitchfork daemon entry to root `pitchfork.toml`
 
 ### SpacetimeDB Usage Rules
 
