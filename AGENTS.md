@@ -202,6 +202,9 @@ This ensures `mise bootstrap --yes && mise run setup` is the only command needed
 - For each new service onboarded, create mise tasks (`<app>-build`, `<app>-run`, `<app>-image`), add secrets to fnox, and add a pitchfork daemon entry
 
 ### SpacetimeDB Usage Rules
+
+**Cursor-based pagination (Hard Rule).** All paginated APIs (procedures, REST endpoints) must use cursor-based pagination, not offset/limit. The cursor is the ID (or timestamp) of the last record from the previous page — pass it as an optional `cursor` argument alongside a `limit`/`size` parameter. `None` cursor starts from the beginning. Return `next_cursor` (`None` when no more results). Offset/limit pagination is rejected — it's inefficient for large datasets and unstable under concurrent inserts.
+
 **No raw SQL from application code (Hard Rule).** SpacetimeDB supports raw SQL over its REST/WS APIs, but we avoid it in app code to keep data access typed and declarative:
 - **Rust services** interact with a SpacetimeDB database via the **generated `spacetimedb-sdk` bindings** (`spacetime generate` → `src/bindings/`): typed reducer calls, typed procedure calls with typed `SpacetimeType` returns, and typed table accessors. Never send raw SQL strings from Rust.
 - **Mobile / non-SDK clients** (no Kotlin/Swift SpacetimeDB SDK exists) call module **procedures** via REST (`POST /v1/database/{db}/call/:name`, JSON array body → typed JSON `SpacetimeType` return). The client never constructs SQL.

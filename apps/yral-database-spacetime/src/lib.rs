@@ -23,5 +23,4 @@
 //!   — `spacetimedb::Table` must be imported for `.insert()/.iter()/.id().update()`;
 //!   the per-table accessor traits are auto-in-scope in the same module.
 
-// No active features yet. Add `mod <feature_name>;` here when implementing
-// a new SpacetimeDB feature.
+mod posts;

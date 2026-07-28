@@ -12,5 +12,5 @@ crate-type = ["cdylib"]
 log = { workspace = true }
 # `features = ["unstable"]` enables `#[spacetimedb::procedure]` and
 # `#[spacetimedb::http::handler]` (unstable-gated in spacetimedb 2.6.1).
-# Add it back when a feature needs procedures or HTTP handlers.
-spacetimedb = { workspace = true }
+# Required by the `posts` feature (procedures + HTTP handler).
+spacetimedb = { workspace = true, features = ["unstable"] }
