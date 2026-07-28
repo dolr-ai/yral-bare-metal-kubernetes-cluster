@@ -17,6 +17,13 @@ members = [
   "apps/yral-common/types",
   "apps/yral-common/username-gen",
   "apps/yral-database-spacetime",
+  "apps/yral-legacy/ssr",
+  "apps/yral-legacy/ssr/src/auth",
+  "apps/yral-legacy/ssr/src/component",
+  "apps/yral-legacy/ssr/src/consts",
+  "apps/yral-legacy/ssr/src/page",
+  "apps/yral-legacy/ssr/src/state",
+  "apps/yral-legacy/ssr/src/utils",
 ]
 
 # All apps under apps/ are independent Cargo workspaces (not members of this root workspace).
@@ -26,7 +33,6 @@ exclude = [
   "apps/off-chain-agent",
   "apps/website",
   "apps/yral-backend-canister",
-  "apps/yral-legacy",
   "apps/yral-metadata",
   "apps/yral-mobile",
 ]
@@ -44,72 +50,140 @@ canisters-client = {
   package = "yral-canisters-client",
   path = "apps/yral-common/canisters-client"
 }
+ciborium = "0.2.2"
+circular-buffer = "0.1.7"
+codee = "0.3.0"
 console_error_panic_hook = "0.1"
 console_log = "0.1"
+crc32fast = "1.4.0"
+dotenv = "0.15.0"
 enum_dispatch = "0.3"
 futures = "0.3.30"
 futures-util = "0.3.31"
+getrandom = { version = "0.3.3", default-features = false }
+gloo = "0.11.0"
+gloo-utils = "0.2.0"
+gob-cloudflare = {
+  git = "https://github.com/yral-dapp/gob-cloudflare",
+  rev = "c847ba87ecc73a33520b24bd62503420d7e23e3e",
+  default-features = false
+}
 global-constants = {
   package = "global-constants",
   path = "apps/yral-common/global-constants"
 }
 hex = "0.4.3"
+hmac = "0.12.1"
 hon-worker-common = {
   package = "hon-worker-common",
   path = "apps/yral-common/hon-worker-common",
 }
+http = "1.1.0"
 ic-agent = { version = "0.49.0", default-features = false }
+ic-certification = "3.0.3"
+icondata = "0.3.0"
+icondata_core = "0.1.0"
 identity = {
   package = "yral-identity",
   path = "apps/yral-common/identity",
   default-features = false
 }
+indexmap = "2.8.0"
+js-sys = "0.3.69"
 jsonwebtoken = "9.3.1"
 k256 = { version = "0.13.4", default-features = false }
 leptos = "0.8.15"
+leptos-use = "0.16.2-beta2"
 leptos_axum = "0.8.7"
+leptos_icons = "0.6.1"
 leptos_meta = "0.8.5"
 leptos_router = "0.8.11"
 log = "0.4.33"
 num-bigint = "0.4.6"
+num-traits = "0.2.19"
+once_cell = "1.19.0"
 openidconnect = "4.0.0"
 p256 = "0.13.2"
 postcard = "1.1.1"
+priority-queue = "2.1.0"
 pump-n-dump-common = {
   package = "yral-pump-n-dump-common",
   path = "apps/yral-common/pump-n-dump-common"
 }
 rand = "0.8.5"
+rand_chacha = "0.3.1"
+reactive_graph = "0.2.5"
 redb = "2.0.0"
 redis = { version = "1.0.2", default-features = false }
 regex = "1.11.1"
 reqwest = { version = "0.13.4", default-features = false }
+rust_decimal = "1.36"
 rustls = { version = "0.23.26", default-features = false }
+send_wrapper = "0.6.0"
+sentry = {
+  version = "0.37.0",
+  default-features = false
+}
+sentry-tower = "0.37.0"
+sentry-tracing = "0.37.0"
 serde = "1.0.210"
 serde_bytes = "0.11.15"
 serde_json = "1.0.128"
 serde_with = "3.12.0"
 sha2 = "0.10.8"
 simple_logger = "4.0"
+sns-validation = { path = "apps/yral-common/sns-validation" }
 spacetimedb = "2.6.1"
 spacetimedb-sdk = "2.6.1"
+speedate = "0.14.4"
 thiserror = "2.0.3"
 tokio = "1"
+tower = "0.5"
+tower-http = "0.6"
 tower_governor = "0.8.0"
 tracing = "0.1"
+tracing-futures = "0.2.5"
+tracing-log = "0.2.0"
 tracing-subscriber = "0.3"
 trait-variant = "0.1.2"
 types = { package = "yral-types", path = "apps/yral-common/types" }
 url = "2.5.4"
+urlencoding = "2.1.3"
 username-gen = {
   package = "yral-username-gen",
   path = "apps/yral-common/username-gen"
 }
+uts2ts = "0.4.1"
 uuid = "1.11.0"
 wasm-bindgen = "=0.2.108"
+wasm-bindgen-futures = "0.4.42"
+web-sys = "0.3"
 web-time = "1.0.0"
 yral-canisters-common = {
   package = "yral-canisters-common",
   path = "apps/yral-common/canisters-common"
 }
+yral-metadata-client = {
+  path = "apps/yral-metadata/client",
+  default-features = false
+}
+yral-metadata-types = { path = "apps/yral-metadata/types" }
 yral-metrics = { package = "yral-metrics", path = "apps/yral-common/metrics" }
+
+# Profile for yral-legacy release binary (from apps/yral-legacy/Cargo.toml)
+[profile.prod-release]
+inherits = "release"
+debug = 1
+lto = true
+
+# TODO: leaving this here as a reminder to be used once cargo-leptos solves the profile issue
+# [profile.preview-release]
+# inherits = "release"
+
+# Defines a size-optimized profile for the WASM bundle in release mode
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+# panic = "abort"

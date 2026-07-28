@@ -112,6 +112,9 @@ Never push sweeping changes without first verifying every affected component com
 ### Alphabetical Dependency Ordering
 In all `Cargo.toml` (and other manifest) files, list dependencies **alphabetically by key** within each `[dependencies]` section. Merge third-party and local/path deps into a single list (no separator comments). This makes it easier for human reviewers to find and parse dependency lists, and avoids duplicate entries. Apply this to `[workspace.dependencies]`, `[dependencies]`, `[dev-dependencies]`, and `[build-dependencies]` sections alike.
 
+### Leptos Builder Syntax (Hard Rule)
+All Leptos-rs UI code must use the **builder syntax** (`leptos::view` with `.child()`, `.attr()`, `.prop()`, etc.), never the `view!` macro. This gives maximal benefit from compile-time static checking and rust-analyzer feedback (type inference, autocomplete, refactoring, error messages). See https://book.leptos.dev/view/builder.html for the canonical reference. Apply this to all Leptos components, pages, and views across the repo.
+
 ### Workspace Dependency Versioning (Hard Rule)
 All dependency **versions** must be declared once in the root `Cargo.toml` `[workspace.dependencies]` section — never specify versions in individual member `Cargo.toml` files. Member crates use `{ workspace = true }` (optionally adding `features = [...]` if needed). This keeps all members in sync and avoids version drift. If a new dependency is needed, add it to `[workspace.dependencies]` first, then reference it with `workspace = true` in the member.
 
