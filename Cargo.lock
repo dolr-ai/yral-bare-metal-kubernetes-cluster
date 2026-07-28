@@ -5856,8 +5856,14 @@ dependencies = [
 name = "yral_database_spacetime"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "candid",
+ "ic-agent",
  "log",
  "spacetimedb",
+ "spacetimedb-sdk",
+ "tokio",
+ "yral-canisters-client",
 ]
 
 [[package]]

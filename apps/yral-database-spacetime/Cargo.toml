@@ -5,6 +5,9 @@ edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+# `crate-type = ["cdylib"]` is required — `spacetimedb-cli build` needs a
+# standalone wasm artifact, not the default `rlib`. Without it, `wasm-opt`
+# fails to find the right artifact for optimization.
 [lib]
 crate-type = ["cdylib"]
 
@@ -14,3 +17,11 @@ log = { workspace = true }
 # `#[spacetimedb::http::handler]` (unstable-gated in spacetimedb 2.6.1).
 # Required by the `posts` feature (procedures + HTTP handler).
 spacetimedb = { workspace = true, features = ["unstable"] }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+candid = { workspace = true }
+canisters-client = { workspace = true, features = ["user-post-service"] }
+ic-agent = { workspace = true }
+spacetimedb-sdk = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }

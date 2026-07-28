@@ -75,6 +75,7 @@ serde_with = "3.12.0"
 spacetimedb = { version = "2.6.1" }
 spacetimedb-sdk = { version = "2.6.1" }
 thiserror = "2.0.3"
+tokio = "1"
 trait-variant = "0.1.2"
 types = { package = "yral-types", path = "apps/yral-common/types" }
 url = "2.5.4"
