@@ -243,7 +243,8 @@ impl LeaderboardRedis {
                             let error_str = e.to_string();
                             if error_str.contains("NOSCRIPT")
                                 || error_str.contains("No matching script")
-                                || e.kind() == redis::ErrorKind::NoScriptError
+                                || e.kind()
+                                    == redis::ErrorKind::Server(redis::ServerErrorKind::NoScript)
                             {
                                 log::debug!(
                                     "Script not in cache, loading with EVAL for SHA: {}",
