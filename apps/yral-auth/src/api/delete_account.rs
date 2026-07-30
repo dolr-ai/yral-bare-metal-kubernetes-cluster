@@ -26,7 +26,7 @@ use crate::{
     consts::OFF_CHAIN_AGENT_URL,
     context::server::{expect_server_ctx, ServerCtx},
     kv::{
-        dragonfly_kv::{format_to_dragonfly_key, KEY_PREFIX},
+        format_to_dragonfly_key, KEY_PREFIX,
         KVStore,
     },
     utils::time::current_epoch,

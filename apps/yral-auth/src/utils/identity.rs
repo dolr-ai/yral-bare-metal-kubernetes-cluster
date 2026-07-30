@@ -1,8 +1,7 @@
 use ic_agent::{identity::Secp256k1Identity, Identity};
 
 use crate::kv::{
-    dragonfly_kv::{format_to_dragonfly_key, KEY_PREFIX},
-    KVError, KVStore, KVStoreImpl,
+    format_to_dragonfly_key, KEY_PREFIX, KVError, KVStore, KVStoreImpl,
 };
 
 pub async fn generate_random_identity_and_save(

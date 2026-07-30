@@ -10579,8 +10579,6 @@ dependencies = [
  "axum",
  "axum-extra",
  "base64 0.22.1",
- "bb8",
- "bb8-redis",
  "candid",
  "console_error_panic_hook",
  "console_log",

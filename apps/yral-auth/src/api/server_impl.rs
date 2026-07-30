@@ -18,7 +18,7 @@ use crate::{
     api::ai_accounts::get_ai_accounts_for_principal,
     context::server::ServerCtx,
     kv::{
-        dragonfly_kv::{format_to_dragonfly_key, KEY_PREFIX},
+        format_to_dragonfly_key, KEY_PREFIX,
         KVStore,
     },
     oauth::{

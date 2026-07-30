@@ -1,11 +1,16 @@
-pub mod dragonfly_kv;
 pub mod redb_kv;
-pub mod redis_kv;
 pub mod spacetime_kv;
 
 use enum_dispatch::enum_dispatch;
-use redis::RedisError;
 use thiserror::Error;
+
+/// Key prefix for yral-auth entries in the KV store.
+pub const KEY_PREFIX: &str = "yral-auth";
+
+/// Format a key with the given prefix.
+pub fn format_to_dragonfly_key(key_prefix: &str, key: &str) -> String {
+    format!("{}:{}", key_prefix, key)
+}
 
 #[derive(Error, Debug)]
 pub enum KVError {
@@ -13,10 +18,6 @@ pub enum KVError {
     Deser(#[from] serde_json::Error),
     #[error(transparent)]
     ReDB(#[from] Box<redb::Error>),
-    #[error("{0}")]
-    Redis(#[from] RedisError),
-    #[error("{0}")]
-    Bb8(#[from] bb8::RunError<RedisError>),
     #[error("{0}")]
     Other(#[from] anyhow::Error),
 }
@@ -32,7 +33,5 @@ pub(crate) trait KVStore: Send {
 #[enum_dispatch(KVStore)]
 pub enum KVStoreImpl {
     ReDB(redb_kv::ReDBKV),
-    Redis(redis_kv::RedisKV),
-    Dragonfly(dragonfly_kv::DragonflyKV),
     Spacetime(spacetime_kv::SpacetimeKV),
 }

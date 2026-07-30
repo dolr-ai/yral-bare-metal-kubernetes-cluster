@@ -88,8 +88,6 @@ async-trait = { workspace = true }
 axum = { workspace = true, features = ["form", "json", "macros"], optional = true }
 axum-extra = { workspace = true, features = ["cookie", "cookie-private"], optional = true }
 base64 = { workspace = true }
-bb8 = { workspace = true, optional = true }
-bb8-redis = { workspace = true, optional = true }
 candid = { workspace = true }
 console_error_panic_hook = { workspace = true, optional = true }
 console_log = { workspace = true, optional = true }
@@ -111,7 +109,6 @@ p256 = { workspace = true, features = ["pkcs8"], optional = true }
 postcard = { workspace = true, features = ["use-std"] }
 rand = { workspace = true, optional = true }
 redb = { workspace = true, optional = true }
-redis = { workspace = true, features = ["acl", "ahash", "aio", "connection-manager", "sentinel", "tokio-rustls-comp"], optional = true }
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["json", "rustls"] }
 rustls = { workspace = true, features = ["logging", "ring", "std", "tls12"], optional = true }
@@ -141,14 +138,11 @@ hydrate = [
   "leptos/hydrate",
 ]
 phone-auth = []
-redis-kv = []
-release-bin = ["apple-oauth", "google-oauth", "phone-auth", "redis-kv", "ssr"]
+release-bin = ["apple-oauth", "google-oauth", "phone-auth", "ssr"]
 release-lib = ["apple-oauth", "google-oauth", "hydrate", "phone-auth"]
 ssr = [
   "dep:axum",
   "dep:axum-extra",
-  "dep:bb8",
-  "dep:bb8-redis",
   "dep:hex",
   "dep:jsonwebtoken",
   "dep:k256",
@@ -157,7 +151,6 @@ ssr = [
   "dep:p256",
   "dep:rand",
   "dep:redb",
-  "dep:redis",
   "dep:rustls",
   "dep:sha2",
   "dep:simple_logger",

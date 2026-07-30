@@ -4,7 +4,7 @@ use ic_agent::Identity;
 use crate::{
     error::AuthErrorKind,
     kv::{
-        dragonfly_kv::{format_to_dragonfly_key, KEY_PREFIX},
+        format_to_dragonfly_key, KEY_PREFIX,
         KVStore, KVStoreImpl,
     },
     oauth::{AuthLoginHint, SupportedOAuthProviders},
