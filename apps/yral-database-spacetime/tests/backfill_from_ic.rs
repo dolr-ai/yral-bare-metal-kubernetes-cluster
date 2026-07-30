@@ -75,15 +75,8 @@ fn json_escape(s: &str) -> String {
     serde_json::to_string(s).unwrap_or_else(|_| format!("\"{}\"", s.replace('"', "\\\"")))
 }
 
-/// Build the JSON argument for a single `upsert_post` REST call.
-///
-/// The SpacetimeDB REST API expects reducer arguments as a JSON array where
-/// each element is the reducer's argument. For `upsert_post(post: Post)`,
-/// the single argument is the Post struct with these special encodings:
-/// - `creator`: `["0x<32-byte-hex>"]` — 1-element tuple wrapping a U256 hex string
-/// - `created_at`: `[<micros>]` — 1-element tuple wrapping an i64 timestamp
-/// - `status`: `{"variantName":{}}` — enum as object with unit variant
-fn build_upsert_json(post: &IcPost) -> String {
+/// Build the JSON for a single Post struct (without the outer reducer-args array).
+fn build_post_json(post: &IcPost) -> String {
     let identity = principal_to_identity(&post.creator_principal);
     let creator_hex = format!("0x{}", identity.to_hex());
 
@@ -92,10 +85,8 @@ fn build_upsert_json(post: &IcPost) -> String {
 
     let hashtags: Vec<String> = post.hashtags.iter().map(|h| json_escape(h)).collect();
 
-    // Build JSON manually to avoid format! escaping issues with {{ }}.
     let mut s = String::with_capacity(512);
-    s.push('['); // outer array (reducer args)
-    s.push('{'); // Post struct
+    s.push('{');
     s.push_str("\"id\":");
     s.push_str(&json_escape(&post.id));
     s.push_str(",\"video_uid\":");
@@ -121,9 +112,16 @@ fn build_upsert_json(post: &IcPost) -> String {
     s.push_str(&post.view_stats.threshold_view_count.to_string());
     s.push_str(",\"view_average_watch_percentage\":");
     s.push_str(&post.view_stats.average_watch_percentage.to_string());
-    s.push('}'); // close Post
-    s.push(']'); // close outer array
+    s.push('}');
     s
+}
+
+/// Build the JSON argument for `upsert_posts_batch(posts: Vec<Post>)`.
+/// The REST API wraps reducer args in an outer array: `[[<Vec<Post> as JSON array>]]`.
+fn build_batch_json(posts: &[IcPost]) -> String {
+    let posts_json: Vec<String> = posts.iter().map(build_post_json).collect();
+    // Outer array = reducer args; inner array = the Vec<Post> argument
+    format!("[[{}]]", posts_json.join(","))
 }
 
 /// Build an anonymous IC agent (no identity needed — `fetch_posts` is a query).
@@ -135,17 +133,16 @@ async fn build_ic_agent() -> anyhow::Result<Agent> {
     Ok(agent)
 }
 
-/// Upsert a single post to SpacetimeDB via REST API, with retry on transient errors.
-///
-/// Retries up to 3 times with exponential backoff (1s, 2s, 4s) on connection
-/// errors or 5xx responses. Returns `true` on success, `false` on permanent failure.
-async fn upsert_one_with_retry(
+/// Upsert a batch of posts to SpacetimeDB via a single `upsert_posts_batch` REST call.
+/// Retries up to 3 times with exponential backoff on transient errors.
+/// Returns (success_count, error_count) where success_count = batch_len on success.
+async fn upsert_batch(
     http: &reqwest::Client,
     call_url: &str,
     token: &str,
-    post: &IcPost,
-) -> bool {
-    let body = build_upsert_json(post);
+    posts: &[IcPost],
+) -> anyhow::Result<(usize, usize)> {
+    let body = build_batch_json(posts);
 
     for attempt in 0..3u32 {
         let resp = match http
@@ -159,55 +156,34 @@ async fn upsert_one_with_retry(
             Ok(resp) => resp,
             Err(e) => {
                 if attempt < 2 {
-                    eprintln!("  retry {}/3 post {} (conn error: {})", attempt + 1, post.id, e);
+                    eprintln!("  retry {}/3 batch (conn error: {})", attempt + 1, e);
                     tokio::time::sleep(std::time::Duration::from_secs(1 << attempt)).await;
                     continue;
                 }
-                eprintln!("  FAILED post {} after 3 retries: {}", post.id, e);
-                return false;
+                eprintln!("  FAILED batch after 3 retries: {}", e);
+                return Ok((0, posts.len()));
             }
         };
 
         let status = resp.status();
         if status.is_success() {
-            return true;
+            return Ok((posts.len(), 0));
         }
 
-        // Retry on 5xx (server error) or 429 (rate limit); fail on 4xx (client error)
+        // Retry on 5xx or 429; fail on 4xx
         if (status.is_server_error() || status.as_u16() == 429) && attempt < 2 {
-            let body = resp.text().await.unwrap_or_default();
-            eprintln!("  retry {}/3 post {} ({} {})", attempt + 1, post.id, status, body);
+            let resp_body = resp.text().await.unwrap_or_default();
+            eprintln!("  retry {}/3 batch ({} {})", attempt + 1, status, resp_body);
             tokio::time::sleep(std::time::Duration::from_secs(1 << attempt)).await;
             continue;
         }
 
-        let body = resp.text().await.unwrap_or_default();
-        eprintln!("  FAILED post {}: {} {}", post.id, status, body);
-        return false;
+        let resp_body = resp.text().await.unwrap_or_default();
+        eprintln!("  FAILED batch: {} {}", status, resp_body);
+        return Ok((0, posts.len()));
     }
 
-    false
-}
-
-/// Upsert a batch of posts to SpacetimeDB via REST API.
-async fn upsert_batch(
-    http: &reqwest::Client,
-    call_url: &str,
-    token: &str,
-    posts: &[IcPost],
-) -> anyhow::Result<(usize, usize)> {
-    let mut ok = 0usize;
-    let mut err = 0usize;
-
-    for post in posts {
-        if upsert_one_with_retry(http, call_url, token, post).await {
-            ok += 1;
-        } else {
-            err += 1;
-        }
-    }
-
-    Ok((ok, err))
+    Ok((0, posts.len()))
 }
 
 #[tokio::test]
@@ -231,7 +207,7 @@ async fn backfill_from_ic() -> anyhow::Result<()> {
 
     let http = reqwest::Client::new();
     let call_url = format!(
-        "{}/v1/database/{}/call/upsert_post",
+        "{}/v1/database/{}/call/upsert_posts_batch",
         uri.trim_end_matches('/'),
         db_name,
     );

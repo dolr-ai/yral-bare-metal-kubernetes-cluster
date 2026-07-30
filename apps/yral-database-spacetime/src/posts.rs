@@ -325,6 +325,21 @@ pub fn upsert_post(ctx: &ReducerContext, post: Post) -> Result<(), String> {
     Ok(())
 }
 
+/// Bulk upsert — accepts a Vec of posts and upserts each one.
+/// Admin-only. Used by the IC→SpacetimeDB backfill to reduce REST API calls
+/// from ~730K (one per post) to ~730 (one per batch of 1000).
+#[spacetimedb::reducer]
+pub fn upsert_posts_batch(ctx: &ReducerContext, posts: Vec<Post>) -> Result<(), String> {
+    if !crate::constants::ADMINS.contains(&ctx.sender()) {
+        return Err("Unauthorized".to_string());
+    }
+    for post in posts {
+        ctx.db.posts().id().delete(post.id.clone());
+        ctx.db.posts().insert(post);
+    }
+    Ok(())
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Procedures — typed-return reads (called by Rust SDK + REST)
 // ─────────────────────────────────────────────────────────────────────────
