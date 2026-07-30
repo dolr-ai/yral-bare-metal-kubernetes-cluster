@@ -186,22 +186,28 @@ impl<const A: bool> Canisters<A> {
             .await
     }
 
-    /// A fast path for fetching post details from the canister.
+    /// A fast path for fetching post details from SpacetimeDB (preferred) or
+    /// the IC canister (fallback).
     ///
     /// No additional detail is resolved, e.g. username or nsfw probability. For
     /// a more accurate post detail refer to `[Canisters::get_post_details]`
     #[tracing::instrument(skip(self))]
     pub async fn get_post_details_from_canister(
         &self,
-        user_canister: Principal,
+        _user_canister: Principal,
         post_id: &str,
     ) -> Result<Option<PostDetails>> {
-        if user_canister != USER_INFO_SERVICE_ID {
-            // TODO: individual_user_template removed, needs migration to user_info_service/user_post_service
-            // Legacy path for users still on old individual user canisters — no longer supported.
+        // Try SpacetimeDB first (all 730K posts backfilled there with creator_principal_text).
+        if let Some(client) = super::spacetime_posts::SpacetimePostsClient::from_env() {
+            return client.get_post_by_id(post_id).await;
+        }
+
+        // Fallback: IC canister (for environments without SpacetimeDB env vars).
+        // This path is deprecated and will be removed once all consumers are migrated.
+        if _user_canister != USER_INFO_SERVICE_ID {
             return Err(Error::YralCanister(format!(
                 "User canister {} is not USER_INFO_SERVICE_ID; individual_user_template canisters have been decommissioned",
-                user_canister
+                _user_canister
             )));
         }
 
@@ -219,7 +225,7 @@ impl<const A: bool> Canisters<A> {
 
         Ok(Some(PostDetails::from_service_post(
             None,
-            user_canister,
+            _user_canister,
             post_details,
         )))
     }

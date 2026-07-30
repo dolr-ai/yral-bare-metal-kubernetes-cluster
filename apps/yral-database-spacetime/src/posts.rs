@@ -92,6 +92,36 @@ pub struct Post {
     pub view_average_watch_percentage: u8,
 }
 
+/// V2 post table — adds `creator_principal_text` (original IC Principal as
+/// text) alongside `creator` (Identity, one-way hash). Clients (yral-mobile)
+/// need the original Principal text for CDN URL construction, propic URLs,
+/// username fallback, profile links, and enrichment calls.
+///
+/// This is a **new table** (not a column on `Post`) to avoid a manual
+/// migration on the existing 730K-row `Post` table. Rust's `#[default("")]`
+/// doesn't work for `String` columns (not const-constructible), so adding
+/// a column to the existing table requires `--delete-data`. Instead, we
+/// create a separate V2 table, backfill it from IC, validate, then swap
+/// the procedure reads to use V2. The old `Post` table is dropped later.
+#[spacetimedb::table(name = "posts_v2", accessor = posts_v2, public)]
+pub struct PostV2 {
+    #[primary_key]
+    pub id: String,
+    #[index(btree)]
+    pub creator: Identity,
+    /// Original IC Principal as text (e.g. `w4rip-qiaaa-aaaas-ab5...`).
+    pub creator_principal_text: String,
+    pub video_uid: String,
+    pub description: String,
+    pub hashtags: Vec<String>,
+    pub status: PostStatus,
+    pub created_at: Timestamp,
+    pub share_count: u64,
+    pub view_total_count: u64,
+    pub view_threshold_count: u64,
+    pub view_average_watch_percentage: u8,
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Return types (SpacetimeType — serialized as typed JSON for REST clients)
 // ─────────────────────────────────────────────────────────────────────────
@@ -99,6 +129,9 @@ pub struct Post {
 /// Frontend-facing post projection. Mirrors the IC canister's
 /// `PostDetailsForFrontend`. `like_count` and `liked_by_me` are always `0` /
 /// `false` (likes feature dropped).
+///
+/// `creator_principal_text` is the original IC Principal as text — needed by
+/// clients for propic URLs, username fallback, and profile enrichment calls.
 #[derive(SpacetimeType, Clone, Debug)]
 pub struct PostDetailsForFrontend {
     pub id: String,
@@ -106,6 +139,7 @@ pub struct PostDetailsForFrontend {
     pub hashtags: Vec<String>,
     pub video_uid: String,
     pub creator: Identity,
+    pub creator_principal_text: String,
     pub created_at: Timestamp,
     pub total_view_count: u64,
     pub like_count: u64,
@@ -150,6 +184,24 @@ fn is_visible_post(status: &PostStatus) -> bool {
 
 /// Project a `Post` row into a `PostDetailsForFrontend` for a given viewer.
 /// `like_count` and `liked_by_me` are always `0` / `false` (likes dropped).
+fn post_v2_to_details(post: &PostV2) -> PostDetailsForFrontend {
+    PostDetailsForFrontend {
+        id: post.id.clone(),
+        description: post.description.clone(),
+        hashtags: post.hashtags.clone(),
+        video_uid: post.video_uid.clone(),
+        creator: post.creator,
+        creator_principal_text: post.creator_principal_text.clone(),
+        created_at: post.created_at,
+        total_view_count: post.view_total_count,
+        like_count: 0,
+        liked_by_me: false,
+    }
+}
+
+/// Project a `Post` (V1) row into a `PostDetailsForFrontend`.
+/// Used while V1 and V2 tables coexist during migration. `creator_principal_text`
+/// is empty (V1 doesn't have it).
 fn post_to_details(post: &Post) -> PostDetailsForFrontend {
     PostDetailsForFrontend {
         id: post.id.clone(),
@@ -157,6 +209,7 @@ fn post_to_details(post: &Post) -> PostDetailsForFrontend {
         hashtags: post.hashtags.clone(),
         video_uid: post.video_uid.clone(),
         creator: post.creator,
+        creator_principal_text: String::new(),
         created_at: post.created_at,
         total_view_count: post.view_total_count,
         like_count: 0,
@@ -341,6 +394,36 @@ pub fn upsert_posts_batch(ctx: &ReducerContext, posts: Vec<Post>) -> Result<(), 
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// V2 backfill reducers (PostV2 table with creator_principal_text)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Idempotent upsert of a V2 post row. Admin-only.
+/// Same as `upsert_post` but for the `PostV2` table (includes `creator_principal_text`).
+#[spacetimedb::reducer]
+pub fn upsert_post_v2(ctx: &ReducerContext, post: PostV2) -> Result<(), String> {
+    if !crate::constants::ADMINS.contains(&ctx.sender()) {
+        return Err("Unauthorized".to_string());
+    }
+    ctx.db.posts_v2().id().delete(post.id.clone());
+    ctx.db.posts_v2().insert(post);
+    Ok(())
+}
+
+/// Bulk upsert V2 — accepts a Vec of V2 posts and upserts each one.
+/// Admin-only. Used by the IC→SpacetimeDB V2 backfill.
+#[spacetimedb::reducer]
+pub fn upsert_posts_v2_batch(ctx: &ReducerContext, posts: Vec<PostV2>) -> Result<(), String> {
+    if !crate::constants::ADMINS.contains(&ctx.sender()) {
+        return Err("Unauthorized".to_string());
+    }
+    for post in posts {
+        ctx.db.posts_v2().id().delete(post.id.clone());
+        ctx.db.posts_v2().insert(post);
+    }
+    Ok(())
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // Procedures — typed-return reads (called by Rust SDK + REST)
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -353,6 +436,12 @@ pub fn get_post_by_id(
     post_id: String,
 ) -> Option<PostDetailsForFrontend> {
     ctx.with_tx(|tx| {
+        // Try V2 first (has creator_principal_text), fall back to V1.
+        if let Some(p) = tx.db.posts_v2().id().find(post_id.clone()) {
+            if p.status != PostStatus::Deleted {
+                return Some(post_v2_to_details(&p));
+            }
+        }
         tx.db
             .posts()
             .id()

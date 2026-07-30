@@ -27,11 +27,10 @@
 #![cfg(test)]
 
 use anyhow::Context;
-use canisters_client::user_post_service::{
-    FetchPostsArgs, Post as IcPost, PostStatus as IcPostStatus,
-    UserPostService,
-};
 use candid::Principal;
+use canisters_client::user_post_service::{
+    FetchPostsArgs, Post as IcPost, PostStatus as IcPostStatus, UserPostService,
+};
 use ic_agent::Agent;
 use spacetimedb_sdk::Identity;
 
@@ -50,8 +49,8 @@ const IC_BATCH_SIZE: u64 = 1000;
 /// yral-auth's JWT-based identity derivation. The issuer URL comes from
 /// the `YRAL_AUTH_ISSUER` env var (defaults to `https://auth.yral.com`).
 fn principal_to_identity(principal: &Principal) -> Identity {
-    let issuer = std::env::var("YRAL_AUTH_ISSUER")
-        .unwrap_or_else(|_| "https://auth.yral.com".to_string());
+    let issuer =
+        std::env::var("YRAL_AUTH_ISSUER").unwrap_or_else(|_| "https://auth.yral.com".to_string());
     Identity::from_claims(&issuer, &principal.to_text())
 }
 
@@ -89,6 +88,11 @@ fn build_post_json(post: &IcPost) -> String {
     s.push('{');
     s.push_str("\"id\":");
     s.push_str(&json_escape(&post.id));
+    s.push_str(",\"creator\":[\"");
+    s.push_str(&creator_hex);
+    s.push_str("\"]");
+    s.push_str(",\"creator_principal_text\":");
+    s.push_str(&json_escape(&post.creator_principal.to_text()));
     s.push_str(",\"video_uid\":");
     s.push_str(&json_escape(&post.video_uid));
     s.push_str(",\"description\":");
@@ -96,9 +100,6 @@ fn build_post_json(post: &IcPost) -> String {
     s.push_str(",\"hashtags\":[");
     s.push_str(&hashtags.join(","));
     s.push(']');
-    s.push_str(",\"creator\":[\"");
-    s.push_str(&creator_hex);
-    s.push_str("\"]");
     s.push_str(",\"status\":");
     s.push_str(&status_to_json(&post.status));
     s.push_str(",\"created_at\":[");
@@ -116,8 +117,8 @@ fn build_post_json(post: &IcPost) -> String {
     s
 }
 
-/// Build the JSON argument for `upsert_posts_batch(posts: Vec<Post>)`.
-/// The REST API wraps reducer args in an outer array: `[[<Vec<Post> as JSON array>]]`.
+/// Build the JSON argument for `upsert_posts_v2_batch(posts: Vec<PostV2>)`.
+/// The REST API wraps reducer args in an outer array: `[[<Vec<PostV2> as JSON array>]]`.
 fn build_batch_json(posts: &[IcPost]) -> String {
     let posts_json: Vec<String> = posts.iter().map(build_post_json).collect();
     // Outer array = reducer args; inner array = the Vec<Post> argument
@@ -126,14 +127,12 @@ fn build_batch_json(posts: &[IcPost]) -> String {
 
 /// Build an anonymous IC agent (no identity needed — `fetch_posts` is a query).
 async fn build_ic_agent() -> anyhow::Result<Agent> {
-    let agent = Agent::builder()
-        .with_url(IC_URL)
-        .build()?;
+    let agent = Agent::builder().with_url(IC_URL).build()?;
     agent.fetch_root_key().await?;
     Ok(agent)
 }
 
-/// Upsert a batch of posts to SpacetimeDB via a single `upsert_posts_batch` REST call.
+/// Upsert a batch of posts to SpacetimeDB via a single `upsert_posts_v2_batch` REST call.
 /// Retries up to 3 times with exponential backoff on transient errors.
 /// Returns (success_count, error_count) where success_count = batch_len on success.
 async fn upsert_batch(
@@ -194,20 +193,19 @@ async fn backfill_from_ic() -> anyhow::Result<()> {
     // --- IC agent ---
     eprintln!("Connecting to IC canister {}...", IC_CANISTER_ID);
     let agent = build_ic_agent().await?;
-    let canister_id = Principal::from_text(IC_CANISTER_ID)?;;
+    let canister_id = Principal::from_text(IC_CANISTER_ID)?;
     let post_service = UserPostService(canister_id, &agent);
 
     // --- SpacetimeDB REST config ---
     let db_name = std::env::var("SPACETIMEDB_DB_NAME")
         .unwrap_or_else(|_| "yral-database-spacetime-4lbo7".to_string());
-    let uri = std::env::var("SPACETIMEDB_URL")
-        .unwrap_or_else(|_| "http://127.0.0.1:3000".to_string());
-    let token = std::env::var("SPACETIMEDB_ADMIN_TOKEN")
-        .context("SPACETIMEDB_ADMIN_TOKEN")?;
+    let uri =
+        std::env::var("SPACETIMEDB_URL").unwrap_or_else(|_| "http://127.0.0.1:3000".to_string());
+    let token = std::env::var("SPACETIMEDB_ADMIN_TOKEN").context("SPACETIMEDB_ADMIN_TOKEN")?;
 
     let http = reqwest::Client::new();
     let call_url = format!(
-        "{}/v1/database/{}/call/upsert_posts_batch",
+        "{}/v1/database/{}/call/upsert_posts_v_2_batch",
         uri.trim_end_matches('/'),
         db_name,
     );
@@ -301,7 +299,11 @@ async fn backfill_from_ic() -> anyhow::Result<()> {
                 if text.contains(&post.id) {
                     eprintln!("  ✓ post[{i}] id={} found in SpacetimeDB", post.id);
                 } else {
-                    eprintln!("  ✗ post[{i}] id={} — ID not found in response: {}", post.id, &text[..text.len().min(100)]);
+                    eprintln!(
+                        "  ✗ post[{i}] id={} — ID not found in response: {}",
+                        post.id,
+                        &text[..text.len().min(100)]
+                    );
                 }
             }
             Ok(r) => {
