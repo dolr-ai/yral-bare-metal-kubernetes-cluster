@@ -69,11 +69,11 @@ FROM scratch
 
 WORKDIR /app
 
-# Copy the built binary
-COPY --from=builder /app/apps/yral-auth/target/x86_64-unknown-linux-musl/release/yral-auth .
+# Copy the built binary (cargo-leptos uses the workspace root target dir)
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/yral-auth .
 
 # Copy the Leptos site assets (WASM, JS, CSS)
-COPY --from=builder /app/apps/yral-auth/target/site ./site
+COPY --from=builder /app/target/site ./site
 
 # Copy CA certificates (app makes HTTPS calls to Google, Apple, WhatsApp, etc.)
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt

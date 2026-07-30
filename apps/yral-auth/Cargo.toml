@@ -106,6 +106,7 @@ leptos_meta = { workspace = true }
 leptos_router = { workspace = true }
 log = { workspace = true }
 openidconnect = { workspace = true }
+openssl-sys = { workspace = true, features = ["vendored"], optional = true }
 p256 = { workspace = true, features = ["pkcs8"], optional = true }
 postcard = { workspace = true, features = ["use-std"] }
 rand = { workspace = true, optional = true }
@@ -152,6 +153,7 @@ ssr = [
   "dep:jsonwebtoken",
   "dep:k256",
   "dep:leptos_axum",
+  "dep:openssl-sys",
   "dep:p256",
   "dep:rand",
   "dep:redb",

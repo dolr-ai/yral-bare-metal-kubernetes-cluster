@@ -233,15 +233,15 @@ impl ServerCtx {
 
         let well_known_url = iss.join(".well-known/openid-configuration").unwrap();
 
-        let mut metadata = http_client
+        let response = http_client
             .get(well_known_url)
             .header(ACCEPT, "application/json")
             .send()
             .await
-            .map_err(|e| format!("{e}"))?
-            .json::<CoreProviderMetadata>()
-            .await
             .map_err(|e| format!("{e}"))?;
+        let bytes = response.bytes().await.map_err(|e| format!("{e}"))?;
+        let mut metadata: CoreProviderMetadata =
+            serde_json::from_slice(&bytes).map_err(|e| format!("{e}"))?;
         let jwks = CoreJsonWebKeySet::fetch_async(metadata.jwks_uri(), http_client)
             .await
             .map_err(|e| format!("{e}"))?;
