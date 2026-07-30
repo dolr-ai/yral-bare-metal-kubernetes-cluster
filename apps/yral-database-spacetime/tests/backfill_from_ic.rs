@@ -5,8 +5,12 @@
 //! This test is `#[ignore]`d so it doesn't run during normal `cargo test`.
 //! It connects to the live IC canister (`user_post_service`, mainnet
 //! `gxhc3-pqaaa-aaaas-qbh3q-cai`) and the target SpacetimeDB instance,
-//! reads all posts via cursor-paginated `fetch_posts`, and upserts each
-//! into SpacetimeDB via the `upsert_post` reducer.
+//! reads posts via cursor-paginated `fetch_posts`, and upserts each batch
+//! into SpacetimeDB via the `upsert_post` REST API.
+//!
+//! **Streaming / batched:** Reads IC posts in batches of 1000 and immediately
+//! upserts each batch to SpacetimeDB before fetching the next. Nothing is
+//! buffered in memory beyond a single batch.
 //!
 //! **Idempotent:** safe to run multiple times. Re-running with the same
 //! post ID updates the row instead of duplicating (the reducer deletes-then-inserts
@@ -14,31 +18,22 @@
 //! 1. Run once at staging merge → seed data.
 //! 2. Run again at app-store rollout → picks up delta posts + updated view counts.
 //!
-//! **Principal → Identity mapping:** IC `Principal` bytes are padded to 32 bytes
-//! (big-endian) and used as the SpacetimeDB `Identity`. This is a simple
-//! deterministic mapping. If yral-auth (Phase C) uses a different derivation,
-//! the backfilled `creator` identities will need to be remapped. For now this
-//! is sufficient to get the data in.
+//! **Principal → Identity mapping:** Uses `Identity::from_claims(issuer, &principal.to_text())`
+//! to match yral-auth's JWT-based identity derivation.
 //!
 //! **Delete this file once the mobile update has shipped and the IC canister
 //! is decommissioned (Phase J cleanup).**
 
 #![cfg(test)]
 
-use std::sync::mpsc;
-
+use anyhow::Context;
 use canisters_client::user_post_service::{
     FetchPostsArgs, Post as IcPost, PostStatus as IcPostStatus,
     UserPostService,
 };
 use candid::Principal;
 use ic_agent::Agent;
-use spacetimedb_sdk::{DbContext, Identity, Timestamp};
-// Generated bindings — provide `DbConnection`, `Post`, `PostStatus`, `upsert_post`.
-#[path = "../src/bindings/mod.rs"]
-mod bindings;
-
-use bindings::{upsert_post, DbConnection, Post, PostStatus};
+use spacetimedb_sdk::Identity;
 
 /// IC canister ID for `user_post_service` on mainnet.
 const IC_CANISTER_ID: &str = "gxhc3-pqaaa-aaaas-qbh3q-cai";
@@ -51,58 +46,84 @@ const IC_BATCH_SIZE: u64 = 1000;
 
 /// Map an IC `Principal` to a SpacetimeDB `Identity`.
 ///
-/// SpacetimeDB derives an `Identity` deterministically from the `iss` + `sub`
-/// claims of an OIDC JWT via `Identity::from_claims(issuer, subject)`. The
-/// yral-auth `id_token` has `iss` = the yral-auth server URL and `sub` = the
-/// IC principal text. We use the same derivation here so the backfilled
-/// `creator` identities match what users get when they log in.
-///
-/// The issuer URL comes from the `YRAL_AUTH_ISSUER` env var (defaults to
-/// `https://auth.yral.com`).
+/// Uses `Identity::from_claims(issuer, &principal.to_text())` to match
+/// yral-auth's JWT-based identity derivation. The issuer URL comes from
+/// the `YRAL_AUTH_ISSUER` env var (defaults to `https://auth.yral.com`).
 fn principal_to_identity(principal: &Principal) -> Identity {
     let issuer = std::env::var("YRAL_AUTH_ISSUER")
         .unwrap_or_else(|_| "https://auth.yral.com".to_string());
     Identity::from_claims(&issuer, &principal.to_text())
 }
 
-/// Map an IC `PostStatus` to the SpacetimeDB `PostStatus`.
-fn map_status(ic_status: &IcPostStatus) -> PostStatus {
+/// Map an IC `PostStatus` to the SpacetimeDB status enum JSON string.
+fn status_to_json(ic_status: &IcPostStatus) -> String {
     match ic_status {
-        IcPostStatus::Uploaded => PostStatus::Uploaded,
-        IcPostStatus::Transcoding => PostStatus::Transcoding,
-        IcPostStatus::CheckingExplicitness => PostStatus::CheckingExplicitness,
-        IcPostStatus::BannedForExplicitness => PostStatus::BannedForExplicitness,
-        IcPostStatus::ReadyToView => PostStatus::ReadyToView,
-        IcPostStatus::BannedDueToUserReporting => PostStatus::BannedDueToUserReporting,
-        IcPostStatus::Deleted => PostStatus::Deleted,
-        IcPostStatus::Draft => PostStatus::Draft,
+        IcPostStatus::Uploaded => r#"{"uploaded":{}}"#,
+        IcPostStatus::Transcoding => r#"{"transcoding":{}}"#,
+        IcPostStatus::CheckingExplicitness => r#"{"checkingExplicitness":{}}"#,
+        IcPostStatus::BannedForExplicitness => r#"{"bannedForExplicitness":{}}"#,
+        IcPostStatus::ReadyToView => r#"{"readyToView":{}}"#,
+        IcPostStatus::BannedDueToUserReporting => r#"{"bannedDueToUserReporting":{}}"#,
+        IcPostStatus::Deleted => r#"{"deleted":{}}"#,
+        IcPostStatus::Draft => r#"{"draft":{}}"#,
     }
+    .to_string()
 }
 
-/// Map an IC `SystemTime` to a SpacetimeDB `Timestamp`.
-fn map_timestamp(secs: u64, nanos: u32) -> Timestamp {
-    let micros = (secs as i64) * 1_000_000 + (nanos as i64) / 1_000;
-    Timestamp::from_micros_since_unix_epoch(micros)
+/// Escape a string for JSON.
+fn json_escape(s: &str) -> String {
+    serde_json::to_string(s).unwrap_or_else(|_| format!("\"{}\"", s.replace('"', "\\\"")))
 }
 
-/// Map an IC `Post` to a SpacetimeDB `Post`.
-fn map_post(ic_post: &IcPost) -> Post {
-    Post {
-        id: ic_post.id.clone(),
-        creator: principal_to_identity(&ic_post.creator_principal),
-        video_uid: ic_post.video_uid.clone(),
-        description: ic_post.description.clone(),
-        hashtags: ic_post.hashtags.clone(),
-        status: map_status(&ic_post.status),
-        created_at: map_timestamp(
-            ic_post.created_at.secs_since_epoch,
-            ic_post.created_at.nanos_since_epoch,
-        ),
-        share_count: ic_post.share_count,
-        view_total_count: ic_post.view_stats.total_view_count,
-        view_threshold_count: ic_post.view_stats.threshold_view_count,
-        view_average_watch_percentage: ic_post.view_stats.average_watch_percentage,
-    }
+/// Build the JSON argument for a single `upsert_post` REST call.
+///
+/// The SpacetimeDB REST API expects reducer arguments as a JSON array where
+/// each element is the reducer's argument. For `upsert_post(post: Post)`,
+/// the single argument is the Post struct with these special encodings:
+/// - `creator`: `["0x<32-byte-hex>"]` — 1-element tuple wrapping a U256 hex string
+/// - `created_at`: `[<micros>]` — 1-element tuple wrapping an i64 timestamp
+/// - `status`: `{"variantName":{}}` — enum as object with unit variant
+fn build_upsert_json(post: &IcPost) -> String {
+    let identity = principal_to_identity(&post.creator_principal);
+    let creator_hex = format!("0x{}", identity.to_hex());
+
+    let micros = (post.created_at.secs_since_epoch as i64) * 1_000_000
+        + (post.created_at.nanos_since_epoch as i64) / 1_000;
+
+    let hashtags: Vec<String> = post.hashtags.iter().map(|h| json_escape(h)).collect();
+
+    // Build JSON manually to avoid format! escaping issues with {{ }}.
+    let mut s = String::with_capacity(512);
+    s.push('['); // outer array (reducer args)
+    s.push('{'); // Post struct
+    s.push_str("\"id\":");
+    s.push_str(&json_escape(&post.id));
+    s.push_str(",\"video_uid\":");
+    s.push_str(&json_escape(&post.video_uid));
+    s.push_str(",\"description\":");
+    s.push_str(&json_escape(&post.description));
+    s.push_str(",\"hashtags\":[");
+    s.push_str(&hashtags.join(","));
+    s.push(']');
+    s.push_str(",\"creator\":[\"");
+    s.push_str(&creator_hex);
+    s.push_str("\"]");
+    s.push_str(",\"status\":");
+    s.push_str(&status_to_json(&post.status));
+    s.push_str(",\"created_at\":[");
+    s.push_str(&micros.to_string());
+    s.push(']');
+    s.push_str(",\"share_count\":");
+    s.push_str(&post.share_count.to_string());
+    s.push_str(",\"view_total_count\":");
+    s.push_str(&post.view_stats.total_view_count.to_string());
+    s.push_str(",\"view_threshold_count\":");
+    s.push_str(&post.view_stats.threshold_view_count.to_string());
+    s.push_str(",\"view_average_watch_percentage\":");
+    s.push_str(&post.view_stats.average_watch_percentage.to_string());
+    s.push('}'); // close Post
+    s.push(']'); // close outer array
+    s
 }
 
 /// Build an anonymous IC agent (no identity needed — `fetch_posts` is a query).
@@ -114,13 +135,74 @@ async fn build_ic_agent() -> anyhow::Result<Agent> {
     Ok(agent)
 }
 
-/// Scan all posts from the IC canister via cursor-paginated `fetch_posts`.
-async fn fetch_all_ic_posts(agent: &Agent) -> anyhow::Result<Vec<IcPost>> {
-    let canister_id = Principal::from_text(IC_CANISTER_ID)?;
-    let post_service = UserPostService(canister_id, agent);
+/// Upsert a batch of posts to SpacetimeDB via REST API.
+async fn upsert_batch(
+    http: &reqwest::Client,
+    call_url: &str,
+    token: &str,
+    posts: &[IcPost],
+) -> anyhow::Result<(usize, usize)> {
+    let mut ok = 0usize;
+    let mut err = 0usize;
 
-    let mut all_posts = Vec::new();
+    for post in posts {
+        let body = build_upsert_json(post);
+        let resp = http
+            .post(call_url)
+            .bearer_auth(token)
+            .header("Content-Type", "application/json")
+            .body(body)
+            .send()
+            .await?;
+
+        if resp.status().is_success() {
+            ok += 1;
+        } else {
+            err += 1;
+            if err <= 5 {
+                let status = resp.status();
+                let body = resp.text().await.unwrap_or_default();
+                eprintln!("  ERROR upserting post {}: {} {}", post.id, status, body);
+            }
+        }
+    }
+
+    Ok((ok, err))
+}
+
+#[tokio::test]
+#[ignore]
+async fn backfill_from_ic() -> anyhow::Result<()> {
+    eprintln!("=== IC → SpacetimeDB Backfill (streaming) ===");
+
+    // --- IC agent ---
+    eprintln!("Connecting to IC canister {}...", IC_CANISTER_ID);
+    let agent = build_ic_agent().await?;
+    let canister_id = Principal::from_text(IC_CANISTER_ID)?;;
+    let post_service = UserPostService(canister_id, &agent);
+
+    // --- SpacetimeDB REST config ---
+    let db_name = std::env::var("SPACETIMEDB_DB_NAME")
+        .unwrap_or_else(|_| "yral-database-spacetime-4lbo7".to_string());
+    let uri = std::env::var("SPACETIMEDB_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:3000".to_string());
+    let token = std::env::var("SPACETIMEDB_ADMIN_TOKEN")
+        .context("SPACETIMEDB_ADMIN_TOKEN")?;
+
+    let http = reqwest::Client::new();
+    let call_url = format!(
+        "{}/v1/database/{}/call/upsert_post",
+        uri.trim_end_matches('/'),
+        db_name,
+    );
+    eprintln!("SpacetimeDB REST: {}", call_url);
+
+    // --- Stream: read IC batch → upsert to SpacetimeDB → next batch ---
     let mut last_uuid: Option<String> = None;
+    let mut total_read: u64 = 0;
+    let mut total_upserted: u64 = 0;
+    let mut total_errors: u64 = 0;
+    let mut batch_num: u64 = 0;
 
     loop {
         let result = post_service
@@ -134,15 +216,19 @@ async fn fetch_all_ic_posts(agent: &Agent) -> anyhow::Result<Vec<IcPost>> {
             break;
         }
 
-        let batch_size = result.posts.len();
+        let batch_len = result.posts.len();
         last_uuid = result.last_post_id_fetched.clone();
-        all_posts.extend(result.posts);
+        batch_num += 1;
+        total_read += batch_len as u64;
+
+        // Upsert this batch immediately.
+        let (ok, err) = upsert_batch(&http, &call_url, &token, &result.posts).await?;
+        total_upserted += ok as u64;
+        total_errors += err as u64;
 
         eprintln!(
-            "Fetched {} posts (total so far: {}), cursor: {:?}",
-            batch_size,
-            all_posts.len(),
-            last_uuid
+            "  Batch {batch_num}: {batch_len} posts read, {ok} upserted, {err} errors | Cumulative: {total_read} read, {total_upserted} upserted, {total_errors} errors, cursor={cursor:?}",
+            cursor = last_uuid,
         );
 
         if last_uuid.is_none() {
@@ -150,149 +236,66 @@ async fn fetch_all_ic_posts(agent: &Agent) -> anyhow::Result<Vec<IcPost>> {
         }
     }
 
-    Ok(all_posts)
-}
-
-/// Connect to SpacetimeDB and upsert all posts.
-///
-/// Env vars (from `mise.toml [env]`):
-/// - `SPACETIMEDB_DB_NAME` — database name (e.g. `yral-database-spacetime-4lbo7`)
-/// - `SPACETIMEDB_URL` — server URL (e.g. `http://127.0.0.1:3000` for local,
-///   `https://maincloud.spacetimedb.com` for Maincloud)
-/// - `SPACETIMEDB_ADMIN_TOKEN` — admin auth token (from fnox for prod; for local,
-///   use the token from `spacetime publish` output or `spacetime login`)
-fn upsert_all_posts(posts: Vec<Post>) -> anyhow::Result<()> {
-    let db_name = std::env::var("SPACETIMEDB_DB_NAME")
-        .unwrap_or_else(|_| "yral-database-spacetime-4lbo7".to_string());
-    let uri = std::env::var("SPACETIMEDB_URL")
-        .unwrap_or_else(|_| "http://127.0.0.1:3000".to_string());
-    let token = std::env::var("SPACETIMEDB_ADMIN_TOKEN").ok();
-
-    eprintln!("Connecting to SpacetimeDB: {} (db: {})", uri, db_name);
-
-    // Use a channel to wait for the connect callback before proceeding.
-    let (tx, rx) = mpsc::channel::<bool>();
-
-    let conn = DbConnection::builder()
-        .with_uri(uri)
-        .with_database_name(db_name)
-        .with_token(token)
-        .on_connect(move |_conn, _identity, _token| {
-            eprintln!("Connected to SpacetimeDB as identity: {}", _identity);
-            let _ = tx.send(true);
-        })
-        .on_connect_error(|_ctx, err| {
-            eprintln!("SpacetimeDB connect error: {err:?}");
-        })
-        .on_disconnect(|_ctx, err| {
-            eprintln!("SpacetimeDB disconnected: {err:?}");
-        })
-        .build()?;
-
-    // Drive the WebSocket on a background thread.
-    let _handle = conn.run_threaded();
-
-    // Wait for the connect callback.
-    rx.recv_timeout(std::time::Duration::from_secs(10))
-        .map_err(|e| anyhow::anyhow!("SpacetimeDB connection timeout: {e}"))?;
-
-    eprintln!("Connected. Upserting {} posts...", posts.len());
-
-    // Use a channel to track completion of all upsert calls.
-    let total = posts.len();
-    let (done_tx, done_rx) =
-        mpsc::channel::<(usize, Result<Result<(), String>, spacetimedb_sdk::__codegen::InternalError>)>();
-
-    for (i, post) in posts.into_iter().enumerate() {
-        let done_tx = done_tx.clone();
-        // Use the `_then` variant to get the reducer result.
-        conn.reducers
-            .upsert_post_then(post, move |_ctx, result| {
-                let _ = done_tx.send((i, result));
-            })
-            .map_err(|e| anyhow::anyhow!("Failed to send upsert_post: {e}"))?;
-    }
-    drop(done_tx);
-
-    // Collect all results.
-    let mut errors = Vec::new();
-    let mut success_count = 0usize;
-    for (i, result) in done_rx {
-        match result {
-            Ok(Ok(())) => success_count += 1,
-            Ok(Err(msg)) => {
-                errors.push(format!("post[{}]: reducer error: {}", i, msg));
-            }
-            Err(internal_err) => {
-                errors.push(format!("post[{}]: internal error: {}", i, internal_err));
-            }
-        }
-        if (i + 1) % 100 == 0 {
-            eprintln!("Progress: {}/{} upserts processed", i + 1, total);
-        }
-    }
-
-    eprintln!("Upsert complete: {} succeeded, {} errors", success_count, errors.len());
-    if !errors.is_empty() {
-        eprintln!("First 10 errors:");
-        for err in errors.iter().take(10) {
-            eprintln!("  {err}");
-        }
-    }
-
-    conn.disconnect()?;
-    // Give the background thread a moment to flush.
-    std::thread::sleep(std::time::Duration::from_millis(200));
-
-    if !errors.is_empty() {
-        anyhow::bail!("{} upsert errors (see above)", errors.len());
-    }
-
-    Ok(())
-}
-
-#[tokio::test]
-#[ignore]
-async fn backfill_from_ic() -> anyhow::Result<()> {
-    eprintln!("=== IC → SpacetimeDB Backfill ===");
     eprintln!();
+    eprintln!("=== Backfill Complete ===");
+    eprintln!("  Total posts read from IC:    {total_read}");
+    eprintln!("  Successfully upserted:       {total_upserted}");
+    eprintln!("  Errors:                      {total_errors}");
 
-    // Phase 1: Read all posts from the IC canister.
-    eprintln!("Phase 1: Reading posts from IC canister ({})...", IC_CANISTER_ID);
-    let agent = build_ic_agent().await?;
-    let ic_posts = fetch_all_ic_posts(&agent).await?;
-    eprintln!("Read {} posts from IC", ic_posts.len());
+    if total_errors > 0 {
+        anyhow::bail!("{total_errors} upsert errors (see above)");
+    }
 
-    if ic_posts.is_empty() {
-        eprintln!("No posts to backfill. Exiting.");
+    // Spot-check: read back a few posts from SpacetimeDB.
+    if total_upserted == 0 {
+        eprintln!("No posts to verify.");
         return Ok(());
     }
 
-    // Spot-check: print first 3 posts.
-    for (i, post) in ic_posts.iter().take(3).enumerate() {
-        eprintln!(
-            "  [{}] id={}, creator={}, status={:?}, views={}",
-            i, post.id, post.creator_principal, post.status, post.view_stats.total_view_count
-        );
+    eprintln!();
+    eprintln!("Spot-check: verifying 3 posts via get_post_by_id...");
+
+    // Re-fetch the first 3 posts from IC to get their IDs, then verify in SpacetimeDB.
+    let verify_result = post_service
+        .fetch_posts(FetchPostsArgs {
+            limit: 3,
+            last_uuid_processed: None,
+        })
+        .await?;
+
+    let get_url = format!(
+        "{}/v1/database/{}/call/get_post_by_id",
+        uri.trim_end_matches('/'),
+        db_name,
+    );
+
+    for (i, post) in verify_result.posts.iter().enumerate() {
+        let body = format!(r#"["{}"]"#, post.id);
+        let resp = http
+            .post(&get_url)
+            .bearer_auth(&token)
+            .header("Content-Type", "application/json")
+            .body(body)
+            .send()
+            .await;
+
+        match resp {
+            Ok(r) if r.status().is_success() => {
+                let text = r.text().await.unwrap_or_default();
+                if text.contains(&post.id) {
+                    eprintln!("  ✓ post[{i}] id={} found in SpacetimeDB", post.id);
+                } else {
+                    eprintln!("  ✗ post[{i}] id={} — ID not found in response: {}", post.id, &text[..text.len().min(100)]);
+                }
+            }
+            Ok(r) => {
+                eprintln!("  ✗ post[{i}] id={} — HTTP {}", post.id, r.status());
+            }
+            Err(e) => {
+                eprintln!("  ✗ post[{i}] id={} — request error: {}", post.id, e);
+            }
+        }
     }
-
-    // Phase 2: Map IC posts to SpacetimeDB posts.
-    eprintln!();
-    eprintln!("Phase 2: Mapping {} IC posts → SpacetimeDB Post structs...", ic_posts.len());
-    let st_posts: Vec<Post> = ic_posts.iter().map(map_post).collect();
-
-    // Phase 3: Upsert into SpacetimeDB.
-    eprintln!();
-    eprintln!("Phase 3: Upserting into SpacetimeDB...");
-    upsert_all_posts(st_posts)?;
-
-    // Phase 4: Summary.
-    eprintln!();
-    eprintln!("=== Backfill Complete ===");
-    eprintln!("  IC posts read:   {}", ic_posts.len());
-    eprintln!("  SpacetimeDB upserts: completed");
-    eprintln!();
-    eprintln!("To validate, run: spacetime sql \"SELECT count(*) FROM posts\"");
 
     Ok(())
 }

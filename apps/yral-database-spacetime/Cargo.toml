@@ -23,5 +23,7 @@ anyhow = { workspace = true }
 candid = { workspace = true }
 canisters-client = { workspace = true, features = ["user-post-service"] }
 ic-agent = { workspace = true }
+reqwest = { workspace = true, features = ["json", "rustls"] }
+serde_json = { workspace = true }
 spacetimedb-sdk = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }

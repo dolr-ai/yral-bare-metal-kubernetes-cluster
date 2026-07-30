@@ -16,10 +16,22 @@ pub struct SpacetimeKV {
     token: String,
 }
 
-/// Response shape for the `kv_get` procedure: `{"value": Option<String>}`.
+/// SpacetimeDB REST API wraps procedure results in an outer array.
+/// `kv_get` returns `KvGetResult { value: Option<String> }`, which the REST
+/// API serializes as `[[<variant_index>, <payload>]]`:
+/// - `Some(value)` → `[[0, "the-value"]]`
+/// - `None`        → `[[1, []]]`
+///
+/// We deserialize the outer wrapper and then extract the `Option<String>`.
+/// The outer array contains a single element which is the `KvGetResult`
+/// encoded as a 2-element array: `[variant_index, payload]`.
 #[derive(Deserialize)]
-struct KvGetResponse {
-    value: Option<String>,
+#[serde(untagged)]
+enum KvGetRestResponse {
+    /// `Some(value)` case: `[0, "value"]`
+    Some((u8, String)),
+    /// `None` case: `[1, []]` — the payload is an empty array
+    None((u8, serde_json::Value)),
 }
 
 impl SpacetimeKV {
@@ -122,8 +134,18 @@ impl SpacetimeKV {
 
 impl KVStore for SpacetimeKV {
     async fn read(&self, key: String) -> Result<Option<String>, KVError> {
-        let resp: KvGetResponse = self.call_procedure("kv_get", serde_json::json!([key])).await?;
-        Ok(resp.value)
+        let resp: Vec<KvGetRestResponse> =
+            self.call_procedure("kv_get", serde_json::json!([key])).await?;
+        // The REST API wraps the result in an outer array. We expect exactly
+        // one element. Extract the `Option<String>` from the variant.
+        let result = resp
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("kv_get returned empty array"))?;
+        Ok(match result {
+            KvGetRestResponse::Some((_, value)) => Some(value),
+            KvGetRestResponse::None(_) => None,
+        })
     }
 
     async fn write(&self, key: String, value: String) -> Result<(), KVError> {
@@ -132,7 +154,15 @@ impl KVStore for SpacetimeKV {
     }
 
     async fn has_key(&self, key: String) -> Result<bool, KVError> {
-        let resp: KvGetResponse = self.call_procedure("kv_get", serde_json::json!([key])).await?;
-        Ok(resp.value.is_some())
+        let resp: Vec<KvGetRestResponse> =
+            self.call_procedure("kv_get", serde_json::json!([key])).await?;
+        let result = resp
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("kv_get returned empty array"))?;
+        Ok(match result {
+            KvGetRestResponse::Some(_) => true,
+            KvGetRestResponse::None(_) => false,
+        })
     }
 }

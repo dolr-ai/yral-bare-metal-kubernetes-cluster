@@ -10933,6 +10933,8 @@ dependencies = [
  "candid",
  "ic-agent",
  "log",
+ "reqwest 0.13.4",
+ "serde_json",
  "spacetimedb",
  "spacetimedb-sdk",
  "tokio",
