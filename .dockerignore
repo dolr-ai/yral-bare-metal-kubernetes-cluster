@@ -40,3 +40,10 @@ apps/yral/.git/
 apps/yral-backend-canister/.git/
 apps/yral-mobile/.git/
 apps/website/.git/
+
+# Independent workspaces / submodules not needed for yral-auth build
+apps/yral-backend-canister/
+apps/yral/
+apps/yral-mobile/
+apps/website/
+apps/my-website/

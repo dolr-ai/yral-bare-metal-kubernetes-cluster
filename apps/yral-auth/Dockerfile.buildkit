@@ -27,10 +27,8 @@ RUN curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/downloa
 
 WORKDIR /app/apps/yral-auth
 
-# Copy root mise.toml + Cargo.toml + Cargo.lock first for better layer caching
-# (per-app mise.toml was removed — all config lives in root mise.toml now)
-COPY mise.toml Cargo.toml Cargo.lock /app/
-COPY apps/yral-auth/Cargo.toml apps/yral-auth/Cargo.lock ./
+# Copy mise.toml + Cargo.toml + Cargo.lock first for better layer caching
+COPY apps/yral-auth/mise.toml apps/yral-auth/Cargo.toml apps/yral-auth/Cargo.lock ./
 
 # Install Node.js via mise (pinned in mise.toml)
 RUN mise trust -a && mise install
@@ -43,9 +41,10 @@ COPY apps/yral-auth/tailwind.config.js ./
 COPY apps/yral-auth/package.json ./
 COPY apps/yral-auth/rust-toolchain.toml ./
 
-# Copy local path dependencies (relative to repo root, placed adjacent to yral-auth)
-COPY apps/yral-common/ ../yral-common/
-COPY apps/yral-metadata/ ../yral-metadata/
+# Copy local path dependencies — the root Cargo.toml workspace includes
+# all apps, so we need the full apps/ tree (minus target/ via .dockerignore).
+COPY Cargo.toml /app/Cargo.toml
+COPY apps/ /app/apps/
 
 # Install JS dependencies (tailwindcss)
 RUN npm install
