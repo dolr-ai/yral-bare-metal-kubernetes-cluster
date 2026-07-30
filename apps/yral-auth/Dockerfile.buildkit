@@ -5,8 +5,11 @@
 FROM rust:latest AS builder
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends musl-tools && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    musl-tools \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install mise (for Node.js — needed by tailwindcss via cargo-leptos)
 ENV MISE_DATA_DIR="/mise"
