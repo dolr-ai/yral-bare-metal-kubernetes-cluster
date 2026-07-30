@@ -81,3 +81,24 @@ The key never leaves the cluster and is encrypted at rest inside etcd (Kubernete
 - Move to Mayastor for data locality with primary replica on the same node as the pod. Secondary replica should be on a different node in the same region
 - rewrite my-website with leptos builder syntax
 - stop yral-auth from storing its data in naitik's redis infrastructure but move it over to call our spacetimedb
+- The categorized scan completed. Here's the full breakdown of all 238,606 keys in the Redis/Dragonfly instance:
+
+Prefix	Count	What it is
+IC Principal keys (xxx-xxx-xxx-...:*)	193,023	Per-user data keyed by IC Principal — owned by other services (yral-legacy, off-chain-agent, etc.)
+yral-auth:*	27,671	yral-auth auth KV store (session data, OAuth lookups, principal mappings)
+yral-metadata:*	12,451	yral-metadata service data
+impressions:*	5,322	Impression/view tracking
+offchain:*	127	off-chain-agent data
+test:*	12	Test keys (from TEST_KEY_PREFIX in dragonfly_kv.rs)
+TOTAL	238,606	
+We're correctly only migrating yral-auth:* (27,671 keys). The SpacetimeDB auth_kv table is the replacement for yral-auth's KV store specifically — all 23 calls to format_to_dragonfly_key() in yral-auth use KEY_PREFIX = "yral-auth".
+
+The other prefixes belong to different services that share this Dragonfly instance and will have their own migration paths:
+
+yral-metadata:* — the yral-metadata service has its own Redis-backed store
+impressions:* — view/impression tracking, likely from the off-chain-agent or yral-legacy
+offchain:* — off-chain-agent's own data
+IC Principal keys — per-user canister data from yral-legacy
+We should not bring everything into the auth_kv table — that would mix yral-auth's auth data with unrelated services' data in a single key-value store. Each service needs its own SpacetimeDB table or its own migration strategy.
+
+Migrate the other useful bits
