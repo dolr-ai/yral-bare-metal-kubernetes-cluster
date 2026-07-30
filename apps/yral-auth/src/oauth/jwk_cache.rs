@@ -120,7 +120,8 @@ impl JwkCache {
             3600
         };
 
-        let jwks = response.json::<CoreJsonWebKeySet>().await?;
+        let body = response.bytes().await?;
+        let jwks: CoreJsonWebKeySet = serde_json::from_slice(&body)?;
         let expiry_epoch = Self::current_epoch_secs() + cache_expiry;
 
         Ok((jwks, expiry_epoch))

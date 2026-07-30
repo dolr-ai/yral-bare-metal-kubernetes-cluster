@@ -15,8 +15,11 @@ use spacetimedb::Identity;
 /// ])
 /// ```
 pub const ADMINS: &[Identity] = &[
-    // TODO: add the module publisher identity here after first publish.
+    // SpacetimeDB CLI publisher identity (spacetimedb-cli login)
+    Identity::from_be_byte_array([
+        0xc2, 0x00, 0x40, 0x07, 0xfc, 0xa1, 0x71, 0x43, 0x1b, 0xbd, 0x92, 0x0b, 0x82, 0x62, 0x2f,
+        0xbb, 0xc0, 0x4b, 0xdd, 0x18, 0xa6, 0x9b, 0x6e, 0x0b, 0xee, 0x2a, 0xc4, 0x0e, 0xe0, 0x64,
+        0xe1, 0xbb,
+    ]),
     // TODO: add the off-chain-agent's SpacetimeDB identity here.
-    // TODO: add the backfill binary's SpacetimeDB identity here.
-    // TODO: add the external Prakash/Naitik service identity here.
 ];

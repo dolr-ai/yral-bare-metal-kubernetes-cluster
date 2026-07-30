@@ -177,3 +177,8 @@ opt-level = "z"
 lto = true
 panic = "abort"
 codegen-units = 1
+
+[dev-dependencies]
+anyhow = { workspace = true }
+redis = { workspace = true, features = ["acl", "aio", "cluster", "cluster-async", "connection-manager", "sentinel", "tokio-rustls-comp"] }
+tokio = { workspace = true, features = ["macros", "rt"] }

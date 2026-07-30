@@ -542,6 +542,12 @@ impl DragonflyKV {
             init_new_dragonfly_redis(ca_cert_bytes, client_cert_bytes, client_key_bytes).await?;
         Ok(Self(dragonfly_pool))
     }
+
+    /// Expose the underlying connection pool for SCAN operations
+    /// (the `KVStore` trait only exposes read/write/has_key).
+    pub fn pool_for_scan(&self) -> Arc<DragonflyPool> {
+        Arc::clone(&self.0)
+    }
 }
 
 const AUTH_FIELD: &str = "auth";
