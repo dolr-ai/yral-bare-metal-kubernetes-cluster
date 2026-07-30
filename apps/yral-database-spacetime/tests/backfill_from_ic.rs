@@ -135,6 +135,60 @@ async fn build_ic_agent() -> anyhow::Result<Agent> {
     Ok(agent)
 }
 
+/// Upsert a single post to SpacetimeDB via REST API, with retry on transient errors.
+///
+/// Retries up to 3 times with exponential backoff (1s, 2s, 4s) on connection
+/// errors or 5xx responses. Returns `true` on success, `false` on permanent failure.
+async fn upsert_one_with_retry(
+    http: &reqwest::Client,
+    call_url: &str,
+    token: &str,
+    post: &IcPost,
+) -> bool {
+    let body = build_upsert_json(post);
+
+    for attempt in 0..3u32 {
+        let resp = match http
+            .post(call_url)
+            .bearer_auth(token)
+            .header("Content-Type", "application/json")
+            .body(body.clone())
+            .send()
+            .await
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                if attempt < 2 {
+                    eprintln!("  retry {}/3 post {} (conn error: {})", attempt + 1, post.id, e);
+                    tokio::time::sleep(std::time::Duration::from_secs(1 << attempt)).await;
+                    continue;
+                }
+                eprintln!("  FAILED post {} after 3 retries: {}", post.id, e);
+                return false;
+            }
+        };
+
+        let status = resp.status();
+        if status.is_success() {
+            return true;
+        }
+
+        // Retry on 5xx (server error) or 429 (rate limit); fail on 4xx (client error)
+        if (status.is_server_error() || status.as_u16() == 429) && attempt < 2 {
+            let body = resp.text().await.unwrap_or_default();
+            eprintln!("  retry {}/3 post {} ({} {})", attempt + 1, post.id, status, body);
+            tokio::time::sleep(std::time::Duration::from_secs(1 << attempt)).await;
+            continue;
+        }
+
+        let body = resp.text().await.unwrap_or_default();
+        eprintln!("  FAILED post {}: {} {}", post.id, status, body);
+        return false;
+    }
+
+    false
+}
+
 /// Upsert a batch of posts to SpacetimeDB via REST API.
 async fn upsert_batch(
     http: &reqwest::Client,
@@ -146,24 +200,10 @@ async fn upsert_batch(
     let mut err = 0usize;
 
     for post in posts {
-        let body = build_upsert_json(post);
-        let resp = http
-            .post(call_url)
-            .bearer_auth(token)
-            .header("Content-Type", "application/json")
-            .body(body)
-            .send()
-            .await?;
-
-        if resp.status().is_success() {
+        if upsert_one_with_retry(http, call_url, token, post).await {
             ok += 1;
         } else {
             err += 1;
-            if err <= 5 {
-                let status = resp.status();
-                let body = resp.text().await.unwrap_or_default();
-                eprintln!("  ERROR upserting post {}: {} {}", post.id, status, body);
-            }
         }
     }
 
