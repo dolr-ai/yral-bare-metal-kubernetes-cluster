@@ -217,10 +217,16 @@ run = "spacetimedb-cli publish"
 description = "Validate yral-database-spacetime on Maincloud (read-only checks: tables, row counts, procedure calls)"
 run = '''
 echo "=== Tables ==="
-spacetimedb-cli sql --server maincloud $SPACETIMEDB_DB_NAME "SELECT table_name, table_access FROM st_table WHERE table_type = 'user'"
+TABLES_OUT=$(spacetimedb-cli sql --server maincloud $SPACETIMEDB_DB_NAME "SELECT table_name, table_access FROM st_table WHERE table_type = 'user'")
+echo "$TABLES_OUT"
 echo ""
 echo "=== Row counts ==="
-spacetimedb-cli sql --server maincloud $SPACETIMEDB_DB_NAME "SELECT table_name, (SELECT count(*) FROM st_table) AS cnt FROM st_table WHERE table_type = 'user' LIMIT 1"
+# Parse table names from the query output (quoted first column), then count each.
+TABLES=$(echo "$TABLES_OUT" | awk -F'|' '/^ "/ {gsub(/[" \t]/, "", $1); print $1}')
+for t in $TABLES; do
+  echo -n "$t: "
+  spacetimedb-cli sql --server maincloud $SPACETIMEDB_DB_NAME "SELECT count(*) AS cnt FROM $t"
+done
 '''
 
 [tasks.spacetime-all]
