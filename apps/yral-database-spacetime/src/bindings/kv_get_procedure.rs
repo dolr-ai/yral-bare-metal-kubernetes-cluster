@@ -2,21 +2,15 @@
 // WILL NOT BE SAVED. MODIFY TABLES IN YOUR MODULE SOURCE CODE INSTEAD.
 
 #![allow(unused, clippy::all)]
-use spacetimedb_sdk::__codegen::{
-	self as __sdk,
-	__lib,
-	__sats,
-	__ws,
-};
+use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 use super::kv_get_result_type::KvGetResult;
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
- struct KvGetArgs {
+struct KvGetArgs {
     pub key: String,
 }
-
 
 impl __sdk::InModule for KvGetArgs {
     type Module = super::RemoteModule;
@@ -27,16 +21,17 @@ impl __sdk::InModule for KvGetArgs {
 ///
 /// Implemented for [`super::RemoteProcedures`].
 pub trait kv_get {
-    fn kv_get(&self, key: String,
-) {
-        self.kv_get_then(key,  |_, _| {});
+    fn kv_get(&self, key: String) {
+        self.kv_get_then(key, |_, _| {});
     }
 
     fn kv_get_then(
         &self,
         key: String,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<KvGetResult, __sdk::InternalError>) + Send + 'static,
+        __callback: impl FnOnce(&super::ProcedureEventContext, Result<KvGetResult, __sdk::InternalError>)
+            + Send
+            + 'static,
     );
 }
 
@@ -45,13 +40,14 @@ impl kv_get for super::RemoteProcedures {
         &self,
         key: String,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<KvGetResult, __sdk::InternalError>) + Send + 'static,
+        __callback: impl FnOnce(&super::ProcedureEventContext, Result<KvGetResult, __sdk::InternalError>)
+            + Send
+            + 'static,
     ) {
         self.imp.invoke_procedure_with_callback::<_, KvGetResult>(
             "kv_get",
-            KvGetArgs { key,  },
+            KvGetArgs { key },
             __callback,
         );
     }
 }
-

@@ -2,12 +2,7 @@
 // WILL NOT BE SAVED. MODIFY TABLES IN YOUR MODULE SOURCE CODE INSTEAD.
 
 #![allow(unused, clippy::all)]
-use spacetimedb_sdk::__codegen::{
-	self as __sdk,
-	__lib,
-	__sats,
-	__ws,
-};
+use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 use super::post_view_details_from_frontend_type::PostViewDetailsFromFrontend;
 
@@ -23,8 +18,8 @@ impl From<AddViewDetailsArgs> for super::Reducer {
         Self::AddViewDetails {
             post_id: args.post_id,
             details: args.details,
-}
-}
+        }
+    }
 }
 
 impl __sdk::InModule for AddViewDetailsArgs {
@@ -42,10 +37,12 @@ pub trait add_view_details {
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
     /// /// Use [`add_view_details:add_view_details_then`] to run a callback after the reducer completes.
-    fn add_view_details(&self, post_id: String,
-details: PostViewDetailsFromFrontend,
-) -> __sdk::Result<()> {
-        self.add_view_details_then(post_id, details,  |_, _| {})
+    fn add_view_details(
+        &self,
+        post_id: String,
+        details: PostViewDetailsFromFrontend,
+    ) -> __sdk::Result<()> {
+        self.add_view_details_then(post_id, details, |_, _| {})
     }
 
     /// Request that the remote module invoke the reducer `add_view_details` to run as soon as possible,
@@ -57,7 +54,7 @@ details: PostViewDetailsFromFrontend,
     fn add_view_details_then(
         &self,
         post_id: String,
-details: PostViewDetailsFromFrontend,
+        details: PostViewDetailsFromFrontend,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -69,13 +66,13 @@ impl add_view_details for super::RemoteReducers {
     fn add_view_details_then(
         &self,
         post_id: String,
-details: PostViewDetailsFromFrontend,
+        details: PostViewDetailsFromFrontend,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
             + 'static,
     ) -> __sdk::Result<()> {
-        self.imp.invoke_reducer_with_callback(AddViewDetailsArgs { post_id, details,  }, callback)
+        self.imp
+            .invoke_reducer_with_callback(AddViewDetailsArgs { post_id, details }, callback)
     }
 }
-

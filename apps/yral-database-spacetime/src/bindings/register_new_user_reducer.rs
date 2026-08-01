@@ -6,46 +6,41 @@ use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
-pub(super) struct RemoveAdminArgs {
-    pub identity: __sdk::Identity,
-}
+pub(super) struct RegisterNewUserArgs {}
 
-impl From<RemoveAdminArgs> for super::Reducer {
-    fn from(args: RemoveAdminArgs) -> Self {
-        Self::RemoveAdmin {
-            identity: args.identity,
-        }
+impl From<RegisterNewUserArgs> for super::Reducer {
+    fn from(args: RegisterNewUserArgs) -> Self {
+        Self::RegisterNewUser
     }
 }
 
-impl __sdk::InModule for RemoveAdminArgs {
+impl __sdk::InModule for RegisterNewUserArgs {
     type Module = super::RemoteModule;
 }
 
 #[allow(non_camel_case_types)]
-/// Extension trait for access to the reducer `remove_admin`.
+/// Extension trait for access to the reducer `register_new_user`.
 ///
 /// Implemented for [`super::RemoteReducers`].
-pub trait remove_admin {
-    /// Request that the remote module invoke the reducer `remove_admin` to run as soon as possible.
+pub trait register_new_user {
+    /// Request that the remote module invoke the reducer `register_new_user` to run as soon as possible.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
-    /// /// Use [`remove_admin:remove_admin_then`] to run a callback after the reducer completes.
-    fn remove_admin(&self, identity: __sdk::Identity) -> __sdk::Result<()> {
-        self.remove_admin_then(identity, |_, _| {})
+    /// /// Use [`register_new_user:register_new_user_then`] to run a callback after the reducer completes.
+    fn register_new_user(&self) -> __sdk::Result<()> {
+        self.register_new_user_then(|_, _| {})
     }
 
-    /// Request that the remote module invoke the reducer `remove_admin` to run as soon as possible,
+    /// Request that the remote module invoke the reducer `register_new_user` to run as soon as possible,
     /// registering `callback` to run when we are notified that the reducer completed.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and its status can be observed with the `callback`.
-    fn remove_admin_then(
+    fn register_new_user_then(
         &self,
-        identity: __sdk::Identity,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -53,16 +48,15 @@ pub trait remove_admin {
     ) -> __sdk::Result<()>;
 }
 
-impl remove_admin for super::RemoteReducers {
-    fn remove_admin_then(
+impl register_new_user for super::RemoteReducers {
+    fn register_new_user_then(
         &self,
-        identity: __sdk::Identity,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
             + 'static,
     ) -> __sdk::Result<()> {
         self.imp
-            .invoke_reducer_with_callback(RemoveAdminArgs { identity }, callback)
+            .invoke_reducer_with_callback(RegisterNewUserArgs {}, callback)
     }
 }

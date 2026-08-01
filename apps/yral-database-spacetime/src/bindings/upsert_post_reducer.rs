@@ -2,12 +2,7 @@
 // WILL NOT BE SAVED. MODIFY TABLES IN YOUR MODULE SOURCE CODE INSTEAD.
 
 #![allow(unused, clippy::all)]
-use spacetimedb_sdk::__codegen::{
-	self as __sdk,
-	__lib,
-	__sats,
-	__ws,
-};
+use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 use super::post_type::Post;
 
@@ -19,10 +14,8 @@ pub(super) struct UpsertPostArgs {
 
 impl From<UpsertPostArgs> for super::Reducer {
     fn from(args: UpsertPostArgs) -> Self {
-        Self::UpsertPost {
-            post: args.post,
-}
-}
+        Self::UpsertPost { post: args.post }
+    }
 }
 
 impl __sdk::InModule for UpsertPostArgs {
@@ -40,9 +33,8 @@ pub trait upsert_post {
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
     /// /// Use [`upsert_post:upsert_post_then`] to run a callback after the reducer completes.
-    fn upsert_post(&self, post: Post,
-) -> __sdk::Result<()> {
-        self.upsert_post_then(post,  |_, _| {})
+    fn upsert_post(&self, post: Post) -> __sdk::Result<()> {
+        self.upsert_post_then(post, |_, _| {})
     }
 
     /// Request that the remote module invoke the reducer `upsert_post` to run as soon as possible,
@@ -70,7 +62,7 @@ impl upsert_post for super::RemoteReducers {
             + Send
             + 'static,
     ) -> __sdk::Result<()> {
-        self.imp.invoke_reducer_with_callback(UpsertPostArgs { post,  }, callback)
+        self.imp
+            .invoke_reducer_with_callback(UpsertPostArgs { post }, callback)
     }
 }
-

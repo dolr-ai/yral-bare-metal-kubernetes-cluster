@@ -2,22 +2,16 @@
 // WILL NOT BE SAVED. MODIFY TABLES IN YOUR MODULE SOURCE CODE INSTEAD.
 
 #![allow(unused, clippy::all)]
-use spacetimedb_sdk::__codegen::{
-	self as __sdk,
-	__lib,
-	__sats,
-	__ws,
-};
+use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 use super::fetch_posts_result_type::FetchPostsResult;
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
- struct FetchPostsArgs {
+struct FetchPostsArgs {
     pub limit: u64,
-    pub cursor: Option::<String>,
+    pub cursor: Option<String>,
 }
-
 
 impl __sdk::InModule for FetchPostsArgs {
     type Module = super::RemoteModule;
@@ -28,18 +22,18 @@ impl __sdk::InModule for FetchPostsArgs {
 ///
 /// Implemented for [`super::RemoteProcedures`].
 pub trait fetch_posts {
-    fn fetch_posts(&self, limit: u64,
-cursor: Option::<String>,
-) {
-        self.fetch_posts_then(limit, cursor,  |_, _| {});
+    fn fetch_posts(&self, limit: u64, cursor: Option<String>) {
+        self.fetch_posts_then(limit, cursor, |_, _| {});
     }
 
     fn fetch_posts_then(
         &self,
         limit: u64,
-cursor: Option::<String>,
+        cursor: Option<String>,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<FetchPostsResult, __sdk::InternalError>) + Send + 'static,
+        __callback: impl FnOnce(&super::ProcedureEventContext, Result<FetchPostsResult, __sdk::InternalError>)
+            + Send
+            + 'static,
     );
 }
 
@@ -47,15 +41,17 @@ impl fetch_posts for super::RemoteProcedures {
     fn fetch_posts_then(
         &self,
         limit: u64,
-cursor: Option::<String>,
+        cursor: Option<String>,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<FetchPostsResult, __sdk::InternalError>) + Send + 'static,
+        __callback: impl FnOnce(&super::ProcedureEventContext, Result<FetchPostsResult, __sdk::InternalError>)
+            + Send
+            + 'static,
     ) {
-        self.imp.invoke_procedure_with_callback::<_, FetchPostsResult>(
-            "fetch_posts",
-            FetchPostsArgs { limit, cursor,  },
-            __callback,
-        );
+        self.imp
+            .invoke_procedure_with_callback::<_, FetchPostsResult>(
+                "fetch_posts",
+                FetchPostsArgs { limit, cursor },
+                __callback,
+            );
     }
 }
-

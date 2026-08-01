@@ -2,13 +2,7 @@
 // WILL NOT BE SAVED. MODIFY TABLES IN YOUR MODULE SOURCE CODE INSTEAD.
 
 #![allow(unused, clippy::all)]
-use spacetimedb_sdk::__codegen::{
-	self as __sdk,
-	__lib,
-	__sats,
-	__ws,
-};
-
+use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
@@ -18,10 +12,8 @@ pub(super) struct KvDeleteArgs {
 
 impl From<KvDeleteArgs> for super::Reducer {
     fn from(args: KvDeleteArgs) -> Self {
-        Self::KvDelete {
-            key: args.key,
-}
-}
+        Self::KvDelete { key: args.key }
+    }
 }
 
 impl __sdk::InModule for KvDeleteArgs {
@@ -39,9 +31,8 @@ pub trait kv_delete {
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
     /// /// Use [`kv_delete:kv_delete_then`] to run a callback after the reducer completes.
-    fn kv_delete(&self, key: String,
-) -> __sdk::Result<()> {
-        self.kv_delete_then(key,  |_, _| {})
+    fn kv_delete(&self, key: String) -> __sdk::Result<()> {
+        self.kv_delete_then(key, |_, _| {})
     }
 
     /// Request that the remote module invoke the reducer `kv_delete` to run as soon as possible,
@@ -69,7 +60,7 @@ impl kv_delete for super::RemoteReducers {
             + Send
             + 'static,
     ) -> __sdk::Result<()> {
-        self.imp.invoke_reducer_with_callback(KvDeleteArgs { key,  }, callback)
+        self.imp
+            .invoke_reducer_with_callback(KvDeleteArgs { key }, callback)
     }
 }
-

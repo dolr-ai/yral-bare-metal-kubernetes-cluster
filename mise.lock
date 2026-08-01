@@ -384,6 +384,26 @@ backend = "core:java"
 [tools.java.options]
 shorthand_vendor = "openjdk"
 
+[tools.java."platforms.linux-arm64"]
+checksum = "sha256:0ce6516c459e635d9f263f9b3492d83ec2c1ee26db128a6d904cae3d3096ceee"
+url = "https://download.java.net/java/GA/jdk26.0.2/818d462d89b645c7a1aad49066c454e5/10/GPL/openjdk-26.0.2_linux-aarch64_bin.tar.gz"
+
+[tools.java."platforms.linux-x64"]
+checksum = "sha256:2da09e9db53e5c4f9eeec045f49e7d8fbcd8e4153edbf0c269f520ff82fd4198"
+url = "https://download.java.net/java/GA/jdk26.0.2/818d462d89b645c7a1aad49066c454e5/10/GPL/openjdk-26.0.2_linux-x64_bin.tar.gz"
+
+[tools.java."platforms.macos-arm64"]
+checksum = "sha256:c99b35ad3063ef555361a243c44280b048e24e3cbbc4a59ee3b368e5a8958f3a"
+url = "https://download.java.net/java/GA/jdk26.0.2/818d462d89b645c7a1aad49066c454e5/10/GPL/openjdk-26.0.2_macos-aarch64_bin.tar.gz"
+
+[tools.java."platforms.macos-x64"]
+checksum = "sha256:c258f17d4095c0cda0489d33fc4988d4be193a280b7e1f045e961699dedbfc65"
+url = "https://download.java.net/java/GA/jdk26.0.2/818d462d89b645c7a1aad49066c454e5/10/GPL/openjdk-26.0.2_macos-x64_bin.tar.gz"
+
+[tools.java."platforms.windows-x64"]
+checksum = "sha256:a4974cff5ec4c1042ebb070b2e582354786289e0448fd78a2c7b1a6a177f1080"
+url = "https://download.java.net/java/GA/jdk26.0.2/818d462d89b645c7a1aad49066c454e5/10/GPL/openjdk-26.0.2_windows-x64_bin.zip"
+
 [[tools.kubectl]]
 version = "1.36.2"
 backend = "aqua:kubernetes/kubernetes/kubectl"
@@ -419,6 +439,41 @@ url = "https://dl.k8s.io/v1.36.2/bin/windows/amd64/kubectl.exe"
 [[tools.maestro]]
 version = "cli-2.7.0"
 backend = "github:mobile-dev-inc/maestro"
+
+[tools.maestro."platforms.linux-arm64"]
+checksum = "sha256:a4ccab6b604617e7aef6db4f885666056eabe5cfa32befaa3bc994041b8fcbb5"
+url = "https://github.com/mobile-dev-inc/Maestro/releases/download/cli-2.7.0/maestro.zip"
+url_api = "https://api.github.com/repos/mobile-dev-inc/Maestro/releases/assets/483681911"
+
+[tools.maestro."platforms.linux-arm64-musl"]
+checksum = "sha256:a4ccab6b604617e7aef6db4f885666056eabe5cfa32befaa3bc994041b8fcbb5"
+url = "https://github.com/mobile-dev-inc/Maestro/releases/download/cli-2.7.0/maestro.zip"
+url_api = "https://api.github.com/repos/mobile-dev-inc/Maestro/releases/assets/483681911"
+
+[tools.maestro."platforms.linux-x64"]
+checksum = "sha256:a4ccab6b604617e7aef6db4f885666056eabe5cfa32befaa3bc994041b8fcbb5"
+url = "https://github.com/mobile-dev-inc/Maestro/releases/download/cli-2.7.0/maestro.zip"
+url_api = "https://api.github.com/repos/mobile-dev-inc/Maestro/releases/assets/483681911"
+
+[tools.maestro."platforms.linux-x64-musl"]
+checksum = "sha256:a4ccab6b604617e7aef6db4f885666056eabe5cfa32befaa3bc994041b8fcbb5"
+url = "https://github.com/mobile-dev-inc/Maestro/releases/download/cli-2.7.0/maestro.zip"
+url_api = "https://api.github.com/repos/mobile-dev-inc/Maestro/releases/assets/483681911"
+
+[tools.maestro."platforms.macos-arm64"]
+checksum = "sha256:a4ccab6b604617e7aef6db4f885666056eabe5cfa32befaa3bc994041b8fcbb5"
+url = "https://github.com/mobile-dev-inc/Maestro/releases/download/cli-2.7.0/maestro.zip"
+url_api = "https://api.github.com/repos/mobile-dev-inc/Maestro/releases/assets/483681911"
+
+[tools.maestro."platforms.macos-x64"]
+checksum = "sha256:a4ccab6b604617e7aef6db4f885666056eabe5cfa32befaa3bc994041b8fcbb5"
+url = "https://github.com/mobile-dev-inc/Maestro/releases/download/cli-2.7.0/maestro.zip"
+url_api = "https://api.github.com/repos/mobile-dev-inc/Maestro/releases/assets/483681911"
+
+[tools.maestro."platforms.windows-x64"]
+checksum = "sha256:a4ccab6b604617e7aef6db4f885666056eabe5cfa32befaa3bc994041b8fcbb5"
+url = "https://github.com/mobile-dev-inc/Maestro/releases/download/cli-2.7.0/maestro.zip"
+url_api = "https://api.github.com/repos/mobile-dev-inc/Maestro/releases/assets/483681911"
 
 [[tools.node]]
 version = "26.5.0"
@@ -622,6 +677,38 @@ compile = "true"
 ruby_build_repo = "https://github.com/rbenv/ruby-build.git"
 ruby_install = "false"
 
+[tools.ruby."platforms.linux-arm64"]
+checksum = "sha256:837d299e8f7ddf2be31a229a7a7e019d354979825117989acb3b32b1a9be262a"
+url = "https://cache.ruby-lang.org/pub/ruby/4.0/ruby-4.0.6.tar.gz"
+
+[tools.ruby."platforms.linux-arm64-musl"]
+checksum = "sha256:837d299e8f7ddf2be31a229a7a7e019d354979825117989acb3b32b1a9be262a"
+url = "https://cache.ruby-lang.org/pub/ruby/4.0/ruby-4.0.6.tar.gz"
+
+[tools.ruby."platforms.linux-x64"]
+checksum = "sha256:837d299e8f7ddf2be31a229a7a7e019d354979825117989acb3b32b1a9be262a"
+url = "https://cache.ruby-lang.org/pub/ruby/4.0/ruby-4.0.6.tar.gz"
+
+[tools.ruby."platforms.linux-x64-musl"]
+checksum = "sha256:837d299e8f7ddf2be31a229a7a7e019d354979825117989acb3b32b1a9be262a"
+url = "https://cache.ruby-lang.org/pub/ruby/4.0/ruby-4.0.6.tar.gz"
+
+[tools.ruby."platforms.macos-arm64"]
+checksum = "sha256:837d299e8f7ddf2be31a229a7a7e019d354979825117989acb3b32b1a9be262a"
+url = "https://cache.ruby-lang.org/pub/ruby/4.0/ruby-4.0.6.tar.gz"
+
+[tools.ruby."platforms.macos-x64"]
+checksum = "sha256:837d299e8f7ddf2be31a229a7a7e019d354979825117989acb3b32b1a9be262a"
+url = "https://cache.ruby-lang.org/pub/ruby/4.0/ruby-4.0.6.tar.gz"
+
+[[tools.ruby]]
+version = "4.0.6"
+backend = "core:ruby"
+
+[tools.ruby."platforms.windows-x64"]
+checksum = "sha256:328d7a86bea2f4c432783025050c9ffa1c36fcfc54ebccc466b63450ec3af223"
+url = "https://github.com/oneclick/rubyinstaller2/releases/download/RubyInstaller-4.0.6-1/rubyinstaller-4.0.6-1-x64.7z"
+
 [[tools.rust]]
 version = "stable"
 backend = "core:rust"
@@ -689,3 +776,33 @@ url = "https://github.com/getsops/sops/releases/download/v3.13.2/sops-v3.13.2.in
 [[tools.swiftlint]]
 version = "0.65.0"
 backend = "aqua:realm/SwiftLint"
+
+[tools.swiftlint."platforms.linux-arm64"]
+checksum = "sha256:12d3b84bc5b69ae13a99a5a5c79904f9ce25867f099f6368d0037854f9ee6c26"
+url = "https://github.com/realm/SwiftLint/releases/download/0.65.0/swiftlint_linux_arm64.zip"
+url_api = "https://api.github.com/repos/realm/SwiftLint/releases/assets/459315166"
+
+[tools.swiftlint."platforms.linux-arm64-musl"]
+checksum = "sha256:12d3b84bc5b69ae13a99a5a5c79904f9ce25867f099f6368d0037854f9ee6c26"
+url = "https://github.com/realm/SwiftLint/releases/download/0.65.0/swiftlint_linux_arm64.zip"
+url_api = "https://api.github.com/repos/realm/SwiftLint/releases/assets/459315166"
+
+[tools.swiftlint."platforms.linux-x64"]
+checksum = "sha256:79306a34e5c7cc55a220cd108cbb861dcad5f10138dcdf261e2624ae8b0a486b"
+url = "https://github.com/realm/SwiftLint/releases/download/0.65.0/swiftlint_linux_amd64.zip"
+url_api = "https://api.github.com/repos/realm/SwiftLint/releases/assets/459315165"
+
+[tools.swiftlint."platforms.linux-x64-musl"]
+checksum = "sha256:79306a34e5c7cc55a220cd108cbb861dcad5f10138dcdf261e2624ae8b0a486b"
+url = "https://github.com/realm/SwiftLint/releases/download/0.65.0/swiftlint_linux_amd64.zip"
+url_api = "https://api.github.com/repos/realm/SwiftLint/releases/assets/459315165"
+
+[tools.swiftlint."platforms.macos-arm64"]
+checksum = "sha256:d6cb0aa7a2f5f1ef306fc9e37bcb54dc9a26facc8f7784ac0c3dd3eccf5c6ba6"
+url = "https://github.com/realm/SwiftLint/releases/download/0.65.0/portable_swiftlint.zip"
+url_api = "https://api.github.com/repos/realm/SwiftLint/releases/assets/459315152"
+
+[tools.swiftlint."platforms.macos-x64"]
+checksum = "sha256:d6cb0aa7a2f5f1ef306fc9e37bcb54dc9a26facc8f7784ac0c3dd3eccf5c6ba6"
+url = "https://github.com/realm/SwiftLint/releases/download/0.65.0/portable_swiftlint.zip"
+url_api = "https://api.github.com/repos/realm/SwiftLint/releases/assets/459315152"

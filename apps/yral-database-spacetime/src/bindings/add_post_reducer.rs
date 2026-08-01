@@ -2,12 +2,7 @@
 // WILL NOT BE SAVED. MODIFY TABLES IN YOUR MODULE SOURCE CODE INSTEAD.
 
 #![allow(unused, clippy::all)]
-use spacetimedb_sdk::__codegen::{
-	self as __sdk,
-	__lib,
-	__sats,
-	__ws,
-};
+use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 use super::post_status_type::PostStatus;
 
@@ -16,7 +11,7 @@ use super::post_status_type::PostStatus;
 pub(super) struct AddPostArgs {
     pub id: String,
     pub description: String,
-    pub hashtags: Vec::<String>,
+    pub hashtags: Vec<String>,
     pub video_uid: String,
     pub creator: __sdk::Identity,
     pub status: PostStatus,
@@ -31,8 +26,8 @@ impl From<AddPostArgs> for super::Reducer {
             video_uid: args.video_uid,
             creator: args.creator,
             status: args.status,
-}
-}
+        }
+    }
 }
 
 impl __sdk::InModule for AddPostArgs {
@@ -50,14 +45,24 @@ pub trait add_post {
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
     /// /// Use [`add_post:add_post_then`] to run a callback after the reducer completes.
-    fn add_post(&self, id: String,
-description: String,
-hashtags: Vec::<String>,
-video_uid: String,
-creator: __sdk::Identity,
-status: PostStatus,
-) -> __sdk::Result<()> {
-        self.add_post_then(id, description, hashtags, video_uid, creator, status,  |_, _| {})
+    fn add_post(
+        &self,
+        id: String,
+        description: String,
+        hashtags: Vec<String>,
+        video_uid: String,
+        creator: __sdk::Identity,
+        status: PostStatus,
+    ) -> __sdk::Result<()> {
+        self.add_post_then(
+            id,
+            description,
+            hashtags,
+            video_uid,
+            creator,
+            status,
+            |_, _| {},
+        )
     }
 
     /// Request that the remote module invoke the reducer `add_post` to run as soon as possible,
@@ -69,11 +74,11 @@ status: PostStatus,
     fn add_post_then(
         &self,
         id: String,
-description: String,
-hashtags: Vec::<String>,
-video_uid: String,
-creator: __sdk::Identity,
-status: PostStatus,
+        description: String,
+        hashtags: Vec<String>,
+        video_uid: String,
+        creator: __sdk::Identity,
+        status: PostStatus,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -85,17 +90,26 @@ impl add_post for super::RemoteReducers {
     fn add_post_then(
         &self,
         id: String,
-description: String,
-hashtags: Vec::<String>,
-video_uid: String,
-creator: __sdk::Identity,
-status: PostStatus,
+        description: String,
+        hashtags: Vec<String>,
+        video_uid: String,
+        creator: __sdk::Identity,
+        status: PostStatus,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
             + 'static,
     ) -> __sdk::Result<()> {
-        self.imp.invoke_reducer_with_callback(AddPostArgs { id, description, hashtags, video_uid, creator, status,  }, callback)
+        self.imp.invoke_reducer_with_callback(
+            AddPostArgs {
+                id,
+                description,
+                hashtags,
+                video_uid,
+                creator,
+                status,
+            },
+            callback,
+        )
     }
 }
-

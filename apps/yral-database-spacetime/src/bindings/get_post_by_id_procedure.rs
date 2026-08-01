@@ -2,21 +2,15 @@
 // WILL NOT BE SAVED. MODIFY TABLES IN YOUR MODULE SOURCE CODE INSTEAD.
 
 #![allow(unused, clippy::all)]
-use spacetimedb_sdk::__codegen::{
-	self as __sdk,
-	__lib,
-	__sats,
-	__ws,
-};
+use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 use super::post_details_for_frontend_type::PostDetailsForFrontend;
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
- struct GetPostByIdArgs {
+struct GetPostByIdArgs {
     pub post_id: String,
 }
-
 
 impl __sdk::InModule for GetPostByIdArgs {
     type Module = super::RemoteModule;
@@ -27,16 +21,19 @@ impl __sdk::InModule for GetPostByIdArgs {
 ///
 /// Implemented for [`super::RemoteProcedures`].
 pub trait get_post_by_id {
-    fn get_post_by_id(&self, post_id: String,
-) {
-        self.get_post_by_id_then(post_id,  |_, _| {});
+    fn get_post_by_id(&self, post_id: String) {
+        self.get_post_by_id_then(post_id, |_, _| {});
     }
 
     fn get_post_by_id_then(
         &self,
         post_id: String,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<Option::<PostDetailsForFrontend>, __sdk::InternalError>) + Send + 'static,
+        __callback: impl FnOnce(
+                &super::ProcedureEventContext,
+                Result<Option<PostDetailsForFrontend>, __sdk::InternalError>,
+            ) + Send
+            + 'static,
     );
 }
 
@@ -45,13 +42,17 @@ impl get_post_by_id for super::RemoteProcedures {
         &self,
         post_id: String,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<Option::<PostDetailsForFrontend>, __sdk::InternalError>) + Send + 'static,
+        __callback: impl FnOnce(
+                &super::ProcedureEventContext,
+                Result<Option<PostDetailsForFrontend>, __sdk::InternalError>,
+            ) + Send
+            + 'static,
     ) {
-        self.imp.invoke_procedure_with_callback::<_, Option::<PostDetailsForFrontend>>(
-            "get_post_by_id",
-            GetPostByIdArgs { post_id,  },
-            __callback,
-        );
+        self.imp
+            .invoke_procedure_with_callback::<_, Option<PostDetailsForFrontend>>(
+                "get_post_by_id",
+                GetPostByIdArgs { post_id },
+                __callback,
+            );
     }
 }
-

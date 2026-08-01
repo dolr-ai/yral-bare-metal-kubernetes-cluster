@@ -2,14 +2,9 @@
 // WILL NOT BE SAVED. MODIFY TABLES IN YOUR MODULE SOURCE CODE INSTEAD.
 
 #![allow(unused, clippy::all)]
-use spacetimedb_sdk::__codegen::{
-	self as __sdk,
-	__lib,
-	__sats,
-	__ws,
-};
-use super::post_type::Post;
 use super::post_status_type::PostStatus;
+use super::post_type::Post;
+use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 /// Table handle for the table `posts`.
 ///
@@ -50,8 +45,12 @@ impl<'ctx> __sdk::Table for PostsTableHandle<'ctx> {
     type Row = Post;
     type EventContext = super::EventContext;
 
-    fn count(&self) -> u64 { self.imp.count() }
-    fn iter(&self) -> impl Iterator<Item = Post> + '_ { self.imp.iter() }
+    fn count(&self) -> u64 {
+        self.imp.count()
+    }
+    fn iter(&self) -> impl Iterator<Item = Post> + '_ {
+        self.imp.iter()
+    }
 
     type InsertCallbackId = PostsInsertCallbackId;
 
@@ -97,39 +96,38 @@ impl<'ctx> __sdk::TableWithPrimaryKey for PostsTableHandle<'ctx> {
     }
 }
 
-        /// Access to the `id` unique index on the table `posts`,
-        /// which allows point queries on the field of the same name
-        /// via the [`PostsIdUnique::find`] method.
-        ///
-        /// Users are encouraged not to explicitly reference this type,
-        /// but to directly chain method calls,
-        /// like `ctx.db.posts().id().find(...)`.
-        pub struct PostsIdUnique<'ctx> {
-            imp: __sdk::UniqueConstraintHandle<Post, String>,
-            phantom: std::marker::PhantomData<&'ctx super::RemoteTables>,
-        }
+/// Access to the `id` unique index on the table `posts`,
+/// which allows point queries on the field of the same name
+/// via the [`PostsIdUnique::find`] method.
+///
+/// Users are encouraged not to explicitly reference this type,
+/// but to directly chain method calls,
+/// like `ctx.db.posts().id().find(...)`.
+pub struct PostsIdUnique<'ctx> {
+    imp: __sdk::UniqueConstraintHandle<Post, String>,
+    phantom: std::marker::PhantomData<&'ctx super::RemoteTables>,
+}
 
-        impl<'ctx> PostsTableHandle<'ctx> {
-            /// Get a handle on the `id` unique index on the table `posts`.
-            pub fn id(&self) -> PostsIdUnique<'ctx> {
-                PostsIdUnique {
-                    imp: self.imp.get_unique_constraint::<String>("id"),
-                    phantom: std::marker::PhantomData,
-                }
-            }
+impl<'ctx> PostsTableHandle<'ctx> {
+    /// Get a handle on the `id` unique index on the table `posts`.
+    pub fn id(&self) -> PostsIdUnique<'ctx> {
+        PostsIdUnique {
+            imp: self.imp.get_unique_constraint::<String>("id"),
+            phantom: std::marker::PhantomData,
         }
+    }
+}
 
-        impl<'ctx> PostsIdUnique<'ctx> {
-            /// Find the subscribed row whose `id` column value is equal to `col_val`,
-            /// if such a row is present in the client cache.
-            pub fn find(&self, col_val: &String) -> Option<Post> {
-                self.imp.find(col_val)
-            }
-        }
-        
+impl<'ctx> PostsIdUnique<'ctx> {
+    /// Find the subscribed row whose `id` column value is equal to `col_val`,
+    /// if such a row is present in the client cache.
+    pub fn find(&self, col_val: &String) -> Option<Post> {
+        self.imp.find(col_val)
+    }
+}
+
 #[doc(hidden)]
 pub(super) fn register_table(client_cache: &mut __sdk::ClientCache<super::RemoteModule>) {
-
     let _table = client_cache.get_or_make_table::<Post>("posts");
     _table.add_unique_constraint::<String>("id", |row| &row.id);
 }
@@ -139,26 +137,24 @@ pub(super) fn parse_table_update(
     raw_updates: __ws::v2::TableUpdate,
 ) -> __sdk::Result<__sdk::TableUpdate<Post>> {
     __sdk::TableUpdate::parse_table_update(raw_updates).map_err(|e| {
-        __sdk::InternalError::failed_parse(
-            "TableUpdate<Post>",
-            "TableUpdate",
-        ).with_cause(e).into()
+        __sdk::InternalError::failed_parse("TableUpdate<Post>", "TableUpdate")
+            .with_cause(e)
+            .into()
     })
 }
 
-        #[allow(non_camel_case_types)]
-        /// Extension trait for query builder access to the table `Post`.
-        ///
-        /// Implemented for [`__sdk::QueryTableAccessor`].
-        pub trait postsQueryTableAccess {
-            #[allow(non_snake_case)]
-            /// Get a query builder for the table `Post`.
-            fn posts(&self) -> __sdk::__query_builder::Table<Post>;
-        }
+#[allow(non_camel_case_types)]
+/// Extension trait for query builder access to the table `Post`.
+///
+/// Implemented for [`__sdk::QueryTableAccessor`].
+pub trait postsQueryTableAccess {
+    #[allow(non_snake_case)]
+    /// Get a query builder for the table `Post`.
+    fn posts(&self) -> __sdk::__query_builder::Table<Post>;
+}
 
-        impl postsQueryTableAccess for __sdk::QueryTableAccessor {
-            fn posts(&self) -> __sdk::__query_builder::Table<Post> {
-                __sdk::__query_builder::Table::new("posts")
-            }
-        }
-
+impl postsQueryTableAccess for __sdk::QueryTableAccessor {
+    fn posts(&self) -> __sdk::__query_builder::Table<Post> {
+        __sdk::__query_builder::Table::new("posts")
+    }
+}

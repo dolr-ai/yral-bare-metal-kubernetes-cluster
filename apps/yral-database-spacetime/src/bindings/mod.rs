@@ -4,60 +4,97 @@
 // This was generated using spacetimedb cli version 2.6.1 (commit 052c83fe984a4c4eb7bb4f9afa5c6b1903891d87).
 
 #![allow(unused, clippy::all)]
-use spacetimedb_sdk::__codegen::{
-	self as __sdk,
-	__lib,
-	__sats,
-	__ws,
-};
+use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
+pub mod add_post_reducer;
+pub mod add_view_details_reducer;
 pub mod auth_kv_entry_type;
+pub mod delete_post_reducer;
+pub mod fetch_posts_procedure;
 pub mod fetch_posts_result_type;
+pub mod follow_user_reducer;
+pub mod follower_item_type;
+pub mod followers_page_type;
+pub mod following_item_type;
+pub mod following_page_type;
+pub mod get_draft_posts_of_user_procedure;
+pub mod get_followers_procedure;
+pub mod get_following_procedure;
+pub mod get_post_by_id_procedure;
+pub mod get_posts_of_user_procedure;
+pub mod get_profile_details_v_4_procedure;
+pub mod kv_delete_reducer;
+pub mod kv_get_procedure;
 pub mod kv_get_result_type;
-pub mod kv_has_result_type;
-pub mod post_type;
+pub mod kv_set_reducer;
 pub mod post_details_for_frontend_type;
 pub mod post_page_type;
 pub mod post_status_type;
+pub mod post_type;
+pub mod post_v_2_type;
 pub mod post_view_details_from_frontend_type;
-pub mod add_post_reducer;
-pub mod add_view_details_reducer;
-pub mod delete_post_reducer;
-pub mod kv_delete_reducer;
-pub mod kv_set_reducer;
-pub mod update_post_status_reducer;
-pub mod upsert_post_reducer;
 pub mod posts_table;
-pub mod fetch_posts_procedure;
-pub mod get_draft_posts_of_user_procedure;
-pub mod get_post_by_id_procedure;
-pub mod get_posts_of_user_procedure;
-pub mod kv_get_procedure;
-pub mod kv_has_procedure;
+pub mod posts_v_2_table;
+pub mod register_new_user_reducer;
+pub mod subscription_plan_type;
+pub mod unfollow_user_reducer;
+pub mod update_post_status_reducer;
+pub mod update_profile_ai_influencer_status_reducer;
+pub mod update_profile_details_reducer;
+pub mod upsert_post_reducer;
+pub mod upsert_post_v_2_reducer;
+pub mod upsert_posts_batch_reducer;
+pub mod upsert_posts_v_2_batch_reducer;
+pub mod user_follow_type;
+pub mod user_follows_table;
+pub mod user_profile_details_v_4_type;
+pub mod user_profile_type;
+pub mod user_profiles_table;
 
+pub use add_post_reducer::add_post;
+pub use add_view_details_reducer::add_view_details;
 pub use auth_kv_entry_type::AuthKvEntry;
+pub use delete_post_reducer::delete_post;
+pub use fetch_posts_procedure::fetch_posts;
 pub use fetch_posts_result_type::FetchPostsResult;
+pub use follow_user_reducer::follow_user;
+pub use follower_item_type::FollowerItem;
+pub use followers_page_type::FollowersPage;
+pub use following_item_type::FollowingItem;
+pub use following_page_type::FollowingPage;
+pub use get_draft_posts_of_user_procedure::get_draft_posts_of_user;
+pub use get_followers_procedure::get_followers;
+pub use get_following_procedure::get_following;
+pub use get_post_by_id_procedure::get_post_by_id;
+pub use get_posts_of_user_procedure::get_posts_of_user;
+pub use get_profile_details_v_4_procedure::get_profile_details_v_4;
+pub use kv_delete_reducer::kv_delete;
+pub use kv_get_procedure::kv_get;
 pub use kv_get_result_type::KvGetResult;
-pub use kv_has_result_type::KvHasResult;
-pub use post_type::Post;
+pub use kv_set_reducer::kv_set;
 pub use post_details_for_frontend_type::PostDetailsForFrontend;
 pub use post_page_type::PostPage;
 pub use post_status_type::PostStatus;
+pub use post_type::Post;
+pub use post_v_2_type::PostV2;
 pub use post_view_details_from_frontend_type::PostViewDetailsFromFrontend;
 pub use posts_table::*;
-pub use add_post_reducer::add_post;
-pub use add_view_details_reducer::add_view_details;
-pub use delete_post_reducer::delete_post;
-pub use kv_delete_reducer::kv_delete;
-pub use kv_set_reducer::kv_set;
+pub use posts_v_2_table::*;
+pub use register_new_user_reducer::register_new_user;
+pub use subscription_plan_type::SubscriptionPlan;
+pub use unfollow_user_reducer::unfollow_user;
 pub use update_post_status_reducer::update_post_status;
+pub use update_profile_ai_influencer_status_reducer::update_profile_ai_influencer_status;
+pub use update_profile_details_reducer::update_profile_details;
 pub use upsert_post_reducer::upsert_post;
-pub use fetch_posts_procedure::fetch_posts;
-pub use get_draft_posts_of_user_procedure::get_draft_posts_of_user;
-pub use get_post_by_id_procedure::get_post_by_id;
-pub use get_posts_of_user_procedure::get_posts_of_user;
-pub use kv_get_procedure::kv_get;
-pub use kv_has_procedure::kv_has;
+pub use upsert_post_v_2_reducer::upsert_post_v_2;
+pub use upsert_posts_batch_reducer::upsert_posts_batch;
+pub use upsert_posts_v_2_batch_reducer::upsert_posts_v_2_batch;
+pub use user_follow_type::UserFollow;
+pub use user_follows_table::*;
+pub use user_profile_details_v_4_type::UserProfileDetailsV4;
+pub use user_profile_type::UserProfile;
+pub use user_profiles_table::*;
 
 #[derive(Clone, PartialEq, Debug)]
 
@@ -67,37 +104,61 @@ pub use kv_has_procedure::kv_has;
 /// to indicate which reducer caused the event.
 
 pub enum Reducer {
-        AddPost {
+    AddPost {
         id: String,
         description: String,
-        hashtags: Vec::<String>,
+        hashtags: Vec<String>,
         video_uid: String,
         creator: __sdk::Identity,
         status: PostStatus,
-}    ,
+    },
     AddViewDetails {
         post_id: String,
         details: PostViewDetailsFromFrontend,
-}    ,
+    },
     DeletePost {
         post_id: String,
-}    ,
+    },
+    FollowUser {
+        followee_text: String,
+    },
     KvDelete {
         key: String,
-}    ,
+    },
     KvSet {
         key: String,
         value: String,
-}    ,
+    },
+    RegisterNewUser,
+    UnfollowUser {
+        followee_text: String,
+    },
     UpdatePostStatus {
         post_id: String,
         status: PostStatus,
-}    ,
+    },
+    UpdateProfileAiInfluencerStatus {
+        principal_text: String,
+        is_ai_influencer: bool,
+    },
+    UpdateProfileDetails {
+        bio: String,
+        website_url: String,
+        profile_pic_url: String,
+    },
     UpsertPost {
         post: Post,
-}    ,
+    },
+    UpsertPostV2 {
+        post: PostV2,
+    },
+    UpsertPostsBatch {
+        posts: Vec<Post>,
+    },
+    UpsertPostsV2Batch {
+        posts: Vec<PostV2>,
+    },
 }
-
 
 impl __sdk::InModule for Reducer {
     type Module = RemoteModule;
@@ -106,82 +167,131 @@ impl __sdk::InModule for Reducer {
 impl __sdk::Reducer for Reducer {
     fn reducer_name(&self) -> &'static str {
         match self {
-                        Reducer::AddPost { .. } => "add_post",
+            Reducer::AddPost { .. } => "add_post",
             Reducer::AddViewDetails { .. } => "add_view_details",
             Reducer::DeletePost { .. } => "delete_post",
+            Reducer::FollowUser { .. } => "follow_user",
             Reducer::KvDelete { .. } => "kv_delete",
             Reducer::KvSet { .. } => "kv_set",
+            Reducer::RegisterNewUser => "register_new_user",
+            Reducer::UnfollowUser { .. } => "unfollow_user",
             Reducer::UpdatePostStatus { .. } => "update_post_status",
+            Reducer::UpdateProfileAiInfluencerStatus { .. } => {
+                "update_profile_ai_influencer_status"
+            }
+            Reducer::UpdateProfileDetails { .. } => "update_profile_details",
             Reducer::UpsertPost { .. } => "upsert_post",
+            Reducer::UpsertPostV2 { .. } => "upsert_post_v_2",
+            Reducer::UpsertPostsBatch { .. } => "upsert_posts_batch",
+            Reducer::UpsertPostsV2Batch { .. } => "upsert_posts_v_2_batch",
             _ => unreachable!(),
-}
-}
+        }
+    }
     #[allow(clippy::clone_on_copy)]
-fn args_bsatn(&self) -> Result<Vec<u8>, __sats::bsatn::EncodeError> {
+    fn args_bsatn(&self) -> Result<Vec<u8>, __sats::bsatn::EncodeError> {
         match self {
-                        Reducer::AddPost{
+            Reducer::AddPost {
                 id,
                 description,
                 hashtags,
                 video_uid,
                 creator,
                 status,
-}             => __sats::bsatn::to_vec(&add_post_reducer::AddPostArgs {
+            } => __sats::bsatn::to_vec(&add_post_reducer::AddPostArgs {
                 id: id.clone(),
                 description: description.clone(),
                 hashtags: hashtags.clone(),
                 video_uid: video_uid.clone(),
                 creator: creator.clone(),
                 status: status.clone(),
-}),
-            Reducer::AddViewDetails{
-                post_id,
-                details,
-}             => __sats::bsatn::to_vec(&add_view_details_reducer::AddViewDetailsArgs {
-                post_id: post_id.clone(),
-                details: details.clone(),
-}),
-            Reducer::DeletePost{
-                post_id,
-}             => __sats::bsatn::to_vec(&delete_post_reducer::DeletePostArgs {
-                post_id: post_id.clone(),
-}),
-            Reducer::KvDelete{
-                key,
-}             => __sats::bsatn::to_vec(&kv_delete_reducer::KvDeleteArgs {
-                key: key.clone(),
-}),
-            Reducer::KvSet{
-                key,
-                value,
-}             => __sats::bsatn::to_vec(&kv_set_reducer::KvSetArgs {
+            }),
+            Reducer::AddViewDetails { post_id, details } => {
+                __sats::bsatn::to_vec(&add_view_details_reducer::AddViewDetailsArgs {
+                    post_id: post_id.clone(),
+                    details: details.clone(),
+                })
+            }
+            Reducer::DeletePost { post_id } => {
+                __sats::bsatn::to_vec(&delete_post_reducer::DeletePostArgs {
+                    post_id: post_id.clone(),
+                })
+            }
+            Reducer::FollowUser { followee_text } => {
+                __sats::bsatn::to_vec(&follow_user_reducer::FollowUserArgs {
+                    followee_text: followee_text.clone(),
+                })
+            }
+            Reducer::KvDelete { key } => {
+                __sats::bsatn::to_vec(&kv_delete_reducer::KvDeleteArgs { key: key.clone() })
+            }
+            Reducer::KvSet { key, value } => __sats::bsatn::to_vec(&kv_set_reducer::KvSetArgs {
                 key: key.clone(),
                 value: value.clone(),
-}),
-            Reducer::UpdatePostStatus{
-                post_id,
-                status,
-}             => __sats::bsatn::to_vec(&update_post_status_reducer::UpdatePostStatusArgs {
-                post_id: post_id.clone(),
-                status: status.clone(),
-}),
-            Reducer::UpsertPost{
-                post,
-}             => __sats::bsatn::to_vec(&upsert_post_reducer::UpsertPostArgs {
-                post: post.clone(),
-}),
+            }),
+            Reducer::RegisterNewUser => {
+                __sats::bsatn::to_vec(&register_new_user_reducer::RegisterNewUserArgs {})
+            }
+            Reducer::UnfollowUser { followee_text } => {
+                __sats::bsatn::to_vec(&unfollow_user_reducer::UnfollowUserArgs {
+                    followee_text: followee_text.clone(),
+                })
+            }
+            Reducer::UpdatePostStatus { post_id, status } => {
+                __sats::bsatn::to_vec(&update_post_status_reducer::UpdatePostStatusArgs {
+                    post_id: post_id.clone(),
+                    status: status.clone(),
+                })
+            }
+            Reducer::UpdateProfileAiInfluencerStatus {
+                principal_text,
+                is_ai_influencer,
+            } => __sats::bsatn::to_vec(
+                &update_profile_ai_influencer_status_reducer::UpdateProfileAiInfluencerStatusArgs {
+                    principal_text: principal_text.clone(),
+                    is_ai_influencer: is_ai_influencer.clone(),
+                },
+            ),
+            Reducer::UpdateProfileDetails {
+                bio,
+                website_url,
+                profile_pic_url,
+            } => __sats::bsatn::to_vec(&update_profile_details_reducer::UpdateProfileDetailsArgs {
+                bio: bio.clone(),
+                website_url: website_url.clone(),
+                profile_pic_url: profile_pic_url.clone(),
+            }),
+            Reducer::UpsertPost { post } => {
+                __sats::bsatn::to_vec(&upsert_post_reducer::UpsertPostArgs { post: post.clone() })
+            }
+            Reducer::UpsertPostV2 { post } => {
+                __sats::bsatn::to_vec(&upsert_post_v_2_reducer::UpsertPostV2Args {
+                    post: post.clone(),
+                })
+            }
+            Reducer::UpsertPostsBatch { posts } => {
+                __sats::bsatn::to_vec(&upsert_posts_batch_reducer::UpsertPostsBatchArgs {
+                    posts: posts.clone(),
+                })
+            }
+            Reducer::UpsertPostsV2Batch { posts } => {
+                __sats::bsatn::to_vec(&upsert_posts_v_2_batch_reducer::UpsertPostsV2BatchArgs {
+                    posts: posts.clone(),
+                })
+            }
             _ => unreachable!(),
-}
-}
+        }
+    }
 }
 
 #[derive(Default, Debug)]
 #[allow(non_snake_case)]
 #[doc(hidden)]
 pub struct DbUpdate {
-        posts: __sdk::TableUpdate<Post>,
+    posts: __sdk::TableUpdate<Post>,
+    posts_v_2: __sdk::TableUpdate<PostV2>,
+    user_follows: __sdk::TableUpdate<UserFollow>,
+    user_profiles: __sdk::TableUpdate<UserProfile>,
 }
-
 
 impl TryFrom<__ws::v2::TransactionUpdate> for DbUpdate {
     type Error = __sdk::Error;
@@ -189,15 +299,26 @@ impl TryFrom<__ws::v2::TransactionUpdate> for DbUpdate {
         let mut db_update = DbUpdate::default();
         for table_update in __sdk::transaction_update_iter_table_updates(raw) {
             match &table_update.table_name[..] {
-
-        "posts" => db_update.posts.append(posts_table::parse_table_update(table_update)?),
+                "posts" => db_update
+                    .posts
+                    .append(posts_table::parse_table_update(table_update)?),
+                "posts_v2" => db_update
+                    .posts_v_2
+                    .append(posts_v_2_table::parse_table_update(table_update)?),
+                "user_follows" => db_update
+                    .user_follows
+                    .append(user_follows_table::parse_table_update(table_update)?),
+                "user_profiles" => db_update
+                    .user_profiles
+                    .append(user_profiles_table::parse_table_update(table_update)?),
 
                 unknown => {
                     return Err(__sdk::InternalError::unknown_name(
                         "table",
                         unknown,
                         "DatabaseUpdate",
-                    ).into());
+                    )
+                    .into());
                 }
             }
         }
@@ -210,50 +331,114 @@ impl __sdk::InModule for DbUpdate {
 }
 
 impl __sdk::DbUpdate for DbUpdate {
-    fn apply_to_client_cache(&self, cache: &mut __sdk::ClientCache<RemoteModule>) -> AppliedDiff<'_> {
-                    let mut diff = AppliedDiff::default();
-                
-                diff.posts = cache.apply_diff_to_table::<Post>("posts", &self.posts).with_updates_by_pk(|row| &row.id);
+    fn apply_to_client_cache(
+        &self,
+        cache: &mut __sdk::ClientCache<RemoteModule>,
+    ) -> AppliedDiff<'_> {
+        let mut diff = AppliedDiff::default();
 
-                    diff
+        diff.posts = cache
+            .apply_diff_to_table::<Post>("posts", &self.posts)
+            .with_updates_by_pk(|row| &row.id);
+        diff.posts_v_2 = cache
+            .apply_diff_to_table::<PostV2>("posts_v2", &self.posts_v_2)
+            .with_updates_by_pk(|row| &row.id);
+        diff.user_follows = cache
+            .apply_diff_to_table::<UserFollow>("user_follows", &self.user_follows)
+            .with_updates_by_pk(|row| &row.key);
+        diff.user_profiles = cache
+            .apply_diff_to_table::<UserProfile>("user_profiles", &self.user_profiles)
+            .with_updates_by_pk(|row| &row.principal_text);
+
+        diff
+    }
+    fn parse_initial_rows(raw: __ws::v2::QueryRows) -> __sdk::Result<Self> {
+        let mut db_update = DbUpdate::default();
+        for table_rows in raw.tables {
+            match &table_rows.table[..] {
+                "posts" => db_update
+                    .posts
+                    .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
+                "posts_v2" => db_update
+                    .posts_v_2
+                    .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
+                "user_follows" => db_update
+                    .user_follows
+                    .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
+                "user_profiles" => db_update
+                    .user_profiles
+                    .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
+                unknown => {
+                    return Err(
+                        __sdk::InternalError::unknown_name("table", unknown, "QueryRows").into(),
+                    );
                 }
-fn parse_initial_rows(raw: __ws::v2::QueryRows) -> __sdk::Result<Self> {
-                let mut db_update = DbUpdate::default();
-for table_rows in raw.tables {
+            }
+        }
+        Ok(db_update)
+    }
+    fn parse_unsubscribe_rows(raw: __ws::v2::QueryRows) -> __sdk::Result<Self> {
+        let mut db_update = DbUpdate::default();
+        for table_rows in raw.tables {
             match &table_rows.table[..] {
-                                "posts" => db_update.posts.append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
-                unknown => { return Err(__sdk::InternalError::unknown_name("table", unknown, "QueryRows").into()); }
-}}        Ok(db_update)
-}
-fn parse_unsubscribe_rows(raw: __ws::v2::QueryRows) -> __sdk::Result<Self> {
-                let mut db_update = DbUpdate::default();
-for table_rows in raw.tables {
-            match &table_rows.table[..] {
-                                "posts" => db_update.posts.append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
-                unknown => { return Err(__sdk::InternalError::unknown_name("table", unknown, "QueryRows").into()); }
-}}        Ok(db_update)
-}
+                "posts" => db_update
+                    .posts
+                    .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
+                "posts_v2" => db_update
+                    .posts_v_2
+                    .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
+                "user_follows" => db_update
+                    .user_follows
+                    .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
+                "user_profiles" => db_update
+                    .user_profiles
+                    .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
+                unknown => {
+                    return Err(
+                        __sdk::InternalError::unknown_name("table", unknown, "QueryRows").into(),
+                    );
+                }
+            }
+        }
+        Ok(db_update)
+    }
 }
 
 #[derive(Default)]
 #[allow(non_snake_case)]
 #[doc(hidden)]
 pub struct AppliedDiff<'r> {
-        posts: __sdk::TableAppliedDiff<'r, Post>,
+    posts: __sdk::TableAppliedDiff<'r, Post>,
+    posts_v_2: __sdk::TableAppliedDiff<'r, PostV2>,
+    user_follows: __sdk::TableAppliedDiff<'r, UserFollow>,
+    user_profiles: __sdk::TableAppliedDiff<'r, UserProfile>,
     __unused: std::marker::PhantomData<&'r ()>,
 }
-
 
 impl __sdk::InModule for AppliedDiff<'_> {
     type Module = RemoteModule;
 }
 
 impl<'r> __sdk::AppliedDiff<'r> for AppliedDiff<'r> {
-    fn invoke_row_callbacks(&self, event: &EventContext, callbacks: &mut __sdk::DbCallbacks<RemoteModule>) {
-                callbacks.invoke_table_row_callbacks::<Post>("posts", &self.posts, event);
+    fn invoke_row_callbacks(
+        &self,
+        event: &EventContext,
+        callbacks: &mut __sdk::DbCallbacks<RemoteModule>,
+    ) {
+        callbacks.invoke_table_row_callbacks::<Post>("posts", &self.posts, event);
+        callbacks.invoke_table_row_callbacks::<PostV2>("posts_v2", &self.posts_v_2, event);
+        callbacks.invoke_table_row_callbacks::<UserFollow>(
+            "user_follows",
+            &self.user_follows,
+            event,
+        );
+        callbacks.invoke_table_row_callbacks::<UserProfile>(
+            "user_profiles",
+            &self.user_profiles,
+            event,
+        );
+    }
 }
-}
-
 
 #[doc(hidden)]
 #[derive(Debug)]
@@ -302,10 +487,16 @@ impl __sdk::InModule for RemoteTables {
 ///
 /// - [`DbConnection::frame_tick`].
 #[cfg_attr(not(target_arch = "wasm32"), doc = "- [`DbConnection::run_threaded`].")]
-#[cfg_attr(target_arch = "wasm32", doc = "- [`DbConnection::run_background_task`].")]
+#[cfg_attr(
+    target_arch = "wasm32",
+    doc = "- [`DbConnection::run_background_task`]."
+)]
 /// - [`DbConnection::run_async`].
 /// - [`DbConnection::advance_one_message`].
-#[cfg_attr(not(target_arch =  "wasm32"), doc = "- [`DbConnection::advance_one_message_blocking`].")]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    doc = "- [`DbConnection::advance_one_message_blocking`]."
+)]
 /// - [`DbConnection::advance_one_message_async`].
 ///
 /// Which of these methods you should call depends on the specific needs of your application,
@@ -492,7 +683,6 @@ impl __sdk::SubscriptionHandle for SubscriptionHandle {
     fn unsubscribe(self) -> __sdk::Result<()> {
         self.imp.unsubscribe_then(None)
     }
-
 }
 
 /// Alias trait for a [`__sdk::DbContext`] connected to this module,
@@ -500,17 +690,23 @@ impl __sdk::SubscriptionHandle for SubscriptionHandle {
 ///
 /// Users can use this trait as a boundary on definitions which should accept
 /// either a [`DbConnection`] or an [`EventContext`] and operate on either.
-pub trait RemoteDbContext: __sdk::DbContext<
+pub trait RemoteDbContext:
+    __sdk::DbContext<
     DbView = RemoteTables,
     Reducers = RemoteReducers,
     SubscriptionBuilder = __sdk::SubscriptionBuilder<RemoteModule>,
-> {}
-impl<Ctx: __sdk::DbContext<
-    DbView = RemoteTables,
-    Reducers = RemoteReducers,
-    SubscriptionBuilder = __sdk::SubscriptionBuilder<RemoteModule>,
->> RemoteDbContext for Ctx {}
-
+>
+{
+}
+impl<
+        Ctx: __sdk::DbContext<
+            DbView = RemoteTables,
+            Reducers = RemoteReducers,
+            SubscriptionBuilder = __sdk::SubscriptionBuilder<RemoteModule>,
+        >,
+    > RemoteDbContext for Ctx
+{
+}
 
 /// An [`__sdk::DbContext`] augmented with a [`__sdk::Event`],
 /// passed to [`__sdk::Table::on_insert`], [`__sdk::Table::on_delete`] and [`__sdk::TableWithPrimaryKey::on_update`] callbacks.
@@ -885,7 +1081,6 @@ impl __sdk::DbContext for ErrorContext {
 impl __sdk::ErrorContext for ErrorContext {}
 
 impl __sdk::SpacetimeModule for RemoteModule {
-    
     type DbConnection = DbConnection;
     type EventContext = EventContext;
     type ReducerEventContext = ReducerEventContext;
@@ -901,10 +1096,12 @@ impl __sdk::SpacetimeModule for RemoteModule {
     type SubscriptionHandle = SubscriptionHandle;
     type QueryBuilder = __sdk::QueryBuilder;
 
-fn register_tables(client_cache: &mut __sdk::ClientCache<Self>) {
-                posts_table::register_table(client_cache);
-}
-const ALL_TABLE_NAMES: &'static [&'static str] = &[
-                "posts",
-];
+    fn register_tables(client_cache: &mut __sdk::ClientCache<Self>) {
+        posts_table::register_table(client_cache);
+        posts_v_2_table::register_table(client_cache);
+        user_follows_table::register_table(client_cache);
+        user_profiles_table::register_table(client_cache);
+    }
+    const ALL_TABLE_NAMES: &'static [&'static str] =
+        &["posts", "posts_v2", "user_follows", "user_profiles"];
 }

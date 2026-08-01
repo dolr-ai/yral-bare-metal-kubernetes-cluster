@@ -2,30 +2,23 @@
 // WILL NOT BE SAVED. MODIFY TABLES IN YOUR MODULE SOURCE CODE INSTEAD.
 
 #![allow(unused, clippy::all)]
-use spacetimedb_sdk::__codegen::{
-	self as __sdk,
-	__lib,
-	__sats,
-	__ws,
-};
-
+use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 pub struct PostDetailsForFrontend {
     pub id: String,
     pub description: String,
-    pub hashtags: Vec::<String>,
+    pub hashtags: Vec<String>,
     pub video_uid: String,
     pub creator: __sdk::Identity,
+    pub creator_principal_text: String,
     pub created_at: __sdk::Timestamp,
     pub total_view_count: u64,
     pub like_count: u64,
     pub liked_by_me: bool,
 }
 
-
 impl __sdk::InModule for PostDetailsForFrontend {
     type Module = super::RemoteModule;
 }
-

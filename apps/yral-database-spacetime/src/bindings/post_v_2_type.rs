@@ -8,9 +8,10 @@ use super::post_status_type::PostStatus;
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
-pub struct Post {
+pub struct PostV2 {
     pub id: String,
     pub creator: __sdk::Identity,
+    pub creator_principal_text: String,
     pub video_uid: String,
     pub description: String,
     pub hashtags: Vec<String>,
@@ -22,33 +23,38 @@ pub struct Post {
     pub view_average_watch_percentage: u8,
 }
 
-impl __sdk::InModule for Post {
+impl __sdk::InModule for PostV2 {
     type Module = super::RemoteModule;
 }
 
-/// Column accessor struct for the table `Post`.
+/// Column accessor struct for the table `PostV2`.
 ///
 /// Provides typed access to columns for query building.
-pub struct PostCols {
-    pub id: __sdk::__query_builder::Col<Post, String>,
-    pub creator: __sdk::__query_builder::Col<Post, __sdk::Identity>,
-    pub video_uid: __sdk::__query_builder::Col<Post, String>,
-    pub description: __sdk::__query_builder::Col<Post, String>,
-    pub hashtags: __sdk::__query_builder::Col<Post, Vec<String>>,
-    pub status: __sdk::__query_builder::Col<Post, PostStatus>,
-    pub created_at: __sdk::__query_builder::Col<Post, __sdk::Timestamp>,
-    pub share_count: __sdk::__query_builder::Col<Post, u64>,
-    pub view_total_count: __sdk::__query_builder::Col<Post, u64>,
-    pub view_threshold_count: __sdk::__query_builder::Col<Post, u64>,
-    pub view_average_watch_percentage: __sdk::__query_builder::Col<Post, u8>,
+pub struct PostV2Cols {
+    pub id: __sdk::__query_builder::Col<PostV2, String>,
+    pub creator: __sdk::__query_builder::Col<PostV2, __sdk::Identity>,
+    pub creator_principal_text: __sdk::__query_builder::Col<PostV2, String>,
+    pub video_uid: __sdk::__query_builder::Col<PostV2, String>,
+    pub description: __sdk::__query_builder::Col<PostV2, String>,
+    pub hashtags: __sdk::__query_builder::Col<PostV2, Vec<String>>,
+    pub status: __sdk::__query_builder::Col<PostV2, PostStatus>,
+    pub created_at: __sdk::__query_builder::Col<PostV2, __sdk::Timestamp>,
+    pub share_count: __sdk::__query_builder::Col<PostV2, u64>,
+    pub view_total_count: __sdk::__query_builder::Col<PostV2, u64>,
+    pub view_threshold_count: __sdk::__query_builder::Col<PostV2, u64>,
+    pub view_average_watch_percentage: __sdk::__query_builder::Col<PostV2, u8>,
 }
 
-impl __sdk::__query_builder::HasCols for Post {
-    type Cols = PostCols;
+impl __sdk::__query_builder::HasCols for PostV2 {
+    type Cols = PostV2Cols;
     fn cols(table_name: &'static str) -> Self::Cols {
-        PostCols {
+        PostV2Cols {
             id: __sdk::__query_builder::Col::new(table_name, "id"),
             creator: __sdk::__query_builder::Col::new(table_name, "creator"),
+            creator_principal_text: __sdk::__query_builder::Col::new(
+                table_name,
+                "creator_principal_text",
+            ),
             video_uid: __sdk::__query_builder::Col::new(table_name, "video_uid"),
             description: __sdk::__query_builder::Col::new(table_name, "description"),
             hashtags: __sdk::__query_builder::Col::new(table_name, "hashtags"),
@@ -68,22 +74,22 @@ impl __sdk::__query_builder::HasCols for Post {
     }
 }
 
-/// Indexed column accessor struct for the table `Post`.
+/// Indexed column accessor struct for the table `PostV2`.
 ///
 /// Provides typed access to indexed columns for query building.
-pub struct PostIxCols {
-    pub creator: __sdk::__query_builder::IxCol<Post, __sdk::Identity>,
-    pub id: __sdk::__query_builder::IxCol<Post, String>,
+pub struct PostV2IxCols {
+    pub creator: __sdk::__query_builder::IxCol<PostV2, __sdk::Identity>,
+    pub id: __sdk::__query_builder::IxCol<PostV2, String>,
 }
 
-impl __sdk::__query_builder::HasIxCols for Post {
-    type IxCols = PostIxCols;
+impl __sdk::__query_builder::HasIxCols for PostV2 {
+    type IxCols = PostV2IxCols;
     fn ix_cols(table_name: &'static str) -> Self::IxCols {
-        PostIxCols {
+        PostV2IxCols {
             creator: __sdk::__query_builder::IxCol::new(table_name, "creator"),
             id: __sdk::__query_builder::IxCol::new(table_name, "id"),
         }
     }
 }
 
-impl __sdk::__query_builder::CanBeLookupTable for Post {}
+impl __sdk::__query_builder::CanBeLookupTable for PostV2 {}

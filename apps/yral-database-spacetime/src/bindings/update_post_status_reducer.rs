@@ -2,12 +2,7 @@
 // WILL NOT BE SAVED. MODIFY TABLES IN YOUR MODULE SOURCE CODE INSTEAD.
 
 #![allow(unused, clippy::all)]
-use spacetimedb_sdk::__codegen::{
-	self as __sdk,
-	__lib,
-	__sats,
-	__ws,
-};
+use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 use super::post_status_type::PostStatus;
 
@@ -23,8 +18,8 @@ impl From<UpdatePostStatusArgs> for super::Reducer {
         Self::UpdatePostStatus {
             post_id: args.post_id,
             status: args.status,
-}
-}
+        }
+    }
 }
 
 impl __sdk::InModule for UpdatePostStatusArgs {
@@ -42,10 +37,8 @@ pub trait update_post_status {
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
     /// /// Use [`update_post_status:update_post_status_then`] to run a callback after the reducer completes.
-    fn update_post_status(&self, post_id: String,
-status: PostStatus,
-) -> __sdk::Result<()> {
-        self.update_post_status_then(post_id, status,  |_, _| {})
+    fn update_post_status(&self, post_id: String, status: PostStatus) -> __sdk::Result<()> {
+        self.update_post_status_then(post_id, status, |_, _| {})
     }
 
     /// Request that the remote module invoke the reducer `update_post_status` to run as soon as possible,
@@ -57,7 +50,7 @@ status: PostStatus,
     fn update_post_status_then(
         &self,
         post_id: String,
-status: PostStatus,
+        status: PostStatus,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -69,13 +62,13 @@ impl update_post_status for super::RemoteReducers {
     fn update_post_status_then(
         &self,
         post_id: String,
-status: PostStatus,
+        status: PostStatus,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
             + 'static,
     ) -> __sdk::Result<()> {
-        self.imp.invoke_reducer_with_callback(UpdatePostStatusArgs { post_id, status,  }, callback)
+        self.imp
+            .invoke_reducer_with_callback(UpdatePostStatusArgs { post_id, status }, callback)
     }
 }
-

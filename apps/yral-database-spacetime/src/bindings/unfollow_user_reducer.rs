@@ -6,46 +6,46 @@ use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
-pub(super) struct AdminDeletePostArgs {
-    pub post_id: String,
+pub(super) struct UnfollowUserArgs {
+    pub followee_text: String,
 }
 
-impl From<AdminDeletePostArgs> for super::Reducer {
-    fn from(args: AdminDeletePostArgs) -> Self {
-        Self::AdminDeletePost {
-            post_id: args.post_id,
+impl From<UnfollowUserArgs> for super::Reducer {
+    fn from(args: UnfollowUserArgs) -> Self {
+        Self::UnfollowUser {
+            followee_text: args.followee_text,
         }
     }
 }
 
-impl __sdk::InModule for AdminDeletePostArgs {
+impl __sdk::InModule for UnfollowUserArgs {
     type Module = super::RemoteModule;
 }
 
 #[allow(non_camel_case_types)]
-/// Extension trait for access to the reducer `admin_delete_post`.
+/// Extension trait for access to the reducer `unfollow_user`.
 ///
 /// Implemented for [`super::RemoteReducers`].
-pub trait admin_delete_post {
-    /// Request that the remote module invoke the reducer `admin_delete_post` to run as soon as possible.
+pub trait unfollow_user {
+    /// Request that the remote module invoke the reducer `unfollow_user` to run as soon as possible.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
-    /// /// Use [`admin_delete_post:admin_delete_post_then`] to run a callback after the reducer completes.
-    fn admin_delete_post(&self, post_id: String) -> __sdk::Result<()> {
-        self.admin_delete_post_then(post_id, |_, _| {})
+    /// /// Use [`unfollow_user:unfollow_user_then`] to run a callback after the reducer completes.
+    fn unfollow_user(&self, followee_text: String) -> __sdk::Result<()> {
+        self.unfollow_user_then(followee_text, |_, _| {})
     }
 
-    /// Request that the remote module invoke the reducer `admin_delete_post` to run as soon as possible,
+    /// Request that the remote module invoke the reducer `unfollow_user` to run as soon as possible,
     /// registering `callback` to run when we are notified that the reducer completed.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and its status can be observed with the `callback`.
-    fn admin_delete_post_then(
+    fn unfollow_user_then(
         &self,
-        post_id: String,
+        followee_text: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -53,16 +53,16 @@ pub trait admin_delete_post {
     ) -> __sdk::Result<()>;
 }
 
-impl admin_delete_post for super::RemoteReducers {
-    fn admin_delete_post_then(
+impl unfollow_user for super::RemoteReducers {
+    fn unfollow_user_then(
         &self,
-        post_id: String,
+        followee_text: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
             + 'static,
     ) -> __sdk::Result<()> {
         self.imp
-            .invoke_reducer_with_callback(AdminDeletePostArgs { post_id }, callback)
+            .invoke_reducer_with_callback(UnfollowUserArgs { followee_text }, callback)
     }
 }

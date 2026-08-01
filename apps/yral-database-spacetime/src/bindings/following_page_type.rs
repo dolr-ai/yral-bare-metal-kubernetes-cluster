@@ -4,15 +4,16 @@
 #![allow(unused, clippy::all)]
 use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
-use super::post_details_for_frontend_type::PostDetailsForFrontend;
+use super::following_item_type::FollowingItem;
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
-pub struct FetchPostsResult {
-    pub posts: Vec<PostDetailsForFrontend>,
+pub struct FollowingPage {
+    pub following: Vec<FollowingItem>,
+    pub total_count: u64,
     pub next_cursor: Option<String>,
 }
 
-impl __sdk::InModule for FetchPostsResult {
+impl __sdk::InModule for FollowingPage {
     type Module = super::RemoteModule;
 }

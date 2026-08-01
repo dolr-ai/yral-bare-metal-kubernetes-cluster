@@ -6,46 +6,46 @@ use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
-pub(super) struct AddAdminArgs {
-    pub identity: __sdk::Identity,
+pub(super) struct FollowUserArgs {
+    pub followee_text: String,
 }
 
-impl From<AddAdminArgs> for super::Reducer {
-    fn from(args: AddAdminArgs) -> Self {
-        Self::AddAdmin {
-            identity: args.identity,
+impl From<FollowUserArgs> for super::Reducer {
+    fn from(args: FollowUserArgs) -> Self {
+        Self::FollowUser {
+            followee_text: args.followee_text,
         }
     }
 }
 
-impl __sdk::InModule for AddAdminArgs {
+impl __sdk::InModule for FollowUserArgs {
     type Module = super::RemoteModule;
 }
 
 #[allow(non_camel_case_types)]
-/// Extension trait for access to the reducer `add_admin`.
+/// Extension trait for access to the reducer `follow_user`.
 ///
 /// Implemented for [`super::RemoteReducers`].
-pub trait add_admin {
-    /// Request that the remote module invoke the reducer `add_admin` to run as soon as possible.
+pub trait follow_user {
+    /// Request that the remote module invoke the reducer `follow_user` to run as soon as possible.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
-    /// /// Use [`add_admin:add_admin_then`] to run a callback after the reducer completes.
-    fn add_admin(&self, identity: __sdk::Identity) -> __sdk::Result<()> {
-        self.add_admin_then(identity, |_, _| {})
+    /// /// Use [`follow_user:follow_user_then`] to run a callback after the reducer completes.
+    fn follow_user(&self, followee_text: String) -> __sdk::Result<()> {
+        self.follow_user_then(followee_text, |_, _| {})
     }
 
-    /// Request that the remote module invoke the reducer `add_admin` to run as soon as possible,
+    /// Request that the remote module invoke the reducer `follow_user` to run as soon as possible,
     /// registering `callback` to run when we are notified that the reducer completed.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and its status can be observed with the `callback`.
-    fn add_admin_then(
+    fn follow_user_then(
         &self,
-        identity: __sdk::Identity,
+        followee_text: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -53,16 +53,16 @@ pub trait add_admin {
     ) -> __sdk::Result<()>;
 }
 
-impl add_admin for super::RemoteReducers {
-    fn add_admin_then(
+impl follow_user for super::RemoteReducers {
+    fn follow_user_then(
         &self,
-        identity: __sdk::Identity,
+        followee_text: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
             + 'static,
     ) -> __sdk::Result<()> {
         self.imp
-            .invoke_reducer_with_callback(AddAdminArgs { identity }, callback)
+            .invoke_reducer_with_callback(FollowUserArgs { followee_text }, callback)
     }
 }

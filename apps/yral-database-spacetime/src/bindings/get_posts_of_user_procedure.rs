@@ -2,23 +2,17 @@
 // WILL NOT BE SAVED. MODIFY TABLES IN YOUR MODULE SOURCE CODE INSTEAD.
 
 #![allow(unused, clippy::all)]
-use spacetimedb_sdk::__codegen::{
-	self as __sdk,
-	__lib,
-	__sats,
-	__ws,
-};
+use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 use super::post_page_type::PostPage;
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
- struct GetPostsOfUserArgs {
+struct GetPostsOfUserArgs {
     pub creator: __sdk::Identity,
     pub limit: u64,
-    pub cursor: Option::<String>,
+    pub cursor: Option<String>,
 }
-
 
 impl __sdk::InModule for GetPostsOfUserArgs {
     type Module = super::RemoteModule;
@@ -29,20 +23,19 @@ impl __sdk::InModule for GetPostsOfUserArgs {
 ///
 /// Implemented for [`super::RemoteProcedures`].
 pub trait get_posts_of_user {
-    fn get_posts_of_user(&self, creator: __sdk::Identity,
-limit: u64,
-cursor: Option::<String>,
-) {
-        self.get_posts_of_user_then(creator, limit, cursor,  |_, _| {});
+    fn get_posts_of_user(&self, creator: __sdk::Identity, limit: u64, cursor: Option<String>) {
+        self.get_posts_of_user_then(creator, limit, cursor, |_, _| {});
     }
 
     fn get_posts_of_user_then(
         &self,
         creator: __sdk::Identity,
-limit: u64,
-cursor: Option::<String>,
+        limit: u64,
+        cursor: Option<String>,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<PostPage, __sdk::InternalError>) + Send + 'static,
+        __callback: impl FnOnce(&super::ProcedureEventContext, Result<PostPage, __sdk::InternalError>)
+            + Send
+            + 'static,
     );
 }
 
@@ -50,16 +43,21 @@ impl get_posts_of_user for super::RemoteProcedures {
     fn get_posts_of_user_then(
         &self,
         creator: __sdk::Identity,
-limit: u64,
-cursor: Option::<String>,
+        limit: u64,
+        cursor: Option<String>,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<PostPage, __sdk::InternalError>) + Send + 'static,
+        __callback: impl FnOnce(&super::ProcedureEventContext, Result<PostPage, __sdk::InternalError>)
+            + Send
+            + 'static,
     ) {
         self.imp.invoke_procedure_with_callback::<_, PostPage>(
             "get_posts_of_user",
-            GetPostsOfUserArgs { creator, limit, cursor,  },
+            GetPostsOfUserArgs {
+                creator,
+                limit,
+                cursor,
+            },
             __callback,
         );
     }
 }
-

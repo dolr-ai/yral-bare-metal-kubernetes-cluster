@@ -4,51 +4,48 @@
 #![allow(unused, clippy::all)]
 use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
+use super::post_v_2_type::PostV2;
+
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
-pub(super) struct KvSetArgs {
-    pub key: String,
-    pub value: String,
+pub(super) struct UpsertPostsV2BatchArgs {
+    pub posts: Vec<PostV2>,
 }
 
-impl From<KvSetArgs> for super::Reducer {
-    fn from(args: KvSetArgs) -> Self {
-        Self::KvSet {
-            key: args.key,
-            value: args.value,
-        }
+impl From<UpsertPostsV2BatchArgs> for super::Reducer {
+    fn from(args: UpsertPostsV2BatchArgs) -> Self {
+        Self::UpsertPostsV2Batch { posts: args.posts }
     }
 }
 
-impl __sdk::InModule for KvSetArgs {
+impl __sdk::InModule for UpsertPostsV2BatchArgs {
     type Module = super::RemoteModule;
 }
 
 #[allow(non_camel_case_types)]
-/// Extension trait for access to the reducer `kv_set`.
+/// Extension trait for access to the reducer `upsert_posts_v_2_batch`.
 ///
 /// Implemented for [`super::RemoteReducers`].
-pub trait kv_set {
-    /// Request that the remote module invoke the reducer `kv_set` to run as soon as possible.
+pub trait upsert_posts_v_2_batch {
+    /// Request that the remote module invoke the reducer `upsert_posts_v_2_batch` to run as soon as possible.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
-    /// /// Use [`kv_set:kv_set_then`] to run a callback after the reducer completes.
-    fn kv_set(&self, key: String, value: String) -> __sdk::Result<()> {
-        self.kv_set_then(key, value, |_, _| {})
+    /// /// Use [`upsert_posts_v_2_batch:upsert_posts_v_2_batch_then`] to run a callback after the reducer completes.
+    fn upsert_posts_v_2_batch(&self, posts: Vec<PostV2>) -> __sdk::Result<()> {
+        self.upsert_posts_v_2_batch_then(posts, |_, _| {})
     }
 
-    /// Request that the remote module invoke the reducer `kv_set` to run as soon as possible,
+    /// Request that the remote module invoke the reducer `upsert_posts_v_2_batch` to run as soon as possible,
     /// registering `callback` to run when we are notified that the reducer completed.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and its status can be observed with the `callback`.
-    fn kv_set_then(
+    fn upsert_posts_v_2_batch_then(
         &self,
-        key: String,
-        value: String,
+        posts: Vec<PostV2>,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -56,17 +53,16 @@ pub trait kv_set {
     ) -> __sdk::Result<()>;
 }
 
-impl kv_set for super::RemoteReducers {
-    fn kv_set_then(
+impl upsert_posts_v_2_batch for super::RemoteReducers {
+    fn upsert_posts_v_2_batch_then(
         &self,
-        key: String,
-        value: String,
+        posts: Vec<PostV2>,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
             + 'static,
     ) -> __sdk::Result<()> {
         self.imp
-            .invoke_reducer_with_callback(KvSetArgs { key, value }, callback)
+            .invoke_reducer_with_callback(UpsertPostsV2BatchArgs { posts }, callback)
     }
 }
