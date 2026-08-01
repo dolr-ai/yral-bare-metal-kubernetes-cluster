@@ -26,3 +26,4 @@
 mod auth_kv;
 mod constants;
 mod posts;
+mod user_info;
