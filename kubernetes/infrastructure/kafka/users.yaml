@@ -35,10 +35,10 @@ spec:
         operations:
           - Write
           - Describe
-      # Produce bad rows
+      # Produce collector bad rows
       - resource:
           type: topic
-          name: snowplow-bad
+          name: snowplow-collector-bad
           patternType: literal
         operations:
           - Write
