@@ -1,12 +1,20 @@
-# Snowplow Enrich Kafka configuration (HOCON format) for 6.8.0
+# Snowplow Enrich Kafka configuration (HOCON format) for 6.12.0
 # Mounted at /snowplow/config/application.conf inside the enrich container.
 #
-# 6.8.0 uses JSON-style HOCON with quoted keys and colon separators.
+# 6.8.0+ uses JSON-style HOCON with quoted keys and colon separators.
 # Key structural changes from 5.x:
 #   - input.topicName (singular) replaces input.topics (array)
 #   - output now has 3 streams: good, failed, bad
 #   - license.accept = true is required
 #   - telemetry.disable = true disables heartbeat events
+#
+# Output topic routing (separated for observability):
+#   good    → snowplow-enriched    (successfully enriched events, TSV)
+#   failed  → snowplow-enrich-failed  (events that could not be enriched, TSV)
+#   bad     → snowplow-enrich-bad     (schema violations / field errors, JSON)
+# The collector writes its own bad rows to snowplow-collector-bad (see collector-config.yaml).
+# This separation makes "zero enrichment failures" measurable — snowplow-enrich-bad
+# and snowplow-enrich-failed should be empty; non-zero means a real bug.
 #
 # SASL credentials are injected at runtime via KAFKA_ENRICH_JAAS_CONFIG env var.
 # Enrichments are loaded from the --enrichments directory (see enrichments-config.yaml).
@@ -51,9 +59,9 @@ data:
         }
 
         # failed: events that could not be validated/enriched (TSV format)
-        # Routed to snowplow-bad — we don't distinguish failed vs bad at this stage.
+        # Routed to snowplow-enrich-failed — should be zero; non-zero indicates a bug.
         "failed": {
-          "topicName": "snowplow-bad"
+          "topicName": "snowplow-enrich-failed"
           "bootstrapServers": "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
           "producerConf": {
             "client.id": "snowplow-enrich"
@@ -64,9 +72,10 @@ data:
           }
         }
 
-        # bad: bad rows (JSON format — schema violations, etc.)
+        # bad: bad rows (JSON format — schema violations, field length errors, etc.)
+        # Routed to snowplow-enrich-bad — should be zero; non-zero indicates a bug.
         "bad": {
-          "topicName": "snowplow-bad"
+          "topicName": "snowplow-enrich-bad"
           "bootstrapServers": "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
           "producerConf": {
             "client.id": "snowplow-enrich"

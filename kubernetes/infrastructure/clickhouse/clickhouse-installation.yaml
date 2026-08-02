@@ -2,10 +2,13 @@
 # Single shard, single replica -- no Keeper/ZooKeeper needed (plain MergeTree, no replication)
 #
 # Schema init via startup_scripts (runs on every pod start, all queries are IF NOT EXISTS):
-#   - snowplow.events_queue   Kafka engine (reads TSV from snowplow-enriched, 4 consumer threads)
-#   - snowplow.events_v1      MergeTree storage (archived pre-enrichment table; drop when stable)
-#   - snowplow.events_v2      MergeTree storage (canonical; enriched with geo+UA data)
-#   - snowplow.events_mv      Materialized view piping queue -> events_v2 (canonical)
+#   - snowplow.events_queue       Kafka engine (reads TSV from snowplow-enriched, 4 consumer threads)
+#   - snowplow.events_v1          MergeTree storage (archived pre-enrichment table; drop when stable)
+#   - snowplow.events_v2          MergeTree storage (canonical; enriched with geo+UA data)
+#   - snowplow.events_mv          Materialized view piping queue -> events_v2 (canonical)
+#   - snowplow.bad_rows_queue      Kafka engine (reads JSON from snowplow-enrich-bad)
+#   - snowplow.bad_rows            MergeTree storage (enrichment bad rows for investigation)
+#   - snowplow.bad_rows_mv         Materialized view piping bad_rows_queue -> bad_rows
 #
 # Metabase connection:
 #   Host: clickhouse-analytics.clickhouse.svc.cluster.local
@@ -189,6 +192,36 @@ spec:
               <query><![CDATA[CREATE MATERIALIZED VIEW IF NOT EXISTS snowplow.events_mv
               TO snowplow.events_v2
               AS SELECT * FROM snowplow.events_queue]]></query>
+            </scripts>
+            <!-- Bad rows: consume enrichment failures from snowplow-enrich-bad (JSON format).
+                 Each bad row is a JSON object with failure info + original payload.
+                 Stored as raw JSON for investigation; should be empty if enrichment is healthy. -->
+            <scripts>
+              <query><![CDATA[CREATE TABLE IF NOT EXISTS snowplow.bad_rows_queue (
+                bad_row String
+              ) ENGINE = Kafka()
+              SETTINGS
+                  kafka_broker_list = 'kafka-cluster-kafka-bootstrap.kafka.svc:9092',
+                  kafka_topic_list = 'snowplow-enrich-bad',
+                  kafka_group_name = 'clickhouse-snowplow-bad-consumer',
+                  kafka_format = 'JSONAsString',
+                  kafka_num_consumers = 2,
+                  kafka_skip_broken_messages = 100]]></query>
+            </scripts>
+            <scripts>
+              <query><![CDATA[CREATE TABLE IF NOT EXISTS snowplow.bad_rows (
+                bad_row String,
+                collector_tstamp DateTime DEFAULT now()
+              ) ENGINE = MergeTree()
+              PARTITION BY toYYYYMM(collector_tstamp)
+              ORDER BY collector_tstamp
+              TTL collector_tstamp + INTERVAL 1 MONTH
+              SETTINGS ttl_only_drop_parts = 1]]></query>
+            </scripts>
+            <scripts>
+              <query><![CDATA[CREATE MATERIALIZED VIEW IF NOT EXISTS snowplow.bad_rows_mv
+              TO snowplow.bad_rows
+              AS SELECT bad_row, now() AS collector_tstamp FROM snowplow.bad_rows_queue]]></query>
             </scripts>
             <scripts>
               <query><![CDATA[CREATE TABLE IF NOT EXISTS snowplow.events_v2 (

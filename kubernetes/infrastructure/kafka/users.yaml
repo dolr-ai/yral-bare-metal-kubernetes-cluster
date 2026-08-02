@@ -5,8 +5,8 @@
 # set at user creation time rather than generated randomly.
 #
 # ACL design:
-#   snowplow-collector  — producer to snowplow-raw + snowplow-bad
-#   snowplow-enrich     — consumer from snowplow-raw, producer to snowplow-enriched + snowplow-bad
+#   snowplow-collector  — producer to snowplow-raw + snowplow-collector-bad
+#   snowplow-enrich     — consumer from snowplow-raw, producer to snowplow-enriched + snowplow-enrich-bad + snowplow-enrich-failed
 #   kafka-connect       — consumer from snowplow-enriched, plus Kafka Connect internal topics
 ---
 apiVersion: kafka.strimzi.io/v1
@@ -92,10 +92,18 @@ spec:
         operations:
           - Write
           - Describe
-      # Produce bad rows
+      # Produce enrichment bad rows (schema violations, field errors — should be 0)
       - resource:
           type: topic
-          name: snowplow-bad
+          name: snowplow-enrich-bad
+          patternType: literal
+        operations:
+          - Write
+          - Describe
+      # Produce enrichment failed events (could not be enriched — should be 0)
+      - resource:
+          type: topic
+          name: snowplow-enrich-failed
           patternType: literal
         operations:
           - Write
@@ -133,6 +141,20 @@ spec:
       - resource:
           type: group
           name: clickhouse-snowplow-consumer
+          patternType: literal
+        operations:
+          - Read
+      # Consume enrichment bad rows for ClickHouse bad_rows table
+      - resource:
+          type: topic
+          name: snowplow-enrich-bad
+          patternType: literal
+        operations:
+          - Read
+          - Describe
+      - resource:
+          type: group
+          name: clickhouse-snowplow-bad-consumer
           patternType: literal
         operations:
           - Read

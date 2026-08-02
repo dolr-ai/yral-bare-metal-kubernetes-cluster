@@ -5,8 +5,15 @@
 # snowplow-enriched:  validated+enriched events → S3 Sink input
 #                     Storage-based retention only: 200 GiB ÷ 12 partitions = ~16.6 GiB per partition
 #                     18253611008 = 200 * 1024^3 / 12  (rounded down to nearest byte)
-# snowplow-bad:       failed events (collector bad rows, enrichment failures)
+# snowplow-collector-bad:   collector bad rows (malformed HTTP, bot traffic)
 #                     7-day time retention for investigation
+# snowplow-enrich-bad:      enrichment bad rows (schema violations, field errors) — should be 0
+#                     7-day time retention for investigation
+# snowplow-enrich-failed:  events that failed enrichment validation — should be 0
+#                     7-day time retention for investigation
+#
+# The old snowplow-bad topic is retired — collector and enrich bad rows are now
+# separated so enrichment failures are measurable and alertable independently.
 ---
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
@@ -46,7 +53,7 @@ spec:
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
-  name: snowplow-bad
+  name: snowplow-collector-bad
   namespace: kafka
   labels:
     strimzi.io/cluster: kafka-cluster
@@ -54,6 +61,36 @@ spec:
   partitions: 6
   replicas: 3
   config:
-    # 7-day retention for bad-row investigation and reprocessing
+    # 7-day retention for bad-row investigation
+    retention.ms: "604800000"
+    min.insync.replicas: "2"
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: snowplow-enrich-bad
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    # 7-day retention for bad-row investigation
+    retention.ms: "604800000"
+    min.insync.replicas: "2"
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: snowplow-enrich-failed
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    # 7-day retention for failed-event investigation
     retention.ms: "604800000"
     min.insync.replicas: "2"

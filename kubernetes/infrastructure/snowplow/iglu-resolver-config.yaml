@@ -5,6 +5,9 @@
 # (Snowplow's public open-source schema registry) — sufficient to run
 # standard Snowplow enrichments without a private schema registry.
 #
+# Uses HTTPS (not plain HTTP) for schema lookups to prevent transient
+# failures from network interception or DNS issues.
+#
 # If custom schemas are needed in the future, add a second repository entry
 # pointing at a self-hosted Iglu server.
 ---
@@ -26,7 +29,7 @@ data:
             "vendorPrefixes": [],
             "connection": {
               "http": {
-                "uri": "http://iglucentral.com"
+                "uri": "https://iglucentral.com"
               }
             }
           }

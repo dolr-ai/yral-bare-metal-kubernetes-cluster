@@ -104,7 +104,10 @@ data:
         }
 
         bad {
-          name    = "snowplow-bad"
+          # Collector-level bad rows (malformed HTTP requests, bot traffic, etc.)
+          # Routed to snowplow-collector-bad — separated from enrich bad rows.
+          # A non-zero baseline is inherent on a public endpoint (bots, scanners).
+          name    = "snowplow-collector-bad"
           brokers = "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
           maxBytes = 1000000
           startupCheckInterval = 10 seconds
