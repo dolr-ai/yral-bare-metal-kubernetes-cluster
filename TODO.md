@@ -1,7 +1,3 @@
-- ✅ Snowplow bad events: ROOT CAUSE FOUND & FIXED. Bad events were human-readable JSON; enriched events are TSV (131 tab-separated fields, text but dense). Raw topic is binary Thrift (not previewable in Redpanda Console). All 1,623 bad messages (from July 20) had the same error: `atomic_field_length_exceeded` — the mobile app put event properties as a JSON string into `se_property` (maxLength=1000), and events with large arrays (e.g. `influencer_cards_viewed` with 200+ items) exceeded this. Fix: truncated `se_property` in both Android and iOS `SnowplowAnalyticsProvider`. Also separated `snowplow-bad` into `snowplow-collector-bad` (bot traffic), `snowplow-enrich-bad` (schema violations), and `snowplow-enrich-failed` (enrichment failures) so enrichment failures are measurable independently. Added ClickHouse `snowplow.bad_rows` table for queryable bad-row analytics. Switched Iglu resolver from HTTP to HTTPS. Updated enrich config comment from 6.8.0 to 6.12.0.
-- ✅ Snowplow bad topic separation: Done — collector bad rows → `snowplow-collector-bad`, enrichment bad rows → `snowplow-enrich-bad`, enrichment failed events → `snowplow-enrich-failed`. The old `snowplow-bad` topic is retired. `snowplow-enrich-bad` and `snowplow-enrich-failed` should be zero; non-zero means a real bug.
-- kafka native schema validation via schema registry and redpanda console
-- rewrite timer counter as a kotlin app to run on android and windows
 - are loki logs being cleaned up properly? Check retention policies and storage usage. What about prometheus and clickhouse? Does prometheus have a retention policy configured? Check storage usage and retention settings. Similarly, check clickhouse for retention policies and storage usage. We are dumping snowplow events into clickhouse via the snowplow stream collector and using clickhouse as the data warehouse for analytics. We should ensure that we have appropriate retention policies in place to manage storage and costs effectively. The snowplow data is also saved long term in object storage, so we can always re-ingest if needed
 - archive all the unused org repos
 - Confirm that all the new volumes being provisioned have 1 replica unless specifically configure to have 2
@@ -102,3 +98,5 @@ IC Principal keys — per-user canister data from yral-legacy
 We should not bring everything into the auth_kv table — that would mix yral-auth's auth data with unrelated services' data in a single key-value store. Each service needs its own SpacetimeDB table or its own migration strategy.
 
 Migrate the other useful bits
+- Add dbx to the self hosted database UI list and gate behind auth.
+- Remove the other unused UIs
