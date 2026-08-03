@@ -121,6 +121,10 @@ url = "https://github.com/cargo-bins/cargo-binstall/releases/download/v1.20.1/ca
 url_api = "https://api.github.com/repos/cargo-bins/cargo-binstall/releases/assets/453434883"
 provenance = "github-attestations"
 
+[[tools.cocoapods]]
+version = "1.17.0"
+backend = "gem:cocoapods"
+
 [[tools.flux2]]
 version = "2.9.1"
 backend = "aqua:fluxcd/flux2"
@@ -214,6 +218,7 @@ checksum = "sha256:13cb02950379fa8d4ee1bc3f4212708754c089f34a885ac0101e39c30b7f5
 url = "https://github.com/jdx/fnox/releases/download/v1.30.0/fnox-aarch64-apple-darwin.tar.gz"
 url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/471791310"
 provenance = "github-attestations"
+provenance_verified = true
 
 [tools.fnox."platforms.macos-x64"]
 checksum = "sha256:13759ab93da8ab53c0e7530166a7128b6afd946bbca98d6583f892afff1ed903"
@@ -272,39 +277,6 @@ checksum = "sha256:c2d6acc935cd2f00e2144d7e036d5cd82e6b6bd5594e8c75aa75ef2a4ed6a
 url = "https://github.com/cli/cli/releases/download/v2.96.0/gh_2.96.0_windows_amd64.zip"
 url_api = "https://api.github.com/repos/cli/cli/releases/assets/464728577"
 provenance = "github-attestations"
-
-[[tools."github:WebAssembly/binaryen"]]
-version = "1.39.1"
-backend = "github:WebAssembly/binaryen"
-
-[tools."github:WebAssembly/binaryen"."platforms.linux-arm64"]
-checksum = "sha256:1ee3bc68a18ea6ae94cc2634227fcf1518682fb80a59fc7774a4d9caea5ffd54"
-url = "https://github.com/WebAssembly/binaryen/releases/download/1.39.1/binaryen-1.39.1-aarch64-linux.tar.gz"
-url_api = "https://api.github.com/repos/WebAssembly/binaryen/releases/assets/15882041"
-
-[tools."github:WebAssembly/binaryen"."platforms.linux-arm64-musl"]
-checksum = "sha256:1ee3bc68a18ea6ae94cc2634227fcf1518682fb80a59fc7774a4d9caea5ffd54"
-url = "https://github.com/WebAssembly/binaryen/releases/download/1.39.1/binaryen-1.39.1-aarch64-linux.tar.gz"
-url_api = "https://api.github.com/repos/WebAssembly/binaryen/releases/assets/15882041"
-
-[tools."github:WebAssembly/binaryen"."platforms.linux-x64"]
-checksum = "sha256:e3b436c35ded5944589daaac2f17a6b2550af61bde3875fb8809a5d0e9aff8e2"
-url = "https://github.com/WebAssembly/binaryen/releases/download/1.39.1/binaryen-1.39.1-x86_64-linux.tar.gz"
-url_api = "https://api.github.com/repos/WebAssembly/binaryen/releases/assets/15882062"
-
-[tools."github:WebAssembly/binaryen"."platforms.linux-x64-musl"]
-checksum = "sha256:e3b436c35ded5944589daaac2f17a6b2550af61bde3875fb8809a5d0e9aff8e2"
-url = "https://github.com/WebAssembly/binaryen/releases/download/1.39.1/binaryen-1.39.1-x86_64-linux.tar.gz"
-url_api = "https://api.github.com/repos/WebAssembly/binaryen/releases/assets/15882062"
-
-[tools."github:WebAssembly/binaryen"."platforms.macos-x64"]
-checksum = "sha256:c48998f9427666c539eeadbce0371c6cb1ae16700bbfce69b6a0bd5192f4cece"
-url = "https://github.com/WebAssembly/binaryen/releases/download/1.39.1/binaryen-1.39.1-x86_64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/WebAssembly/binaryen/releases/assets/15882198"
-
-[tools."github:WebAssembly/binaryen"."platforms.windows-x64"]
-url = "https://github.com/WebAssembly/binaryen/releases/download/1.39.1/binaryen-1.39.1-x86_64-windows.tar.gz"
-url_api = "https://api.github.com/repos/WebAssembly/binaryen/releases/assets/15881988"
 
 [[tools."github:clockworklabs/SpacetimeDB"]]
 version = "2.6.1"
@@ -378,31 +350,31 @@ checksum = "sha256:02c6137bb5f050479193afad5a28804e9edc3beeab7e7b53a6e1499c9ba38
 url = "https://get.helm.sh/helm-v4.2.3-windows-amd64.tar.gz"
 
 [[tools.java]]
-version = "26.0.2"
+version = "21.0.2"
 backend = "core:java"
 
 [tools.java.options]
 shorthand_vendor = "openjdk"
 
 [tools.java."platforms.linux-arm64"]
-checksum = "sha256:0ce6516c459e635d9f263f9b3492d83ec2c1ee26db128a6d904cae3d3096ceee"
-url = "https://download.java.net/java/GA/jdk26.0.2/818d462d89b645c7a1aad49066c454e5/10/GPL/openjdk-26.0.2_linux-aarch64_bin.tar.gz"
+checksum = "sha256:08db1392a48d4eb5ea5315cf8f18b89dbaf36cda663ba882cf03c704c9257ec2"
+url = "https://download.java.net/java/GA/jdk21.0.2/f2283984656d49d69e91c558476027ac/13/GPL/openjdk-21.0.2_linux-aarch64_bin.tar.gz"
 
 [tools.java."platforms.linux-x64"]
-checksum = "sha256:2da09e9db53e5c4f9eeec045f49e7d8fbcd8e4153edbf0c269f520ff82fd4198"
-url = "https://download.java.net/java/GA/jdk26.0.2/818d462d89b645c7a1aad49066c454e5/10/GPL/openjdk-26.0.2_linux-x64_bin.tar.gz"
+checksum = "sha256:a2def047a73941e01a73739f92755f86b895811afb1f91243db214cff5bdac3f"
+url = "https://download.java.net/java/GA/jdk21.0.2/f2283984656d49d69e91c558476027ac/13/GPL/openjdk-21.0.2_linux-x64_bin.tar.gz"
 
 [tools.java."platforms.macos-arm64"]
-checksum = "sha256:c99b35ad3063ef555361a243c44280b048e24e3cbbc4a59ee3b368e5a8958f3a"
-url = "https://download.java.net/java/GA/jdk26.0.2/818d462d89b645c7a1aad49066c454e5/10/GPL/openjdk-26.0.2_macos-aarch64_bin.tar.gz"
+checksum = "sha256:b3d588e16ec1e0ef9805d8a696591bd518a5cea62567da8f53b5ce32d11d22e4"
+url = "https://download.java.net/java/GA/jdk21.0.2/f2283984656d49d69e91c558476027ac/13/GPL/openjdk-21.0.2_macos-aarch64_bin.tar.gz"
 
 [tools.java."platforms.macos-x64"]
-checksum = "sha256:c258f17d4095c0cda0489d33fc4988d4be193a280b7e1f045e961699dedbfc65"
-url = "https://download.java.net/java/GA/jdk26.0.2/818d462d89b645c7a1aad49066c454e5/10/GPL/openjdk-26.0.2_macos-x64_bin.tar.gz"
+checksum = "sha256:8fd09e15dc406387a0aba70bf5d99692874e999bf9cd9208b452b5d76ac922d3"
+url = "https://download.java.net/java/GA/jdk21.0.2/f2283984656d49d69e91c558476027ac/13/GPL/openjdk-21.0.2_macos-x64_bin.tar.gz"
 
 [tools.java."platforms.windows-x64"]
-checksum = "sha256:a4974cff5ec4c1042ebb070b2e582354786289e0448fd78a2c7b1a6a177f1080"
-url = "https://download.java.net/java/GA/jdk26.0.2/818d462d89b645c7a1aad49066c454e5/10/GPL/openjdk-26.0.2_windows-x64_bin.zip"
+checksum = "sha256:b6c17e747ae78cdd6de4d7532b3164b277daee97c007d3eaa2b39cca99882664"
+url = "https://download.java.net/java/GA/jdk21.0.2/f2283984656d49d69e91c558476027ac/13/GPL/openjdk-21.0.2_windows-x64_bin.zip"
 
 [[tools.kubectl]]
 version = "1.36.2"
@@ -609,105 +581,86 @@ version = "3.14.6"
 backend = "core:python"
 
 [tools.python."platforms.linux-arm64"]
-checksum = "sha256:f177d40ca931df03f660fc006f86ad8cd2ac6e7d6b5d54edbc625103464fc4aa"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260623/cpython-3.14.6+20260623-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz"
+checksum = "sha256:44f86d58f3bbc1aa6c95ee90f03226e0fdbd22475a98c4410e5a20042b7f40d3"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260728/cpython-3.14.6+20260728-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz"
 provenance = "github-attestations"
 
 [tools.python."platforms.linux-arm64-musl"]
-checksum = "sha256:11d463be3e2d34ea67722acfd8f3f2d6d6e5b6b4d4ab27240f220628134a0141"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260623/cpython-3.14.6+20260623-aarch64-unknown-linux-musl-install_only_stripped.tar.gz"
+checksum = "sha256:a5795f2142de95396204f7a43ec7f830cf384ca479a67f6fae820407c432711e"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260728/cpython-3.14.6+20260728-aarch64-unknown-linux-musl-install_only_stripped.tar.gz"
 provenance = "github-attestations"
 
 [tools.python."platforms.linux-x64"]
-checksum = "sha256:c172314f4a8ec137a8f605289010c3d19c8b56867d968f0095074cc68efa1d29"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260623/cpython-3.14.6+20260623-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
+checksum = "sha256:d6254462d5fe066810a472d286861f6a18f66400008bfa9688e202a5672e88cb"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260728/cpython-3.14.6+20260728-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
 provenance = "github-attestations"
 
 [tools.python."platforms.linux-x64-musl"]
-checksum = "sha256:f25064ecb3b07cfe2440b178e72001cf1e0d69a5e53625ca3a32b7ae4e2fdcc6"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260623/cpython-3.14.6+20260623-x86_64-unknown-linux-musl-install_only_stripped.tar.gz"
+checksum = "sha256:9d5d3101158b5cb692e8468967a344ae5187c90bd7f3608f71e2708accc3be68"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260728/cpython-3.14.6+20260728-x86_64-unknown-linux-musl-install_only_stripped.tar.gz"
 provenance = "github-attestations"
 
 [tools.python."platforms.macos-arm64"]
-checksum = "sha256:35d774f61d63c1fd4f1bc9495a7ada92e500dc4382a0df8a9910eb87ea48e8cf"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260623/cpython-3.14.6+20260623-aarch64-apple-darwin-install_only_stripped.tar.gz"
+checksum = "sha256:f4b47659e2da4b97f38cefdf5ad19f0042946099d843cde60de308708e5b1ac5"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260728/cpython-3.14.6+20260728-aarch64-apple-darwin-install_only_stripped.tar.gz"
 provenance = "github-attestations"
 
 [tools.python."platforms.macos-x64"]
-checksum = "sha256:12fb3ea3d6a855fe6ca1c2241702b06cb7e5939fbef09a5f54bf326e480f66af"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260623/cpython-3.14.6+20260623-x86_64-apple-darwin-install_only_stripped.tar.gz"
+checksum = "sha256:00a22363402a1a15d4fb1327c8259a91118258d5463d10a97d3e56c1f18195f6"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260728/cpython-3.14.6+20260728-x86_64-apple-darwin-install_only_stripped.tar.gz"
 provenance = "github-attestations"
 
 [tools.python."platforms.windows-x64"]
-checksum = "sha256:ec05b628ad749682d06d225780fbc02e7bbb5ce2146c9bd8e74a3659b14b693a"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260623/cpython-3.14.6+20260623-x86_64-pc-windows-msvc-install_only_stripped.tar.gz"
+checksum = "sha256:19ab713e908d476afbf2b662f72cf6d85c5de6ed44a1b28815ecfbea37b20d54"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260728/cpython-3.14.6+20260728-x86_64-pc-windows-msvc-install_only_stripped.tar.gz"
 provenance = "github-attestations"
 
-[[tools.redis]]
-version = "8.8.0"
-backend = "vfox:mise-plugins/vfox-redis"
+[[tools.ruby]]
+version = "3.4.10"
+backend = "core:ruby"
 
-[tools.redis."platforms.linux-arm64"]
-url = "https://download.redis.io/releases/redis-8.8.0.tar.gz"
-
-[tools.redis."platforms.linux-arm64-musl"]
-url = "https://download.redis.io/releases/redis-8.8.0.tar.gz"
-
-[tools.redis."platforms.linux-x64"]
-url = "https://download.redis.io/releases/redis-8.8.0.tar.gz"
-
-[tools.redis."platforms.linux-x64-musl"]
-url = "https://download.redis.io/releases/redis-8.8.0.tar.gz"
-
-[tools.redis."platforms.macos-arm64"]
-url = "https://download.redis.io/releases/redis-8.8.0.tar.gz"
-
-[tools.redis."platforms.macos-x64"]
-url = "https://download.redis.io/releases/redis-8.8.0.tar.gz"
-
-[tools.redis."platforms.windows-x64"]
-url = "https://download.redis.io/releases/redis-8.8.0.tar.gz"
+[tools.ruby."platforms.windows-x64"]
+checksum = "sha256:89e3c5e235ac88b9b7e8daaf639eaaab74d7c470667354f6bf0f7432f3191ebb"
+url = "https://github.com/oneclick/rubyinstaller2/releases/download/RubyInstaller-3.4.10-1/rubyinstaller-3.4.10-1-x64.7z"
 
 [[tools.ruby]]
-version = "4.0.6"
+version = "3.4.10"
 backend = "core:ruby"
 
 [tools.ruby.options]
-compile = "true"
+compile = "false"
+precompiled_url = "jdx/ruby"
 ruby_build_repo = "https://github.com/rbenv/ruby-build.git"
 ruby_install = "false"
 
 [tools.ruby."platforms.linux-arm64"]
-checksum = "sha256:837d299e8f7ddf2be31a229a7a7e019d354979825117989acb3b32b1a9be262a"
-url = "https://cache.ruby-lang.org/pub/ruby/4.0/ruby-4.0.6.tar.gz"
+checksum = "sha256:c0a3e9f1d7847e66b044aeeab394ba5d41f63c3da7ad99017c4b2578e31b205a"
+url = "https://github.com/jdx/ruby/releases/download/3.4.10-2/ruby-3.4.10.arm64_linux.tar.gz"
+provenance = "github-attestations"
 
 [tools.ruby."platforms.linux-arm64-musl"]
-checksum = "sha256:837d299e8f7ddf2be31a229a7a7e019d354979825117989acb3b32b1a9be262a"
-url = "https://cache.ruby-lang.org/pub/ruby/4.0/ruby-4.0.6.tar.gz"
+checksum = "sha256:c0a3e9f1d7847e66b044aeeab394ba5d41f63c3da7ad99017c4b2578e31b205a"
+url = "https://github.com/jdx/ruby/releases/download/3.4.10-2/ruby-3.4.10.arm64_linux.tar.gz"
+provenance = "github-attestations"
 
 [tools.ruby."platforms.linux-x64"]
-checksum = "sha256:837d299e8f7ddf2be31a229a7a7e019d354979825117989acb3b32b1a9be262a"
-url = "https://cache.ruby-lang.org/pub/ruby/4.0/ruby-4.0.6.tar.gz"
+checksum = "sha256:81ce58b056ee2765e46785b4c6befb9852d9c3e50ff9385e7eb1cf3e0314d0bd"
+url = "https://github.com/jdx/ruby/releases/download/3.4.10-2/ruby-3.4.10.x86_64_linux.tar.gz"
+provenance = "github-attestations"
 
 [tools.ruby."platforms.linux-x64-musl"]
-checksum = "sha256:837d299e8f7ddf2be31a229a7a7e019d354979825117989acb3b32b1a9be262a"
-url = "https://cache.ruby-lang.org/pub/ruby/4.0/ruby-4.0.6.tar.gz"
+checksum = "sha256:81ce58b056ee2765e46785b4c6befb9852d9c3e50ff9385e7eb1cf3e0314d0bd"
+url = "https://github.com/jdx/ruby/releases/download/3.4.10-2/ruby-3.4.10.x86_64_linux.tar.gz"
+provenance = "github-attestations"
 
 [tools.ruby."platforms.macos-arm64"]
-checksum = "sha256:837d299e8f7ddf2be31a229a7a7e019d354979825117989acb3b32b1a9be262a"
-url = "https://cache.ruby-lang.org/pub/ruby/4.0/ruby-4.0.6.tar.gz"
+checksum = "sha256:5aac8b6e16b0938a14f6d23346b5487020d1fea6b5856a33392e5eb37fa1ef62"
+url = "https://github.com/jdx/ruby/releases/download/3.4.10-2/ruby-3.4.10.macos.tar.gz"
+provenance = "github-attestations"
 
 [tools.ruby."platforms.macos-x64"]
-checksum = "sha256:837d299e8f7ddf2be31a229a7a7e019d354979825117989acb3b32b1a9be262a"
-url = "https://cache.ruby-lang.org/pub/ruby/4.0/ruby-4.0.6.tar.gz"
-
-[[tools.ruby]]
-version = "4.0.6"
-backend = "core:ruby"
-
-[tools.ruby."platforms.windows-x64"]
-checksum = "sha256:328d7a86bea2f4c432783025050c9ffa1c36fcfc54ebccc466b63450ec3af223"
-url = "https://github.com/oneclick/rubyinstaller2/releases/download/RubyInstaller-4.0.6-1/rubyinstaller-4.0.6-1-x64.7z"
+checksum = "sha256:ecee2d072a14f2d14347dd56dfd8fe5c3130abf5117bfaacbda0f4ef9cc429ec"
+url = "https://cache.ruby-lang.org/pub/ruby/3.4/ruby-3.4.10.tar.gz"
 
 [[tools.rust]]
 version = "stable"

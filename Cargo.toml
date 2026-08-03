@@ -28,11 +28,17 @@ members = [
   "apps/yral-metadata/client",
   "apps/yral-metadata/server",
   "apps/yral-metadata/types",
+  "apps/yral-mobile/shared/rust/rust-agent/rust-agent-uniffi",
 ]
 
 # apps/yral-backend-canister is an independent Cargo workspace (IC canister, WASM target)
-# and is not a member of this root workspace.
-# apps/website and apps/yral-mobile are non-Cargo projects (no need to exclude).
+# and is not a member of this root workspace. It is slated for removal as part of
+# the migration off IC canisters — kept out of the workspace intentionally.
+# apps/website is a non-Cargo project (no need to exclude).
+# apps/yral-mobile is a Gradle project, but its rust-agent submodule contains a
+# Cargo package (shared/rust/rust-agent/rust-agent-uniffi). It is included in
+# workspace.members below so `cargo check --workspace` statically type-checks it
+# alongside all other Rust crates in the monorepo.
 exclude = [
   "apps/yral-backend-canister",
 ]
@@ -138,7 +144,7 @@ sentry-tower = "0.37.0"
 sentry-tracing = "0.37.0"
 serde = "1.0.210"
 serde_bytes = "0.11.15"
-serde_json = "1.0.128"
+serde_json = "1.0.145"
 serde_with = "3.12.0"
 sha1 = "0.10"
 sha2 = "0.10.8"

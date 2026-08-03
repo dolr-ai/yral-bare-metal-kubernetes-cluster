@@ -301,6 +301,47 @@ dependencies = [
 ]
 
 [[package]]
+name = "askama"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b79091df18a97caea757e28cd2d5fda49c6cd4bd01ddffd7ff01ace0c0ad2c28"
+dependencies = [
+ "askama_derive",
+ "askama_escape",
+]
+
+[[package]]
+name = "askama_derive"
+version = "0.12.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19fe8d6cb13c4714962c072ea496f3392015f0989b1a2847bb4b2d9effd71d83"
+dependencies = [
+ "askama_parser",
+ "basic-toml",
+ "mime",
+ "mime_guess",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "askama_escape"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "619743e34b5ba4e9703bba34deac3427c72507c7159f5fd030aea8cac0cfe341"
+
+[[package]]
+name = "askama_parser"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "acb1161c6b64d1c3d83108213c2a2533a342ac225aabd0bda218278c2ddb00c0"
+dependencies = [
+ "nom 7.1.3",
+]
+
+[[package]]
 name = "async-channel"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -418,7 +459,7 @@ dependencies = [
  "consts",
  "enum_dispatch",
  "futures",
- "global-constants",
+ "global-constants 0.1.0",
  "hex",
  "http 1.4.2",
  "ic-agent",
@@ -437,9 +478,9 @@ dependencies = [
  "tokio",
  "tracing",
  "web-time",
- "yral-canisters-client",
- "yral-canisters-common",
- "yral-types",
+ "yral-canisters-client 0.1.0",
+ "yral-canisters-common 0.1.0",
+ "yral-types 0.1.0",
 ]
 
 [[package]]
@@ -1116,6 +1157,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
+name = "basic-toml"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba62675e8242a4c4e806d12f11d136e626e6c8361d6b829310732241652a178a"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "bb8"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1457,6 +1507,9 @@ name = "camino"
 version = "1.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bb1307f12aa967b5a58416e87b3653360e0fd614a016b6e970db08fecbb1b80d"
+dependencies = [
+ "serde_core",
+]
 
 [[package]]
 name = "candid"
@@ -1509,6 +1562,29 @@ dependencies = [
  "logos",
  "num-bigint",
  "pretty",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "cargo-platform"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e35af189006b9c0f00a064685c727031e3ed2d8020f7ba284d78cc2671bd36ea"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "cargo_metadata"
+version = "0.15.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eee4243f1f26fc7a42710e7439c149e2b10b05472f88090acce52632f231a73a"
+dependencies = [
+ "camino",
+ "cargo-platform",
+ "semver",
+ "serde",
+ "serde_json",
  "thiserror 1.0.69",
 ]
 
@@ -1624,6 +1700,46 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b67261db007b5f4cf8cba393c1a5c511a5cc072339ce16e12aeba1d7b9b77946"
 
 [[package]]
+name = "clap"
+version = "4.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "301b56658598e48f3648647ac6fc887be7e7108eddfa4e9b63fcf3ec58c0cadf"
+dependencies = [
+ "clap_builder",
+ "clap_derive",
+]
+
+[[package]]
+name = "clap_builder"
+version = "4.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94a65403d1a1bd28f7dc68eb8506e8874808ee5eecb59298de588e2e1407a078"
+dependencies = [
+ "anstream",
+ "anstyle",
+ "clap_lex",
+ "strsim",
+]
+
+[[package]]
+name = "clap_derive"
+version = "4.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d012d2b9d65aca7f18f4d9878a045bc17899bba951561ba5ec3c2ba1eed9a061"
+dependencies = [
+ "heck 0.5.0",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.3",
+]
+
+[[package]]
+name = "clap_lex"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
+
+[[package]]
 name = "cmake"
 version = "0.1.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1732,13 +1848,13 @@ dependencies = [
  "dotenv",
  "enum_dispatch",
  "futures",
- "global-constants",
+ "global-constants 0.1.0",
  "gloo",
  "gloo-utils",
  "gob-cloudflare",
  "hex",
  "hmac 0.12.1",
- "hon-worker-common",
+ "hon-worker-common 0.1.0",
  "http 1.4.2",
  "ic-agent",
  "ic-certification",
@@ -1767,7 +1883,7 @@ dependencies = [
  "serde_bytes",
  "serde_json",
  "simple_logger",
- "sns-validation",
+ "sns-validation 0.1.0",
  "speedate",
  "state",
  "thiserror 2.0.19",
@@ -1783,10 +1899,10 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "web-time",
- "yral-canisters-client",
- "yral-canisters-common",
- "yral-metadata-client",
- "yral-types",
+ "yral-canisters-client 0.1.0",
+ "yral-canisters-common 0.1.0",
+ "yral-metadata-client 0.1.0",
+ "yral-types 0.1.0",
 ]
 
 [[package]]
@@ -1984,7 +2100,7 @@ dependencies = [
  "serde_bytes",
  "serde_json",
  "simple_logger",
- "sns-validation",
+ "sns-validation 0.1.0",
  "speedate",
  "thiserror 2.0.19",
  "tokio",
@@ -1998,9 +2114,9 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "web-time",
- "yral-canisters-client",
- "yral-canisters-common",
- "yral-types",
+ "yral-canisters-client 0.1.0",
+ "yral-canisters-common 0.1.0",
+ "yral-types 0.1.0",
 ]
 
 [[package]]
@@ -2990,6 +3106,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fs-err"
+version = "2.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88a41f105fe1d5b6b34b2055e3dc59bb79b46b48b2040b9e6c7b4b5de097aa41"
+dependencies = [
+ "autocfg",
+]
+
+[[package]]
 name = "fs_extra"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3168,8 +3293,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "glob"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
+
+[[package]]
 name = "global-constants"
 version = "0.1.0"
+dependencies = [
+ "candid",
+ "num-bigint",
+ "serde",
+ "serde_with",
+ "thiserror 2.0.19",
+]
+
+[[package]]
+name = "global-constants"
+version = "0.1.0"
+source = "git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main#5152c7fa7b3b2529077f4dcef781667650d40847"
 dependencies = [
  "candid",
  "num-bigint",
@@ -3394,6 +3537,17 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "url",
+]
+
+[[package]]
+name = "goblin"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b363a30c165f666402fe6a3024d3bec7ebc898f96a4a23bd1c99f8dbf3f4f47"
+dependencies = [
+ "log",
+ "plain",
+ "scroll",
 ]
 
 [[package]]
@@ -3850,14 +4004,30 @@ name = "hon-worker-common"
 version = "0.1.0"
 dependencies = [
  "candid",
- "global-constants",
+ "global-constants 0.1.0",
  "ic-agent",
  "num-bigint",
  "serde",
  "serde_with",
  "thiserror 2.0.19",
  "url",
- "yral-identity",
+ "yral-identity 0.1.0",
+]
+
+[[package]]
+name = "hon-worker-common"
+version = "0.1.0"
+source = "git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main#5152c7fa7b3b2529077f4dcef781667650d40847"
+dependencies = [
+ "candid",
+ "global-constants 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
+ "ic-agent",
+ "num-bigint",
+ "serde",
+ "serde_with",
+ "thiserror 2.0.19",
+ "url",
+ "yral-identity 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
 ]
 
 [[package]]
@@ -5824,13 +5994,13 @@ dependencies = [
  "utoipa-axum",
  "utoipa-swagger-ui",
  "uuid",
- "yral-canisters-client",
- "yral-canisters-common",
- "yral-metadata-client",
- "yral-metadata-types",
+ "yral-canisters-client 0.1.0",
+ "yral-canisters-common 0.1.0",
+ "yral-metadata-client 0.1.0",
+ "yral-metadata-types 0.1.0",
  "yral-metrics",
- "yral-types",
- "yral-username-gen",
+ "yral-types 0.1.0",
+ "yral-username-gen 0.1.0",
 ]
 
 [[package]]
@@ -6020,13 +6190,13 @@ dependencies = [
  "dotenv",
  "futures",
  "getrandom 0.3.4",
- "global-constants",
+ "global-constants 0.1.0",
  "gloo",
  "gloo-utils",
  "gob-cloudflare",
  "hex",
  "hmac 0.12.1",
- "hon-worker-common",
+ "hon-worker-common 0.1.0",
  "http 1.4.2",
  "ic-agent",
  "ic-certification",
@@ -6058,7 +6228,7 @@ dependencies = [
  "serde_bytes",
  "serde_json",
  "simple_logger",
- "sns-validation",
+ "sns-validation 0.1.0",
  "speedate",
  "state",
  "thiserror 2.0.19",
@@ -6074,14 +6244,14 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "web-time",
- "yral-canisters-client",
- "yral-canisters-common",
- "yral-identity",
- "yral-metadata-client",
- "yral-metadata-types",
- "yral-pump-n-dump-common",
- "yral-types",
- "yral-username-gen",
+ "yral-canisters-client 0.1.0",
+ "yral-canisters-common 0.1.0",
+ "yral-identity 0.1.0",
+ "yral-metadata-client 0.1.0",
+ "yral-metadata-types 0.1.0",
+ "yral-pump-n-dump-common 0.1.0",
+ "yral-types 0.1.0",
+ "yral-username-gen 0.1.0",
 ]
 
 [[package]]
@@ -6232,7 +6402,7 @@ version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67eabc2ef2a60eb7faa00097bd1ffdb5bd28e62bf39990626a582201b7a754e5"
 dependencies = [
- "siphasher",
+ "siphasher 1.0.3",
 ]
 
 [[package]]
@@ -6241,7 +6411,7 @@ version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06005508882fb681fd97892ecff4b7fd0fee13ef1aa569f8695dae7ab9099981"
 dependencies = [
- "siphasher",
+ "siphasher 1.0.3",
 ]
 
 [[package]]
@@ -6319,6 +6489,12 @@ name = "pkg-config"
 version = "0.3.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19f132c84eca552bf34cab8ec81f1c1dcc229b811638f9d283dceabe58c5569e"
+
+[[package]]
+name = "plain"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 
 [[package]]
 name = "png"
@@ -7659,6 +7835,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
+name = "scroll"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ab8598aa408498679922eff7fa985c25d58a90771bd6be794434c5277eab1a6"
+dependencies = [
+ "scroll_derive",
+]
+
+[[package]]
+name = "scroll_derive"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1783eabc414609e28a5ba76aee5ddd52199f7107a0b24c2e9746a1ecc34a683d"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "sct"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7736,6 +7932,10 @@ name = "semver"
 version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd"
+dependencies = [
+ "serde",
+ "serde_core",
+]
 
 [[package]]
 name = "send_wrapper"
@@ -8256,6 +8456,12 @@ dependencies = [
 
 [[package]]
 name = "siphasher"
+version = "0.3.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38b58827f4464d87d377d175e90bf58eb00fd8716ff0a62f80356b5e61555d0d"
+
+[[package]]
+name = "siphasher"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ee5873ec9cce0195efcb7a4e9507a04cd49aec9c83d0389df45b1ef7ba2e649"
@@ -8282,8 +8488,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
 
 [[package]]
+name = "smawk"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8e2fb0f499abb4d162f2bedad68f5ef91a1682b5a03596ddb67efd37768d100"
+
+[[package]]
 name = "sns-validation"
 version = "0.1.0"
+dependencies = [
+ "candid",
+ "humantime",
+ "regex",
+ "serde",
+ "serde_bytes",
+ "web-time",
+]
+
+[[package]]
+name = "sns-validation"
+version = "0.1.0"
+source = "git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main#5152c7fa7b3b2529077f4dcef781667650d40847"
 dependencies = [
  "candid",
  "humantime",
@@ -8667,7 +8892,7 @@ dependencies = [
  "dotenv",
  "enum_dispatch",
  "futures",
- "global-constants",
+ "global-constants 0.1.0",
  "gloo",
  "gloo-utils",
  "gob-cloudflare",
@@ -8702,7 +8927,7 @@ dependencies = [
  "serde_bytes",
  "serde_json",
  "simple_logger",
- "sns-validation",
+ "sns-validation 0.1.0",
  "speedate",
  "thiserror 2.0.19",
  "tokio",
@@ -8717,12 +8942,18 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "web-time",
- "yral-canisters-client",
- "yral-canisters-common",
- "yral-metadata-client",
- "yral-metadata-types",
- "yral-types",
+ "yral-canisters-client 0.1.0",
+ "yral-canisters-common 0.1.0",
+ "yral-metadata-client 0.1.0",
+ "yral-metadata-types 0.1.0",
+ "yral-types 0.1.0",
 ]
+
+[[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "stop-token"
@@ -9020,6 +9251,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "textwrap"
+version = "0.16.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c13547615a44dc9c452a8a534638acdf07120d4b6847c8178705da06306a3057"
+dependencies = [
+ "smawk",
+]
+
+[[package]]
 name = "thiserror"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9266,6 +9506,15 @@ dependencies = [
  "libc",
  "pin-project-lite",
  "tokio",
+]
+
+[[package]]
+name = "toml"
+version = "0.5.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4f7f0dd8d50a853a531c426359045b1998f04219d88799810762cd4ad314234"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -9704,6 +9953,136 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
+name = "uniffi"
+version = "0.28.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4cb08c58c7ed7033150132febe696bef553f891b1ede57424b40d87a89e3c170"
+dependencies = [
+ "anyhow",
+ "camino",
+ "cargo_metadata",
+ "clap",
+ "uniffi_bindgen",
+ "uniffi_build",
+ "uniffi_core",
+ "uniffi_macros",
+]
+
+[[package]]
+name = "uniffi_bindgen"
+version = "0.28.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cade167af943e189a55020eda2c314681e223f1e42aca7c4e52614c2b627698f"
+dependencies = [
+ "anyhow",
+ "askama",
+ "camino",
+ "cargo_metadata",
+ "fs-err",
+ "glob",
+ "goblin",
+ "heck 0.5.0",
+ "once_cell",
+ "paste",
+ "serde",
+ "textwrap",
+ "toml 0.5.11",
+ "uniffi_meta",
+ "uniffi_udl",
+]
+
+[[package]]
+name = "uniffi_build"
+version = "0.28.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c7cf32576e08104b7dc2a6a5d815f37616e66c6866c2a639fe16e6d2286b75b"
+dependencies = [
+ "anyhow",
+ "camino",
+ "uniffi_bindgen",
+]
+
+[[package]]
+name = "uniffi_checksum_derive"
+version = "0.28.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "802d2051a700e3ec894c79f80d2705b69d85844dafbbe5d1a92776f8f48b563a"
+dependencies = [
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "uniffi_core"
+version = "0.28.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc7687007d2546c454d8ae609b105daceb88175477dac280707ad6d95bcd6f1f"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "log",
+ "once_cell",
+ "paste",
+ "static_assertions",
+]
+
+[[package]]
+name = "uniffi_macros"
+version = "0.28.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12c65a5b12ec544ef136693af8759fb9d11aefce740fb76916721e876639033b"
+dependencies = [
+ "bincode",
+ "camino",
+ "fs-err",
+ "once_cell",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "syn 2.0.119",
+ "toml 0.5.11",
+ "uniffi_meta",
+]
+
+[[package]]
+name = "uniffi_meta"
+version = "0.28.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a74ed96c26882dac1ca9b93ca23c827e284bacbd7ec23c6f0b0372f747d59e4"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "siphasher 0.3.11",
+ "uniffi_checksum_derive",
+]
+
+[[package]]
+name = "uniffi_testing"
+version = "0.28.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a6f984f0781f892cc864a62c3a5c60361b1ccbd68e538e6c9fbced5d82268ac"
+dependencies = [
+ "anyhow",
+ "camino",
+ "cargo_metadata",
+ "fs-err",
+ "once_cell",
+]
+
+[[package]]
+name = "uniffi_udl"
+version = "0.28.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "037820a4cfc4422db1eaa82f291a3863c92c7d1789dc513489c36223f9b4cdfc"
+dependencies = [
+ "anyhow",
+ "textwrap",
+ "uniffi_meta",
+ "uniffi_testing",
+ "weedle2",
+]
+
+[[package]]
 name = "universal-hash"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9777,13 +10156,13 @@ dependencies = [
  "dotenv",
  "enum_dispatch",
  "futures",
- "global-constants",
+ "global-constants 0.1.0",
  "gloo",
  "gloo-utils",
  "gob-cloudflare",
  "hex",
  "hmac 0.12.1",
- "hon-worker-common",
+ "hon-worker-common 0.1.0",
  "http 1.4.2",
  "ic-agent",
  "ic-certification",
@@ -9814,7 +10193,7 @@ dependencies = [
  "serde_bytes",
  "serde_json",
  "simple_logger",
- "sns-validation",
+ "sns-validation 0.1.0",
  "speedate",
  "thiserror 2.0.19",
  "tokio",
@@ -9828,13 +10207,13 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "web-time",
- "yral-canisters-client",
- "yral-canisters-common",
- "yral-identity",
- "yral-metadata-client",
- "yral-metadata-types",
- "yral-types",
- "yral-username-gen",
+ "yral-canisters-client 0.1.0",
+ "yral-canisters-common 0.1.0",
+ "yral-identity 0.1.0",
+ "yral-metadata-client 0.1.0",
+ "yral-metadata-types 0.1.0",
+ "yral-types 0.1.0",
+ "yral-username-gen 0.1.0",
 ]
 
 [[package]]
@@ -9889,8 +10268,15 @@ dependencies = [
  "serde_json",
  "url",
  "utoipa",
+ "utoipa-swagger-ui-vendored",
  "zip",
 ]
+
+[[package]]
+name = "utoipa-swagger-ui-vendored"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2eebbbfe4093922c2b6734d7c679ebfebd704a0d7e56dfcb0d05818ce28977d"
 
 [[package]]
 name = "uts2ts"
@@ -10133,6 +10519,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7dcd9d09a39985f5344844e66b0c530a33843579125f23e21e9f0f220850f22a"
 dependencies = [
  "rustls-pki-types",
+]
+
+[[package]]
+name = "weedle2"
+version = "5.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "998d2c24ec099a87daf9467808859f9d82b61f1d9c9701251aea037f514eae0e"
+dependencies = [
+ "nom 7.1.3",
 ]
 
 [[package]]
@@ -10616,13 +11011,34 @@ dependencies = [
  "url",
  "wasm-bindgen",
  "web-time",
- "yral-identity",
- "yral-types",
+ "yral-identity 0.1.0",
+ "yral-types 0.1.0",
 ]
 
 [[package]]
 name = "yral-canisters-client"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "candid",
+ "candid_parser",
+ "convert_case 0.11.0",
+ "ic-agent",
+ "log",
+ "prettyplease 0.3.0",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_bytes",
+ "serde_json",
+ "syn 3.0.3",
+ "tokio",
+]
+
+[[package]]
+name = "yral-canisters-client"
+version = "0.1.0"
+source = "git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main#5152c7fa7b3b2529077f4dcef781667650d40847"
 dependencies = [
  "anyhow",
  "candid",
@@ -10651,8 +11067,8 @@ dependencies = [
  "enum_dispatch",
  "futures-util",
  "getrandom 0.2.17",
- "global-constants",
- "hon-worker-common",
+ "global-constants 0.1.0",
+ "hon-worker-common 0.1.0",
  "ic-agent",
  "k256",
  "log",
@@ -10663,18 +11079,55 @@ dependencies = [
  "send_wrapper",
  "serde",
  "serde_json",
- "sns-validation",
+ "sns-validation 0.1.0",
  "thiserror 2.0.19",
  "tracing",
  "url",
  "web-time",
- "yral-canisters-client",
- "yral-identity",
- "yral-metadata-client",
- "yral-metadata-types",
- "yral-pump-n-dump-common",
- "yral-types",
- "yral-username-gen",
+ "yral-canisters-client 0.1.0",
+ "yral-identity 0.1.0",
+ "yral-metadata-client 0.1.0",
+ "yral-metadata-types 0.1.0",
+ "yral-pump-n-dump-common 0.1.0",
+ "yral-types 0.1.0",
+ "yral-username-gen 0.1.0",
+]
+
+[[package]]
+name = "yral-canisters-common"
+version = "0.1.0"
+source = "git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main#5152c7fa7b3b2529077f4dcef781667650d40847"
+dependencies = [
+ "async-trait",
+ "candid",
+ "ciborium",
+ "crc32fast",
+ "enum_dispatch",
+ "futures-util",
+ "getrandom 0.2.17",
+ "global-constants 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
+ "hon-worker-common 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
+ "ic-agent",
+ "k256",
+ "log",
+ "num-bigint",
+ "once_cell",
+ "reqwest 0.12.28",
+ "rust_decimal",
+ "serde",
+ "serde_json",
+ "sns-validation 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
+ "thiserror 2.0.19",
+ "tracing",
+ "url",
+ "web-time",
+ "yral-canisters-client 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
+ "yral-identity 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
+ "yral-metadata-client 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
+ "yral-metadata-types 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
+ "yral-pump-n-dump-common 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
+ "yral-types 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
+ "yral-username-gen 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
 ]
 
 [[package]]
@@ -10720,6 +11173,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "yral-identity"
+version = "0.1.0"
+source = "git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main#5152c7fa7b3b2529077f4dcef781667650d40847"
+dependencies = [
+ "candid",
+ "getrandom 0.2.17",
+ "ic-agent",
+ "serde",
+ "thiserror 2.0.19",
+ "web-time",
+]
+
+[[package]]
 name = "yral-legacy"
 version = "0.1.0"
 dependencies = [
@@ -10746,7 +11212,7 @@ dependencies = [
  "gob-cloudflare",
  "hex",
  "hmac 0.12.1",
- "hon-worker-common",
+ "hon-worker-common 0.1.0",
  "http 1.4.2",
  "ic-agent",
  "ic-certification",
@@ -10780,7 +11246,7 @@ dependencies = [
  "serde_bytes",
  "serde_json",
  "simple_logger",
- "sns-validation",
+ "sns-validation 0.1.0",
  "speedate",
  "state",
  "thiserror 2.0.19",
@@ -10799,11 +11265,11 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "web-time",
- "yral-canisters-client",
- "yral-canisters-common",
- "yral-metadata-client",
- "yral-metadata-types",
- "yral-types",
+ "yral-canisters-client 0.1.0",
+ "yral-canisters-common 0.1.0",
+ "yral-metadata-client 0.1.0",
+ "yral-metadata-types 0.1.0",
+ "yral-types 0.1.0",
 ]
 
 [[package]]
@@ -10813,8 +11279,20 @@ dependencies = [
  "ic-agent",
  "reqwest 0.13.4",
  "thiserror 2.0.19",
- "yral-identity",
- "yral-metadata-types",
+ "yral-identity 0.1.0",
+ "yral-metadata-types 0.1.0",
+]
+
+[[package]]
+name = "yral-metadata-client"
+version = "0.1.0"
+source = "git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main#5152c7fa7b3b2529077f4dcef781667650d40847"
+dependencies = [
+ "ic-agent",
+ "reqwest 0.13.4",
+ "thiserror 2.0.19",
+ "yral-identity 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
+ "yral-metadata-types 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
 ]
 
 [[package]]
@@ -10854,9 +11332,9 @@ dependencies = [
  "tracing-subscriber",
  "utoipa",
  "utoipa-swagger-ui",
- "yral-canisters-client",
- "yral-identity",
- "yral-metadata-types",
+ "yral-canisters-client 0.1.0",
+ "yral-identity 0.1.0",
+ "yral-metadata-types 0.1.0",
 ]
 
 [[package]]
@@ -10870,7 +11348,22 @@ dependencies = [
  "thiserror 2.0.19",
  "utoipa",
  "utoipa-swagger-ui",
- "yral-identity",
+ "yral-identity 0.1.0",
+]
+
+[[package]]
+name = "yral-metadata-types"
+version = "0.1.0"
+source = "git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main#5152c7fa7b3b2529077f4dcef781667650d40847"
+dependencies = [
+ "candid",
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "yral-identity 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
 ]
 
 [[package]]
@@ -10889,6 +11382,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "yral-mobile-uniffi"
+version = "4.1.0"
+dependencies = [
+ "candid",
+ "cfg-if",
+ "ic-agent",
+ "k256",
+ "lazy_static",
+ "log",
+ "once_cell",
+ "openssl",
+ "serde",
+ "serde_bytes",
+ "serde_json",
+ "tokio",
+ "uniffi",
+ "utoipa-swagger-ui",
+ "web-time",
+ "yral-canisters-client 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
+ "yral-canisters-common 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
+ "yral-identity 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
+ "yral-metadata-client 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
+ "yral-metadata-types 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
+ "yral-types 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
+ "yral-username-gen 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
+]
+
+[[package]]
 name = "yral-pump-n-dump-common"
 version = "0.1.0"
 dependencies = [
@@ -10898,8 +11419,21 @@ dependencies = [
  "serde_json",
  "url",
  "uuid",
- "yral-canisters-client",
- "yral-identity",
+ "yral-canisters-client 0.1.0",
+ "yral-identity 0.1.0",
+]
+
+[[package]]
+name = "yral-pump-n-dump-common"
+version = "0.1.0"
+source = "git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main#5152c7fa7b3b2529077f4dcef781667650d40847"
+dependencies = [
+ "candid",
+ "serde",
+ "serde_json",
+ "uuid",
+ "yral-canisters-client 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
+ "yral-identity 0.1.0 (git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main)",
 ]
 
 [[package]]
@@ -10908,7 +11442,7 @@ version = "0.1.0"
 dependencies = [
  "candid",
  "serde",
- "yral-types",
+ "yral-types 0.1.0",
 ]
 
 [[package]]
@@ -10926,8 +11460,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "yral-types"
+version = "0.1.0"
+source = "git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main#5152c7fa7b3b2529077f4dcef781667650d40847"
+dependencies = [
+ "ic-agent",
+ "k256",
+ "serde",
+ "serde_json",
+ "utoipa",
+ "utoipa-swagger-ui",
+]
+
+[[package]]
 name = "yral-username-gen"
 version = "0.1.0"
+dependencies = [
+ "candid",
+ "rand 0.9.5",
+ "rand_xoshiro",
+]
+
+[[package]]
+name = "yral-username-gen"
+version = "0.1.0"
+source = "git+https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git?branch=main#5152c7fa7b3b2529077f4dcef781667650d40847"
 dependencies = [
  "candid",
  "rand 0.9.5",
@@ -10947,7 +11504,7 @@ dependencies = [
  "spacetimedb",
  "spacetimedb-sdk",
  "tokio",
- "yral-canisters-client",
+ "yral-canisters-client 0.1.0",
 ]
 
 [[package]]
