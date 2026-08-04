@@ -158,7 +158,7 @@ spec:
       serviceAccountName: shipwright-build-controller
       containers:
         - name: shipwright-build
-          image: ghcr.io/shipwright-io/build/shipwright-build-controller:v0.20.6@sha256:76c2d562800d229a1bb2ebf1a640d6229f4d3309181e153ab0669317da88f035
+          image: ghcr.io/shipwright-io/build/shipwright-build-controller:v0.20.6
           env:
             - name: WATCH_NAMESPACE
               valueFrom:
@@ -175,15 +175,15 @@ spec:
             - name: CONTROLLER_NAME
               value: "shipwright-build"
             - name: GIT_CONTAINER_IMAGE
-              value: ghcr.io/shipwright-io/build/git:v0.20.3@sha256:bde3f7b3d8f29c98621fedaa2a510c5358e5743348fe64a7eb74b553d6292d46
+              value: ghcr.io/shipwright-io/build/git:v0.20.3
             - name: GIT_ENABLE_REWRITE_RULE
               value: "false"
             - name: IMAGE_PROCESSING_CONTAINER_IMAGE
-              value: ghcr.io/shipwright-io/build/image-processing:v0.20.3@sha256:98dbf7043b69a71459d942704b6eaed8fbbd7a66cf8c33ca06307732321e20b3
+              value: ghcr.io/shipwright-io/build/image-processing:v0.20.3
             - name: BUNDLE_CONTAINER_IMAGE
-              value: ghcr.io/shipwright-io/build/bundle:v0.20.3@sha256:6e4e18f330bc01ea84c0df76010ecaa86b355b0a9c3adeb821fee2bed5d01a39
+              value: ghcr.io/shipwright-io/build/bundle:v0.20.3
             - name: WAITER_CONTAINER_IMAGE
-              value: ghcr.io/shipwright-io/build/waiter:v0.20.3@sha256:40db27334e1864f79e25dc710184c35b60a072b5ba5f0c01ec693c7c19a6737a
+              value: ghcr.io/shipwright-io/build/waiter:v0.20.3
           ports:
             - containerPort: 8383
               name: metrics-port
@@ -240,7 +240,7 @@ spec:
       serviceAccountName: shipwright-build-webhook
       containers:
         - name: shipwright-build-webhook
-          image: ghcr.io/shipwright-io/build/shipwright-build-webhook:v0.20.6@sha256:b9df4a66b0ee35efe697085f266cebe0cdb6ee555d4bb2fe656e14fcab0da7f7
+          image: ghcr.io/shipwright-io/build/shipwright-build-webhook:v0.20.6
           volumeMounts:
             - name: webhook-certs
               mountPath: /etc/webhook/certs
