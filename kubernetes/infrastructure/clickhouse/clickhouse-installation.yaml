@@ -406,18 +406,42 @@ spec:
               TTL parseDateTimeBestEffort(collector_tstamp) + INTERVAL 3 MONTH
               SETTINGS ttl_only_drop_parts = 1]]></query>
             </scripts>
-            <!-- Drop stale renamed system log tables left over from when the
-                 Altinity operator applied TTL configs to query_log, part_log,
-                 and trace_log. It renamed the old tables to *_0 / *_1 instead
-                 of dropping them. These have no TTL and waste ~4 GiB. -->
+            <!-- Drop stale renamed system log tables left over from Altinity
+                 operator engine changes. When the operator applies a new engine
+                 definition (e.g. adding TTL), it renames the old table to
+                 <name>_0 (or _1 if _0 exists) instead of dropping it. These
+                 stale tables have no TTL and waste ~12 GiB. The startup_scripts
+                 run on every pod start, so the next restart after any engine
+                 config change will clean these up automatically. -->
             <scripts>
               <query><![CDATA[DROP TABLE IF EXISTS system.metric_log_0]]></query>
+            </scripts>
+            <scripts>
+              <query><![CDATA[DROP TABLE IF EXISTS system.metric_log_1]]></query>
+            </scripts>
+            <scripts>
+              <query><![CDATA[DROP TABLE IF EXISTS system.trace_log_0]]></query>
             </scripts>
             <scripts>
               <query><![CDATA[DROP TABLE IF EXISTS system.trace_log_1]]></query>
             </scripts>
             <scripts>
               <query><![CDATA[DROP TABLE IF EXISTS system.part_log_0]]></query>
+            </scripts>
+            <scripts>
+              <query><![CDATA[DROP TABLE IF EXISTS system.text_log_0]]></query>
+            </scripts>
+            <scripts>
+              <query><![CDATA[DROP TABLE IF EXISTS system.asynchronous_metric_log_0]]></query>
+            </scripts>
+            <scripts>
+              <query><![CDATA[DROP TABLE IF EXISTS system.query_views_log_0]]></query>
+            </scripts>
+            <scripts>
+              <query><![CDATA[DROP TABLE IF EXISTS system.background_schedule_pool_log_0]]></query>
+            </scripts>
+            <scripts>
+              <query><![CDATA[DROP TABLE IF EXISTS system.query_metric_log_0]]></query>
             </scripts>
           </startup_scripts>
         </clickhouse>
