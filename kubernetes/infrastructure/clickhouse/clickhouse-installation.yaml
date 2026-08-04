@@ -3,12 +3,18 @@
 #
 # Schema init via startup_scripts (runs on every pod start, all queries are IF NOT EXISTS):
 #   - snowplow.events_queue       Kafka engine (reads TSV from snowplow-enriched, 4 consumer threads)
-#   - snowplow.events_v1          MergeTree storage (archived pre-enrichment table; drop when stable)
 #   - snowplow.events_v2          MergeTree storage (canonical; enriched with geo+UA data)
 #   - snowplow.events_mv          Materialized view piping queue -> events_v2 (canonical)
 #   - snowplow.bad_rows_queue      Kafka engine (reads JSON from snowplow-enrich-bad)
 #   - snowplow.bad_rows            MergeTree storage (enrichment bad rows for investigation)
 #   - snowplow.bad_rows_mv         Materialized view piping bad_rows_queue -> bad_rows
+#
+# System log retention: config.d/system-log-ttl.xml sets 30-day TTL on all system log
+# tables that the Altinity operator doesn't configure by default (text_log,
+# asynchronous_metric_log, metric_log, query_views_log, background_schedule_pool_log).
+# The operator auto-generates 30-day TTL for query_log, part_log, and trace_log.
+# Without these TTL configs, system logs grow unbounded — text_log alone was 8.84 GiB
+# after 5 months with no retention.
 #
 # dbx connection:
 #   Host: clickhouse-analytics.clickhouse.svc.cluster.local
@@ -35,6 +41,47 @@ spec:
             <sasl_password from_env="KAFKA_SASL_PASSWORD"/>
             <auto_offset_reset>earliest</auto_offset_reset>
           </kafka>
+        </clickhouse>
+
+      # System log TTL — 30-day retention on all system log tables that the
+      # Altinity operator doesn't configure by default. The operator auto-
+      # generates 30-day TTL for query_log, part_log, and trace_log, but
+      # text_log, asynchronous_metric_log, metric_log, query_views_log, and
+      # background_schedule_pool_log have no TTL and grow unbounded without
+      # this config. See ClickHouse server settings docs for the XML schema:
+      # https://clickhouse.com/docs/reference/settings/server-settings/settings/other#text_log
+      config.d/system-log-ttl.xml: |
+        <clickhouse>
+          <text_log replace="1">
+            <database>system</database>
+            <table>text_log</table>
+            <engine>Engine = MergeTree PARTITION BY toYYYYMM(event_date) ORDER BY event_time TTL event_date + INTERVAL 30 DAY</engine>
+            <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+          </text_log>
+          <asynchronous_metric_log replace="1">
+            <database>system</database>
+            <table>asynchronous_metric_log</table>
+            <engine>Engine = MergeTree PARTITION BY toYYYYMM(event_date) ORDER BY event_time TTL event_date + INTERVAL 30 DAY</engine>
+            <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+          </asynchronous_metric_log>
+          <metric_log replace="1">
+            <database>system</database>
+            <table>metric_log</table>
+            <engine>Engine = MergeTree PARTITION BY toYYYYMM(event_date) ORDER BY event_time TTL event_date + INTERVAL 30 DAY</engine>
+            <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+          </metric_log>
+          <query_views_log replace="1">
+            <database>system</database>
+            <table>query_views_log</table>
+            <engine>Engine = MergeTree PARTITION BY toYYYYMM(event_date) ORDER BY (event_date, event_time) TTL event_date + INTERVAL 30 DAY</engine>
+            <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+          </query_views_log>
+          <background_schedule_pool_log replace="1">
+            <database>system</database>
+            <table>background_schedule_pool_log</table>
+            <engine>Engine = MergeTree PARTITION BY toYYYYMM(event_date) ORDER BY (event_date, event_time) TTL event_date + INTERVAL 30 DAY</engine>
+            <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+          </background_schedule_pool_log>
         </clickhouse>
 
       config.d/startup-scripts.xml: |
@@ -185,9 +232,6 @@ spec:
                   kafka_num_consumers = 4,
                   kafka_skip_broken_messages = 100]]></query>
             </scripts>
-            <!-- events_v1 (formerly events) is the archived pre-enrichment table.
-                 It exists on the cluster but is not managed by startup_scripts —
-                 drop it manually once events_v2 is confirmed stable. -->
             <scripts>
               <query><![CDATA[CREATE MATERIALIZED VIEW IF NOT EXISTS snowplow.events_mv
               TO snowplow.events_v2
@@ -361,6 +405,19 @@ spec:
               ORDER BY (collector_tstamp, event_id)
               TTL parseDateTimeBestEffort(collector_tstamp) + INTERVAL 3 MONTH
               SETTINGS ttl_only_drop_parts = 1]]></query>
+            </scripts>
+            <!-- Drop stale renamed system log tables left over from when the
+                 Altinity operator applied TTL configs to query_log, part_log,
+                 and trace_log. It renamed the old tables to *_0 / *_1 instead
+                 of dropping them. These have no TTL and waste ~4 GiB. -->
+            <scripts>
+              <query><![CDATA[DROP TABLE IF EXISTS system.metric_log_0]]></query>
+            </scripts>
+            <scripts>
+              <query><![CDATA[DROP TABLE IF EXISTS system.trace_log_1]]></query>
+            </scripts>
+            <scripts>
+              <query><![CDATA[DROP TABLE IF EXISTS system.part_log_0]]></query>
             </scripts>
           </startup_scripts>
         </clickhouse>

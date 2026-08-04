@@ -1,43 +1,34 @@
-# kube-prometheus-stack Helm Values
-# Prometheus + Grafana + AlertManager on worker nodes
-
-# Global settings
-global:
-  rbac:
-    create: true
-
-# Prometheus Operator
-prometheusOperator:
-  enabled: true
-  resources:
-    limits:
-      cpu: 500m
-      memory: 512Mi
-    requests:
-      cpu: 100m
-      memory: 128Mi
-
+# kube-prometheus-stack Helm Values (bootstrap-only)
+# These values are used by ansible/roles/monitoring/ for initial cluster bootstrap.
+# The Flux HelmRelease at kubernetes/infrastructure/monitoring/helmrelease.yaml
+# is the source of truth for production. If you change retention/storage there,
+# sync the values here so bootstrap matches production.
+#
 # Prometheus
 prometheus:
   enabled: true
   prometheusSpec:
-    replicas: 2
+    # Single replica (matches Flux HelmRelease). ceph-block provides durability.
+    replicas: 1
+    # 15-day retention, matches Flux HelmRelease.
     retention: 15d
-    retentionSize: "50GB"
+    # Hard size cap: ~90% of 100Gi PVC. Matches Flux HelmRelease.
+    retentionSize: "90GB"
 
-    # Resources
+    # Resources (match Flux HelmRelease)
     resources:
       requests:
-        cpu: 1000m
-        memory: 4Gi
+        cpu: 200m
+        memory: 2Gi
       limits:
-        cpu: 2000m
+        cpu: 1000m
         memory: 8Gi
 
-    # Storage
+    # Storage (match Flux HelmRelease — ceph-block, 100Gi)
     storageSpec:
       volumeClaimTemplate:
         spec:
+          storageClassName: ceph-block
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:

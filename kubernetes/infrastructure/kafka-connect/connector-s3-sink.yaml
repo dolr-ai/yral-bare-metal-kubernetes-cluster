@@ -17,6 +17,14 @@
 # no s3.credentials.provider.class configuration is required.
 #
 # The connector's consumer inherits SASL auth from the Connect worker config.
+#
+# Retention: The Hetzner FSN1 bucket (yral-events-data-lake) has NO lifecycle
+# policy — this is intentional. It is the long-term data lake / re-ingest source.
+# ClickHouse retains only 3 months of hot analytics data (TTL on events_v2);
+# this S3 bucket is the durable copy that survives beyond that window. If cost
+# becomes a concern, a Hetzner lifecycle policy could transition older objects
+# to colder storage, but Hetzner object storage is already low-cost. Monitor
+# bucket growth manually for now.
 ---
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaConnector

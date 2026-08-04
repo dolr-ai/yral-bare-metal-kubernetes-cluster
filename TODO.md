@@ -1,4 +1,11 @@
-- are loki logs being cleaned up properly? Check retention policies and storage usage. What about prometheus and clickhouse? Does prometheus have a retention policy configured? Check storage usage and retention settings. Similarly, check clickhouse for retention policies and storage usage. We are dumping snowplow events into clickhouse via the snowplow stream collector and using clickhouse as the data warehouse for analytics. We should ensure that we have appropriate retention policies in place to manage storage and costs effectively. The snowplow data is also saved long term in object storage, so we can always re-ingest if needed
+- ~~are loki logs being cleaned up properly? Check retention policies and storage usage. What about prometheus and clickhouse?~~ **DONE — Audit complete:**
+  - **Loki**: 30-day retention (`retention_period: 720h`, compactor enabled), 600Gi PVC at 1.5% usage (9 GiB). ✅
+  - **Prometheus**: 15-day retention + 90GB size cap, 100Gi PVC at 72% usage (70.5 GiB). ✅
+  - **ClickHouse `events_v2`**: 3-month TTL, monthly partitions, 200Gi PVC at 10.9% (21.4 GiB). ✅
+  - **ClickHouse system logs**: Were consuming 19.93 GiB (97% of used storage) with no TTL on `text_log`, `asynchronous_metric_log`, `metric_log`, `query_views_log`, `background_schedule_pool_log`. **Fixed** — added `config.d/system-log-ttl.xml` with 30-day TTL on all five tables. Also added startup_script to drop stale renamed tables (`metric_log_0`, `trace_log_1`, `part_log_0`, ~4 GiB waste).
+  - **S3 data lake** (`yral-events-data-lake`): No lifecycle policy — intentional (long-term re-ingest source). Documented in connector-s3-sink.yaml.
+  - **Kafka topics**: `snowplow-enriched` 240 GiB cap, `snowplow-raw` 48h, bad-row topics 7d. ✅
+  - Cleaned up: stale "2 replicas" Prometheus comment, diverged `ansible/manifests/monitoring-values.yaml` (synced to Flux HelmRelease values).
 - archive all the unused org repos
 - Confirm that all the new volumes being provisioned have 1 replica unless specifically configure to have 2
 - How do we enforce schema on the events being ingested into our kafka topics? Should we use Snowplow's schema registry that uses iglu? Figure out if this is open and popular. Or should we use schema enforcement at Kafka's layer? This is probably the more popular and documented solution

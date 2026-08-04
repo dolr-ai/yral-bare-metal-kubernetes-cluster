@@ -108,8 +108,9 @@ spec:
         storageSpec:
           volumeClaimTemplate:
             spec:
-              # 2 replicas: Prometheus runs as a single pod with no in-cluster HA.
-              # Use ceph-block for durable storage.
+              # Single replica (default): no in-cluster HA, but ceph-block provides
+              # durable storage at the volume level. Prometheus is not stateful
+              # enough to warrant a second replica — 15d retention is expendable.
               storageClassName: ceph-block
               accessModes: ["ReadWriteOnce"]
               resources:
