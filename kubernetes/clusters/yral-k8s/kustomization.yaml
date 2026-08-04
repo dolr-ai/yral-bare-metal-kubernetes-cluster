@@ -35,6 +35,7 @@ resources:
   - infrastructure-kafka-console.yaml
   - infrastructure-metabase.yaml
   - infrastructure-cloudbeaver.yaml
+  - infrastructure-dbx.yaml
   - infrastructure-clickhouse-operator.yaml
   - infrastructure-clickhouse.yaml
   - infrastructure-ci-e2e-reader.yaml

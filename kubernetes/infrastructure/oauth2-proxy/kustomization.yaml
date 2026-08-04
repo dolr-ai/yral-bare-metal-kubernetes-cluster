@@ -21,4 +21,6 @@ resources:
   - service-cloudbeaver.yaml
   - deployment-bytebase.yaml
   - service-bytebase.yaml
+  - deployment-dbx.yaml
+  - service-dbx.yaml
   - reference-grant.yaml

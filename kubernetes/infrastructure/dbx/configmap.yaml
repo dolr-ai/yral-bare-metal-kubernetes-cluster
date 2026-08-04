@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dbx-config
+  namespace: dbx
+data:
+  # oauth2-proxy is the sole external auth gate (Google SSO).
+  # Disabling dbx's built-in password means the Web API is open internally —
+  # oauth2-proxy restricts all external access to developer-admin@gobazzinga.io.
+  DBX_DISABLE_PASSWORD: "1"
+  DBX_PORT: "4224"
+  DBX_DATA_DIR: "/app/data"

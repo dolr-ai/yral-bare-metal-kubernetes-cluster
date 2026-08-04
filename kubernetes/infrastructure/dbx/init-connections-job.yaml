@@ -1,0 +1,74 @@
+# Pre-provision dbx connections via Web API on first boot.
+#
+# dbx stores connections in sqlite dbx.db — there is no declarative config-file
+# mechanism. This Job calls POST /api/connection/save for 3 in-cluster databases.
+# Since DBX_DISABLE_PASSWORD=1, the API is open internally (oauth2-proxy gates
+# external access).
+#
+# The dbx Web API is NOT a stable public contract and may change between releases.
+# If this Job fails on a future dbx upgrade, connections already in dbx.db persist.
+# Manual fallback: log in via SSO and add connections via the dbx UI using the
+# details documented in the script below (~10 min).
+#
+# The Job is idempotent — re-saving a connection with the same name overwrites it.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dbx-init-connections
+  namespace: dbx
+spec:
+  backoffLimit: 4
+  template:
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+        # Wait for dbx to be ready before sending API requests
+        - name: wait-for-dbx
+          image: busybox:1.38
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for dbx at http://dbx.dbx.svc.cluster.local:4224/api/auth/check ..."
+              until wget -q -O- --timeout=2 http://dbx.dbx.svc.cluster.local:4224/api/auth/check 2>/dev/null; do
+                echo "dbx not ready, retrying in 5s..."
+                sleep 5
+              done
+              echo "dbx is ready."
+      containers:
+        - name: init-connections
+          image: busybox:1.38
+          env:
+            - name: BYTEBASE_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dbx-db-credentials
+                  key: BYTEBASE_POSTGRES_PASSWORD
+            - name: KAFKA_SASL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dbx-db-credentials
+                  key: KAFKA_SASL_PASSWORD
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              API="http://dbx.dbx.svc.cluster.local:4224/api/connection/save"
+
+              echo "=== Saving CNPG Postgres (bytebase) connection ==="
+              cat <<EOF | wget -q -O- --post-data=@- "$API" 2>&1 || true
+              {"configs":[{"name":"Postgres - bytebase (prod)","db_type":"postgresql","host":"bytebase-postgres-rw.bytebase.svc.cluster.local","port":5432,"username":"bytebase","password":"${BYTEBASE_POSTGRES_PASSWORD}","database":"bytebase"}]}
+              EOF
+
+              echo "=== Saving ClickHouse (analytics) connection ==="
+              cat <<EOF | wget -q -O- --post-data=@- "$API" 2>&1 || true
+              {"configs":[{"name":"ClickHouse - analytics","db_type":"clickhouse","host":"clickhouse-analytics.clickhouse.svc.cluster.local","port":8123,"username":"default","password":"","database":"snowplow"}]}
+              EOF
+
+              echo "=== Saving Kafka (cluster) connection ==="
+              cat <<EOF | wget -q -O- --post-data=@- "$API" 2>&1 || true
+              {"configs":[{"name":"Kafka - cluster","db_type":"kafka","host":"kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local","port":9092,"username":"kafka-console","password":"${KAFKA_SASL_PASSWORD}"}]}
+              EOF
+
+              echo "=== All connections saved ==="

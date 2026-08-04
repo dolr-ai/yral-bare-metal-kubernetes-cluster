@@ -1,0 +1,63 @@
+# dbx — self-hosted database workbench (Docker/Web edition)
+#
+# Image: t8y2/dbx (multi-arch amd64/arm64), ~20 MB Rust binary
+# Port: 4224  |  Data dir: /app/data (sqlite dbx.db, PVC-backed)
+# Auth: DBX_DISABLE_PASSWORD=1 — oauth2-proxy (Google SSO) is the sole external gate
+#
+# Upgrades: bump the image tag below, push, Flux reconciles with Recreate
+# strategy (brief downtime — single replica + PVC). No image automation for
+# third-party images; upgrades are manual tag bumps in git.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dbx
+  namespace: dbx
+  annotations:
+    secret.reloader.stakater.com/reload: "dbx-db-credentials"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: dbx
+  template:
+    metadata:
+      labels:
+        app: dbx
+    spec:
+      containers:
+        - name: dbx
+          image: t8y2/dbx:0.5.75
+          ports:
+            - containerPort: 4224
+              name: http
+          envFrom:
+            - configMapRef:
+                name: dbx-config
+          volumeMounts:
+            - name: dbx-data
+              mountPath: /app/data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /api/auth/check
+              port: 4224
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/auth/check
+              port: 4224
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: dbx-data
+          persistentVolumeClaim:
+            claimName: dbx-data
