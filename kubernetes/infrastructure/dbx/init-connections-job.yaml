@@ -24,20 +24,20 @@ spec:
       initContainers:
         # Wait for dbx to be ready before sending API requests
         - name: wait-for-dbx
-          image: busybox:1.38
+          image: curlimages/curl:8.15.0
           command:
             - sh
             - -c
             - |
               echo "Waiting for dbx at http://dbx.dbx.svc.cluster.local:4224/api/auth/check ..."
-              until wget -q -O- --timeout=2 http://dbx.dbx.svc.cluster.local:4224/api/auth/check 2>/dev/null; do
+              until curl -sf --max-time 2 http://dbx.dbx.svc.cluster.local:4224/api/auth/check 2>/dev/null; do
                 echo "dbx not ready, retrying in 5s..."
                 sleep 5
               done
               echo "dbx is ready."
       containers:
         - name: init-connections
-          image: busybox:1.38
+          image: curlimages/curl:8.15.0
           env:
             - name: BYTEBASE_POSTGRES_PASSWORD
               valueFrom:
@@ -55,20 +55,21 @@ spec:
             - |
               set -e
               API="http://dbx.dbx.svc.cluster.local:4224/api/connection/save"
+              CT="Content-Type: application/json"
 
               echo "=== Saving CNPG Postgres (bytebase) connection ==="
-              cat <<EOF | wget -q -O- --post-data=@- "$API" 2>&1 || true
-              {"configs":[{"name":"Postgres - bytebase (prod)","db_type":"postgresql","host":"bytebase-postgres-rw.bytebase.svc.cluster.local","port":5432,"username":"bytebase","password":"${BYTEBASE_POSTGRES_PASSWORD}","database":"bytebase"}]}
-              EOF
+              curl -sf -X POST "$API" -H "$CT" \
+                -d "{\"configs\":[{\"name\":\"Postgres - bytebase (prod)\",\"db_type\":\"postgresql\",\"host\":\"bytebase-postgres-rw.bytebase.svc.cluster.local\",\"port\":5432,\"username\":\"bytebase\",\"password\":\"${BYTEBASE_POSTGRES_PASSWORD}\",\"database\":\"bytebase\"}]}" \
+                2>&1 || echo "WARNING: Postgres connection save failed"
 
               echo "=== Saving ClickHouse (analytics) connection ==="
-              cat <<EOF | wget -q -O- --post-data=@- "$API" 2>&1 || true
-              {"configs":[{"name":"ClickHouse - analytics","db_type":"clickhouse","host":"clickhouse-analytics.clickhouse.svc.cluster.local","port":8123,"username":"default","password":"","database":"snowplow"}]}
-              EOF
+              curl -sf -X POST "$API" -H "$CT" \
+                -d "{\"configs\":[{\"name\":\"ClickHouse - analytics\",\"db_type\":\"clickhouse\",\"host\":\"clickhouse-analytics.clickhouse.svc.cluster.local\",\"port\":8123,\"username\":\"default\",\"password\":\"\",\"database\":\"snowplow\"}]}" \
+                2>&1 || echo "WARNING: ClickHouse connection save failed"
 
               echo "=== Saving Kafka (cluster) connection ==="
-              cat <<EOF | wget -q -O- --post-data=@- "$API" 2>&1 || true
-              {"configs":[{"name":"Kafka - cluster","db_type":"kafka","host":"kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local","port":9092,"username":"kafka-console","password":"${KAFKA_SASL_PASSWORD}"}]}
-              EOF
+              curl -sf -X POST "$API" -H "$CT" \
+                -d "{\"configs\":[{\"name\":\"Kafka - cluster\",\"db_type\":\"kafka\",\"host\":\"kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local\",\"port\":9092,\"username\":\"kafka-console\",\"password\":\"${KAFKA_SASL_PASSWORD}\"}]}" \
+                2>&1 || echo "WARNING: Kafka connection save failed"
 
               echo "=== All connections saved ==="
