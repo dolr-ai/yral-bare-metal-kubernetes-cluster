@@ -8,7 +8,6 @@ resources:
   - dashboard.yaml
   - kafka-console.yaml
   - metabase.yaml
-  - bytebase.yaml
   - harbor.yaml
   - cloudbeaver.yaml
   - dbx.yaml

@@ -10,7 +10,6 @@ configMapGenerator:
       - data-sources.json
 resources:
   - namespace.yaml
-  - secret.sops.yaml
   - pvc.yaml
   - deployment.yaml
   - service.yaml

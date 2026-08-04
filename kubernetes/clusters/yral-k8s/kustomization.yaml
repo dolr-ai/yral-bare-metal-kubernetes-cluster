@@ -39,7 +39,6 @@ resources:
   - infrastructure-clickhouse-operator.yaml
   - infrastructure-clickhouse.yaml
   - infrastructure-ci-e2e-reader.yaml
-  - infrastructure-bytebase.yaml
   - infrastructure-devpod.yaml
   - infrastructure-harbor.yaml
   - infrastructure-tekton-pipelines.yaml

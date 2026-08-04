@@ -1,22 +1,5 @@
 {
   "folders": {},
   "connections": {
-    "postgres-bytebase": {
-      "provider": "postgresql",
-      "driver": "postgres-jdbc",
-      "name": "Postgres - bytebase",
-      "save-password": true,
-      "show-system-objects": false,
-      "configuration": {
-        "host": "bytebase-postgres-rw.bytebase.svc.cluster.local",
-        "port": "5432",
-        "database": "bytebase",
-        "url": "jdbc:postgresql://bytebase-postgres-rw.bytebase.svc.cluster.local:5432/bytebase?user=bytebase&password=${BYTEBASE_POSTGRES_PASSWORD}",
-        "type": "prod",
-        "configurationType": "MANUAL",
-        "closeIdleConnection": true
-      },
-      "auth-model": "native"
-    }
   }
 }
