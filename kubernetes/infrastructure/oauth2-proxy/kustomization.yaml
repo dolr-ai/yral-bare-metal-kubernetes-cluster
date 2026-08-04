@@ -15,8 +15,6 @@ resources:
   - service-dashboard.yaml
   - deployment-kafka-console.yaml
   - service-kafka-console.yaml
-  - deployment-metabase.yaml
-  - service-metabase.yaml
   - deployment-cloudbeaver.yaml
   - service-cloudbeaver.yaml
   - deployment-dbx.yaml

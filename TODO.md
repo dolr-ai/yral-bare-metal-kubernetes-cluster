@@ -29,7 +29,7 @@ CoreDNS — everything needs egress to kube-dns on UDP/TCP 53, or DNS breaks sil
 A practical approach if you do want to harden
 The right way is incremental:
 
-Start with namespace isolation for your highest-value targets — ClickHouse and Kafka first. An explicit allow-list for what actually needs to talk to them (Kafka Connect, Metabase, ClickHouse is reachable from… what exactly?) is achievable without a cluster-wide policy change.
+Start with namespace isolation for your highest-value targets — ClickHouse and Kafka first. An explicit allow-list for what actually needs to talk to them (Kafka Connect, ClickHouse is reachable from… what exactly?) is achievable without a cluster-wide policy change.
 
 Use Hubble (already deployed) to generate the actual traffic map before writing any policies. hubble observe --namespace clickhouse will show you exactly which pods are making connections to ClickHouse right now. Write policies to match reality, don't guess.
 

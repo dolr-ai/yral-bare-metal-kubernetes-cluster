@@ -7,7 +7,6 @@ resources:
   - snowplow-collector.yaml
   - dashboard.yaml
   - kafka-console.yaml
-  - metabase.yaml
   - harbor.yaml
   - cloudbeaver.yaml
   - dbx.yaml

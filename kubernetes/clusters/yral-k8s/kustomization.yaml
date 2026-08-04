@@ -33,7 +33,6 @@ resources:
   - infrastructure-snowplow.yaml
   - infrastructure-kafka-connect.yaml
   - infrastructure-kafka-console.yaml
-  - infrastructure-metabase.yaml
   - infrastructure-cloudbeaver.yaml
   - infrastructure-dbx.yaml
   - infrastructure-clickhouse-operator.yaml

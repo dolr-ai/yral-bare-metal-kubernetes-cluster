@@ -10,7 +10,7 @@
 #   - snowplow.bad_rows            MergeTree storage (enrichment bad rows for investigation)
 #   - snowplow.bad_rows_mv         Materialized view piping bad_rows_queue -> bad_rows
 #
-# Metabase connection:
+# dbx connection:
 #   Host: clickhouse-analytics.clickhouse.svc.cluster.local
 #   Port: 8123  Database: snowplow  Username: default  Password: (none)
 #   Query table: snowplow.events_v2 (canonical, enriched)
