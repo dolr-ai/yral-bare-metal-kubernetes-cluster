@@ -59,17 +59,17 @@ spec:
 
               echo "=== Saving CNPG Postgres (bytebase) connection ==="
               curl -sf -X POST "$API" -H "$CT" \
-                -d "{\"configs\":[{\"name\":\"Postgres - bytebase (prod)\",\"db_type\":\"postgresql\",\"host\":\"bytebase-postgres-rw.bytebase.svc.cluster.local\",\"port\":5432,\"username\":\"bytebase\",\"password\":\"${BYTEBASE_POSTGRES_PASSWORD}\",\"database\":\"bytebase\"}]}" \
+                -d "{\"configs\":[{\"id\":\"postgres-bytebase\",\"name\":\"Postgres - bytebase (prod)\",\"db_type\":\"postgresql\",\"host\":\"bytebase-postgres-rw.bytebase.svc.cluster.local\",\"port\":5432,\"username\":\"bytebase\",\"password\":\"${BYTEBASE_POSTGRES_PASSWORD}\",\"database\":\"bytebase\"}]}" \
                 2>&1 || echo "WARNING: Postgres connection save failed"
 
               echo "=== Saving ClickHouse (analytics) connection ==="
               curl -sf -X POST "$API" -H "$CT" \
-                -d "{\"configs\":[{\"name\":\"ClickHouse - analytics\",\"db_type\":\"clickhouse\",\"host\":\"clickhouse-analytics.clickhouse.svc.cluster.local\",\"port\":8123,\"username\":\"default\",\"password\":\"\",\"database\":\"snowplow\"}]}" \
+                -d "{\"configs\":[{\"id\":\"clickhouse-analytics\",\"name\":\"ClickHouse - analytics\",\"db_type\":\"clickhouse\",\"host\":\"clickhouse-analytics.clickhouse.svc.cluster.local\",\"port\":8123,\"username\":\"default\",\"password\":\"\",\"database\":\"snowplow\"}]}" \
                 2>&1 || echo "WARNING: ClickHouse connection save failed"
 
               echo "=== Saving Kafka (cluster) connection ==="
               curl -sf -X POST "$API" -H "$CT" \
-                -d "{\"configs\":[{\"name\":\"Kafka - cluster\",\"db_type\":\"kafka\",\"host\":\"kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local\",\"port\":9092,\"username\":\"kafka-console\",\"password\":\"${KAFKA_SASL_PASSWORD}\"}]}" \
+                -d "{\"configs\":[{\"id\":\"kafka-cluster\",\"name\":\"Kafka - cluster\",\"db_type\":\"kafka\",\"host\":\"kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local\",\"port\":9092,\"username\":\"kafka-console\",\"password\":\"${KAFKA_SASL_PASSWORD}\"}]}" \
                 2>&1 || echo "WARNING: Kafka connection save failed"
 
               echo "=== All connections saved ==="
