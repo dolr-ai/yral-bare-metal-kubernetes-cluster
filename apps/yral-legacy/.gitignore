@@ -16,8 +16,6 @@ tests_output/
 vrt-report/
 logs/
 test-results/
-ssr/end2end/playwright-report/
-playwright/.cache/
 
 # dotenv
 .env
