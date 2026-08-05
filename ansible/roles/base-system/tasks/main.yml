@@ -19,6 +19,9 @@
   ansible.builtin.apt:
     name:
       - unattended-upgrades
+      # cryptsetup provides LUKS2/dm_crypt for Longhorn encrypted volumes.
+      # Required on all worker nodes that run Longhorn instance-manager pods.
+      - cryptsetup
     state: present
 
 - name: Configure unattended-upgrades
@@ -80,3 +83,11 @@
     - name: Verify system is back online
       ansible.builtin.debug:
         msg: "✅ {{ inventory_hostname }} rebooted successfully and is back online"
+
+# Mask rpcbind/portmapper so it cannot be started by any means.
+# rpcbind is pulled in as a dependency of nfs-common (required for Longhorn RWX),
+# but is NOT needed for NFSv4.1 — which is what Longhorn uses exclusively.
+# Leaving it running exposes port 111 tcp/udp on all interfaces, a well-known
+# DDoS reflection/amplification vector.
+- name: Mask rpcbind to prevent portmapper exposure
+  ansible.builtin.include_tasks: mask-rpcbind.yml

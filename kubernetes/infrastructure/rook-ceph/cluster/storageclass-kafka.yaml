@@ -14,7 +14,8 @@
 #
 # WARNING: Do NOT use this StorageClass for any workload that does not
 # implement its own replication.  Losing the single OSD that holds the data
-# means permanent data loss.
+# means permanent data loss.  See AGENTS.md "Storage replication policy" for
+# guidance on when to use 1-replica vs 2-replica storage.
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:

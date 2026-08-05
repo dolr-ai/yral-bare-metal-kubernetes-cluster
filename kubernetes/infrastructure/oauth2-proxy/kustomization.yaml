@@ -19,4 +19,6 @@ resources:
   - service-cloudbeaver.yaml
   - deployment-dbx.yaml
   - service-dbx.yaml
+  - deployment-longhorn-ui.yaml
+  - service-longhorn-ui.yaml
   - reference-grant.yaml

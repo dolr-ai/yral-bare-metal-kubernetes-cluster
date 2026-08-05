@@ -20,6 +20,7 @@ resources:
   - infrastructure-flux-receiver.yaml
   - infrastructure-metrics-server.yaml
   - infrastructure-rook-ceph-operator.yaml
+  - infrastructure-longhorn.yaml
   - infrastructure-rook-ceph-cluster.yaml
   - infrastructure-cloudnative-pg.yaml
   - infrastructure-reloader.yaml

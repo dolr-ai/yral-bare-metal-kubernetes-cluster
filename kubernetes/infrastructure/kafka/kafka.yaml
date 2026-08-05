@@ -13,6 +13,10 @@
 #   (3 brokers × 2 Ceph replicas) with no additional durability benefit.
 #   200Gi  — data headroom for snowplow-enriched topic (200GiB cap spread across 12 partitions)
 #    50Gi  — Kafka index files, __consumer_offsets, Connect internal topics, overhead
+#
+# Pool name 'combined-ceph': originally created as a migration target from the Longhorn
+# 'combined' pool. The old pool was removed after partition reassignment to brokers 3/4/5.
+# Will be migrated back to longhorn-1replica during the Ceph→Longhorn migration.
 ---
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaNodePool

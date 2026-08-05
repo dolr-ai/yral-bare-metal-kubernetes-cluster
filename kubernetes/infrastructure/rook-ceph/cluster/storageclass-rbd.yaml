@@ -1,6 +1,8 @@
 # StorageClass for Ceph RBD block volumes (RWO).
 #
 # DEFAULT: ceph-block is the primary StorageClass for all new PVCs.
+# All Longhorn PVCs have been migrated to ceph-block; Longhorn is no longer the default.
+# (This SC is kept during the Ceph→Longhorn migration coexistence period.)
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:

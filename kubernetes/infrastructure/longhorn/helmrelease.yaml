@@ -1,0 +1,125 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: longhorn
+  namespace: longhorn-system
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: longhorn
+      version: "1.12.0"
+      sourceRef:
+        kind: HelmRepository
+        name: longhorn
+        namespace: longhorn-system
+  timeout: 10m
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    defaultSettings:
+      # 2 replicas by default — all volumes get a second copy for automatic failover
+      # on node loss. Workloads with built-in app-level replication (e.g. Kafka:
+      # 3 brokers, replication.factor=3; CNPG: streaming replication) explicitly
+      # opt down to 1 replica via the longhorn-1replica StorageClass to avoid
+      # doubling write traffic unnecessarily.
+      defaultReplicaCount: 2
+
+      # Reserve 5% of each disk for the OS, kubelet, and containerd image cache.
+      # Kubelet's default imageGCHighThresholdPercent (85%) automatically evicts
+      # unused images before the disk fills — 5% (~48 Gi on 954 Gi disks) is
+      # sufficient headroom alongside automatic GC. Default was 30% (~286 Gi).
+      storageReservedPercentageForDefaultDisk: 5
+
+      # Minimum physical free space that must remain after a volume expansion.
+      # Set to 0 because storageReservedPercentageForDefaultDisk (5%) already
+      # protects the host — this second guard would otherwise block expansions
+      # even when plenty of schedulable space exists. Default was 25%.
+      storageMinimalAvailablePercentage: 0
+
+      # Enable the revision counter globally. This controls the --disableRevCounter
+      # flag on every engine process. With counter enabled (i.e. disableRevCounter
+      # false), a rejoining replica only syncs the delta written while it was down —
+      # not the full volume. The counter tracks which blocks changed; without it,
+      # Longhorn forces a full rebuild of all data every time a replica's instance-
+      # manager restarts (e.g. on every node reboot or upgrade), which on 250 Gi
+      # volumes is a 250 Gi network transfer that accomplishes nothing.
+      # NOTE: Must use the JSON per-engine-type format (Longhorn v1.11+). The string
+      # "false" is a truthy non-empty value in Go templates → the chart would render
+      # {"v1":"true"} (counter disabled). Only the explicit JSON form produces the
+      # correct ConfigMap entry that the Longhorn Setting controller reads.
+      # This is the defaultSettings key — it sets the global Setting CR
+      # (disable-revision-counter) which controls engine process flags. The matching
+      # persistence.disableRevisionCounter below sets the same value on the StorageClass
+      # for new volume creation defaults.
+      disableRevisionCounter: '{"v1":"false"}'
+
+      # Allow Longhorn to rebalance replica placement over time. best-effort tries to
+      # spread replicas evenly across nodes and zones, and evicts replicas from disks
+      # under storage pressure. This is required for Longhorn to remove excess replicas
+      # when spec.numberOfReplicas is reduced on an attached volume — without it,
+      # cleanupAutoBalancedReplicas returns immediately and extra replicas are never
+      # removed.
+      replicaAutoBalance: best-effort
+
+      # How long (minutes) a replica can be offline before Longhorn marks it stale
+      # and sets failedAt, triggering a full rebuild on rejoin. The default (30 min)
+      # fires during normal rolling upgrades on nodes that host Kafka brokers —
+      # the Kafka PDB (minAvailable: 2) holds the pre-drain wait until the cluster is
+      # healthy, and drain + eviction has exceeded 30 min on multiple workers.
+      # 90 min is 2× our worst observed drain time, still aggressive enough to
+      # distinguish scheduled maintenance from genuine node failures.
+      staleReplicaTimeout: 90
+
+      # S3 backup target on Hetzner Object Storage.
+      # A /longhorn prefix separates these backups from Velero's in the same bucket.
+      # Credential secret keys: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_ENDPOINTS,
+      # VIRTUAL_HOSTED_STYLE (false = path-style addressing required by Hetzner).
+      backupTarget: "s3://yral-bare-metal-kubernetes-cluster-control-plane-backup@hel1/longhorn"
+      backupTargetCredentialSecret: "longhorn-s3-backup-credentials"
+
+    persistence:
+      # Disable the chart's auto-generated default StorageClass — we ship our own
+      # encrypted default StorageClass (storageclass-encrypted.yaml) so that all
+      # volumes get LUKS2 encryption at rest by default. The chart-generated class
+      # has no encryption support (CSI secret params aren't exposed as Helm values).
+      defaultClass: false
+
+      # Must match defaultSettings.defaultReplicaCount — controls the numberOfReplicas
+      # parameter on the default Longhorn StorageClass, which is what Kubernetes uses
+      # when provisioning PVCs. If only defaultSettings is set, the StorageClass retains
+      # the Helm chart default of 3.
+      defaultClassReplicaCount: 2
+
+      # One replica on the pod's node (local I/O, no network hop). best-effort means
+      # Longhorn migrates a local replica to the pod's node in the background after
+      # scheduling. The scheduler tends to return pods to the same node across restarts
+      # (resource stability), and the local replica being there reinforces that tendency.
+      # The second replica is placed freely by Longhorn's scheduler — possibly on a
+      # different node or even a different datacenter region. Cross-region replication is
+      # asynchronous and transparent; it adds cross-WAN I/O but provides datacenter-level
+      # durability at no cost to application write latency (Longhorn replication is
+      # synchronous only to the local replica path, not the async cross-region one).
+      defaultDataLocality: best-effort
+
+      # Defer PV binding and provisioning until the pod is scheduled. Ensures the local
+      # replica (dataLocality: best-effort) is placed on the same node as the pod from
+      # the start rather than needing to migrate after the fact.
+      volumeBindingMode: "WaitForFirstConsumer"
+
+      # Enable the revision counter so Longhorn can determine which blocks changed
+      # while a replica was offline (e.g. during a node reboot). With this enabled,
+      # a rejoining replica only syncs the delta written while it was down — not the
+      # full volume. With disableRevisionCounter: "true" (the Longhorn chart default),
+      # Longhorn cannot distinguish dirty from clean blocks, so it forces a full
+      # rebuild of the entire volume every time a replica's instance-manager restarts
+      # (i.e. on every node reboot). On 250 Gi volumes that is a 250 Gi network
+      # transfer that accomplishes nothing — the data was intact on disk.
+      # The cost of enabling the counter is one extra fsync per write per replica for
+      # the revision.counter file — negligible on NVMe.
+      # NOTE: Must use the JSON per-engine-type format (Longhorn v1.11+). Using the
+      # plain string "false" is a truthy non-empty string in Go templates → the chart
+      # renders {"v1":"true"} instead. Only boolean false or the explicit JSON form
+      # '{"v1":"false"}' produces the correct ConfigMap entry.
+      disableRevisionCounter: '{"v1":"false"}'

@@ -145,7 +145,23 @@ Run `ansible-lint ansible/playbooks/operations/` before changes. Playbooks must 
 - Cilium + WireGuard encryption. Gateway API for exposure.
 - Serial node operations.
 - CoreDNS topology: see `kubernetes/infrastructure/coredns/coredns-*-topology.yaml` (non-Flux, kubeadm-owned). Run `kubectl apply -f` after adding workers in new zones.
-- Storage (Rook/Ceph): see `kubernetes/infrastructure/rook-ceph/cluster/cephcluster.yaml` for versions, disk layout, and operational rules.
+- Storage (Rook/Ceph): see `kubernetes/infrastructure/rook-ceph/cluster/cephcluster.yaml` for versions, disk layout, and operational rules. Being migrated to Longhorn — both coexist during the transition.
+- Storage (Longhorn): see `kubernetes/infrastructure/longhorn/helmrelease.yaml` for version and settings. Default `longhorn` SC (2 replicas, LUKS2 encryption, `dataLocality: best-effort` for local primary replica). `longhorn-1replica` SC for workloads with app-layer replication.
+
+### Storage Replication Policy
+
+**Default: Longhorn 2-replica** (`longhorn` StorageClass). Use for ALL stateful workloads that do NOT have their own app-layer replication — ClickHouse, Loki, Prometheus, Harbor, PowerDNS, CloudBeaver, dbx, GeoIP. This gives storage-level HA (tolerates 1 node failure) with LUKS2 encryption at rest.
+
+**Exception: Longhorn 1-replica** (`longhorn-1replica` StorageClass). Use ONLY for workloads with app-layer replication that is strictly stronger than Longhorn 2-replica. All three criteria must be met:
+1. The application implements its own replication natively (not just backups)
+2. App-level replication is strictly stronger than Longhorn 2-replica (tolerates more failures)
+3. The write amplification from layering both is measurable and unacceptable
+
+Workloads currently using 1-replica:
+- **Kafka** (3 brokers, `replication.factor=3` — app-layer RF=3 tolerates 2/3 node failures; Longhorn 2-replica only tolerates 1/2)
+- **CNPG PostgreSQL** (streaming replication — primary + replicas, each with their own PVC)
+
+Do NOT use 1-replica for workloads without app-layer replication. Losing the single node that holds the data means permanent data loss.
 - PostgreSQL (CloudNativePG): see `kubernetes/infrastructure/cloudnative-pg/helmrelease.yaml` for the per-service model and conventions.
 
 ### Backups

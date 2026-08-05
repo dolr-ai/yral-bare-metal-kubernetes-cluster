@@ -1,13 +1,3 @@
-- ~~are loki logs being cleaned up properly? Check retention policies and storage usage. What about prometheus and clickhouse?~~ **DONE — Audit complete:**
-  - **Loki**: 30-day retention (`retention_period: 720h`, compactor enabled), 600Gi PVC at 1.5% usage (9 GiB). ✅
-  - **Prometheus**: 15-day retention + 90GB size cap, 100Gi PVC at 72% usage (70.5 GiB). ✅
-  - **ClickHouse `events_v2`**: 3-month TTL, monthly partitions, 200Gi PVC at 10.9% (21.4 GiB). ✅
-  - **ClickHouse system logs**: Were consuming 19.93 GiB (97% of used storage) with no TTL on `text_log`, `asynchronous_metric_log`, `metric_log`, `query_views_log`, `background_schedule_pool_log`. **Fixed** — added `config.d/system-log-ttl.xml` with 30-day TTL on all five tables. Also added startup_script to drop stale renamed tables (`metric_log_0`, `trace_log_1`, `part_log_0`, ~4 GiB waste).
-  - **S3 data lake** (`yral-events-data-lake`): No lifecycle policy — intentional (long-term re-ingest source). Documented in connector-s3-sink.yaml.
-  - **Kafka topics**: `snowplow-enriched` 240 GiB cap, `snowplow-raw` 48h, bad-row topics 7d. ✅
-  - Cleaned up: stale "2 replicas" Prometheus comment, diverged `ansible/manifests/monitoring-values.yaml` (synced to Flux HelmRelease values).
-- archive all the unused org repos
-- Confirm that all the new volumes being provisioned have 1 replica unless specifically configure to have 2
 - How do we enforce schema on the events being ingested into our kafka topics? Should we use Snowplow's schema registry that uses iglu? Figure out if this is open and popular. Or should we use schema enforcement at Kafka's layer? This is probably the more popular and documented solution
 - Clean up unused dns entries
 - symlink the devpod config to the .dotfiles repo
@@ -81,7 +71,7 @@ The key never leaves the cluster and is encrypted at rest inside etcd (Kubernete
 - check rook/ceph to confirm if on pod creation with the default storage class that uses 2 replicas, the primary replica is always on the same node that has the pod. Subsequently, it's preferable if the second replica is in the same region as the primary so that replication over the same region network is faster. If this is not possible/available, it's still okay but the primary replica on the same node as the pod is non-negotiable
 - Do DNS for atmz.ai like we did for saikat.dev. The domain is available on namecheap with the same credentials that we have currently saved in the ansible vault
 - Move to a 7 node control plane with mixed nodes for better upgradeability and cross data failure isolation. Also, do a stacked control plane deployment where control planes live on the same nodes as workloads. No wasted nodes
-- Move to Mayastor for data locality with primary replica on the same node as the pod. Secondary replica should be on a different node in the same region
+- Move to Longhorn for data locality with primary replica on the same node as the pod (dataLocality: best-effort). Secondary replica may be in a different region — Longhorn has no region awareness. LUKS2 volume encryption enabled on all volumes. Migration from Ceph in progress (coexistence period).
 - rewrite my-website with leptos builder syntax
 - stop yral-auth from storing its data in naitik's redis infrastructure but move it over to call our spacetimedb
 - The categorized scan completed. Here's the full breakdown of all 238,606 keys in the Redis/Dragonfly instance:

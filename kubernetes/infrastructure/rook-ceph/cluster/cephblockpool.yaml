@@ -48,6 +48,7 @@ spec:
   failureDomain: host
 
   replicated:
+    # 2 replicas matches the current Longhorn defaultReplicaCount of 2.
     # 2 replicas, on different hosts.  The actual same-region constraint
     # is enforced by the custom CRUSH rule assigned to the pool.
     # Tolerates 1-node failure with full data availability.

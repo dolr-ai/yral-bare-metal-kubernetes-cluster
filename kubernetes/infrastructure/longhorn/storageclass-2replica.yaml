@@ -1,0 +1,49 @@
+# Default Longhorn StorageClass — 2 replicas + LUKS2 volume encryption.
+#
+# This replaces the chart-generated default StorageClass (defaultClass: false in
+# helmrelease.yaml) because the Helm chart does not expose CSI secret parameters
+# for encryption. All new PVCs that don't explicitly specify a StorageClass get
+# this class — 2 replicas, dataLocality best-effort, and LUKS2 encryption at rest.
+#
+# Use this for ALL stateful workloads that do NOT have their own app-layer
+# replication (e.g. ClickHouse, Loki, Prometheus, Harbor, PowerDNS). Workloads
+# with app-layer replication (Kafka RF=3, CNPG streaming) should use
+# longhorn-1replica instead — see AGENTS.md storage policy.
+#
+# Encryption keys are stored in the longhorn-crypto SOPS-encrypted Secret. All
+# encrypted volumes share the same passphrase (global secret mode). Per-volume
+# keys would use ${pvc.name}/${pvc.namespace} template params — not needed here
+# since physical access is controlled (Hetzner DCs) and this is defense-in-depth
+# against disk theft, not multi-tenant isolation.
+#
+# Backups created from encrypted volumes are also encrypted.
+# Volume expansion (online) requires the node-expand-secret-* params — included.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  numberOfReplicas: "2"
+  dataLocality: "best-effort"
+  staleReplicaTimeout: "90"
+  # Must use JSON format (Longhorn v1.11+). Plain string "false" is truthy in Go
+  # templates and would render as {"v1":"true"} — causing salvage failures when
+  # the engine (controlled by the global Setting) and replicas disagree.
+  disableRevisionCounter: '{"v1":"false"}'
+  # LUKS2 volume encryption — encrypts each replica's data at rest via dm_crypt.
+  encrypted: "true"
+  # CSI secret references — Longhorn reads the LUKS passphrase from this Secret.
+  csi.storage.k8s.io/provisioner-secret-name: "longhorn-crypto"
+  csi.storage.k8s.io/provisioner-secret-namespace: "longhorn-system"
+  csi.storage.k8s.io/node-publish-secret-name: "longhorn-crypto"
+  csi.storage.k8s.io/node-publish-secret-namespace: "longhorn-system"
+  csi.storage.k8s.io/node-stage-secret-name: "longhorn-crypto"
+  csi.storage.k8s.io/node-stage-secret-namespace: "longhorn-system"
+  csi.storage.k8s.io/node-expand-secret-name: "longhorn-crypto"
+  csi.storage.k8s.io/node-expand-secret-namespace: "longhorn-system"

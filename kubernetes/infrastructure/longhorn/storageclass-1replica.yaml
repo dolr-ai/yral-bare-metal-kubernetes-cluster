@@ -1,0 +1,44 @@
+# 1-replica StorageClass for workloads with app-layer replication.
+#
+# Use this for stateful workloads that implement their own replication at the
+# application layer (e.g. Kafka with replication.factor=3, CNPG PostgreSQL with
+# streaming replication). App-layer replication is STRICTLY STRONGER than
+# Longhorn 2-replica — layering both only multiplies write amplification with
+# zero additional durability benefit.
+#
+# Criteria for using this class (all three must be met):
+#   1. The application implements its own replication natively (not just backups)
+#   2. App-level replication is strictly stronger than Longhorn 2-replica
+#   3. The write amplification from layering both is measurable and unacceptable
+#
+# Workloads currently using this class:
+#   - Kafka (3 brokers, RF=3 — app-layer replication IS the write path)
+#   - CNPG PostgreSQL (streaming replication — see AGENTS.md storage policy)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-1replica
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  numberOfReplicas: "1"
+  dataLocality: "best-effort"
+  staleReplicaTimeout: "90"
+  # Must use JSON format (Longhorn v1.11+). Plain string "false" is truthy in Go
+  # templates and would render as {"v1":"true"} — causing salvage failures when
+  # the engine (controlled by the global Setting) and replicas disagree.
+  disableRevisionCounter: '{"v1":"false"}'
+  # LUKS2 volume encryption — same secret as the default class.
+  encrypted: "true"
+  csi.storage.k8s.io/provisioner-secret-name: "longhorn-crypto"
+  csi.storage.k8s.io/provisioner-secret-namespace: "longhorn-system"
+  csi.storage.k8s.io/node-publish-secret-name: "longhorn-crypto"
+  csi.storage.k8s.io/node-publish-secret-namespace: "longhorn-system"
+  csi.storage.k8s.io/node-stage-secret-name: "longhorn-crypto"
+  csi.storage.k8s.io/node-stage-secret-namespace: "longhorn-system"
+  csi.storage.k8s.io/node-expand-secret-name: "longhorn-crypto"
+  csi.storage.k8s.io/node-expand-secret-namespace: "longhorn-system"
