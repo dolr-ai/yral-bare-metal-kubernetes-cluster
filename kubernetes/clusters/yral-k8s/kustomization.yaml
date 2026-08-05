@@ -21,6 +21,7 @@ resources:
   - infrastructure-metrics-server.yaml
   - infrastructure-rook-ceph-operator.yaml
   - infrastructure-longhorn.yaml
+  - infrastructure-longhorn-backup.yaml
   - infrastructure-rook-ceph-cluster.yaml
   - infrastructure-cloudnative-pg.yaml
   - infrastructure-reloader.yaml

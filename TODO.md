@@ -1,4 +1,3 @@
-- How do we enforce schema on the events being ingested into our kafka topics? Should we use Snowplow's schema registry that uses iglu? Figure out if this is open and popular. Or should we use schema enforcement at Kafka's layer? This is probably the more popular and documented solution
 - Clean up unused dns entries
 - symlink the devpod config to the .dotfiles repo
 - use ansible vault to manage secrets in the .dotfiles repo
@@ -71,7 +70,6 @@ The key never leaves the cluster and is encrypted at rest inside etcd (Kubernete
 - check rook/ceph to confirm if on pod creation with the default storage class that uses 2 replicas, the primary replica is always on the same node that has the pod. Subsequently, it's preferable if the second replica is in the same region as the primary so that replication over the same region network is faster. If this is not possible/available, it's still okay but the primary replica on the same node as the pod is non-negotiable
 - Do DNS for atmz.ai like we did for saikat.dev. The domain is available on namecheap with the same credentials that we have currently saved in the ansible vault
 - Move to a 7 node control plane with mixed nodes for better upgradeability and cross data failure isolation. Also, do a stacked control plane deployment where control planes live on the same nodes as workloads. No wasted nodes
-- Move to Longhorn for data locality with primary replica on the same node as the pod (dataLocality: best-effort). Secondary replica may be in a different region — Longhorn has no region awareness. LUKS2 volume encryption enabled on all volumes. Migration from Ceph in progress (coexistence period).
 - rewrite my-website with leptos builder syntax
 - stop yral-auth from storing its data in naitik's redis infrastructure but move it over to call our spacetimedb
 - The categorized scan completed. Here's the full breakdown of all 238,606 keys in the Redis/Dragonfly instance:
