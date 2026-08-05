@@ -13,7 +13,7 @@
     - role: base-system
     - role: resolv-cleanup
     - role: sysctl-tuning
-    - role: storage-setup
+    - role: storage-longhorn
     - role: ssh-hardening
     - role: containerd
     - role: kubernetes

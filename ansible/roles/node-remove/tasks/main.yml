@@ -216,6 +216,25 @@
     msg: "Node {{ node_remove_k8s_name }} not found in cluster, skipping drain"
   when: node_check.rc != 0
 
+# --- Pre-drain: remove storage replicas from the node ---
+# Ceph OSDs and Longhorn replicas must be evacuated BEFORE draining so the
+# storage layers can rebalance data to remaining nodes while the node is
+# still running. Only runs for worker nodes (control planes have no OSDs).
+- name: Remove Ceph OSDs from node (workers only)
+  ansible.builtin.include_tasks: ceph-osd-removal.yml
+  when:
+    - node_check.rc == 0
+    - not is_control_plane
+  run_once: true
+
+- name: Evict Longhorn replicas from node
+  ansible.builtin.include_role:
+    name: longhorn-evict
+  when:
+    - node_check.rc == 0
+    - not is_control_plane
+  run_once: true
+
 - name: Force-delete Terminating pods on dead node before drain
   # Pods stuck in Terminating on an unreachable node will never complete graceful
   # termination — kubectl drain waits for them and times out. Force-deleting them

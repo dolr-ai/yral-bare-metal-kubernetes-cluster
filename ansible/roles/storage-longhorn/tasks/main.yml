@@ -18,9 +18,6 @@
 # CONTROL PLANES:
 #   Same as workers — btrfs expansion + Longhorn data directory. Control planes
 #   can also host Longhorn replicas for non-stateful workloads.
-#
-# Called from the migrate-node-to-longhorn playbook after ceph-osd-removal
-# and node reprovisioning.
 
 # ---------------------------------------------------------------------------
 # Detect drives and expand btrfs
@@ -159,15 +156,6 @@
           ansible.builtin.debug:
             msg: "{{ btrfs_after.stdout_lines }}"
 
-        - name: Display disk usage after expansion
-          ansible.builtin.command: df -h /
-          changed_when: false
-          register: df_output
-
-        - name: Show disk usage
-          ansible.builtin.debug:
-            msg: "{{ df_output.stdout_lines }}"
-
         - name: Success — btrfs expanded to RAID0
           ansible.builtin.debug:
             msg: "Successfully expanded btrfs filesystem to /dev/{{ second_drive }} with RAID0 data striping"
@@ -204,7 +192,7 @@
     msg: "Longhorn data directory: /var/lib/longhorn ({{ longhorn_nodatacow_check.stdout }})"
 
 # ---------------------------------------------------------------------------
-# Clean up stale Ceph/Rook artifacts
+# Clean up stale Ceph/Rook artifacts (for nodes repurposed from Ceph)
 
 - name: Remove stale Rook data directory if present
   ansible.builtin.shell: |
@@ -222,9 +210,6 @@
 - name: Display Rook cleanup result
   ansible.builtin.debug:
     msg: "Stale Rook directory: {{ rook_cleanup.stdout }}"
-
-# ---------------------------------------------------------------------------
-# Wipe stale Ceph bluestore labels from OS drive (if repurposed from Ceph)
 
 - name: Detect OS NVMe drive
   ansible.builtin.shell: |
