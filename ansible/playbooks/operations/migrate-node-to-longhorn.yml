@@ -1,0 +1,50 @@
+---
+# Migrate Worker Node from Ceph to Longhorn
+#
+# Removes a worker's Ceph OSDs, evicts any Longhorn replicas, reprovisions the
+# node from scratch with Longhorn disk layout, and rejoins the cluster.
+#
+# Usage:
+#   ansible-playbook operations/migrate-node-to-longhorn.yml -e target_host=worker-X
+#
+# Prerequisites:
+#   - Longhorn operator is deployed and healthy
+#   - Ceph cluster is healthy (HEALTH_OK)
+#   - target_host is a worker node in the inventory
+#
+# This playbook is serial (one node at a time). Complete + verify before
+# running on the next node, per AGENTS.md multi-node ops rule.
+
+- name: Remove Ceph OSDs and evict Longhorn replicas (localhost)
+  hosts: localhost
+  gather_facts: false
+
+  roles:
+    - role: ceph-osd-removal
+    - role: longhorn-evict
+
+- name: Remove node from cluster (localhost)
+  hosts: localhost
+  gather_facts: false
+
+  roles:
+    - role: node-remove
+
+- name: Reprovision node with Longhorn disk layout
+  hosts: "{{ target_host }}"
+  gather_facts: false
+  become: true
+  serial: 1
+
+  roles:
+    - role: provision
+    - role: storage-longhorn
+    - role: ssh-hardening
+    - role: base-system
+    - role: resolv-cleanup
+    - role: sysctl-tuning
+    - role: containerd
+    - role: kubernetes
+    - role: worker-join
+    - role: node-labels
+    - role: cloudflare-dns
