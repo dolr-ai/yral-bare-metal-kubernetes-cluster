@@ -30,7 +30,8 @@
       ansible.builtin.shell: |
         kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd tree 2>/dev/null | \
         awk -v host="{{ node_remove_k8s_name }}" '
-          /host '"'"'/ { in_host=0 }
+          { sub(/[[:space:]]+$/, "") }
+          /host / { in_host=0 }
           $0 ~ "host " host "$" { in_host=1; next }
           in_host && /osd\./ { gsub("osd\\.","",$1); print $1 }
         '
