@@ -158,25 +158,66 @@
             msg: "✅ OSDs {{ ceph_osd_ids | join(', ') }} are safe to destroy — Rook operator will remove them"
           run_once: true
 
-        # Step 5: Wait for Rook operator to remove the OSDs (it destroys, purges,
-        # removes from CRUSH, and deletes the OSD deployment automatically).
-        - name: Wait for Rook operator to remove OSDs from CRUSH map
+        # Step 5: Directly purge OSDs and remove from CRUSH.
+        #
+        # The Rook operator's removeOSDsIfOutAndSafeToRemove mechanism requires the
+        # OSD health monitor goroutine to be running, but it only starts after the
+        # OSD update loop completes — which blocks when too many OSDs are down
+        # ("not ok-to-stop"). This deadlock means the operator never removes the
+        # OSDs. The direct approach (scale down deployment, purge, remove from
+        # CRUSH) is reliable and doesn't depend on the operator.
+        #
+        # Ref: https://rook.io/docs/rook/latest/Storage-Configuration/Advanced/ceph-osd-mgmt/
+        - name: Scale down OSD deployments to force OSDs down
           ansible.builtin.shell: |
-            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd tree 2>/dev/null | \
+            kubectl -n rook-ceph scale deploy rook-ceph-osd-{{ item }} --replicas=0
+          loop: "{{ ceph_osd_ids }}"
+          changed_when: true
+          run_once: true
+
+        - name: Delete OSD deployments
+          ansible.builtin.shell: |
+            kubectl -n rook-ceph delete deploy rook-ceph-osd-{{ item }} --ignore-not-found
+          loop: "{{ ceph_osd_ids }}"
+          changed_when: true
+          run_once: true
+
+        - name: Purge OSDs from Ceph
+          ansible.builtin.shell: |
+            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- \
+            ceph osd purge {{ item }} --force --yes-i-really-mean-it
+          loop: "{{ ceph_osd_ids }}"
+          changed_when: true
+          run_once: true
+
+        - name: Remove host from CRUSH map
+          ansible.builtin.shell: |
+            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- \
+            ceph osd crush rm {{ node_remove_k8s_name }}
+          changed_when: true
+          run_once: true
+
+        # Step 6: Wait for PGs to rebalance after CRUSH removal.
+        - name: Wait for PGs to rebalance after CRUSH removal
+          ansible.builtin.shell: |
+            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph pg stat 2>/dev/null | \
             python3 -c "
             import sys
-            target = '{{ node_remove_k8s_name }}'
-            found = False
-            for line in sys.stdin:
-                fields = line.split()
-                if len(fields) >= 4 and fields[2] == 'host' and fields[3] == target:
-                    found = True
-                    break
-            print('gone' if not found else 'still_present')
+            data = sys.stdin.read().strip()
+            pg_section = data.split(';')[0]
+            if 'active+clean' in pg_section:
+                states = [s.strip() for s in pg_section.split(':')[1].split(',') if s.strip()]
+                non_clean = [s for s in states if 'active+clean' not in s]
+                if not non_clean:
+                    print('clean')
+                else:
+                    print('degraded: ' + ', '.join(non_clean))
+            else:
+                print('not_clean')
             "
-          register: ceph_host_removed
-          until: ceph_host_removed.stdout == "gone"
-          retries: 60
+          register: ceph_pg_status_after_crush
+          until: ceph_pg_status_after_crush.stdout == "clean"
+          retries: 120
           delay: 10
           changed_when: false
           run_once: true
@@ -185,5 +226,5 @@
           ansible.builtin.debug:
             msg: |
               ✅ Ceph OSDs removed for {{ node_remove_k8s_name }}: {{ ceph_osd_ids | join(', ') }}
-              Rook operator destroyed, purged, and removed the host from CRUSH.
+              Deployments scaled down and deleted, OSDs purged, host removed from CRUSH.
           run_once: true
