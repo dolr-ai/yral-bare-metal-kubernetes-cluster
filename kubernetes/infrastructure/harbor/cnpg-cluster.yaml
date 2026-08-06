@@ -1,13 +1,14 @@
-# CloudNativePG Cluster for Harbor — 3-instance HA with streaming replication.
+# CloudNativePG Cluster for Harbor — 2-instance HA with streaming replication.
 #
 # Bootstrap: logical import (initdb.import) from Harbor's internal DB
 #            (harbor-database.harbor.svc:5432) via pg_dump/pg_restore.
 #            This is the CNPG-recommended approach for external PostgreSQL migrations.
 #            Ref: https://cloudnative-pg.io/docs/1.29/database_import/
 #
-# 3 instances on Longhorn (1 primary + 2 replicas) with built-in streaming
-# replication. CNPG manages the PKI (TLS certs for streaming_replica user),
-# failover, and WAL archiving automatically.
+# 2 instances (1 primary + 1 replica) with built-in streaming replication.
+# Uses longhorn-1replica StorageClass per the storage replication policy —
+# CNPG has native app-layer replication (streaming), so Longhorn 2-replica
+# would be redundant write amplification.
 #
 # Harbor connects via the -rw endpoint (harbor-db-rw.harbor.svc:5432).
 # Database: registry, User: postgres.
@@ -17,7 +18,7 @@ metadata:
   name: harbor-db
   namespace: harbor
 spec:
-  instances: 3
+  instances: 2
   imageName: ghcr.io/cloudnative-pg/postgresql:18.4
 
   # Superuser credentials (used by Harbor core and dbx to connect)
@@ -41,7 +42,7 @@ spec:
           externalCluster: harbor-internal-db
 
   storage:
-    storageClass: longhorn
+    storageClass: longhorn-1replica
     size: 10Gi
 
   externalClusters:
