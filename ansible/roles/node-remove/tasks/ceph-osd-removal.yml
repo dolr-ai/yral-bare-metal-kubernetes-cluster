@@ -118,17 +118,26 @@
           run_once: true
 
         - name: Wait for all PGs to reach active+clean
+          # ceph pg stat output format:
+          #   161 pgs: 1 stale+active+clean, 160 active+clean; 825 GiB data, ...; 170 B/s rd, ...
+          # Only the first semicolon-separated section contains PG states.
+          # The rest is capacity/throughput info that never contains 'active+clean'.
           ansible.builtin.shell: |
             kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph pg stat 2>/dev/null | \
             python3 -c "
             import sys
             data = sys.stdin.read().strip()
-            if 'active+clean' in data:
-                non_clean = [s for s in data.split(';') if s.strip() and 'active+clean' not in s]
+            # Only check the first section (PG states) — ignore capacity/throughput
+            pg_section = data.split(';')[0]
+            if 'active+clean' in pg_section:
+                # Check if all PG states are active+clean (allow stale+active+clean too)
+                # A PG is healthy if it's active+clean, even with stale prefix
+                states = [s.strip() for s in pg_section.split(':')[1].split(',') if s.strip()]
+                non_clean = [s for s in states if 'active+clean' not in s]
                 if not non_clean:
                     print('clean')
                 else:
-                    print('degraded: ' + '; '.join(non_clean))
+                    print('degraded: ' + ', '.join(non_clean))
             else:
                 print('not_clean')
             "
