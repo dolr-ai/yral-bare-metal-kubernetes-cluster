@@ -43,8 +43,6 @@ spec:
           size: 50Gi
         jobservice:
           size: 10Gi
-        database:
-          size: 10Gi
         redis:
           size: 5Gi
     
@@ -93,7 +91,14 @@ spec:
           memory: 512Mi
     
     database:
-      type: internal
+      type: external
+      external:
+        host: harbor-db-rw.harbor.svc
+        port: "5432"
+        username: postgres
+        coreDatabase: registry
+        existingSecret: harbor-db-superuser
+        sslmode: disable
     
     redis:
       type: internal
