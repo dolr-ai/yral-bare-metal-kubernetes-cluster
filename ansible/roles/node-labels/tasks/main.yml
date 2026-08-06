@@ -105,25 +105,35 @@
   delay: 5
   changed_when: false
 
-- name: Check Longhorn Node CR disk status
+- name: Check Longhorn Node CR disk status (retry until reconciled)
   ansible.builtin.shell: |
     kubectl -n longhorn-system get node.longhorn.io {{ ansible_facts['hostname'] }} \
       -o json 2>/dev/null | python3 -c "
     import sys, json
     d = json.load(sys.stdin)
     disks = d.get('status', {}).get('diskStatus', {})
+    if not disks:
+        print('pending')
+        sys.exit(0)
     for disk_name, disk_info in disks.items():
         conditions = disk_info.get('conditions', [])
         for c in conditions:
             if c.get('reason') == 'DiskFilesystemChanged':
                 print(disk_name)
                 sys.exit(0)
-    print('')
-    " 2>/dev/null || echo ''
+        for c in conditions:
+            if c.get('type') == 'Ready' and c.get('status') == 'True':
+                print('healthy')
+                sys.exit(0)
+    print('pending')
+    " 2>/dev/null || echo 'pending'
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   delegate_to: "{{ groups['control_plane'][0] }}"
   register: lh_stale_disk
+  until: lh_stale_disk.stdout != 'pending'
+  retries: 30
+  delay: 10
   changed_when: false
   failed_when: false
 
