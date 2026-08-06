@@ -1,4 +1,3 @@
-- Clean up unused dns entries
 - symlink the devpod config to the .dotfiles repo
 - use ansible vault to manage secrets in the .dotfiles repo
 - The lateral movement problem is the serious one. If any single pod is compromised (RCE via a vulnerable dependency, a misconfigured container, a supply chain attack), the attacker has unrestricted access to:

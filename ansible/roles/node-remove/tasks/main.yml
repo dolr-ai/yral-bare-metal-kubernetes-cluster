@@ -230,6 +230,8 @@
 - name: Evict Longhorn replicas from node
   ansible.builtin.include_role:
     name: longhorn-evict
+  vars:
+    target_host: "{{ node_remove_k8s_name }}"
   when:
     - node_check.rc == 0
     - not is_control_plane

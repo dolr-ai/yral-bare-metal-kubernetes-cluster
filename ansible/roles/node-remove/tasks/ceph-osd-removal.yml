@@ -5,9 +5,10 @@
 # node is still running and its OSDs are `up` so Ceph can rebalance data off
 # them cleanly.
 #
-# Only runs for worker nodes (control planes don't have OSDs). Skips silently
-# if the node has no OSDs in the CRUSH map (e.g. already removed or never was
-# a Ceph node).
+# Only runs for worker nodes (control planes don't have OSDs). Fails if the
+# node has OSDs in the CRUSH map but they can't be found (parsing error).
+# Skips silently only if Ceph is not installed or the node is not in the
+# CRUSH map at all (already removed or never was a Ceph node).
 
 - name: Find rook-ceph-tools pod name
   ansible.builtin.shell: |
@@ -26,33 +27,72 @@
 - name: Remove Ceph OSDs
   when: ceph_tools_pod.stdout | trim != ""
   block:
-    - name: Get OSD IDs for target node from CRUSH tree
+    - name: Check if node exists in CRUSH map
       ansible.builtin.shell: |
         kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd tree 2>/dev/null | \
-        awk -v host="{{ node_remove_k8s_name }}" '
-          { sub(/[[:space:]]+$/, "") }
-          /host / { in_host=0 }
-          $0 ~ "host " host "$" { in_host=1; next }
-          in_host && /osd\./ { gsub("osd\\.","",$1); print $1 }
-        '
-      register: ceph_osd_ids_raw
+        grep -E "[[:space:]]host {{ node_remove_k8s_name }}([[:space:]]|$)"
+      register: ceph_node_in_crush
       changed_when: false
+      failed_when: false
       run_once: true
 
-    - name: Set OSD IDs fact
-      ansible.builtin.set_fact:
-        ceph_osd_ids: "{{ ceph_osd_ids_raw.stdout_lines }}"
-      run_once: true
-
-    - name: Skip if no OSDs found for this node
+    - name: Skip if node not in CRUSH map (already removed or never was a Ceph node)
       ansible.builtin.debug:
-        msg: "No Ceph OSDs found for {{ node_remove_k8s_name }} — node may not be a Ceph OSD node."
-      when: ceph_osd_ids | length == 0
+        msg: "Node {{ node_remove_k8s_name }} not found in Ceph CRUSH map — skipping OSD removal."
+      when: ceph_node_in_crush.rc != 0
       run_once: true
 
     - name: Remove OSDs from Ceph cluster
-      when: ceph_osd_ids | length > 0
+      when: ceph_node_in_crush.rc == 0
       block:
+        - name: Get OSD IDs for target node from CRUSH tree
+          # Use python3 for reliable parsing — awk is fragile with Ceph's
+          # variable-width column output and trailing whitespace.
+          ansible.builtin.shell: |
+            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd tree 2>/dev/null | \
+            python3 -c "
+            import sys
+            target = '{{ node_remove_k8s_name }}'
+            in_host = False
+            osd_ids = []
+            for line in sys.stdin:
+                fields = line.split()
+                if not fields:
+                    continue
+                # Detect host line: 'host <hostname>'
+                if len(fields) >= 2 and fields[1] == 'host':
+                    in_host = (fields[2] == target)
+                    continue
+                # Detect OSD line: '<id> ssd ... osd.<n>' while inside target host
+                if in_host and len(fields) >= 2 and fields[1].startswith('osd.'):
+                    osd_ids.append(fields[1].replace('osd.', ''))
+            print(' '.join(osd_ids) if osd_ids else '')
+            "
+          register: ceph_osd_ids_raw
+          changed_when: false
+          run_once: true
+
+        - name: Set OSD IDs fact
+          ansible.builtin.set_fact:
+            ceph_osd_ids: "{{ ceph_osd_ids_raw.stdout.split() }}"
+          run_once: true
+
+        - name: Fail if node is in CRUSH map but no OSDs were found
+          ansible.builtin.fail:
+            msg: >-
+              Node {{ node_remove_k8s_name }} is in the Ceph CRUSH map but no OSDs
+              were found. This is likely a parsing error. Refusing to continue —
+              investigate before draining the node. OSD IDs found: {{ ceph_osd_ids }}
+          when: ceph_osd_ids | length == 0
+          run_once: true
+
+        - name: Display OSD removal plan
+          ansible.builtin.debug:
+            msg: |
+              Ceph OSD removal: {{ node_remove_k8s_name }}
+              OSDs to remove: {{ ceph_osd_ids | join(', ') }}
+              Total: {{ ceph_osd_ids | length }} OSD(s)
+          run_once: true
         - name: Set noout to prevent premature rebalance
           ansible.builtin.shell: |
             kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd set noout
@@ -113,14 +153,16 @@
             ceph osd crush remove {{ node_remove_k8s_name }}
           register: crush_remove_result
           changed_when: true
-          failed_when: false
           run_once: true
 
-        - name: Verify Ceph health
+        - name: Verify Ceph health (fail on ERR, warn on WARN)
+          # HEALTH_WARN is expected after OSD removal (degraded PGs during rebalance).
+          # Only fail on HEALTH_ERR which indicates data loss or mon failure.
           ansible.builtin.shell: |
             kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph health 2>/dev/null
           register: ceph_health
           changed_when: false
+          failed_when: "'ERR' in ceph_health.stdout
           run_once: true
 
         - name: Display Ceph health
