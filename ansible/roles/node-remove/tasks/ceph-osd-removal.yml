@@ -162,7 +162,7 @@
             kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph health 2>/dev/null
           register: ceph_health
           changed_when: false
-          failed_when: "'ERR' in ceph_health.stdout
+          failed_when: "'ERR' in ceph_health.stdout"
           run_once: true
 
         - name: Display Ceph health
