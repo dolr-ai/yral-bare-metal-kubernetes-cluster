@@ -153,6 +153,13 @@
             msg: "✅ All PGs active+clean — safe to purge OSDs"
           run_once: true
 
+        - name: Mark each OSD down (required before purge — purge refuses if up)
+          ansible.builtin.shell: |
+            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd down {{ item }}
+          loop: "{{ ceph_osd_ids }}"
+          changed_when: true
+          run_once: true
+
         - name: Purge each OSD (destroys daemon + removes from CRUSH)
           ansible.builtin.shell: |
             kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- \
