@@ -241,3 +241,11 @@ spec:
     mon: system-node-critical
     osd: system-node-critical
     mgr: system-cluster-critical
+
+  # Allow Rook to automatically remove OSDs that are marked "out" and
+  # "safe-to-destroy" by Ceph.  This is required for clean OSD removal during
+  # the Ceph → Longhorn migration: we mark OSDs out, wait for PGs to
+  # rebalance, then Rook removes them from CRUSH without manual intervention.
+  # Without this flag in the git manifest, Flux reverts the live patch and
+  # Rook never removes the OSDs.
+  removeOSDsIfOutAndSafeToRemove: true
