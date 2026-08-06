@@ -342,6 +342,24 @@
     msg: "{{ delete_result.stdout }}"
   when: delete_result.rc == 0
 
+# Delete the Longhorn Node CR so a reprovisioned node gets a fresh CR with the
+# correct disk UUID. Without this, the stale CR persists with the old disk UUID
+# from the previous installation, causing a "DiskFilesystemChanged" mismatch
+# when the node rejoins with a freshly formatted disk.
+- name: Delete Longhorn Node CR
+  ansible.builtin.command: >
+    kubectl delete node.longhorn.io {{ node_remove_k8s_name }}
+    -n longhorn-system --ignore-not-found
+  delegate_to: "{{ kubectl_delegate }}"
+  register: longhorn_node_delete
+  failed_when: false
+  changed_when: longhorn_node_delete.rc == 0
+
+- name: Display Longhorn Node CR deletion result
+  ansible.builtin.debug:
+    msg: "{{ longhorn_node_delete.stdout }}"
+  when: longhorn_node_delete.rc == 0
+
 - name: Stop kubelet service
   ansible.builtin.systemd:
     name: kubelet

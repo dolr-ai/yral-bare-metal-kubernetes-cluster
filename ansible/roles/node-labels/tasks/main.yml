@@ -74,6 +74,147 @@
   ansible.builtin.debug:
     msg: "{{ labels_output.stdout_lines }}"
 
+# ---------------------------------------------------------------------------
+# Fix stale Longhorn disk UUID (idempotent)
+#
+# When a node is reprovisioned (OS reinstalled), the Longhorn Node CR persists
+# with the old disk UUID. The new disk has a different UUID, causing a
+# "DiskFilesystemChanged" mismatch. This task detects the mismatch and resets
+# the disk spec so Longhorn re-registers the disk with the new UUID.
+#
+# This is safe and idempotent: if there's no mismatch, the disk is left alone.
+# It also handles the case where the Node CR doesn't exist yet (first join).
+# The node-remove role deletes the CR during removal, but this catches edge
+# cases (e.g. node was force-deleted without running the playbook).
+- name: Wait for Longhorn manager pod to be ready on this node
+  ansible.builtin.shell: |
+    kubectl -n longhorn-system get pod -l app=longhorn-manager \
+      --field-selector spec.nodeName={{ ansible_facts['hostname'] }} \
+      -o json | python3 -c "
+    import sys, json
+    pods = json.load(sys.stdin)['items']
+    ready = all(c.get('ready') for c in [p['status'].get('containerStatuses', [{}])[0] for p in pods]) if pods else False
+    print('ready' if ready else 'not_ready')
+    "
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: lh_manager_status
+  until: lh_manager_status.stdout == 'ready'
+  retries: 30
+  delay: 5
+  changed_when: false
+
+- name: Check Longhorn Node CR disk status
+  ansible.builtin.shell: |
+    kubectl -n longhorn-system get node.longhorn.io {{ ansible_facts['hostname'] }} \
+      -o json 2>/dev/null | python3 -c "
+    import sys, json
+    d = json.load(sys.stdin)
+    disks = d.get('status', {}).get('diskStatus', {})
+    for disk_name, disk_info in disks.items():
+        conditions = disk_info.get('conditions', [])
+        for c in conditions:
+            if c.get('reason') == 'DiskFilesystemChanged':
+                print(disk_name)
+                sys.exit(0)
+    print('')
+    " 2>/dev/null || echo ''
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  delegate_to: "{{ groups['control_plane'][0] }}"
+  register: lh_stale_disk
+  changed_when: false
+  failed_when: false
+
+- name: Reset stale Longhorn disk with UUID mismatch
+  when: lh_stale_disk.stdout | trim != ''
+  block:
+    - name: Disable scheduling on stale disk
+      ansible.builtin.shell: |
+        kubectl -n longhorn-system patch node.longhorn.io {{ ansible_facts['hostname'] }} \
+          --type=merge \
+          -p '{"spec":{"disks":{"{{ lh_stale_disk.stdout | trim }}":{"allowScheduling":false,"evictionRequested":false,"path":"/var/lib/longhorn/","storageReserved":2684354560,"tags":[],"diskType":"filesystem","diskDriver":""}}}}'
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      changed_when: true
+
+    - name: Clear stale disks from Node CR spec
+      ansible.builtin.shell: |
+        kubectl -n longhorn-system patch node.longhorn.io {{ ansible_facts['hostname'] }} \
+          --type=json \
+          -p '[{"op":"replace","path":"/spec/disks","value":{}}]'
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      changed_when: true
+
+    - name: Wait for Longhorn to sync empty disk spec
+      ansible.builtin.shell: |
+        kubectl -n longhorn-system get node.longhorn.io {{ ansible_facts['hostname'] }} \
+          -o json | python3 -c "
+        import sys, json
+        d = json.load(sys.stdin)
+        disks = d.get('spec', {}).get('disks', {})
+        print('empty' if not disks else 'pending')
+        "
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      register: lh_disk_spec
+      until: lh_disk_spec.stdout == 'empty'
+      retries: 10
+      delay: 3
+      changed_when: false
+
+    - name: Re-add disk with fresh UUID
+      ansible.builtin.shell: |
+        kubectl -n longhorn-system patch node.longhorn.io {{ ansible_facts['hostname'] }} \
+          --type=merge \
+          -p '{"spec":{"disks":{"default-disk":{"allowScheduling":true,"evictionRequested":false,"path":"/var/lib/longhorn/","storageReserved":2684354560,"tags":[],"diskType":"filesystem","diskDriver":""}}}}'
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      register: lh_disk_readd
+      until: lh_disk_readd.rc == 0
+      retries: 5
+      delay: 10
+      changed_when: true
+
+    - name: Wait for fresh disk to become Ready
+      ansible.builtin.shell: |
+        kubectl -n longhorn-system get node.longhorn.io {{ ansible_facts['hostname'] }} \
+          -o json | python3 -c "
+        import sys, json
+        d = json.load(sys.stdin)
+        disk = d.get('status', {}).get('diskStatus', {}).get('default-disk', {})
+        ready = False
+        for c in disk.get('conditions', []):
+            if c.get('type') == 'Ready':
+                ready = c.get('status') == 'True'
+        print('ready' if ready else 'pending')
+        "
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      register: lh_disk_ready
+      until: lh_disk_ready.stdout == 'ready'
+      retries: 15
+      delay: 5
+      changed_when: false
+
+    - name: Display Longhorn disk UUID fix result
+      ansible.builtin.debug:
+        msg: >-
+          Fixed stale Longhorn disk UUID on {{ ansible_facts['hostname'] }}:
+          old disk '{{ lh_stale_disk.stdout | trim }}' replaced with 'default-disk'
+
+- name: Skip Longhorn disk fix (no mismatch)
+  ansible.builtin.debug:
+    msg: "Longhorn disk on {{ ansible_facts['hostname'] }} is healthy, no UUID fix needed"
+  when: lh_stale_disk.stdout | trim == ''
+
 - name: Get nodes by topology
   ansible.builtin.command: >
     kubectl get nodes
