@@ -14,12 +14,13 @@
 #   200Gi  — data headroom for snowplow-enriched topic (200GiB cap spread across 12 partitions)
 #    50Gi  — Kafka index files, __consumer_offsets, Connect internal topics, overhead
 #
-# Pool name 'combined-1': Longhorn-backed Kafka pool (replaced 'combined-ceph' which used Ceph).
+# Pool name 'combined-ceph': kept as-is from the Ceph era. Renaming the pool
+# or renumbering brokers would break KRaft metadata and topic partition assignments.
 ---
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaNodePool
 metadata:
-  name: combined-1
+  name: combined-ceph
   namespace: kafka
   labels:
     strimzi.io/cluster: kafka-cluster
@@ -87,33 +88,6 @@ spec:
         tls: false
         authentication:
           type: scram-sha-512
-      # External listener for Gateway API (TLSRoute SNI passthrough on port 9092).
-      # Strimzi creates kafka-cluster-kafka-external-bootstrap + per-broker ClusterIP services.
-      # Brokers advertise kafka-broker-{3,4,5}.yral.com:9092 so clients reconnect via the Gateway.
-      - name: external
-        port: 9094
-        type: cluster-ip
-        tls: true
-        authentication:
-          type: scram-sha-512
-        configuration:
-          brokerCertChainAndKey:
-            secretName: kafka-external-tls-v2
-            certificate: tls.crt
-            key: tls.key
-          bootstrap:
-            alternativeNames:
-              - kafka.yral.com
-          brokers:
-            - broker: 0
-              advertisedHost: kafka-broker-0.yral.com
-              advertisedPort: 9092
-            - broker: 1
-              advertisedHost: kafka-broker-1.yral.com
-              advertisedPort: 9092
-            - broker: 2
-              advertisedHost: kafka-broker-2.yral.com
-              advertisedPort: 9092
     authorization:
       type: simple
     config:
