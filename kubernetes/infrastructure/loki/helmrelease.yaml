@@ -56,13 +56,9 @@ spec:
     singleBinary:
       replicas: 1
       persistence:
-        # Longhorn volume. StorageClass is longhorn (default, 2-replica, encrypted) because
-        # the PVC already exists and spec.storageClassName is immutable on a bound PVC.
-        # The 2-replica requirement is enforced by patching the Longhorn Volume CR directly.
-        # Switch to longhorn-2replica only when the PVC is deleted+recreated (e.g.
-        # when Loki gains distributed HA and migrates to object-store backend).
-        # PVC is pinned to Ceph block storage during the migration coexistence period.
-        storageClass: ceph-block
+        # Longhorn volume. StorageClass is longhorn (default, 2-replica, encrypted).
+        # The PVC was migrated from Ceph to Longhorn during the storage migration.
+        storageClass: longhorn
         size: 600Gi
       resources:
         requests:

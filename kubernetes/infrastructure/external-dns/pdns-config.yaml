@@ -4,7 +4,7 @@
 # LMDB supports RFC2136 dynamic updates (since PowerDNS 5.0.0) and TSIG keys.
 # The bind backend does NOT support DNS updates (per PowerDNS docs).
 #
-# The LMDB file lives on a PVC (Rook/Ceph ceph-block). PowerDNS auto-creates
+# The LMDB file lives on a PVC (Longhorn 2-replica, encrypted). PowerDNS auto-creates
 # the schema on first start. Zone and TSIG key are created by the init container
 # using pdnsutil.
 #

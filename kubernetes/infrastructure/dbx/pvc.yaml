@@ -4,7 +4,7 @@ metadata:
   name: dbx-data
   namespace: dbx
 spec:
-  storageClassName: ceph-block
+  storageClassName: longhorn
   accessModes:
     - ReadWriteOnce
   resources:

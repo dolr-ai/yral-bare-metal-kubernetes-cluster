@@ -108,12 +108,10 @@ spec:
         storageSpec:
           volumeClaimTemplate:
             spec:
-              # Single replica (default): no in-cluster HA, but ceph-block provides
-              # durable storage at the volume level. Prometheus is not stateful
-              # enough to warrant a second replica — 15d retention is expendable.
-              # Switch to the default `longhorn` StorageClass once Prometheus is
-              # mirrored (2 replicas + Thanos sidecar dedup).
-              storageClassName: ceph-block
+              # Single replica (default): no in-cluster HA, but Longhorn 2-replica
+              # provides durable storage at the volume level. Prometheus is not
+              # stateful enough to warrant a second replica — 15d retention is expendable.
+              storageClassName: longhorn
               accessModes: ["ReadWriteOnce"]
               resources:
                 requests:
