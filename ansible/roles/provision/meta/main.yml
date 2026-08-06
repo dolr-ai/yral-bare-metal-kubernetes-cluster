@@ -1,0 +1,6 @@
+---
+# The provision role runs entirely on localhost (Hetzner Robot API calls,
+# SSH key fetching, installimage configuration). No sudo is needed — the
+# playbook's `become: true` (meant for remote node tasks like apt install)
+# must not apply here.
+become: false
