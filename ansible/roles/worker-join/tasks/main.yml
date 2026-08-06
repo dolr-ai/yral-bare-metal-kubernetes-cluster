@@ -50,16 +50,20 @@
       content: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
       ttl: 1
       proxied: true
-    status_code: 200
+    status_code: [200, 400]
   delegate_to: localhost
   register: worker_join_cf_result
   changed_when: worker_join_cf_result.status == 200
+  failed_when: >
+    worker_join_cf_result.status != 200 and
+    (worker_join_cf_result.status != 400 or
+     'identical record already exists' not in (worker_join_cf_result.json.errors | map(attribute='message') | join(' ')))
 
 - name: Display Cloudflare DNS registration result
   ansible.builtin.debug:
     msg: >-
       Added A record: {{ cloudflare_app_wildcard_hostname }} → {{ hostvars[inventory_hostname]['ansible_host'] }}
-      (record id: {{ worker_join_cf_result.json.result.id }})
+      {% if worker_join_cf_result.status == 200 %}(record id: {{ worker_join_cf_result.json.result.id }}){% else %}(already exists){% endif %}
 
 - name: Delete stale Rook OSD prepare job for this node
   # Rook creates OSD prepare jobs eagerly for all cluster nodes when first deployed.
