@@ -23,6 +23,10 @@ spec:
   instances: 1
   imageName: ghcr.io/cloudnative-pg/postgresql:18.4
 
+  # Superuser credentials (used by Harbor core and dbx to connect)
+  superuserSecret:
+    name: harbor-db-superuser
+
   # Bootstrap from Harbor's internal PostgreSQL via pg_basebackup
   bootstrap:
     pg_basebackup:
