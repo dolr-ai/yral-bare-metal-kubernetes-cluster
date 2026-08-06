@@ -46,8 +46,13 @@
       when: ceph_node_in_crush.rc == 0
       block:
         - name: Get OSD IDs for target node from CRUSH tree
-          # Use python3 for reliable parsing — awk is fragile with Ceph's
-          # variable-width column output and trailing whitespace.
+          # Use python3 for reliable parsing of ceph osd tree output.
+          # CRUSH tree format:
+          #   ID   WEIGHT  TYPE NAME      STATUS  REWEIGHT  PRI-AFF
+          #   -13  0.88    host worker-2
+          #    4   ssd     0.46  osd.4    up      1.00000   1.00000
+          # host is at fields[2], hostname at fields[3].
+          # osd.N is at fields[3] on OSD lines.
           ansible.builtin.shell: |
             kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd tree 2>/dev/null | \
             python3 -c "
@@ -59,13 +64,13 @@
                 fields = line.split()
                 if not fields:
                     continue
-                # Detect host line: 'host <hostname>'
-                if len(fields) >= 2 and fields[1] == 'host':
-                    in_host = (fields[2] == target)
+                # Detect host line: 'ID WEIGHT host <hostname>'
+                if len(fields) >= 4 and fields[2] == 'host':
+                    in_host = (fields[3] == target)
                     continue
-                # Detect OSD line: '<id> ssd ... osd.<n>' while inside target host
-                if in_host and len(fields) >= 2 and fields[1].startswith('osd.'):
-                    osd_ids.append(fields[1].replace('osd.', ''))
+                # Detect OSD line: 'ID CLASS WEIGHT osd.N STATUS ...'
+                if in_host and len(fields) >= 4 and fields[3].startswith('osd.'):
+                    osd_ids.append(fields[3].replace('osd.', ''))
             print(' '.join(osd_ids) if osd_ids else '')
             "
           register: ceph_osd_ids_raw
