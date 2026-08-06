@@ -6,22 +6,20 @@
 # Pod anti-affinity spreads brokers across different FSN1 datacenter zones
 # so a single DC failure never loses quorum.
 #
-# Storage: 250Gi Ceph PVC per node (1 replica via ceph-block-1replica StorageClass)
+# Storage: 250Gi Longhorn PVC per node (1 replica via longhorn-1replica StorageClass)
 #   Kafka provides its own replication (3 brokers, replication.factor=3) which is strictly
-#   stronger than Ceph 2-replica: tolerates 2/3 node failures vs Ceph's 1/2.
-#   Adding Ceph replication on top would create 6× write amplification per produce request
-#   (3 brokers × 2 Ceph replicas) with no additional durability benefit.
+#   stronger than Longhorn 2-replica: tolerates 2/3 node failures vs Longhorn's 1/2.
+#   Adding Longhorn replication on top would create 6× write amplification per produce request
+#   (3 brokers × 2 Longhorn replicas) with no additional durability benefit.
 #   200Gi  — data headroom for snowplow-enriched topic (200GiB cap spread across 12 partitions)
 #    50Gi  — Kafka index files, __consumer_offsets, Connect internal topics, overhead
 #
-# Pool name 'combined-ceph': originally created as a migration target from the Longhorn
-# 'combined' pool. The old pool was removed after partition reassignment to brokers 3/4/5.
-# Will be migrated back to longhorn-1replica during the Ceph→Longhorn migration.
+# Pool name 'combined-1': Longhorn-backed Kafka pool (replaced 'combined-ceph' which used Ceph).
 ---
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaNodePool
 metadata:
-  name: combined-ceph
+  name: combined-1
   namespace: kafka
   labels:
     strimzi.io/cluster: kafka-cluster
@@ -33,7 +31,7 @@ spec:
   storage:
     type: persistent-claim
     size: 250Gi
-    class: ceph-block-1replica
+    class: longhorn-1replica
     deleteClaim: true
   template:
     pod:
@@ -107,14 +105,14 @@ spec:
             alternativeNames:
               - kafka.yral.com
           brokers:
-            - broker: 3
-              advertisedHost: kafka-broker-3.yral.com
+            - broker: 0
+              advertisedHost: kafka-broker-0.yral.com
               advertisedPort: 9092
-            - broker: 4
-              advertisedHost: kafka-broker-4.yral.com
+            - broker: 1
+              advertisedHost: kafka-broker-1.yral.com
               advertisedPort: 9092
-            - broker: 5
-              advertisedHost: kafka-broker-5.yral.com
+            - broker: 2
+              advertisedHost: kafka-broker-2.yral.com
               advertisedPort: 9092
     authorization:
       type: simple
