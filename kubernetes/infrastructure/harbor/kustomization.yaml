@@ -10,3 +10,5 @@ resources:
   - helmrepository.yaml
   - helmrelease.yaml
   - harbor-admin-secret.sops.yaml
+  - harbor-db-replication.sops.yaml
+  - cnpg-cluster.yaml

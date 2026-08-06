@@ -1,0 +1,50 @@
+# CloudNativePG Cluster for Harbor — migrated from Harbor's internal PostgreSQL.
+#
+# Bootstrap: pg_basebackup from Harbor's internal DB (harbor-database.harbor.svc:5432)
+#            as a standalone replica cluster (continuous streaming replication).
+#
+# Cutover procedure:
+#   1. This cluster bootstraps as a replica of harbor-database (old internal DB)
+#   2. Wait for sync (check with kubectl get cluster -n harbor harbor-db)
+#   3. Scale down Harbor core/jobservice/registry (stop writes to old DB)
+#   4. Set replica.enabled: false to promote CNPG to primary
+#   5. Update Harbor HelmRelease: database.type: external, host: harbor-db-rw
+#   6. Scale Harbor back up
+#   7. Remove harbor-database StatefulSet + PVC (Helm handles this when type=external)
+#
+# Harbor connects via the -rw endpoint (harbor-db-rw.harbor.svc:5432).
+# Database: registry, User: postgres (matches Harbor's internal DB config).
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: harbor-db
+  namespace: harbor
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.4
+
+  # Bootstrap from Harbor's internal PostgreSQL via pg_basebackup
+  bootstrap:
+    pg_basebackup:
+      source: harbor-internal-db
+
+  # Standalone replica cluster — continuously replicates from source
+  # until we promote it to primary by setting enabled: false
+  replica:
+    enabled: true
+    source: harbor-internal-db
+
+  storage:
+    storageClass: longhorn
+    size: 10Gi
+
+  externalClusters:
+    - name: harbor-internal-db
+      connectionParameters:
+        host: harbor-database.harbor.svc
+        port: "5432"
+        user: postgres
+        dbname: postgres
+      password:
+        name: harbor-db-replication
+        key: password
