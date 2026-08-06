@@ -10,6 +10,5 @@ resources:
   - helmrepository.yaml
   - helmrelease.yaml
   - harbor-admin-secret.sops.yaml
-  - harbor-db-source-password.sops.yaml
   - harbor-db-superuser.sops.yaml
   - cnpg-cluster.yaml

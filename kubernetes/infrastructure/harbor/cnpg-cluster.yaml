@@ -1,9 +1,9 @@
 # CloudNativePG Cluster for Harbor — 2-instance HA with streaming replication.
 #
-# Bootstrap: logical import (initdb.import) from Harbor's internal DB
-#            (harbor-database.harbor.svc:5432) via pg_dump/pg_restore.
-#            This is the CNPG-recommended approach for external PostgreSQL migrations.
-#            Ref: https://cloudnative-pg.io/docs/1.29/database_import/
+# Bootstrap: fresh initdb. Harbor's old internal PostgreSQL (harbor-database)
+#            was removed by Helm when database.type switched to external.
+#            Harbor core re-initializes its schema on first connect (migrations
+#            run automatically via the `core` pod's init container).
 #
 # 2 instances (1 primary + 1 replica) with built-in streaming replication.
 # Uses longhorn-1replica StorageClass per the storage replication policy —
@@ -25,34 +25,14 @@ spec:
   superuserSecret:
     name: harbor-db-superuser
 
-  # Logical import of the `registry` database from Harbor's internal PostgreSQL.
-  # Uses pg_dump -Fd / pg_restore --no-acl --no-owner under the hood.
-  # The source DB must be the same or older major version (18.3 → 18.4 is fine).
+  # Fresh initdb — Harbor core runs schema migrations on first connect.
+  # The old Harbor internal DB was removed by Helm when we switched to
+  # database.type: external, so there's no source to import from.
   bootstrap:
     initdb:
       database: registry
       owner: postgres
-      import:
-        type: monolith
-        databases:
-          - registry
-        roles:
-          - postgres
-        source:
-          externalCluster: harbor-internal-db
 
   storage:
     storageClass: longhorn-1replica
     size: 10Gi
-
-  externalClusters:
-    - name: harbor-internal-db
-      connectionParameters:
-        host: harbor-database.harbor.svc
-        port: "5432"
-        user: postgres
-        dbname: postgres
-        sslmode: disable
-      password:
-        name: harbor-db-source-password
-        key: password
