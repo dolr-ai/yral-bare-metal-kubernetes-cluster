@@ -3,9 +3,7 @@ provision_hetzner_ssh_keys:
   - "github-actions@yral.com"
   - "saikatdas0790@gmail.com"
 
-# OS partition size for the root btrfs filesystem on the primary NVMe drive.
-# Workers use 50G — the remaining ~450 GB stays as unallocated GPT free space
-# for the storage-longhorn role to add to the btrfs RAID0 pool.
-# Control planes use 'all' (full disk) — they are not storage nodes and
-# benefit from the extra ephemeral storage for containerd and kubelet.
-provision_os_partition_size: "{{ '50G' if 'worker_nodes' in group_names else 'all' }}"
+# OS partition size — use full disk for all nodes. Longhorn stores its data
+# files on the btrfs filesystem (expanded to both NVMe drives via RAID0).
+# No partition splitting needed (that was for Ceph OSDs).
+provision_os_partition_size: "all"

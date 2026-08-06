@@ -104,14 +104,13 @@ echo "OS partition size: ${OS_PARTITION_SIZE}"
 #
 # Ubuntu 26.04 (resolute) — all cluster nodes run Ubuntu 26.04.
 #
-# Resulting partition layout (workers, OS_PARTITION_SIZE=50G):
+# Partition layout (all nodes, OS_PARTITION_SIZE=all):
 #   nvme0n1p1  ~1 MiB   BIOS boot (auto, for GRUB stage1.5)
-#   nvme0n1p2  50 GiB   btrfs root
-#   [free]     ~450 GiB → storage-longhorn role adds to btrfs RAID0
+#   nvme0n1p2  all      btrfs root (full disk)
 #
-# Resulting partition layout (control planes, OS_PARTITION_SIZE=all):
-#   nvme0n1p1  ~1 MiB   BIOS boot (auto)
-#   nvme0n1p2  all      btrfs root
+# After first boot, the storage-longhorn role expands btrfs to the second
+# NVMe drive (RAID0) and creates /var/lib/longhorn with nodatacow.
+# Longhorn stores its data files directly on the btrfs filesystem.
 cat > /autosetup << AUTOEOF
 DRIVE1 /dev/${DRIVE_TO_USE}
 SWRAID 0

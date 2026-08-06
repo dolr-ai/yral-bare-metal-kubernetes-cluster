@@ -195,64 +195,9 @@
 # Clean up stale Ceph/Rook artifacts (for nodes repurposed from Ceph)
 
 - name: Remove stale Rook data directory if present
-  ansible.builtin.shell: |
-    if [ -d /var/lib/rook ]; then
-      rm -rf /var/lib/rook
-      echo "removed"
-    else
-      echo "not present"
-    fi
-  args:
-    executable: /bin/bash
-  register: rook_cleanup
-  changed_when: "'removed' in rook_cleanup.stdout"
-
-- name: Display Rook cleanup result
-  ansible.builtin.debug:
-    msg: "Stale Rook directory: {{ rook_cleanup.stdout }}"
-
-- name: Detect OS NVMe drive
-  ansible.builtin.shell: |
-    set -o pipefail
-    root_part=$(findmnt -n -o SOURCE /)
-    lsblk -no pkname "$root_part"
-  args:
-    executable: /bin/bash
-  register: os_nvme_result
-  changed_when: false
-
-- name: Set OS NVMe drive fact
-  ansible.builtin.set_fact:
-    os_nvme: "{{ os_nvme_result.stdout | trim }}"
-
-- name: Remove stale Ceph OSD partition from OS drive if present
-  # If this node was previously a Ceph OSD node, the OS drive may have a
-  # "rook-osd" GPT partition. Remove it so the full disk is available to btrfs.
-  ansible.builtin.shell: |
-    PART=$(lsblk -rno NAME,PARTLABEL /dev/{{ os_nvme }} | awk '$2=="rook-osd" {print $1}')
-    if [ -n "$PART" ]; then
-      sgdisk -d 3 /dev/{{ os_nvme }} 2>/dev/null || true
-      partprobe /dev/{{ os_nvme }}
-      echo "removed rook-osd partition"
-    else
-      echo "no rook-osd partition found"
-    fi
-  args:
-    executable: /bin/bash
-  register: rook_part_cleanup
-  changed_when: "'removed' in rook_part_cleanup.stdout"
-
-- name: Zero stale bluestore labels on OS drive (100 GiB position)
-  # The 100 GiB position from disk start falls inside the old rook-osd partition
-  # and is not covered by the OS install. Zero it to prevent Ceph from detecting
-  # a stale OSD on a repurposed node.
-  ansible.builtin.shell: |
-    dd if=/dev/zero of=/dev/{{ os_nvme }} bs=4096 count=2 seek=$(( 107374182400 / 4096 )) conv=fsync
-    SECTORS=$(blockdev --getsz /dev/{{ os_nvme }})
-    dd if=/dev/zero of=/dev/{{ os_nvme }} bs=512 count=81920 seek=$(( SECTORS - 81920 )) conv=fsync
-  args:
-    executable: /bin/bash
-  changed_when: true
+  ansible.builtin.file:
+    path: /var/lib/rook
+    state: absent
 
 - name: Display storage setup summary
   ansible.builtin.debug:
@@ -262,6 +207,5 @@
       ============================================================
       btrfs: {{ 'expanded to RAID0' if has_multiple_drives | bool else 'single drive' }}
       Longhorn data dir: /var/lib/longhorn (nodatacow)
-      Stale Rook/Ceph: cleaned up
       Longhorn will auto-discover this disk via its Node CR.
       ============================================================
