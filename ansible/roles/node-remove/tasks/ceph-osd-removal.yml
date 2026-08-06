@@ -160,14 +160,11 @@
           changed_when: true
           run_once: true
 
-        - name: Destroy each OSD (stops the daemon, required before purge)
-          # ceph osd destroy marks the OSD as destroyed and stops its daemon.
-          # Without this, the Rook OSD pod keeps the OSD 'up' and purge fails
-          # with EBUSY even after 'ceph osd down'.
+        - name: Set noup to prevent Rook OSD pod from bringing OSDs back up
+          # Without this, the Rook OSD pod immediately marks the OSD 'up' again
+          # after 'ceph osd down', making destroy/purge fail with EBUSY.
           ansible.builtin.shell: |
-            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- \
-            ceph osd destroy {{ item }} --yes-i-really-mean-it
-          loop: "{{ ceph_osd_ids }}"
+            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd set noup
           changed_when: true
           run_once: true
 
@@ -193,6 +190,20 @@
           retries: 30
           delay: 5
           changed_when: false
+          run_once: true
+
+        - name: Destroy each OSD (stops the daemon, required before purge)
+          ansible.builtin.shell: |
+            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- \
+            ceph osd destroy {{ item }} --yes-i-really-mean-it
+          loop: "{{ ceph_osd_ids }}"
+          changed_when: true
+          run_once: true
+
+        - name: Unset noup (restore normal operation)
+          ansible.builtin.shell: |
+            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd unset noup
+          changed_when: true
           run_once: true
 
         - name: Purge each OSD (destroys daemon + removes from CRUSH)
