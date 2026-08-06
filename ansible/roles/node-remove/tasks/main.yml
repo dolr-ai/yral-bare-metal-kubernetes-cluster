@@ -346,14 +346,32 @@
 # correct disk UUID. Without this, the stale CR persists with the old disk UUID
 # from the previous installation, causing a "DiskFilesystemChanged" mismatch
 # when the node rejoins with a freshly formatted disk.
+#
+# The Longhorn controller adds a finalizer (longhorn.io) that prevents deletion
+# until all replicas are cleaned up. Since we already evicted replicas, the
+# finalizer should be removed by the controller. But if the controller is slow
+# or the node is already gone, we force-remove the finalizer to ensure the CR
+# is actually deleted before the node is reprovisioned.
 - name: Delete Longhorn Node CR
   ansible.builtin.command: >
     kubectl delete node.longhorn.io {{ node_remove_k8s_name }}
-    -n longhorn-system --ignore-not-found
+    -n longhorn-system --ignore-not-found --timeout=30s
   delegate_to: "{{ kubectl_delegate }}"
   register: longhorn_node_delete
   failed_when: false
   changed_when: longhorn_node_delete.rc == 0
+
+- name: Force-remove finalizer if Longhorn Node CR is stuck terminating
+  ansible.builtin.shell: |
+    kubectl -n longhorn-system patch node.longhorn.io {{ node_remove_k8s_name }} \
+      --type=merge -p '{"metadata":{"finalizers":null}}' 2>/dev/null
+    kubectl -n longhorn-system delete node.longhorn.io {{ node_remove_k8s_name }} \
+      --ignore-not-found 2>/dev/null
+  delegate_to: "{{ kubectl_delegate }}"
+  register: longhorn_node_force_delete
+  failed_when: false
+  changed_when: true
+  when: longhorn_node_delete.rc != 0
 
 - name: Display Longhorn Node CR deletion result
   ansible.builtin.debug:
