@@ -1,27 +1,23 @@
-# CloudNativePG Cluster for Harbor — migrated from Harbor's internal PostgreSQL.
+# CloudNativePG Cluster for Harbor — 3-instance HA with streaming replication.
 #
 # Bootstrap: logical import (initdb.import) from Harbor's internal DB
 #            (harbor-database.harbor.svc:5432) via pg_dump/pg_restore.
 #            This is the CNPG-recommended approach for external PostgreSQL migrations.
 #            Ref: https://cloudnative-pg.io/docs/1.29/database_import/
 #
-# Cutover procedure:
-#   1. CNPG cluster imports the `registry` database from harbor-database
-#   2. Wait for import to complete (kubectl get cluster -n harbor harbor-db)
-#   3. Scale down Harbor core/jobservice/registry (stop writes to old DB)
-#   4. Update Harbor HelmRelease: database.type: external, host: harbor-db-rw
-#   5. Scale Harbor back up — Harbor now connects to CNPG on Longhorn
-#   6. Remove harbor-database StatefulSet + Ceph PVC (Helm handles this when type=external)
+# 3 instances on Longhorn (1 primary + 2 replicas) with built-in streaming
+# replication. CNPG manages the PKI (TLS certs for streaming_replica user),
+# failover, and WAL archiving automatically.
 #
 # Harbor connects via the -rw endpoint (harbor-db-rw.harbor.svc:5432).
-# Database: registry, User: postgres (matches Harbor's internal DB config).
+# Database: registry, User: postgres.
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
   name: harbor-db
   namespace: harbor
 spec:
-  instances: 1
+  instances: 3
   imageName: ghcr.io/cloudnative-pg/postgresql:18.4
 
   # Superuser credentials (used by Harbor core and dbx to connect)
