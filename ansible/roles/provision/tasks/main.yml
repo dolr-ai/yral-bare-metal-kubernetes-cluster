@@ -138,14 +138,22 @@
       ansible.builtin.debug:
         msg: "Detected drive type: {{ provision_drive_to_use }}"
 
+    - name: Copy installation script to rescue system
+      ansible.builtin.shell: |
+        scp -i {{ ansible_private_key_file }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+          {{ role_path }}/files/init.sh \
+          root@{{ provision_server_ip }}:/root/init.sh
+      changed_when: true
+      delegate_to: localhost
+
     - name: Run Ubuntu installation script
       ansible.builtin.shell: |
         ssh -i {{ ansible_private_key_file }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
           root@{{ provision_server_ip }} \
-          "curl -fsSL https://raw.githubusercontent.com/{{ provision_github_repository }}/main/scripts/install-ubuntu.sh | \
-          MACHINE_HOSTNAME='{{ inventory_hostname }}' \
+          "MACHINE_HOSTNAME='{{ inventory_hostname }}' \
           DRIVE_TO_USE='{{ provision_drive_to_use }}' \
-          OS_PARTITION_SIZE='{{ provision_os_partition_size }}' bash"
+          OS_PARTITION_SIZE='{{ provision_os_partition_size }}' \
+          bash /root/init.sh"
       register: provision_install_output
       failed_when: false
       changed_when: true
