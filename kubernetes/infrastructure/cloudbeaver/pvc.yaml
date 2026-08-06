@@ -4,7 +4,7 @@ metadata:
   name: cloudbeaver-workspace
   namespace: cloudbeaver
 spec:
-  storageClassName: ceph-block
+  storageClassName: longhorn
   accessModes:
     - ReadWriteOnce
   resources:
