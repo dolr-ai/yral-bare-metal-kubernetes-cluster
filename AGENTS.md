@@ -150,7 +150,7 @@ Run `ansible-lint ansible/playbooks/operations/` before changes. Playbooks must 
 
 ### Storage Replication Policy
 
-**Default: Longhorn 2-replica** (`longhorn` StorageClass). Use for ALL stateful workloads that do NOT have their own app-layer replication — ClickHouse, Loki, Prometheus, Harbor, PowerDNS, CloudBeaver, dbx, GeoIP. This gives storage-level HA (tolerates 1 node failure) with LUKS2 encryption at rest.
+**Default: Longhorn 2-replica** (`longhorn` StorageClass). Use for ALL stateful workloads that do NOT have their own app-layer replication — ClickHouse, Loki, Prometheus, Harbor, PowerDNS, dbx, GeoIP. This gives storage-level HA (tolerates 1 node failure) with LUKS2 encryption at rest.
 
 **Exception: Longhorn 1-replica** (`longhorn-1replica` StorageClass). Use ONLY for workloads with app-layer replication that is strictly stronger than Longhorn 2-replica. All three criteria must be met:
 1. The application implements its own replication natively (not just backups)

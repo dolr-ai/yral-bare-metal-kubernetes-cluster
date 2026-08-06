@@ -94,3 +94,4 @@ We should not bring everything into the auth_kv table — that would mix yral-au
 Migrate the other useful bits
 - Add dbx to the self hosted database UI list and gate behind auth.
 - Remove the other unused UIs
+- https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster/blob/343ed901a2a25d701455d20e2d1d41b4253573a2/kubernetes/infrastructure/kafka/kafka.yaml#L107-L116 - Do we need these still?

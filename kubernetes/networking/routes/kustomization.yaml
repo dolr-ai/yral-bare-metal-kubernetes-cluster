@@ -9,7 +9,6 @@ resources:
   - kafka-console.yaml
   - longhorn-ui.yaml
   - harbor.yaml
-  - cloudbeaver.yaml
   - dbx.yaml
   - kafka.yaml
   - kafka-referencegrant.yaml
