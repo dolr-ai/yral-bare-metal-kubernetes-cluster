@@ -57,5 +57,5 @@ spec:
         dbname: postgres
         sslmode: disable
       password:
-        name: harbor-db-replication
+        name: harbor-db-source-password
         key: password
