@@ -1,0 +1,3 @@
+---
+# This role runs on localhost (kubectl, API calls). No sudo needed.
+become: false

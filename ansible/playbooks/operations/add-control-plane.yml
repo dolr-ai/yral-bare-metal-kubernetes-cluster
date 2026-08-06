@@ -5,7 +5,7 @@
 - name: Add control plane node (provision, configure, join)
   hosts: "{{ target_host }}"
   gather_facts: false
-  become: true
+
   serial: 1
 
   roles:
