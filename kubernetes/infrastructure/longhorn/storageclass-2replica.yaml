@@ -35,10 +35,15 @@ parameters:
   numberOfReplicas: "2"
   dataLocality: "best-effort"
   staleReplicaTimeout: "90"
-  # Must use JSON format (Longhorn v1.11+). Plain string "false" is truthy in Go
-  # templates and would render as {"v1":"true"} — causing salvage failures when
-  # the engine (controlled by the global Setting) and replicas disagree.
-  disableRevisionCounter: '{"v1":"false"}'
+  # Enable the revision counter so Longhorn can determine which blocks changed
+  # while a replica was offline (e.g. during a node reboot). With this disabled,
+  # Longhorn forces a full rebuild of the entire volume on every instance-manager
+  # restart. The cost is one extra fsync per write per replica — negligible on NVMe.
+  # NOTE: This is the StorageClass parameter (CSI driver parameter). It must be
+  # a plain boolean string — the CSI driver does strconv.ParseBool() on it.
+  # The JSON format '{"v1":"false"}' is only for the Helm chart's Go templates
+  # (defaultSettings.disableRevisionCounter in helmrelease.yaml).
+  disableRevisionCounter: "false"
   # LUKS2 volume encryption — encrypts each replica's data at rest via dm_crypt.
   encrypted: "true"
   # CSI secret references — Longhorn reads the LUKS passphrase from this Secret.
