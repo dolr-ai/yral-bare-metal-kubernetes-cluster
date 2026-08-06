@@ -43,10 +43,15 @@
   changed_when: false
 
 - name: Add Docker repository
-  ansible.builtin.apt_repository:
-    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ containerd_ubuntu_codename.stdout }} stable"
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: [deb]
+    uris: "https://download.docker.com/linux/ubuntu"
+    suites: "{{ containerd_ubuntu_codename.stdout }}"
+    components: [stable]
+    architectures: [amd64]
+    signed_by: /etc/apt/keyrings/docker.asc
     state: present
-    filename: docker
 
 - name: Update apt cache after adding Docker repository
   ansible.builtin.apt:
