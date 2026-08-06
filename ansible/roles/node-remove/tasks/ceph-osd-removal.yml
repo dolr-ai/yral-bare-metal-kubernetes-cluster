@@ -153,18 +153,18 @@
             msg: "✅ All PGs active+clean — safe to purge OSDs"
           run_once: true
 
-        - name: Mark each OSD down (required before purge — purge refuses if up)
+        - name: Set noup to prevent OSDs from coming back up
+          # Must be set BEFORE 'ceph osd down' — otherwise the Rook OSD pod
+          # immediately marks the OSD 'up' again, making destroy/purge fail.
           ansible.builtin.shell: |
-            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd down {{ item }}
-          loop: "{{ ceph_osd_ids }}"
+            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd set noup
           changed_when: true
           run_once: true
 
-        - name: Set noup to prevent Rook OSD pod from bringing OSDs back up
-          # Without this, the Rook OSD pod immediately marks the OSD 'up' again
-          # after 'ceph osd down', making destroy/purge fail with EBUSY.
+        - name: Mark each OSD down (noup prevents recovery)
           ansible.builtin.shell: |
-            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd set noup
+            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd down {{ item }}
+          loop: "{{ ceph_osd_ids }}"
           changed_when: true
           run_once: true
 
