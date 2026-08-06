@@ -1,14 +1,11 @@
 ---
 # Ceph OSD removal — safely remove the target node's OSDs from the Ceph cluster.
 #
-# Uses the Rook-native approach: enable removeOSDsIfOutAndSafeToRemove on the
-# CephCluster CR, mark OSDs out, wait for PGs to rebalance, verify safe-to-destroy,
-# and let Rook's operator handle the destruction/purge/CRUSH cleanup automatically.
-#
-# Ref: https://rook.io/docs/rook/latest/CRDs/Cluster/ceph-cluster-crd/
-#   "removeOSDsIfOutAndSafeToRemove: If true the operator will remove the OSDs
-#    that are down and whose data has been restored to other OSDs. In Ceph terms,
-#    the OSDs are out and safe-to-destroy when they are removed."
+# Direct purge approach: mark OSDs out, wait for PGs to rebalance, verify
+# safe-to-destroy, scale down deployments, purge OSDs, and remove host from
+# CRUSH map. This is done directly via the Ceph toolbox rather than relying
+# on Rook's removeOSDsIfOutAndSafeToRemove mechanism, which deadlocks when
+# the operator's OSD update loop blocks (too many OSDs "not ok-to-stop").
 #
 # Called from node-remove/tasks/main.yml BEFORE draining the node, while the
 # node is still running and its OSDs are `up` so Ceph can rebalance data off
@@ -92,20 +89,10 @@
               Ceph OSD removal: {{ node_remove_k8s_name }}
               OSDs to remove: {{ ceph_osd_ids | join(', ') }}
               Total: {{ ceph_osd_ids | length }} OSD(s)
-              Method: Rook removeOSDsIfOutAndSafeToRemove (operator-managed)
+              Method: Direct purge (scale down → purge → CRUSH rm)
           run_once: true
 
-        # Step 1: Enable removeOSDsIfOutAndSafeToRemove on the CephCluster CR.
-        # Rook's operator will automatically destroy, purge, and remove from
-        # CRUSH any OSDs that are `out` and `safe-to-destroy`.
-        - name: Enable removeOSDsIfOutAndSafeToRemove on CephCluster
-          ansible.builtin.shell: |
-            kubectl -n rook-ceph patch cephcluster rook-ceph --type=merge \
-            -p '{"spec":{"removeOSDsIfOutAndSafeToRemove":true}}'
-          changed_when: true
-          run_once: true
-
-        # Step 2: Mark OSDs out — triggers Ceph to rebalance data to remaining OSDs.
+        # Step 1: Mark OSDs out — triggers Ceph to rebalance data to remaining OSDs.
         - name: Mark each OSD out (triggers rebalance to other OSDs)
           ansible.builtin.shell: |
             kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd out {{ item }}
@@ -113,7 +100,7 @@
           changed_when: true
           run_once: true
 
-        # Step 3: Wait for all PGs to reach active+clean (data fully rebalanced).
+        # Step 2: Wait for all PGs to reach active+clean (data fully rebalanced).
         - name: Wait for all PGs to reach active+clean
           ansible.builtin.shell: |
             kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph pg stat 2>/dev/null | \
@@ -143,7 +130,7 @@
             msg: "✅ All PGs active+clean — data rebalanced, OSDs safe to remove"
           run_once: true
 
-        # Step 4: Verify OSDs are safe-to-destroy (Ceph confirms all data is replicated elsewhere).
+        # Step 3: Verify OSDs are safe-to-destroy (Ceph confirms all data is replicated elsewhere).
         - name: Verify OSDs are safe-to-destroy
           ansible.builtin.shell: |
             kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- \
@@ -158,7 +145,7 @@
             msg: "✅ OSDs {{ ceph_osd_ids | join(', ') }} are safe to destroy — Rook operator will remove them"
           run_once: true
 
-        # Step 5: Directly purge OSDs and remove from CRUSH.
+        # Step 4: Directly purge OSDs and remove from CRUSH.
         #
         # The Rook operator's removeOSDsIfOutAndSafeToRemove mechanism requires the
         # OSD health monitor goroutine to be running, but it only starts after the
@@ -197,7 +184,7 @@
           changed_when: true
           run_once: true
 
-        # Step 6: Wait for PGs to rebalance after CRUSH removal.
+        # Step 5: Wait for PGs to rebalance after CRUSH removal.
         - name: Wait for PGs to rebalance after CRUSH removal
           ansible.builtin.shell: |
             kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph pg stat 2>/dev/null | \
