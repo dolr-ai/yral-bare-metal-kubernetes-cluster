@@ -1,14 +1,18 @@
 ---
 # Ceph OSD removal — safely remove the target node's OSDs from the Ceph cluster.
 #
+# Uses the Rook-native approach: enable removeOSDsIfOutAndSafeToRemove on the
+# CephCluster CR, mark OSDs out, wait for PGs to rebalance, verify safe-to-destroy,
+# and let Rook's operator handle the destruction/purge/CRUSH cleanup automatically.
+#
+# Ref: https://rook.io/docs/rook/latest/CRDs/Cluster/ceph-cluster-crd/
+#   "removeOSDsIfOutAndSafeToRemove: If true the operator will remove the OSDs
+#    that are down and whose data has been restored to other OSDs. In Ceph terms,
+#    the OSDs are out and safe-to-destroy when they are removed."
+#
 # Called from node-remove/tasks/main.yml BEFORE draining the node, while the
 # node is still running and its OSDs are `up` so Ceph can rebalance data off
 # them cleanly.
-#
-# Only runs for worker nodes (control planes don't have OSDs). Fails if the
-# node has OSDs in the CRUSH map but they can't be found (parsing error).
-# Skips silently only if Ceph is not installed or the node is not in the
-# CRUSH map at all (already removed or never was a Ceph node).
 
 - name: Find rook-ceph-tools pod name
   ansible.builtin.shell: |
@@ -46,32 +50,23 @@
       when: ceph_node_in_crush.rc == 0
       block:
         - name: Get OSD IDs for target node from CRUSH tree
-          # Use python3 for reliable parsing of ceph osd tree output.
-          # CRUSH tree format:
-          #   ID   WEIGHT  TYPE NAME      STATUS  REWEIGHT  PRI-AFF
-          #   -13  0.88    host worker-2
-          #    4   ssd     0.46  osd.4    up      1.00000   1.00000
-          # host is at fields[2], hostname at fields[3].
-          # osd.N is at fields[3] on OSD lines.
           ansible.builtin.shell: |
             kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd tree 2>/dev/null | \
             python3 -c "
             import sys
             target = '{{ node_remove_k8s_name }}'
             in_host = False
-            osd_ids = []
+            osd_id_set = set()
             for line in sys.stdin:
                 fields = line.split()
                 if not fields:
                     continue
-                # Detect host line: 'ID WEIGHT host <hostname>'
                 if len(fields) >= 4 and fields[2] == 'host':
                     in_host = (fields[3] == target)
                     continue
-                # Detect OSD line: 'ID CLASS WEIGHT osd.N STATUS ...'
                 if in_host and len(fields) >= 4 and fields[3].startswith('osd.'):
-                    osd_ids.append(fields[3].replace('osd.', ''))
-            print(' '.join(osd_ids) if osd_ids else '')
+                    osd_id_set.add(fields[3].replace('osd.', ''))
+            print(' '.join(sorted(osd_id_set, key=int)) if osd_id_set else '')
             "
           register: ceph_osd_ids_raw
           changed_when: false
@@ -97,13 +92,20 @@
               Ceph OSD removal: {{ node_remove_k8s_name }}
               OSDs to remove: {{ ceph_osd_ids | join(', ') }}
               Total: {{ ceph_osd_ids | length }} OSD(s)
+              Method: Rook removeOSDsIfOutAndSafeToRemove (operator-managed)
           run_once: true
-        - name: Set noout to prevent premature rebalance
+
+        # Step 1: Enable removeOSDsIfOutAndSafeToRemove on the CephCluster CR.
+        # Rook's operator will automatically destroy, purge, and remove from
+        # CRUSH any OSDs that are `out` and `safe-to-destroy`.
+        - name: Enable removeOSDsIfOutAndSafeToRemove on CephCluster
           ansible.builtin.shell: |
-            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd set noout
+            kubectl -n rook-ceph patch cephcluster rook-ceph --type=merge \
+            -p '{"spec":{"removeOSDsIfOutAndSafeToRemove":true}}'
           changed_when: true
           run_once: true
 
+        # Step 2: Mark OSDs out — triggers Ceph to rebalance data to remaining OSDs.
         - name: Mark each OSD out (triggers rebalance to other OSDs)
           ansible.builtin.shell: |
             kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd out {{ item }}
@@ -111,27 +113,15 @@
           changed_when: true
           run_once: true
 
-        - name: Unset noout to allow rebalance
-          ansible.builtin.shell: |
-            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd unset noout
-          changed_when: true
-          run_once: true
-
+        # Step 3: Wait for all PGs to reach active+clean (data fully rebalanced).
         - name: Wait for all PGs to reach active+clean
-          # ceph pg stat output format:
-          #   161 pgs: 1 stale+active+clean, 160 active+clean; 825 GiB data, ...; 170 B/s rd, ...
-          # Only the first semicolon-separated section contains PG states.
-          # The rest is capacity/throughput info that never contains 'active+clean'.
           ansible.builtin.shell: |
             kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph pg stat 2>/dev/null | \
             python3 -c "
             import sys
             data = sys.stdin.read().strip()
-            # Only check the first section (PG states) — ignore capacity/throughput
             pg_section = data.split(';')[0]
             if 'active+clean' in pg_section:
-                # Check if all PG states are active+clean (allow stale+active+clean too)
-                # A PG is healthy if it's active+clean, even with stale prefix
                 states = [s.strip() for s in pg_section.split(':')[1].split(',') if s.strip()]
                 non_clean = [s for s in states if 'active+clean' not in s]
                 if not non_clean:
@@ -150,96 +140,50 @@
 
         - name: PGs are active+clean
           ansible.builtin.debug:
-            msg: "✅ All PGs active+clean — safe to purge OSDs"
+            msg: "✅ All PGs active+clean — data rebalanced, OSDs safe to remove"
           run_once: true
 
-        - name: Set noup to prevent OSDs from coming back up
-          # Must be set BEFORE 'ceph osd down' — otherwise the Rook OSD pod
-          # immediately marks the OSD 'up' again, making destroy/purge fail.
+        # Step 4: Verify OSDs are safe-to-destroy (Ceph confirms all data is replicated elsewhere).
+        - name: Verify OSDs are safe-to-destroy
           ansible.builtin.shell: |
-            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd set noup
-          changed_when: true
+            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- \
+            ceph osd safe-to-destroy {{ ceph_osd_ids | join(' ') }} 2>&1
+          register: ceph_safe_to_destroy
+          changed_when: false
+          failed_when: "'safe to destroy' not in ceph_safe_to_destroy.stdout.lower()"
           run_once: true
 
-        - name: Mark each OSD down (noup prevents recovery)
-          ansible.builtin.shell: |
-            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd down {{ item }}
-          loop: "{{ ceph_osd_ids }}"
-          changed_when: true
+        - name: OSDs confirmed safe to destroy
+          ansible.builtin.debug:
+            msg: "✅ OSDs {{ ceph_osd_ids | join(', ') }} are safe to destroy — Rook operator will remove them"
           run_once: true
 
-        - name: Wait for OSDs to be down
+        # Step 5: Wait for Rook operator to remove the OSDs (it destroys, purges,
+        # removes from CRUSH, and deletes the OSD deployment automatically).
+        - name: Wait for Rook operator to remove OSDs from CRUSH map
           ansible.builtin.shell: |
             kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd tree 2>/dev/null | \
             python3 -c "
             import sys
-            target_ids = set('{{ ceph_osd_ids | join(' ') }}'.split())
-            down = 0
+            target = '{{ node_remove_k8s_name }}'
+            found = False
             for line in sys.stdin:
                 fields = line.split()
-                if len(fields) >= 5 and fields[3].startswith('osd.'):
-                    osd_id = fields[3].replace('osd.', '')
-                    if osd_id in target_ids:
-                        status = fields[4]
-                        if status == 'down':
-                            down += 1
-            print(down)
+                if len(fields) >= 4 and fields[2] == 'host' and fields[3] == target:
+                    found = True
+                    break
+            print('gone' if not found else 'still_present')
             "
-          register: osd_down_count
-          until: osd_down_count.stdout | int == ceph_osd_ids | length
-          retries: 30
-          delay: 5
+          register: ceph_host_removed
+          until: ceph_host_removed.stdout == "gone"
+          retries: 60
+          delay: 10
           changed_when: false
-          run_once: true
-
-        - name: Destroy each OSD (stops the daemon, required before purge)
-          ansible.builtin.shell: |
-            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- \
-            ceph osd destroy {{ item }} --yes-i-really-mean-it
-          loop: "{{ ceph_osd_ids }}"
-          changed_when: true
-          run_once: true
-
-        - name: Unset noup (restore normal operation)
-          ansible.builtin.shell: |
-            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd unset noup
-          changed_when: true
-          run_once: true
-
-        - name: Purge each OSD (destroys daemon + removes from CRUSH)
-          ansible.builtin.shell: |
-            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- \
-            ceph osd purge {{ item }} --yes-i-really-mean-it
-          loop: "{{ ceph_osd_ids }}"
-          changed_when: true
-          run_once: true
-
-        - name: Remove host bucket from CRUSH map
-          ansible.builtin.shell: |
-            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- \
-            ceph osd crush remove {{ node_remove_k8s_name }}
-          register: crush_remove_result
-          changed_when: true
-          run_once: true
-
-        - name: Verify Ceph health (fail on ERR, warn on WARN)
-          # HEALTH_WARN is expected after OSD removal (degraded PGs during rebalance).
-          # Only fail on HEALTH_ERR which indicates data loss or mon failure.
-          ansible.builtin.shell: |
-            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph health 2>/dev/null
-          register: ceph_health
-          changed_when: false
-          failed_when: "'ERR' in ceph_health.stdout"
-          run_once: true
-
-        - name: Display Ceph health
-          ansible.builtin.debug:
-            msg: "Ceph health after OSD removal: {{ ceph_health.stdout }}"
           run_once: true
 
         - name: OSD removal complete
           ansible.builtin.debug:
             msg: |
               ✅ Ceph OSDs removed for {{ node_remove_k8s_name }}: {{ ceph_osd_ids | join(', ') }}
-              Ceph health: {{ ceph_health.stdout }}
+              Rook operator destroyed, purged, and removed the host from CRUSH.
           run_once: true
