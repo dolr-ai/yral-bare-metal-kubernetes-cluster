@@ -160,6 +160,41 @@
           changed_when: true
           run_once: true
 
+        - name: Destroy each OSD (stops the daemon, required before purge)
+          # ceph osd destroy marks the OSD as destroyed and stops its daemon.
+          # Without this, the Rook OSD pod keeps the OSD 'up' and purge fails
+          # with EBUSY even after 'ceph osd down'.
+          ansible.builtin.shell: |
+            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- \
+            ceph osd destroy {{ item }} --yes-i-really-mean-it
+          loop: "{{ ceph_osd_ids }}"
+          changed_when: true
+          run_once: true
+
+        - name: Wait for OSDs to be down
+          ansible.builtin.shell: |
+            kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- ceph osd tree 2>/dev/null | \
+            python3 -c "
+            import sys
+            target_ids = set('{{ ceph_osd_ids | join(' ') }}'.split())
+            down = 0
+            for line in sys.stdin:
+                fields = line.split()
+                if len(fields) >= 5 and fields[3].startswith('osd.'):
+                    osd_id = fields[3].replace('osd.', '')
+                    if osd_id in target_ids:
+                        status = fields[4]
+                        if status == 'down':
+                            down += 1
+            print(down)
+            "
+          register: osd_down_count
+          until: osd_down_count.stdout | int == ceph_osd_ids | length
+          retries: 30
+          delay: 5
+          changed_when: false
+          run_once: true
+
         - name: Purge each OSD (destroys daemon + removes from CRUSH)
           ansible.builtin.shell: |
             kubectl -n rook-ceph exec {{ ceph_tools_pod.stdout }} -- \
