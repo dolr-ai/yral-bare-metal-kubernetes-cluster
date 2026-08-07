@@ -54,11 +54,11 @@ spec:
 
               # dbx save_connections REPLACES all connections (not append).
               # Must send all connections in a single request.
-              # db_type values: "clickhouse", "mq" (not "kafka").
+              # db_type values: "mq" (not "kafka").
               # Kafka (mq) requires external_config with systemKind, auth, and extra (bootstrapServers, securityProtocol, saslMechanism).
-              echo "=== Saving all 2 connections (ClickHouse, Kafka) ==="
+              echo "=== Saving all 1 connections (Kafka) ==="
               curl -sf -X POST "$API" -H "$CT" \
-                -d "{\"configs\":[{\"id\":\"clickhouse-analytics\",\"name\":\"ClickHouse - analytics\",\"db_type\":\"clickhouse\",\"host\":\"clickhouse-analytics.clickhouse.svc.cluster.local\",\"port\":8123,\"username\":\"default\",\"password\":\"\",\"database\":\"snowplow\"},{\"id\":\"kafka-cluster\",\"name\":\"Kafka - cluster\",\"db_type\":\"mq\",\"host\":\"kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local\",\"port\":9092,\"username\":\"\",\"password\":\"\",\"database\":null,\"external_config\":{\"systemKind\":\"kafka\",\"adminUrl\":\"\",\"auth\":{\"kind\":\"basic\",\"username\":\"kafka-console\",\"password\":\"${KAFKA_SASL_PASSWORD}\"},\"extra\":{\"bootstrapServers\":\"kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092\",\"securityProtocol\":\"SASL_PLAINTEXT\",\"saslMechanism\":\"SCRAM-SHA-512\"}}}]}" \
+                -d "{\"configs\":[{\"id\":\"kafka-cluster\",\"name\":\"Kafka - cluster\",\"db_type\":\"mq\",\"host\":\"kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local\",\"port\":9092,\"username\":\"\",\"password\":\"\",\"database\":null,\"external_config\":{\"systemKind\":\"kafka\",\"adminUrl\":\"\",\"auth\":{\"kind\":\"basic\",\"username\":\"kafka-console\",\"password\":\"${KAFKA_SASL_PASSWORD}\"},\"extra\":{\"bootstrapServers\":\"kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092\",\"securityProtocol\":\"SASL_PLAINTEXT\",\"saslMechanism\":\"SCRAM-SHA-512\"}}}]}" \
                 2>&1 || echo "WARNING: Connection save failed"
 
               echo "=== All connections saved ==="
