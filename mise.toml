@@ -462,7 +462,7 @@ cd apps/yral-legacy && npm install
 [tasks.yral-legacy-build]
 description = "Build yral-legacy (release, musl static binary + WASM client)"
 dir = "apps/yral-legacy"
-run = "cargo leptos build --release"
+run = "cargo leptos --manifest-path ssr/Cargo.toml build --release"
 env = { LEPTOS_BIN_TARGET_TRIPLE = "x86_64-unknown-linux-musl" }
 
 [tasks.yral-legacy-run]

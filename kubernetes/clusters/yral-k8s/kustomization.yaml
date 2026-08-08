@@ -35,7 +35,6 @@ resources:
   - infrastructure-kafka-console.yaml
   - infrastructure-dbx.yaml
   - infrastructure-ci-e2e-reader.yaml
-  - infrastructure-devpod.yaml
   - infrastructure-harbor.yaml
   - infrastructure-tekton-pipelines.yaml
   - infrastructure-tekton-triggers.yaml

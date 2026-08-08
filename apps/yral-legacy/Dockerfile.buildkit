@@ -39,8 +39,10 @@ ENV LEPTOS_ENV="PROD"
 ENV LEPTOS_BIN_TARGET_TRIPLE="x86_64-unknown-linux-musl"
 
 # Build the app (uses bin-profile-release=prod-release from ssr/Cargo.toml metadata)
-# cargo-leptos runs from apps/yral-legacy/ (same as the mise task).
-RUN cd apps/yral-legacy && cargo leptos build --release
+# cargo-leptos runs from apps/yral-legacy/ with --manifest-path pointing to ssr/Cargo.toml
+# (the package manifest — apps/yral-legacy/Cargo.toml was the old standalone workspace root,
+# now retired; the actual [package] is in ssr/Cargo.toml).
+RUN cd apps/yral-legacy && cargo leptos --manifest-path ssr/Cargo.toml build --release
 
 # ── Stage 2: Runtime (scratch) ─────────────────────────────────────────────
 FROM scratch
