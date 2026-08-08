@@ -109,6 +109,14 @@ spec:
       type: internal
   
   valuesFrom:
+    # Admin password lives in harbor-admin-secret.sops.yaml (SOPS-encrypted).
+    # When the Harbor admin password or robot account credentials change, update ALL:
+    #   1. kubernetes/infrastructure/harbor/harbor-admin-secret.sops.yaml  (admin password)
+    #   2. kubernetes/apps/<app>/harbor-pull-secret.sops.yaml             (robot creds, per-app)
+    #      — yral-auth, yral-legacy, yral-metadata, off-chain-agent, my-website
+    #   3. kubernetes/apps/yral-auth/harbor-scan-secret.sops.yaml         (robot creds, Flux image scan)
+    #   4. kubernetes/apps/yral-metadata/harbor-scan-secret.sops.yaml      (robot creds, Flux image scan)
+    # Use: mise run sops-decrypt <file> / mise run sops-encrypt <file>
     - kind: Secret
       name: harbor-secrets
       valuesKey: admin-password
