@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = [
+members = ["apps/hello-world",
   "apps/off-chain-agent",
   "apps/task-runner",
   "apps/yral-auth",
@@ -156,7 +156,8 @@ strum = "0.26"
 strum_macros = "0.26"
 thiserror = "2.0.3"
 time = "0.3.36"
-tokio = "1"
+tokio = "1.53.1"
+topcoat = "0.5.0"
 tower = "0.5"
 tower_governor = "0.8.0"
 tower-http = "0.6"
