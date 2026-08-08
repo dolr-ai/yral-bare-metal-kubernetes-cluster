@@ -4,20 +4,15 @@
 # Stage 1: Build
 FROM rust:latest AS builder
 
-# Install musl target and build dependencies
+# Install musl tools (rustup target is auto-installed from rust-toolchain.toml)
 RUN apt-get update && apt-get install -y --no-install-recommends musl-tools && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy root workspace Cargo.toml (needed by yral-common sub-crates that use .workspace = true)
-COPY Cargo.toml ./
-
-# Copy yral-metadata + local path dep (yral-common)
-COPY apps/yral-metadata/ ./apps/yral-metadata/
-COPY apps/yral-common/ ./apps/yral-common/
-
-WORKDIR /app/apps/yral-metadata
+# Copy the entire monorepo workspace (root Cargo.toml + all apps/)
+# .dockerignore excludes target/, node_modules/, and git submodules.
+COPY . .
 
 # Build the server binary
 RUN cargo build --release --target x86_64-unknown-linux-musl -p yral-metadata-server
@@ -30,8 +25,8 @@ WORKDIR /app
 # Copy CA certificates (app makes HTTPS calls to external services)
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
-# Copy the built binary
-COPY --from=builder /app/apps/yral-metadata/target/x86_64-unknown-linux-musl/release/yral-metadata-server .
+# Copy the built binary (workspace target dir is at repo root)
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/yral-metadata-server .
 
 ENV RUST_LOG="info"
 ENV BIND_ADDRESS="0.0.0.0:7000"

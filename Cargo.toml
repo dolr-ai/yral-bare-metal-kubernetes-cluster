@@ -28,20 +28,14 @@ members = [
   "apps/yral-metadata/client",
   "apps/yral-metadata/server",
   "apps/yral-metadata/types",
-  "apps/yral-mobile/shared/rust/rust-agent/rust-agent-uniffi",
 ]
 
 # apps/yral-backend-canister is an independent Cargo workspace (IC canister, WASM target)
-# and is not a member of this root workspace. It is slated for removal as part of
-# the migration off IC canisters — kept out of the workspace intentionally.
-# apps/website is a non-Cargo project (no need to exclude).
-# apps/yral-mobile is a Gradle project, but its rust-agent submodule contains a
-# Cargo package (shared/rust/rust-agent/rust-agent-uniffi). It is included in
-# workspace.members below so `cargo check --workspace` statically type-checks it
-# alongside all other Rust crates in the monorepo.
-exclude = [
-  "apps/yral-backend-canister",
-]
+# and is not a member of this root workspace.
+# apps/website is a non-Cargo project.
+# apps/yral-mobile is a Gradle project with a Rust submodule — excluded from
+# this workspace because git submodules are not present in shallow clones
+# (Shipwright/BuildKit docker builds).
 
 [workspace.dependencies]
 anyhow = "1.0.103"
