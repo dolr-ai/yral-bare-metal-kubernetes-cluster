@@ -1,19 +1,16 @@
 ---
-# storage-longhorn — prepare worker disks for Longhorn storage.
+# storage-longhorn — prepare node disks for Longhorn storage.
 #
-# This is the Longhorn equivalent of the Ceph storage-setup role. Instead of
-# creating Ceph OSD partitions, it expands btrfs to the second NVMe drive and
-# creates the Longhorn data directory with nodatacow.
-#
-# Longhorn auto-discovers the default disk (the root filesystem at /var/lib/longhorn/)
-# via its Node CR. No explicit disk path configuration is needed — Longhorn uses
-# the expanded btrfs filesystem for replica storage.
+# Expands btrfs to the second NVMe drive and creates the Longhorn data
+# directory with nodatacow. Longhorn auto-discovers the default disk
+# (the root filesystem at /var/lib/longhorn/) via its Node CR — no explicit
+# disk path configuration is needed.
 #
 # WORKER NODES:
 #   installimage installs a 50 GB btrfs root on one NVMe drive. This role:
 #     • Joins the second NVMe drive into the btrfs RAID0 pool (~950 GB total).
 #     • Creates /var/lib/longhorn with nodatacow (prevents double-CoW on btrfs).
-#     • Wipes any stale Ceph bluestore labels from both drives.
+#     • Wipes stale bluestore labels from former Ceph OSD drives.
 #
 # CONTROL PLANES:
 #   Same as workers — btrfs expansion + Longhorn data directory. Control planes
@@ -119,7 +116,7 @@
         - name: Wipe filesystem signatures from second drive
           ansible.builtin.shell: |
             wipefs -af /dev/{{ second_drive }}
-            # Zero first 40 MB — clears any stale Ceph bluestore label at offset 0
+            # Zero first 40 MB — clears stale bluestore labels from former Ceph OSDs
             dd if=/dev/zero of=/dev/{{ second_drive }} bs=4M count=10 conv=fsync
             # Zero capacity-based bluestore label positions (1 GiB, 10 GiB, 100 GiB)
             dd if=/dev/zero of=/dev/{{ second_drive }} bs=4096 count=2 seek=$(( 1073741824   / 4096 )) conv=fsync
@@ -192,7 +189,7 @@
     msg: "Longhorn data directory: /var/lib/longhorn ({{ longhorn_nodatacow_check.stdout }})"
 
 # ---------------------------------------------------------------------------
-# Clean up stale Ceph/Rook artifacts (for nodes repurposed from Ceph)
+# Clean up stale Rook artifacts (for nodes repurposed from Ceph)
 
 - name: Remove stale Rook data directory if present
   ansible.builtin.file:

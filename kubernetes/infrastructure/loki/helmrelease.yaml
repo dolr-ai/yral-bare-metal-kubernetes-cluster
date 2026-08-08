@@ -57,7 +57,7 @@ spec:
       replicas: 1
       persistence:
         # Longhorn volume. StorageClass is longhorn (default, 2-replica, encrypted).
-        # The PVC was migrated from Ceph to Longhorn during the storage migration.
+        # PVC uses Longhorn storage (2-replica, LUKS2 encryption).
         storageClass: longhorn
         size: 600Gi
       resources:

@@ -1,8 +1,0 @@
-# Per-app mise config for yral-auth — build-time tools only.
-# Env vars and secrets remain in the root mise.toml / fnox.toml.
-# This file exists so the Dockerfile can run `mise install` to get Node.js
-# for tailwindcss without needing the root mise.toml (which references
-# workspace-wide tools and env vars not needed during the Docker build).
-
-[tools]
-node = "latest"

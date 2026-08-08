@@ -32,7 +32,7 @@ Built-in primitives > ecosystem projects > third-party. Flux > Argo CD. CRD-nati
 ### 1. Immutable Infrastructure
 Nodes are **never patched in place**. Reprovision from a clean slate on every run of a provisioning playbook/role.
 
-- No "already done" guard logic in roles (provision, storage-setup, etc. always run fully).
+- No "already done" guard logic in roles (provision, storage-longhorn, etc. always run fully).
 - Correctness/safety nets only (e.g. don't double-add a btrfs device).
 - A node that gets stuck is re-provisioned from scratch — never "finish the remaining steps" over SSH.
 
@@ -60,7 +60,7 @@ Cross-namespace is the exception (shared infra like Cilium/cert-manager/monitori
 ### 3–6. Role & Playbook Discipline (Atomicity)
 - **Playbooks** (`ansible/playbooks/operations/`): Thin single-play wrappers only. `roles:` list or minimal `include_role` for pre/post task files. Zero conditional logic, loops, or non-role modules in playbooks.
 - **Roles**: Atomic (single responsibility). No `include_role` calls inside roles. No orchestration logic. Must be independently executable. Role-specific conditionals only.
-- Playbook = orchestration sequence of atomic roles (e.g. `provision` → `storage-setup` → `ssh-hardening` → `base-system` → `containerd` → `kubernetes` → `cluster-init` → ...).
+- Playbook = orchestration sequence of atomic roles (e.g. `provision` → `storage-longhorn` → `ssh-hardening` → `base-system` → `containerd` → `kubernetes` → `cluster-init` → ...).
 - New capability → new role first, added to existing playbook. New playbook only when structurally distinct (different host target or lifecycle stage). Ask before creating.
 
 **Reboot handling:** Only in `base-system` role (detect `/var/run/reboot-required`, `ansible.builtin.reboot`). Playbooks orchestrate across nodes.
@@ -132,12 +132,11 @@ Run `ansible-lint ansible/playbooks/operations/` before changes. Playbooks must 
 
 ### Hetzner + Provisioning
 - `provision` role uses Hetzner Robot API + installimage (Ubuntu).
-- OS partition 50G on workers (via `provision_os_partition_size`); full disk on CPs.
-- `storage-setup` is the Ceph OSD path for workers (see `kubernetes/infrastructure/rook-ceph/cluster/cephcluster.yaml` for disk layout details).
+- OS partition full disk on all nodes (via `provision_os_partition_size: "all"`). Longhorn uses the btrfs filesystem (expanded to both NVMe drives via RAID0).
 - `cloudflare-dns` role (at end of add-* playbooks) and `node-remove` handle DNS automatically from `cloudflare_dns_records` in `hosts.yml`.
 - `namecheap-dns` role + `update-namecheap-dns.yml` playbook manages custom nameserver glue records at Namecheap from `namecheap_nameserver` per-host annotations in `hosts.yml`.
 
-**Full init flow (never partial):** provision → storage-setup → ssh-hardening → base-system (reboot if needed) → containerd → kubernetes → (init or join) → node-labels → cloudflare-dns.
+**Full init flow (never partial):** provision → storage-longhorn → ssh-hardening → base-system (reboot if needed) → containerd → kubernetes → (init or join) → node-labels → cloudflare-dns.
 
 ### Kubernetes Cluster
 - kubeadm, stacked etcd, odd # CPs (currently 5, one per Helsinki building for blast radius).
@@ -145,12 +144,11 @@ Run `ansible-lint ansible/playbooks/operations/` before changes. Playbooks must 
 - Cilium + WireGuard encryption. Gateway API for exposure.
 - Serial node operations.
 - CoreDNS topology: see `kubernetes/infrastructure/coredns/coredns-*-topology.yaml` (non-Flux, kubeadm-owned). Run `kubectl apply -f` after adding workers in new zones.
-- Storage (Rook/Ceph): see `kubernetes/infrastructure/rook-ceph/cluster/cephcluster.yaml` for versions, disk layout, and operational rules. Being migrated to Longhorn — both coexist during the transition.
-- Storage (Longhorn): see `kubernetes/infrastructure/longhorn/helmrelease.yaml` for version and settings. Default `longhorn` SC (2 replicas, LUKS2 encryption, `dataLocality: best-effort` for local primary replica). `longhorn-1replica` SC for workloads with app-layer replication.
+- Storage (Longhorn): see `kubernetes/infrastructure/longhorn/helmrelease.yaml` for version and settings. Default `longhorn` SC (2 replicas, LUKS2 encryption, `dataLocality: best-effort` for local primary replica). `longhorn-1replica` SC for workloads with app-layer replication. `storage-longhorn` role handles btrfs RAID0 expansion + Longhorn data dir creation on all nodes.
 
 ### Storage Replication Policy
 
-**Default: Longhorn 2-replica** (`longhorn` StorageClass). Use for ALL stateful workloads that do NOT have their own app-layer replication — ClickHouse, Loki, Prometheus, Harbor, PowerDNS, dbx, GeoIP. This gives storage-level HA (tolerates 1 node failure) with LUKS2 encryption at rest.
+**Default: Longhorn 2-replica** (`longhorn` StorageClass). Use for ALL stateful workloads that do NOT have their own app-layer replication — Loki, Prometheus, Harbor, PowerDNS, dbx, GeoIP. This gives storage-level HA (tolerates 1 node failure) with LUKS2 encryption at rest.
 
 **Exception: Longhorn 1-replica** (`longhorn-1replica` StorageClass). Use ONLY for workloads with app-layer replication that is strictly stronger than Longhorn 2-replica. All three criteria must be met:
 1. The application implements its own replication natively (not just backups)

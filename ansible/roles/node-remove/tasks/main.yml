@@ -217,16 +217,8 @@
   when: node_check.rc != 0
 
 # --- Pre-drain: remove storage replicas from the node ---
-# Ceph OSDs and Longhorn replicas must be evacuated BEFORE draining so the
-# storage layers can rebalance data to remaining nodes while the node is
-# still running. Only runs for worker nodes (control planes have no OSDs).
-- name: Remove Ceph OSDs from node (workers only)
-  ansible.builtin.include_tasks: ceph-osd-removal.yml
-  when:
-    - node_check.rc == 0
-    - not is_control_plane
-  run_once: true
-
+# Longhorn replicas must be evacuated BEFORE draining so the storage layer
+# can rebalance data to remaining nodes while the node is still running.
 - name: Evict Longhorn replicas from node
   ansible.builtin.include_role:
     name: longhorn-evict

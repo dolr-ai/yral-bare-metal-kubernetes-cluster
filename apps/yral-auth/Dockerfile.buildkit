@@ -11,16 +11,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install mise (for Node.js — needed by tailwindcss via cargo-leptos)
-ENV MISE_DATA_DIR="/mise"
-ENV MISE_CONFIG_DIR="/mise"
-ENV MISE_CACHE_DIR="/mise/cache"
-ENV MISE_INSTALL_PATH="/usr/local/bin/mise"
-ENV PATH="/mise/shims:$PATH"
-RUN curl https://mise.run | sh
-
-# musl + wasm targets are declared in rust-toolchain.toml — rustup installs them automatically
-
 # Install cargo-binstall + cargo-leptos
 RUN curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-musl.tgz -o /tmp/cargo-binstall.tgz && \
     tar -xzf /tmp/cargo-binstall.tgz -C /usr/local/bin && \
@@ -28,29 +18,20 @@ RUN curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/downloa
     rm /tmp/cargo-binstall.tgz && \
     cargo binstall cargo-leptos --no-confirm
 
-WORKDIR /app/apps/yral-auth
+# Install Node.js for tailwindcss
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy mise.toml + Cargo.toml + Cargo.lock first for better layer caching
-COPY apps/yral-auth/mise.toml apps/yral-auth/Cargo.toml apps/yral-auth/Cargo.lock ./
+WORKDIR /app
 
-# Install Node.js via mise (pinned in mise.toml)
-RUN mise trust -a && mise install
+# Copy the entire monorepo workspace (root Cargo.toml + all apps/)
+# rust-toolchain.toml at repo root auto-installs nightly + musl/wasm targets.
+# .dockerignore excludes target/, node_modules/, and git submodules.
+COPY . .
 
-# Copy the source code
-COPY apps/yral-auth/src/ ./src/
-COPY apps/yral-auth/style/ ./style/
-COPY apps/yral-auth/public/ ./public/
-COPY apps/yral-auth/tailwind.config.js ./
-COPY apps/yral-auth/package.json ./
-COPY apps/yral-auth/rust-toolchain.toml ./
-
-# Copy local path dependencies — the root Cargo.toml workspace includes
-# all apps, so we need the full apps/ tree (minus target/ via .dockerignore).
-COPY Cargo.toml /app/Cargo.toml
-COPY apps/ /app/apps/
-
-# Install JS dependencies (tailwindcss)
-RUN npm install
+# Install JS dependencies (tailwindcss) in the yral-auth app dir
+RUN cd apps/yral-auth && npm install
 
 # Set Leptos environment variables for the build
 ENV LEPTOS_OUTPUT_NAME="yral-auth"
@@ -61,8 +42,8 @@ ENV LEPTOS_ENV="PROD"
 ENV LEPTOS_TAILWIND_VERSION="v4.0.15"
 ENV LEPTOS_BIN_TARGET_TRIPLE="x86_64-unknown-linux-musl"
 
-# Build the app
-RUN cargo leptos build --release --lib-features release-lib --bin-features release-bin
+# Build the app (cargo-leptos runs from apps/yral-auth/ — same as the mise task)
+RUN cd apps/yral-auth && cargo leptos build --release --lib-features release-lib --bin-features release-bin
 
 # ── Stage 2: Runtime (scratch) ─────────────────────────────────────────────
 FROM scratch

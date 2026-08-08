@@ -1,4 +1,0 @@
-# This file was the root of the yral-legacy standalone workspace.
-# yral-legacy has been migrated into the root workspace (see root Cargo.toml).
-# The [profile.*] sections below have been moved to the root Cargo.toml.
-# This file is kept for reference only; it is no longer a Cargo manifest.

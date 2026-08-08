@@ -23,10 +23,8 @@ kind: StorageClass
 metadata:
   name: longhorn
   annotations:
-    # Not default during coexistence — ceph-block remains default until all
-    # workloads are migrated. Flip this to "true" and ceph-block to "false"
-    # when Ceph is decommissioned.
-    storageclass.kubernetes.io/is-default-class: "false"
+    # Default StorageClass for all stateful workloads (2-replica, LUKS2 encryption).
+    storageclass.kubernetes.io/is-default-class: "true"
 provisioner: driver.longhorn.io
 allowVolumeExpansion: true
 reclaimPolicy: Delete

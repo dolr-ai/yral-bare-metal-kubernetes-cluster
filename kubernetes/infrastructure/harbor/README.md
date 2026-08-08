@@ -101,10 +101,10 @@ git rm kubernetes/networking/routes/<app-name>.yaml
 
 ## Storage
 
-Harbor uses ceph-block StorageClass for persistence:
+Harbor uses Longhorn StorageClass for persistence:
 - Registry data: 50Gi
 - Job service: 10Gi
-- Internal database: 10Gi
+- External database (CNPG): 10Gi
 - Redis: 5Gi
 
 Monitor usage with:

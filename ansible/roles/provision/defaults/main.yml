@@ -5,5 +5,4 @@ provision_hetzner_ssh_keys:
 
 # OS partition size — use full disk for all nodes. Longhorn stores its data
 # files on the btrfs filesystem (expanded to both NVMe drives via RAID0).
-# No partition splitting needed (that was for Ceph OSDs).
 provision_os_partition_size: "all"

@@ -2,7 +2,7 @@
 # Initialize First Control Plane Node
 # Usage: ansible-playbook operations/init-control-plane.yml
 #
-# Role order: provision → storage-setup → ssh-hardening → base-system → resolv-cleanup →
+# Role order: provision → storage-longhorn → ssh-hardening → base-system → resolv-cleanup →
 #             sysctl-tuning → containerd → kubernetes → cluster-init → node-labels →
 #             helm → gateway-api-crds → cilium
 
@@ -13,7 +13,7 @@
 
   roles:
     - role: provision
-    - role: storage-setup
+    - role: storage-longhorn
     - role: ssh-hardening
     - role: base-system
     - role: resolv-cleanup

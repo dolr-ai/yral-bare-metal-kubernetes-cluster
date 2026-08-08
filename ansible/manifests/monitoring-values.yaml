@@ -8,7 +8,7 @@
 prometheus:
   enabled: true
   prometheusSpec:
-    # Single replica (matches Flux HelmRelease). ceph-block provides durability.
+    # Single replica (matches Flux HelmRelease). Longhorn provides durability.
     replicas: 1
     # 15-day retention, matches Flux HelmRelease.
     retention: 15d
@@ -24,11 +24,11 @@ prometheus:
         cpu: 1000m
         memory: 8Gi
 
-    # Storage (match Flux HelmRelease — ceph-block, 100Gi)
+    # Storage (match Flux HelmRelease — longhorn, 100Gi)
     storageSpec:
       volumeClaimTemplate:
         spec:
-          storageClassName: ceph-block
+          storageClassName: longhorn
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:

@@ -14,8 +14,9 @@
 #   200Gi  — data headroom for snowplow-enriched topic (200GiB cap spread across 12 partitions)
 #    50Gi  — Kafka index files, __consumer_offsets, Connect internal topics, overhead
 #
-# Pool name 'combined-ceph': kept as-is from the Ceph era. Renaming the pool
-# or renumbering brokers would break KRaft metadata and topic partition assignments.
+# Pool name 'combined-ceph': kept from the Ceph era to avoid breaking KRaft
+# metadata and topic partition assignments. The name is cosmetic — the pool
+# now uses Longhorn storage.
 ---
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaNodePool
