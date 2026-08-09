@@ -3,12 +3,15 @@
 
 [tools]
 age = "latest"
+"aqua:WebAssembly/binaryen" = "latest"
 cargo-binstall = "latest"
+"cargo:topcoat-cli" = "latest"
+cocoapods = { version = "latest", os = ["macos"] }
 flux2 = "latest"
 fnox = "latest"
 gh = "latest"
+helm = "latest"
 "github:clockworklabs/SpacetimeDB" = "latest"
-"aqua:WebAssembly/binaryen" = "latest"
 # Mobile tooling — macOS only (Android + iOS development). These tools
 # require macOS frameworks and are not installable on Linux. They are
 # conditionally installed only on macOS machines.
@@ -17,20 +20,18 @@ gh = "latest"
 # IllegalArgumentException during script compilation. Bump only after upgrading
 # the Gradle wrapper to a version whose embedded Kotlin supports the new JDK.
 java = { version = "21", os = ["macos"] }
-ruby = { version = "latest", os = ["macos"] }
-cocoapods = { version = "latest", os = ["macos"] }
-swiftlint = { version = "latest", os = ["macos"] }
-maestro = { version = "latest", os = ["macos"] }
-helm = "latest"
 kubectl = "latest"
+maestro = { version = "latest", os = ["macos"] }
 node = "latest"
 pitchfork = "latest"
 podman = "latest"
 protobuf = "latest"
 python = "latest"
-# redis = "latest"  # Commented out — was only needed for the KV migration (completed). Re-enable if needed for debugging.
-rust = "latest"
+ruby = { version = "latest", os = ["macos"] }
+rust = "nightly"
 sops = "latest"
+swiftlint = { version = "latest", os = ["macos"] }
+# redis = "latest"  # Commented out — was only needed for the KV migration (completed). Re-enable if needed for debugging.
 
 # System packages — project-specific build dependencies (apt on Debian/Ubuntu).
 # Applied with: mise bootstrap packages apply --yes

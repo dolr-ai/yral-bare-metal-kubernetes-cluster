@@ -46,10 +46,7 @@ async fn set_fallback_username(cans: &mut Canisters<true>, mut username: String)
                     break;
                 }
                 let rng = rng.get_or_insert_with(|| {
-                    let mut seed = [0u8; 32];
-                    seed[..16].copy_from_slice(&current_epoch().as_nanos().to_be_bytes());
-
-                    SmallRng::from_seed(seed)
+                    SmallRng::seed_from_u64(current_epoch().as_nanos() as u64)
                 });
                 // append random characters in chunks of 3
                 let rand_chars = rng

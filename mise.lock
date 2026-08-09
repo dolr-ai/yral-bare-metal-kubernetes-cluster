@@ -121,6 +121,10 @@ url = "https://github.com/cargo-bins/cargo-binstall/releases/download/v1.20.1/ca
 url_api = "https://api.github.com/repos/cargo-bins/cargo-binstall/releases/assets/453434883"
 provenance = "github-attestations"
 
+[[tools."cargo:topcoat-cli"]]
+version = "0.5.0"
+backend = "cargo:topcoat-cli"
+
 [[tools.cocoapods]]
 version = "1.17.0"
 backend = "gem:cocoapods"
@@ -663,7 +667,7 @@ checksum = "sha256:ecee2d072a14f2d14347dd56dfd8fe5c3130abf5117bfaacbda0f4ef9cc42
 url = "https://cache.ruby-lang.org/pub/ruby/3.4/ruby-3.4.10.tar.gz"
 
 [[tools.rust]]
-version = "stable"
+version = "nightly"
 backend = "core:rust"
 
 [[tools.sops]]

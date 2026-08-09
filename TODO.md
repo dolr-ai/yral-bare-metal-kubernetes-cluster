@@ -1,5 +1,3 @@
-- evaluate if kubernetes secrets are actually secure and consider if we should host hashicorp vault on the cluster to manage secrets instead. This is because I imagine secrets are stored in etcd in plaintext. Since etcd nodes have their disk without encryption, the kubernetes secrets are essentially insecure, right? Is there a way to encrypt etcd at rest? Confirm this:
-The key never leaves the cluster and is encrypted at rest inside etcd (Kubernetes API server encrypts Secrets at the etcd layer by default in kubeadm clusters).
 - Run this benchmark - https://github.com/aquasecurity/kube-bench
 - No notifications received for the dead node. We should have an alert for this. Set up a Grafana alert that notifies us when a node goes down, so we can investigate and fix it as soon as possible. This is critical for maintaining the health and availability of our cluster.
 
@@ -52,3 +50,4 @@ Migrate the other useful bits
 - Add dbx to the self hosted database UI list and gate behind auth.
 - Remove the other unused UIs
 - https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster/blob/343ed901a2a25d701455d20e2d1d41b4253573a2/kubernetes/infrastructure/kafka/kafka.yaml#L107-L116 - Do we need these still?
+- off-chain - remove anything to do with backfilling videos
