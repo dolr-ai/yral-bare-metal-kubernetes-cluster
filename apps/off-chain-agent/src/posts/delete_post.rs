@@ -6,13 +6,11 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use types::PostRequest;
 use verify::VerifiedPostRequest;
-use canisters_client::user_post_service::UserPostService;
 
 use crate::spacetime;
 use crate::kvrocks::{KvrocksClient, VideoDeleted};
 use crate::{
     app_state::AppState,
-    consts::{USER_INFO_SERVICE_CANISTER_ID, USER_POST_SERVICE_CANISTER_ID},
     user::utils::get_agent_from_delegated_identity_wire,
 };
 
@@ -169,21 +167,11 @@ pub async fn handle_delete_post_v2(
             }
         }
     }
-                ))
-            }
-            Err(e) => {
-                return Err((
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Internal server error: {e}"),
-                ))
-            }
-        }
-    }
 
     // Record video deletion in Kvrocks (V2, String post_id)
     record_video_delete_v2(
         state.clone(),
-        publisher_canister_id.to_string(),
+        publisher_user_id.to_string(),
         post_id,
         video_id.clone(),
     )

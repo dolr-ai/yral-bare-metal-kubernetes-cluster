@@ -53,7 +53,7 @@ impl Event {
 
         // Try SpacetimeDB first; fall back to IC if not connected.
         if let Some(ref conn) = app_state.spacetime_conn {
-            if let Err(e) = spacetime::send_view_details(conn, post_id, percentage_watched, watch_count) {
+            if let Err(e) = spacetime::send_view_details(conn, post_id.clone(), percentage_watched, watch_count) {
                 error!("Failed to send view details to SpacetimeDB for post {post_id}: {e:?}");
             }
         } else {

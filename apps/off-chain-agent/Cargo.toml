@@ -96,7 +96,7 @@ utoipa-axum = { workspace = true }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 uuid = { workspace = true, features = ["fast-rng", "v4"] }
 yral-canisters-common = { workspace = true }
-yral-database-spacetime = { path = "../yral-database-spacetime" }
+yral-database-spacetime-bindings = { workspace = true }
 yral-metadata-client = {
   workspace = true,
   features = [

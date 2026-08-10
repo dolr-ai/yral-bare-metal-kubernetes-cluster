@@ -19,9 +19,11 @@ use std::env;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use spacetimedb_sdk::DbConnection;
-use spacetimedb_sdk::Identity;
-use yral_database_spacetime::bindings;
+use spacetimedb_sdk::DbContext;
+use yral_database_spacetime_bindings::{
+    self as bindings, DbConnection,
+    add_view_details, delete_post,
+};
 
 pub type SpacetimeConnection = DbConnection;
 
@@ -51,12 +53,14 @@ pub async fn init_spacetimedb_connection() -> Result<Arc<SpacetimeConnection>> {
 
     let conn = DbConnection::builder()
         .with_uri(url)
-        .with_module_name(db_name)
+        .with_database_name(db_name)
         .with_token(token)
         .build()?;
 
-    // Keep the connection alive in a background task.
-    conn.run_background_task();
+    // Keep the connection alive in a background thread (native; wasm uses
+    // run_background_task). The thread processes WebSocket messages as they
+    // are received.
+    conn.run_threaded();
 
     // Log the derived identity for debugging and for adding to ADMINS.
     let identity = conn.identity();
@@ -79,7 +83,7 @@ pub fn send_view_details(
     watch_count: u8,
 ) -> Result<()> {
     conn.reducers
-        .add_view_details(post_id, bindings::PostViewDetailsFromFrontend {
+        .add_view_details(post_id.clone(), bindings::PostViewDetailsFromFrontend {
             percentage_watched,
             watch_count,
         })
@@ -92,7 +96,7 @@ pub fn send_view_details(
 /// verifies ownership via HTTP middleware before calling this.
 pub fn send_delete_post(conn: &SpacetimeConnection, post_id: String) -> Result<()> {
     conn.reducers
-        .delete_post(post_id)
+        .delete_post(post_id.clone())
         .context("Failed to send delete_post reducer call")?;
     Ok(())
 }

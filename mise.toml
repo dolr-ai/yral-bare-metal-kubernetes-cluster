@@ -222,8 +222,8 @@ description = "Build the yral-database-spacetime wasm module (release)"
 run = "spacetimedb-cli build -p apps/yral-database-spacetime"
 
 [tasks.spacetime-generate]
-description = "Regenerate Rust client bindings from the module schema (reads spacetime.json)"
-run = "spacetimedb-cli generate"
+description = "Regenerate Rust client bindings from the module schema (reads spacetime.json). The generator writes mod.rs; we rename it to lib.rs for the standalone bindings crate."
+run = "spacetimedb-cli generate && mv apps/yral-database-spacetime/bindings/src/mod.rs apps/yral-database-spacetime/bindings/src/lib.rs"
 
 [tasks.spacetime-test]
 description = "Run yral-database-spacetime tests"

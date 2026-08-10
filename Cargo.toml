@@ -18,6 +18,7 @@ members = ["apps/hello-world",
   "apps/yral-common/types",
   "apps/yral-common/username-gen",
   "apps/yral-database-spacetime",
+  "apps/yral-database-spacetime/bindings",
   "apps/yral-legacy/ssr",
   "apps/yral-legacy/ssr/src/auth",
   "apps/yral-legacy/ssr/src/component",
@@ -185,6 +186,10 @@ web-time = "1.0.0"
 yral-canisters-common = {
   package = "yral-canisters-common",
   path = "apps/yral-common/canisters-common"
+}
+yral-database-spacetime-bindings = {
+  package = "yral-database-spacetime-bindings",
+  path = "apps/yral-database-spacetime/bindings"
 }
 yral-metadata-client = {
   path = "apps/yral-metadata/client",

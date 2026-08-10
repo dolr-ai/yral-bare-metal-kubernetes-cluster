@@ -4,7 +4,7 @@
   },
   "generate": [
     {
-      "out-dir": "./apps/yral-database-spacetime/src/bindings",
+      "out-dir": "./apps/yral-database-spacetime/bindings/src",
       "language": "rust"
     }
   ],

@@ -5831,6 +5831,7 @@ dependencies = [
  "uuid",
  "yral-canisters-client",
  "yral-canisters-common",
+ "yral-database-spacetime-bindings",
  "yral-metadata-client",
  "yral-metadata-types",
  "yral-metrics",
@@ -10708,6 +10709,13 @@ name = "yral-config-keys"
 version = "0.1.0"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "yral-database-spacetime-bindings"
+version = "0.1.0"
+dependencies = [
+ "spacetimedb-sdk",
 ]
 
 [[package]]
