@@ -3,6 +3,7 @@ use crate::consts::YRAL_METADATA_URL;
 use crate::events::push_notifications::NotificationClient;
 use crate::kvrocks::KvrocksClient;
 use crate::rewards::RewardsModule;
+use crate::spacetime::{self, SpacetimeConnection};
 use crate::types::RedisPool;
 use crate::utils::naitik_multi_service_client::NaitikMultiServiceClient;
 use crate::yral_auth::dragonfly::{
@@ -22,6 +23,7 @@ pub struct AppState {
     pub admin_identity: Secp256k1Identity,
     pub agent: ic_agent::Agent,
     pub yral_metadata_client: MetadataClient<true>,
+    pub spacetime_conn: Option<Arc<SpacetimeConnection>>,
 
     pub notification_client: NotificationClient,
     pub yral_auth_dragonfly: Arc<DragonflyPool>,
@@ -58,6 +60,13 @@ impl AppState {
             admin_identity: init_identity(),
             yral_metadata_client: init_yral_metadata_client(&app_config),
             agent,
+            spacetime_conn: match spacetime::init_spacetimedb_connection().await {
+                Ok(conn) => Some(conn),
+                Err(e) => {
+                    log::error!("Failed to connect to SpacetimeDB: {e}. View-count and delete calls will fall back to IC.");
+                    None
+                }
+            },
             notification_client: NotificationClient::new(
                 env::var("YRAL_METADATA_NOTIFICATION_API_KEY").unwrap_or_default(),
             ),

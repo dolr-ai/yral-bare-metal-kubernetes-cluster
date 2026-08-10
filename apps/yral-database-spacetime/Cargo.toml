@@ -8,8 +8,10 @@ edition = "2024"
 # `crate-type = ["cdylib"]` is required — `spacetimedb-cli build` needs a
 # standalone wasm artifact, not the default `rlib`. Without it, `wasm-opt`
 # fails to find the right artifact for optimization.
+# `rlib` is also exported so that other workspace crates (off-chain-agent,
+# yral-legacy) can depend on the generated SDK bindings at `src/bindings/`.
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 log = { workspace = true }

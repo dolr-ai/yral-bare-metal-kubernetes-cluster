@@ -6,19 +6,12 @@ use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
-pub struct PostDetailsForFrontend {
-    pub id: String,
-    pub description: String,
-    pub hashtags: Vec<String>,
-    pub video_uid: String,
-    pub creator: __sdk::Identity,
-    pub creator_principal_text: String,
-    pub created_at: __sdk::Timestamp,
-    pub total_view_count: u64,
-    pub like_count: u64,
-    pub liked_by_me: bool,
+pub enum UserAccountType {
+    MainAccount(Vec<String>),
+
+    BotAccount(String),
 }
 
-impl __sdk::InModule for PostDetailsForFrontend {
+impl __sdk::InModule for UserAccountType {
     type Module = super::RemoteModule;
 }

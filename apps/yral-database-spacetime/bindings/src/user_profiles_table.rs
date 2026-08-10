@@ -3,6 +3,7 @@
 
 #![allow(unused, clippy::all)]
 use super::subscription_plan_type::SubscriptionPlan;
+use super::user_account_type_type::UserAccountType;
 use super::user_profile_type::UserProfile;
 use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 

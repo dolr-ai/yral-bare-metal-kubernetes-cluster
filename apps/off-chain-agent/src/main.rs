@@ -28,6 +28,7 @@ pub mod leaderboard;
 mod middleware;
 mod posts;
 mod rewards;
+mod spacetime;
 mod types;
 pub mod user;
 pub mod utils;

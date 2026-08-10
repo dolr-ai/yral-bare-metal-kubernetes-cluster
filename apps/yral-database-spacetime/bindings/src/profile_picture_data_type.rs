@@ -4,15 +4,15 @@
 #![allow(unused, clippy::all)]
 use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
+use super::nsfw_info_type::NsfwInfo;
+
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
-#[derive(Copy, Eq, Hash)]
-pub enum SubscriptionPlan {
-    Free,
-
-    Pro,
+pub struct ProfilePictureData {
+    pub url: String,
+    pub nsfw_info: NsfwInfo,
 }
 
-impl __sdk::InModule for SubscriptionPlan {
+impl __sdk::InModule for ProfilePictureData {
     type Module = super::RemoteModule;
 }

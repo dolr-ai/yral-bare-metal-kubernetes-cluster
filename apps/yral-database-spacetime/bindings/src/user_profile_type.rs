@@ -5,6 +5,7 @@
 use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 use super::subscription_plan_type::SubscriptionPlan;
+use super::user_account_type_type::UserAccountType;
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
@@ -22,6 +23,7 @@ pub struct UserProfile {
     pub nsfw_gore: String,
     pub csam_detected: bool,
     pub last_access_time: __sdk::Timestamp,
+    pub account_type: UserAccountType,
 }
 
 impl __sdk::InModule for UserProfile {
@@ -45,6 +47,7 @@ pub struct UserProfileCols {
     pub nsfw_gore: __sdk::__query_builder::Col<UserProfile, String>,
     pub csam_detected: __sdk::__query_builder::Col<UserProfile, bool>,
     pub last_access_time: __sdk::__query_builder::Col<UserProfile, __sdk::Timestamp>,
+    pub account_type: __sdk::__query_builder::Col<UserProfile, UserAccountType>,
 }
 
 impl __sdk::__query_builder::HasCols for UserProfile {
@@ -67,6 +70,7 @@ impl __sdk::__query_builder::HasCols for UserProfile {
             nsfw_gore: __sdk::__query_builder::Col::new(table_name, "nsfw_gore"),
             csam_detected: __sdk::__query_builder::Col::new(table_name, "csam_detected"),
             last_access_time: __sdk::__query_builder::Col::new(table_name, "last_access_time"),
+            account_type: __sdk::__query_builder::Col::new(table_name, "account_type"),
         }
     }
 }

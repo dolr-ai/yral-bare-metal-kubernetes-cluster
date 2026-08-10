@@ -8,6 +8,7 @@ use types::PostRequest;
 use verify::VerifiedPostRequest;
 use canisters_client::user_post_service::UserPostService;
 
+use crate::spacetime;
 use crate::kvrocks::{KvrocksClient, VideoDeleted};
 use crate::{
     app_state::AppState,
@@ -48,32 +49,41 @@ pub async fn handle_delete_post(
     let post_id = request_body.post_id;
     let video_id = request_body.video_id;
 
-    let user_ic_agent =
-        get_agent_from_delegated_identity_wire(&verified_request.request.delegated_identity_wire)
-            .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-    // TODO: migrate to user_post_service/user_info_service
-    // Previously used IndividualUserTemplate to delete posts from individual user
-    // canisters. Those canisters have been decommissioned — route all deletes
-    // through UserPostService now.
-    let user_post_service = UserPostService(*USER_POST_SERVICE_CANISTER_ID, &user_ic_agent);
-
-    // Call the canister to delete the post
-    let delete_res = user_post_service.delete_post(post_id.to_string()).await;
-    match delete_res {
-        Ok(canisters_client::user_post_service::Result_::Ok) => (),
-        Ok(canisters_client::user_post_service::Result_::Err(_)) => {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                "Delete post failed - either the post doesn't exist or already deleted".to_string(),
-            ))
-        }
-        Err(e) => {
+    // Delete via SpacetimeDB (admin identity verifies ownership via HTTP middleware).
+    // Falls back to IC canister if SpacetimeDB connection is not available.
+    if let Some(ref conn) = state.spacetime_conn {
+        if let Err(e) = spacetime::send_delete_post(conn, post_id.to_string()) {
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Internal server error: {e}"),
-            ))
+                format!("Failed to delete post via SpacetimeDB: {e}"),
+            ));
+        }
+    } else {
+        use canisters_client::user_post_service::UserPostService;
+        use crate::consts::USER_POST_SERVICE_CANISTER_ID;
+
+        let user_ic_agent =
+            get_agent_from_delegated_identity_wire(&verified_request.request.delegated_identity_wire)
+                .await
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+        let user_post_service = UserPostService(*USER_POST_SERVICE_CANISTER_ID, &user_ic_agent);
+
+        let delete_res = user_post_service.delete_post(post_id.to_string()).await;
+        match delete_res {
+            Ok(canisters_client::user_post_service::Result_::Ok) => (),
+            Ok(canisters_client::user_post_service::Result_::Err(_)) => {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    "Delete post failed - either the post doesn't exist or already deleted".to_string(),
+                ))
+            }
+            Err(e) => {
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Internal server error: {e}"),
+                ))
+            }
         }
     }
 
@@ -121,31 +131,26 @@ pub async fn handle_delete_post_v2(
         ));
     }
 
-    // Get the publisher's canister
-    let publisher_canister_id = state
-        .get_individual_canister_by_user_principal(publisher_user_id)
-        .await
-        .map_err(|e| {
-            (
+    // Delete via SpacetimeDB (admin identity — ownership verified via HTTP middleware).
+    // Falls back to IC canister if SpacetimeDB connection is not available.
+    if let Some(ref conn) = state.spacetime_conn {
+        if let Err(e) = spacetime::send_delete_post(conn, post_id.clone()) {
+            return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to get publisher canister: {e}"),
-            )
-        })?;
+                format!("Failed to delete post via SpacetimeDB: {e}"),
+            ));
+        }
+    } else {
+        use canisters_client::user_post_service::UserPostService;
+        use crate::consts::USER_POST_SERVICE_CANISTER_ID;
 
-    let user_ic_agent =
-        get_agent_from_delegated_identity_wire(&verified_request.request.delegated_identity_wire)
-            .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        let user_ic_agent =
+            get_agent_from_delegated_identity_wire(&verified_request.request.delegated_identity_wire)
+                .await
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    // Route based on canister or post_id format: UUID post_ids always belong to UserPostService,
-    // even if the user's metadata still points to a legacy individual canister.
-    let is_uuid_post_id = post_id.parse::<u64>().is_err();
-
-    if publisher_canister_id == *USER_INFO_SERVICE_CANISTER_ID || is_uuid_post_id {
-        // Use UserPostService
         let user_post_service = UserPostService(*USER_POST_SERVICE_CANISTER_ID, &user_ic_agent);
 
-        // UserPostService.delete_post takes a String
         let delete_res = user_post_service.delete_post(post_id.clone()).await;
         match delete_res {
             Ok(canisters_client::user_post_service::Result_::Ok) => (),
@@ -163,21 +168,7 @@ pub async fn handle_delete_post_v2(
                 ))
             }
         }
-    } else {
-        // TODO: migrate to user_post_service/user_info_service
-        // Individual user canisters have been decommissioned. Route all deletes
-        // through UserPostService, even for users whose metadata still points to
-        // a legacy canister.
-        let user_post_service = UserPostService(*USER_POST_SERVICE_CANISTER_ID, &user_ic_agent);
-
-        let delete_res = user_post_service.delete_post(post_id.clone()).await;
-        match delete_res {
-            Ok(canisters_client::user_post_service::Result_::Ok) => (),
-            Ok(canisters_client::user_post_service::Result_::Err(_)) => {
-                return Err((
-                    StatusCode::BAD_REQUEST,
-                    "Delete post failed - either the post doesn't exist or already deleted"
-                        .to_string(),
+    }
                 ))
             }
             Err(e) => {
