@@ -132,6 +132,10 @@ pub struct PostV2 {
 ///
 /// `creator_principal_text` is the original IC Principal as text — needed by
 /// clients for propic URLs, username fallback, and profile enrichment calls.
+///
+/// `status` mirrors the IC `Post` struct's status field (the IC
+/// `PostDetailsForFrontend` type omits it, but mobile's `from_post` path
+/// includes it).
 #[derive(SpacetimeType, Clone, Debug)]
 pub struct PostDetailsForFrontend {
     pub id: String,
@@ -144,6 +148,7 @@ pub struct PostDetailsForFrontend {
     pub total_view_count: u64,
     pub like_count: u64,
     pub liked_by_me: bool,
+    pub status: PostStatus,
 }
 
 /// A page of posts returned by cursor-paginated queries.
@@ -153,6 +158,13 @@ pub struct PostDetailsForFrontend {
 pub struct PostPage {
     pub posts: Vec<PostDetailsForFrontend>,
     pub next_cursor: Option<String>,
+}
+
+/// Offset-paginated post list. Matches the IC canister's offset-based
+/// pagination contract used by mobile (startIndex, pageSize).
+#[derive(SpacetimeType, Clone, Debug)]
+pub struct PostListOffset {
+    pub posts: Vec<PostDetailsForFrontend>,
 }
 
 /// Cursor-paginated scan result returned by `fetch_posts`.
@@ -196,6 +208,7 @@ fn post_v2_to_details(post: &PostV2) -> PostDetailsForFrontend {
         total_view_count: post.view_total_count,
         like_count: 0,
         liked_by_me: false,
+        status: post.status.clone(),
     }
 }
 
@@ -214,6 +227,7 @@ fn post_to_details(post: &Post) -> PostDetailsForFrontend {
         total_view_count: post.view_total_count,
         like_count: 0,
         liked_by_me: false,
+        status: post.status.clone(),
     }
 }
 
@@ -596,6 +610,133 @@ pub fn fetch_posts(
             posts: page,
             next_cursor,
         }
+    })
+}
+
+/// Get a single post by ID, returning full details including `status`.
+/// Matches the IC canister's `get_individual_post_details_by_id` which
+/// returns the full `Post` (with status). Mobile's `from_post` path
+/// expects `status` to be present.
+///
+/// Returns `None` if the post doesn't exist or is `Deleted`.
+#[spacetimedb::procedure]
+pub fn get_individual_post_details_by_id(
+    ctx: &mut ProcedureContext,
+    post_id: String,
+) -> Option<PostDetailsForFrontend> {
+    ctx.with_tx(|tx| {
+        // Try V2 first (has creator_principal_text), fall back to V1.
+        if let Some(p) = tx.db.posts_v2().id().find(post_id.clone()) {
+            if p.status != PostStatus::Deleted {
+                return Some(post_v2_to_details(&p));
+            }
+        }
+        tx.db
+            .posts()
+            .id()
+            .find(post_id.clone())
+            .filter(|p| p.status != PostStatus::Deleted)
+            .map(|p| post_to_details(&p))
+    })
+}
+
+/// Get a page of a user's visible posts by principal text, using offset
+/// pagination. Matches the IC canister's
+/// `get_posts_of_this_user_profile_with_pagination(principal, offset, limit)`.
+///
+/// Mobile passes `(principalId: String, startIndex: ULong, pageSize: ULong)`
+/// — offset-based, not cursor-based. This procedure accepts the same
+/// contract: `creator_principal_text` to match against `PostV2`, `offset`
+/// to skip, `limit` to take.
+///
+/// Excludes Deleted, BannedDueToUserReporting, and Draft posts.
+#[spacetimedb::procedure]
+pub fn get_posts_of_user_by_principal(
+    ctx: &mut ProcedureContext,
+    creator_principal_text: String,
+    offset: u64,
+    limit: u64,
+) -> PostListOffset {
+    ctx.with_tx(|tx| {
+        let limit = limit.min(MAX_PAGE_SIZE) as usize;
+        let offset = offset as usize;
+
+        // Try V2 first (has creator_principal_text index).
+        let mut posts: Vec<PostDetailsForFrontend> = tx
+            .db
+            .posts_v2()
+            .iter()
+            .filter(|p| {
+                p.creator_principal_text == creator_principal_text && is_visible_post(&p.status)
+            })
+            .map(|p| post_v2_to_details(&p))
+            .collect();
+
+        if posts.is_empty() {
+            // Fallback: V1 table (no creator_principal_text — can only match
+            // if the caller passes an empty string, which won't happen in
+            // practice since V2 is fully backfilled).
+            posts = tx
+                .db
+                .posts()
+                .iter()
+                .filter(|p| is_visible_post(&p.status))
+                .map(|p| post_to_details(&p))
+                .collect();
+        }
+
+        // Sort newest-first by created_at, then by id as tiebreaker.
+        posts.sort_by(|a, b| b.created_at.cmp(&a.created_at).then(b.id.cmp(&a.id)));
+
+        let page: Vec<PostDetailsForFrontend> = posts
+            .into_iter()
+            .skip(offset)
+            .take(limit)
+            .collect();
+
+        PostListOffset { posts: page }
+    })
+}
+
+/// Get a page of the current caller's draft posts by principal text, using
+/// offset pagination. Matches the IC canister's
+/// `get_draft_posts_of_this_user_profile_with_pagination(offset, limit)`.
+///
+/// Mobile passes `(startIndex: ULong, pageSize: ULong)` with no principal
+/// (uses session). This procedure uses `ctx.sender()` as the creator and
+/// accepts `creator_principal_text` for the V2 lookup.
+#[spacetimedb::procedure]
+pub fn get_draft_posts_of_user_by_principal(
+    ctx: &mut ProcedureContext,
+    creator_principal_text: String,
+    offset: u64,
+    limit: u64,
+) -> PostListOffset {
+    ctx.with_tx(|tx| {
+        let limit = limit.min(MAX_PAGE_SIZE) as usize;
+        let offset = offset as usize;
+
+        let mut posts: Vec<PostDetailsForFrontend> = tx
+            .db
+            .posts_v2()
+            .iter()
+            .filter(|p| {
+                p.creator_principal_text == creator_principal_text
+                    && p.status == PostStatus::Draft
+            })
+            .map(|p| post_v2_to_details(&p))
+            .collect();
+
+        // Sort newest-first by created_at, then by id as tiebreaker.
+        posts.sort_by(|a, b| b.created_at.cmp(&a.created_at).then(b.id.cmp(&a.id)));
+
+        let page: Vec<PostDetailsForFrontend> = posts
+            .into_iter()
+            .skip(offset)
+            .take(limit)
+            .collect();
+
+        PostListOffset { posts: page }
     })
 }
 

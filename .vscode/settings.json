@@ -1,10 +1,8 @@
 {
     "rust-analyzer.linkedProjects": [
-        "./apps/off-chain-agent/Cargo.toml",
-        "./apps/task-runner/Cargo.toml",
-        "./apps/yral-auth/Cargo.toml",
+        "./Cargo.toml",
         "./apps/yral-backend-canister/Cargo.toml",
-        "./apps/yral-database-spacetime/Cargo.toml"
+        "./apps/yral-mobile/shared/rust/rust-agent/rust-agent-uniffi/Cargo.toml"
     ],
     "vs-kubernetes": {
         "vs-kubernetes.crd-code-completion": "enabled"

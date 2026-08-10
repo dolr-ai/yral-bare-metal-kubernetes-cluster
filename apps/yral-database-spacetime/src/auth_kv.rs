@@ -21,7 +21,7 @@
 //! All calls are authenticated with yral-auth's admin JWT (the yral-auth
 //! `id_token` passed as the SpacetimeDB token).
 
-use spacetimedb::{Identity, ReducerContext, SpacetimeType, Table};
+use spacetimedb::{ReducerContext, SpacetimeType, Table};
 
 /// A simple key-value entry for auth data.
 /// Key is the logical key (e.g. `<principal>`, `{provider}-login-{sub_id}`).
