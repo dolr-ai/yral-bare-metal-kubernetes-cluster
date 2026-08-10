@@ -1,7 +1,3 @@
-pub mod tokens;
-pub mod transactions;
-pub mod txn;
-
 use codee::string::FromToStringCodec;
 use component::connect::ConnectLogin;
 use component::icons::notification_icon::NotificationIcon;

@@ -18,7 +18,6 @@ use page::{
     privacy::PrivacyPolicy,
     refer_earn::ReferEarn,
     terms::TermsOfService,
-    token::{info::TokenInfo, transfer::TokenTransfer},
     wallet::Wallet,
 };
 use state::app_state::AppState;
@@ -151,25 +150,6 @@ pub fn App() -> impl IntoView {
                         <Route path=path!("/wallet/:id") view=Wallet />
                         <Route path=path!("/wallet") view=Wallet />
                         <Route path=path!("/logout") view=Logout />
-                        <Route
-                            path=path!("/token/info/:token_root/:id")
-                            view=TokenInfo
-                        />
-                        <Route path=path!("/token/info/:token_root") view=TokenInfo />
-                        <Route path=path!("/token/transfer/:token_root") view=TokenTransfer />
-                        // TODO: re-enable when pumpdump module is restored
-                        // <Route
-                        //     path=path!("/pnd/withdraw")
-                        //     view=pumpdump::withdrawal::PndWithdrawal
-                        // />
-                        // <Route
-                        //     path=path!("/pnd/withdraw/success")
-                        //     view=pumpdump::withdrawal::result::Success
-                        // />
-                        // <Route
-                        //     path=path!("/pnd/withdraw/failure")
-                        //     view=pumpdump::withdrawal::result::Failure
-                        // />
                         <Route path=path!("/terms-ios") view=TermsIos />
                         <Route path=path!("/terms-android") view=TermsAndroid />
                         <Route path=path!("/internal/clear-sats") view=ClearSats />

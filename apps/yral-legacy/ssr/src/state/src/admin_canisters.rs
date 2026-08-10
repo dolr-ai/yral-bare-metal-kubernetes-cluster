@@ -2,7 +2,7 @@ use candid::Principal;
 use ic_agent::Identity;
 use leptos::prelude::*;
 use canisters_client::{
-    ic::USER_INFO_SERVICE_ID, sns_swap::SnsSwap,
+    ic::USER_INFO_SERVICE_ID,
     user_info_service::UserInfoService,
 };
 use yral_canisters_common::agent_wrapper::AgentWrapper;
@@ -30,11 +30,6 @@ impl AdminCanisters {
 
     pub async fn get_agent(&self) -> &ic_agent::Agent {
         self.agent.get_agent().await
-    }
-
-    pub async fn sns_swap(&self, swap_canister: Principal) -> SnsSwap<'_> {
-        let agent = self.agent.get_agent().await;
-        SnsSwap(swap_canister, agent)
     }
 }
 

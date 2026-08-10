@@ -13,7 +13,6 @@ pub mod scrolling_post_view;
 pub mod terms;
 pub mod terms_android;
 pub mod terms_ios;
-pub mod token;
 pub mod wallet;
 #[cfg(any(feature = "oauth-ssr", feature = "oauth-hydrate"))]
 pub mod yral_auth_redirect;
