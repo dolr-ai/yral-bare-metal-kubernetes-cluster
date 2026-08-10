@@ -10961,6 +10961,7 @@ dependencies = [
  "spacetimedb-sdk",
  "tokio",
  "yral-canisters-client",
+ "yral-database-spacetime-bindings",
 ]
 
 [[package]]
