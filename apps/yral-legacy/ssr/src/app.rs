@@ -22,8 +22,6 @@ use page::{
 use state::app_state::AppState;
 use state::app_type::AppType;
 use state::audio_state::AudioState;
-use utils::event_streaming::events::HistoryCtx;
-use utils::mixpanel::state::MixpanelState;
 use utils::types::PostParams;
 
 #[component]
@@ -89,22 +87,8 @@ pub fn App() -> impl IntoView {
     provide_context(AudioState::default());
     provide_context(PostDetailsCacheCtx::default());
 
-    // History Tracking
-    let history_ctx = HistoryCtx::default();
-    provide_context(history_ctx.clone());
-
-    let _ = MixpanelState::init();
-
     let current_post_params = RwSignal::new(None::<PostParams>);
     provide_context(current_post_params);
-
-    #[cfg(feature = "hydrate")]
-    {
-        Effect::new(move |_| {
-            let loc = use_location();
-            history_ctx.push(&loc.pathname.get());
-        });
-    }
 
     view! {
         <Title text=app_state.name />

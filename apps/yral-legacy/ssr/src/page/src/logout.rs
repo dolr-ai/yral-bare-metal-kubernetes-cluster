@@ -6,21 +6,17 @@ use leptos::prelude::*;
 use leptos_router::components::Redirect;
 use leptos_use::storage::use_local_storage;
 use state::canisters::auth_state;
-use utils::event_streaming::events::{LogoutClicked, LogoutConfirmation};
-use utils::mixpanel::state::MixpanelState;
 use utils::types::NewIdentity;
 
 #[component]
 pub fn Logout() -> impl IntoView {
     let auth = auth_state();
-    let ev_ctx = auth.event_ctx();
-    LogoutClicked.send_event(ev_ctx);
     let auth_res = OnceResource::new_blocking(logout_identity());
 
     let (_, set_notifs_enabled, _) =
         use_local_storage::<bool, FromToStringCodec>(NOTIFICATIONS_ENABLED_STORE);
 
-    let (_, set_device_id, _) = use_local_storage::<String, FromToStringCodec>(DEVICE_ID);
+    let (_, _set_device_id, _) = use_local_storage::<String, FromToStringCodec>(DEVICE_ID);
 
     view! {
         <Loading text="Logging out...".to_string()>
@@ -31,12 +27,10 @@ pub fn Logout() -> impl IntoView {
                         Ok(id) => {
                             auth.set_new_identity(NewIdentity::new_without_username(id), false);
                             set_notifs_enabled.set(false);
-                            LogoutConfirmation.send_event(ev_ctx);
                             #[cfg(feature = "hydrate")]
                             {
                                 let device_id = uuid::Uuid::new_v4().to_string();
-                                set_device_id.set(device_id.clone());
-                                MixpanelState::reset_device_id(device_id);
+                                set_device_id.set(device_id);
                             }
                             view! { <Redirect path="/menu" /> }
                         }

@@ -7,14 +7,12 @@ use component::toggle::Toggle;
 use component::{connect::ConnectLogin, social::*};
 use consts::NSFW_ENABLED_COOKIE;
 use leptos::html::Input;
-use leptos::prelude::window;
 use leptos::prelude::*;
 use leptos_icons::*;
 use leptos_meta::*;
 use leptos_use::{use_cookie_with_options, UseCookieOptions};
 use state::app_state::AppState;
 use state::canisters::auth_state;
-use utils::mixpanel::mixpanel_events::*;
 
 #[component]
 fn MenuItem(
@@ -22,17 +20,9 @@ fn MenuItem(
     #[prop(into)] href: String,
     #[prop(into)] icon: icondata::Icon,
     #[prop(into, optional)] target: String,
-    click_cta_type: MixpanelMenuClickedCTAType,
 ) -> impl IntoView {
-    let auth = auth_state();
-    let ev_ctx = auth.event_ctx();
-    let track_menu_clicked = move || {
-        if let Some(global) = MixpanelGlobalProps::from_ev_ctx(ev_ctx) {
-            MixPanelEvent::track_menu_clicked(global, click_cta_type);
-        }
-    };
     view! {
-        <a on:click=move |_| track_menu_clicked.clone()()  href=href class="flex items-center justify-between w-full" target=target>
+        <a href=href class="flex items-center justify-between w-full" target=target>
             <div class="flex flex-row gap-4 items-center">
                 <Icon attr:class="text-xl" icon=icon />
                 <span class="text-base">{text}</span>
@@ -185,9 +175,9 @@ pub fn Menu() -> impl IntoView {
                 // Legal section
                 <SectionHeader text="Legal" />
                 <div class="flex flex-col gap-4">
-                    <MenuItem click_cta_type=MixpanelMenuClickedCTAType::TermsOfService href="/terms-of-service" text="Terms of service" icon=icondata::TbBook2 />
-                    <MenuItem click_cta_type=MixpanelMenuClickedCTAType::PrivacyPolicy href="/privacy-policy" text="Privacy Policy" icon=icondata::TbLock />
-                    <MenuItem click_cta_type=MixpanelMenuClickedCTAType::AboutUs href="/about-us" text="About Us" icon=icondata::TbInfoCircle />
+                    <MenuItem href="/terms-of-service" text="Terms of service" icon=icondata::TbBook2 />
+                    <MenuItem href="/privacy-policy" text="Privacy Policy" icon=icondata::TbLock />
+                    <MenuItem href="/about-us" text="About Us" icon=icondata::TbInfoCircle />
                 </div>
 
                 <div class="h-px bg-white/10 w-full" />
@@ -196,7 +186,6 @@ pub fn Menu() -> impl IntoView {
                 <SectionHeader text="Help" />
                 <div class="flex flex-col gap-4">
                     <MenuItem
-                        click_cta_type=MixpanelMenuClickedCTAType::TalkToTheTeam
                         href=domain_specific_href("TELEGRAM")
                         text="Talk to the team"
                         icon=icondata::BiMessageDetailSolid
@@ -213,7 +202,7 @@ pub fn Menu() -> impl IntoView {
                             </div>
                             <Icon attr:class="text-xl" icon=icondata::AiRightOutlined />
                         </a>
-                        <MenuItem click_cta_type=MixpanelMenuClickedCTAType::LogOut href="/logout" text="Logout" icon=icondata::FiLogOut />
+                        <MenuItem href="/logout" text="Logout" icon=icondata::FiLogOut />
                     </Show>
                 </div>
             </div>

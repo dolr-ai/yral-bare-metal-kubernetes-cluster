@@ -2,16 +2,13 @@ use crate::nav_icons::*;
 use candid::Principal;
 use codee::string::FromToStringCodec;
 use consts::{
-    ACCOUNT_CONNECTED_STORE, AUTH_UTIL_COOKIES_MAX_AGE_MS, NSFW_ENABLED_COOKIE,
-    USER_CANISTER_ID_STORE, USER_PRINCIPAL_STORE,
+    AUTH_UTIL_COOKIES_MAX_AGE_MS,
+    USER_PRINCIPAL_STORE,
 };
 use leptos::prelude::*;
 use leptos_icons::*;
 use leptos_router::hooks::use_location;
-use leptos_use::{use_cookie, use_cookie_with_options, UseCookieOptions};
-use utils::mixpanel::mixpanel_events::{
-    BottomNavigationCategory, MixPanelEvent, MixpanelGlobalProps,
-};
+use leptos_use::{use_cookie_with_options, UseCookieOptions};
 
 #[derive(Clone)]
 struct NavItem {
@@ -87,37 +84,8 @@ fn NavIcon(
     #[prop(into)] filled_icon: Option<icondata_core::Icon>,
     #[prop(into)] cur_selected: Signal<bool>,
 ) -> impl IntoView {
-    let (user_principal, _) = use_cookie::<Principal, FromToStringCodec>(USER_PRINCIPAL_STORE);
-
-    let (user_canister, _) = use_cookie::<Principal, FromToStringCodec>(USER_CANISTER_ID_STORE);
-    let (is_connected, _) = use_cookie::<bool, FromToStringCodec>(ACCOUNT_CONNECTED_STORE);
-    let (is_nsfw_enabled, _) = use_cookie_with_options::<bool, FromToStringCodec>(
-        NSFW_ENABLED_COOKIE,
-        UseCookieOptions::default()
-            .path("/")
-            .max_age(consts::auth::REFRESH_MAX_AGE.as_secs() as i64)
-            .same_site(leptos_use::SameSite::Lax),
-    );
-
     let on_click = move |_ev: leptos::ev::MouseEvent| {
-        // Track Mixpanel event first
-        if let (Some(user), Some(canister)) = (
-            user_principal.get_untracked(),
-            user_canister.get_untracked(),
-        ) {
-            let connected = is_connected.get_untracked().unwrap_or(false);
-            let category = BottomNavigationCategory::try_from(href.get_untracked());
-            if let Ok(category_name) = category {
-                let global = MixpanelGlobalProps::new(
-                    user,
-                    canister,
-                    connected,
-                    is_nsfw_enabled.get_untracked().unwrap_or(false),
-                    None,
-                );
-                MixPanelEvent::track_bottom_navigation_clicked(global, category_name);
-            }
-        }
+        // Navigation click
     };
     view! {
         <a href=move || href.get() on:click=on_click class="flex justify-center items-center">

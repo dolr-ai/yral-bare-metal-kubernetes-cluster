@@ -7,7 +7,6 @@ use leptos_icons::*;
 use leptos_use::storage::use_local_storage;
 use leptos_use::use_event_listener;
 use state::canisters::auth_state;
-use utils::mixpanel::mixpanel_events::*;
 use utils::notifications::{
     get_device_registeration_token, get_fcm_token, notification_permission_granted,
 };
@@ -52,11 +51,6 @@ pub fn NotificationToggle(
         let metaclient: MetadataClient<false> = MetadataClient::default();
         let browser_permission = Notification::permission();
         let notifs_enabled_val = notifs_enabled.get_untracked();
-
-        // Track analytics
-        let global =
-            MixpanelGlobalProps::try_get(&cans, auth.is_logged_in_with_oauth().get_untracked());
-        MixPanelEvent::track_enable_notifications(global, notifs_enabled_val);
 
         // Handle notification toggle logic
         if notifs_enabled_val && matches!(browser_permission, NotificationPermission::Default) {

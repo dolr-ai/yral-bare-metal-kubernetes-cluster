@@ -1,15 +1,15 @@
-use codee::string::{FromToStringCodec, JsonSerdeCodec};
+use codee::string::FromToStringCodec;
 use consts::{
-    auth::REFRESH_MAX_AGE, LoginProvider, AUTH_JOURNEY_PAGE, NOTIFICATIONS_ENABLED_STORE,
+    LoginProvider, NOTIFICATIONS_ENABLED_STORE,
 };
 use ic_agent::identity::DelegatedIdentity;
 use leptos::{ev, prelude::*};
 use leptos_use::{
-    storage::use_local_storage, use_cookie_with_options, use_event_listener, use_interval_fn,
-    use_window, UseCookieOptions,
+    storage::use_local_storage, use_event_listener, use_interval_fn,
+    use_window,
 };
 use state::canisters::auth_state;
-use utils::{mixpanel::mixpanel_events::*, types::NewIdentity};
+use utils::types::NewIdentity;
 use yral_canisters_common::yral_auth_login_hint;
 
 pub type YralAuthMessage = Result<NewIdentity, String>;
@@ -42,12 +42,6 @@ pub fn YralAuthProvider() -> impl IntoView {
         move || _ = close_popup_store.with_value(|cb| cb.as_ref().map(|close_cb| close_cb.run(())));
     let (_, set_notifs_enabled, _) =
         use_local_storage::<bool, FromToStringCodec>(NOTIFICATIONS_ENABLED_STORE);
-    let (auth_journey_page, _) = use_cookie_with_options::<BottomNavigationCategory, JsonSerdeCodec>(
-        AUTH_JOURNEY_PAGE,
-        UseCookieOptions::default()
-            .path("/")
-            .max_age(REFRESH_MAX_AGE.as_millis() as i64),
-    );
     let auth = auth_state();
 
     let open_yral_auth = Action::new_unsync_local(
@@ -79,14 +73,10 @@ pub fn YralAuthProvider() -> impl IntoView {
         },
     );
 
-    let on_click = move |provider: LoginProvider, auth_journey: &str| {
+    let on_click = move |provider: LoginProvider, _auth_journey: &str| {
         let window = window();
         let origin = window.origin();
 
-        if let Some(global) = MixpanelGlobalProps::from_ev_ctx(auth.event_ctx()) {
-            let page_name = auth_journey_page.get_untracked().unwrap_or_default();
-            MixPanelEvent::track_auth_initiated(global, auth_journey.to_string(), page_name);
-        }
         // open a target window
         let target = window.open().transpose().and_then(|w| w.ok()).unwrap();
 
@@ -141,7 +131,6 @@ pub fn YralAuthProvider() -> impl IntoView {
             on_click=move |ev| {
                 ev.stop_propagation();
                 signing_in_provider.set(LoginProvider::Google);
-                MixpanelGlobalProps::set_auth_journey("google".to_string());
                 on_click(signing_in_provider.get(), "google");
             }
         >
@@ -163,7 +152,6 @@ pub fn YralAuthProvider() -> impl IntoView {
             on_click=move |ev| {
                 ev.stop_propagation();
                 signing_in_provider.set(LoginProvider::Apple);
-                MixpanelGlobalProps::set_auth_journey("apple".to_string());
                 on_click(signing_in_provider.get(), "apple");
             }
         >

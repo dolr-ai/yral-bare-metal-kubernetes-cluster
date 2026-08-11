@@ -13,12 +13,10 @@ pub trait UserAuthInfo {
 
 pub mod ab_testing;
 pub mod client_ip;
-pub mod event_streaming;
 pub mod health;
 pub mod host;
 pub mod icon;
 pub mod local_storage;
-pub mod mixpanel;
 pub mod ml_feed;
 pub mod notifications;
 pub mod posts;
@@ -28,6 +26,40 @@ pub mod time;
 pub mod types;
 pub mod user_identity;
 pub mod web;
+
+/// Navigation category for bottom nav tracking and cookie logic.
+/// Moved here from mixpanel_events.rs (which has been removed).
+#[derive(serde::Serialize, serde::Deserialize, Debug, Default, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum BottomNavigationCategory {
+    #[default]
+    Menu,
+    Wallet,
+}
+
+impl std::convert::TryFrom<String> for BottomNavigationCategory {
+    type Error = ();
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        if value.contains("/wallet/") {
+            return Ok(BottomNavigationCategory::Wallet);
+        }
+
+        match value.as_str() {
+            "/wallet" => Ok(BottomNavigationCategory::Wallet),
+            "/menu" => Ok(BottomNavigationCategory::Menu),
+            _ => Err(()),
+        }
+    }
+}
+
+/// Login provider kind, used for login flow processing state.
+/// Moved here from event_streaming/events.rs (which has been removed).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProviderKind {
+    #[cfg(any(feature = "oauth-ssr", feature = "oauth-hydrate"))]
+    YralAuth,
+}
 /// Wrapper for PartialEq that always returns false
 /// this is currently only used for resources
 /// this does not provide a sane implementation of PartialEq

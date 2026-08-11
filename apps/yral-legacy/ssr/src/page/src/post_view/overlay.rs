@@ -9,14 +9,10 @@ use component::modal::Modal;
 use consts::NSFW_ENABLED_COOKIE;
 use leptos::prelude::*;
 use leptos_icons::*;
-use leptos_router::hooks::use_location;
-use leptos_use::use_window;
 use leptos_use::{use_cookie_with_options, UseCookieOptions};
 use state::audio_state::AudioState;
-use state::canisters::auth_state;
 use utils::host::show_nsfw_content;
 
-use utils::mixpanel::mixpanel_events::*;
 use yral_canisters_common::utils::posts::PostDetails;
 
 #[component]
@@ -27,43 +23,8 @@ pub fn VideoDetailsOverlay(
     // No need for local context - using global context from App
 
     let show_nsfw_permission = RwSignal::new(false);
-    let base_url = || {
-        use_window()
-            .as_ref()
-            .and_then(|w| w.location().origin().ok())
-    };
-    let post_clone = post.clone();
-    let post_id = post.post_id.clone();
-    let video_url = Signal::derive(move || {
-        base_url()
-            .map(|b| format!("{b}/hot-or-not/{}/{}", post_clone.canister_id, post_id))
-            .unwrap_or_default()
-    });
 
     let display_name = post.username_or_fallback();
-
-    let auth = auth_state();
-    let ev_ctx = auth.event_ctx();
-
-    let track_video_id_for_impressions = post.uid.clone();
-    let post_clone = post.clone();
-    Effect::new(move |_| {
-        // To trigger the effect on initial render
-        let _ = use_location().pathname.get();
-        let track_video_id_for_impressions = track_video_id_for_impressions.clone();
-        if let Some(global) = MixpanelGlobalProps::from_ev_ctx(ev_ctx) {
-            if Some(video_url.get()) == window().location().href().ok() {
-                MixPanelEvent::track_video_impression(
-                    global,
-                    track_video_id_for_impressions,
-                    post_clone.poster_principal.to_text(),
-                    post_clone.likes,
-                    post_clone.views,
-                    post_clone.is_nsfw,
-                );
-            }
-        }
-    });
 
     let (nsfw_enabled, set_nsfw_enabled) = use_cookie_with_options::<bool, FromToStringCodec>(
         NSFW_ENABLED_COOKIE,
@@ -74,8 +35,6 @@ pub fn VideoDetailsOverlay(
     );
 
     let click_nsfw = Action::new(move |()| {
-        let video_id = post_clone.uid.clone();
-        let post_clone = post_clone.clone();
         async move {
             if show_nsfw_content() {
                 return;
@@ -83,43 +42,12 @@ pub fn VideoDetailsOverlay(
 
             if !nsfw_enabled.get().unwrap_or(false) && !show_nsfw_permission.get() {
                 show_nsfw_permission.set(true);
-                if let Some(global) = MixpanelGlobalProps::from_ev_ctx_with_nsfw_info(ev_ctx, false)
-                {
-                    MixPanelEvent::track_video_clicked(
-                        global,
-                        post.poster_principal.to_text(),
-                        video_id,
-                        MixpanelVideoClickedCTAType::NsfwToggle,
-                    );
-                }
             } else {
                 if !nsfw_enabled.get().unwrap_or(false) && show_nsfw_permission.get() {
                     show_nsfw_permission.set(false);
-                    if let Some(global) =
-                        MixpanelGlobalProps::from_ev_ctx_with_nsfw_info(ev_ctx, false)
-                    {
-                        MixPanelEvent::track_nsfw_enabled(
-                            global,
-                            post_clone.poster_principal.to_text(),
-                            video_id,
-                            post_clone.is_nsfw,
-                            "home".to_string(),
-                            None,
-                        );
-                    }
                     set_nsfw_enabled.set(Some(true));
                 } else {
                     set_nsfw_enabled.set(Some(false));
-                    if let Some(global) =
-                        MixpanelGlobalProps::from_ev_ctx_with_nsfw_info(ev_ctx, false)
-                    {
-                        MixPanelEvent::track_video_clicked(
-                            global,
-                            post.poster_principal.to_text(),
-                            video_id,
-                            MixpanelVideoClickedCTAType::NsfwToggle,
-                        );
-                    }
                 }
                 // using set_href to hard reload the page
                 let window = window();

@@ -4,9 +4,6 @@ mod server_impl;
 pub mod yral;
 
 use candid::Principal;
-use codee::string::JsonSerdeCodec;
-use consts::auth::REFRESH_MAX_AGE;
-use consts::AUTH_JOURNEY_PAGE;
 use global_constants::REFERRAL_REWARD_SATS;
 use hon_worker_common::sign_referral_request;
 use hon_worker_common::ReferralReqWithSignature;
@@ -16,17 +13,10 @@ use leptos::logging;
 use leptos::prelude::ServerFnError;
 use leptos::{ev, prelude::*, reactive::wrappers::write::SignalSetter};
 use leptos_icons::Icon;
-use leptos_router::hooks::use_location;
 use leptos_router::hooks::use_navigate;
-use leptos_use::use_cookie_with_options;
-use leptos_use::UseCookieOptions;
 use state::canisters::auth_state;
 use state::canisters::AuthSession;
-use utils::event_streaming::events::EventCtx;
-use utils::event_streaming::events::{LoginMethodSelected, LoginSuccessful, ProviderKind};
-use utils::mixpanel::mixpanel_events::BottomNavigationCategory;
-use utils::mixpanel::mixpanel_events::MixPanelEvent;
-use utils::mixpanel::mixpanel_events::MixpanelGlobalProps;
+use utils::ProviderKind;
 use utils::send_wrap;
 use utils::types::NewIdentity;
 use utils::user_identity::ProfileDetails;
@@ -44,16 +34,12 @@ async fn mark_user_registered(user_principal: Principal) -> Result<bool, ServerF
 
 pub async fn handle_user_login(
     canisters: AuthSession,
-    event_ctx: EventCtx,
     referrer: Option<Principal>,
-    page_name: Option<BottomNavigationCategory>,
     email: Option<String>,
 ) -> Result<(), ServerFnError> {
     let user_principal = canisters.user_principal();
     let first_time_login = mark_user_registered(user_principal).await?;
 
-    let auth_journey = MixpanelGlobalProps::get_auth_journey();
-    // TODO: Move for first_time_login only
     let metadata_client: MetadataClient<false> = MetadataClient::default();
 
     if let Some(email) = email {
@@ -65,23 +51,6 @@ pub async fn handle_user_login(
     let _ = metadata_client
         .set_signup_datetime(user_principal, !first_time_login)
         .await;
-
-    let page_name = page_name.unwrap_or_default();
-
-    if first_time_login {
-        let global = MixpanelGlobalProps::try_get(&canisters, true);
-        MixPanelEvent::track_signup_success_async(
-            global,
-            referrer.is_some(),
-            referrer.map(|f| f.to_text()),
-            auth_journey,
-            page_name,
-        )
-        .await;
-    } else {
-        let global = MixpanelGlobalProps::try_get(&canisters, true);
-        MixPanelEvent::track_login_success_async(global, auth_journey, page_name).await;
-    }
 
     match referrer {
         Some(referrer_principal) if first_time_login => {
@@ -125,9 +94,7 @@ fn LoginProvButton<Cb: Fn(ev::MouseEvent) + 'static>(
 ) -> impl IntoView {
     let ctx: LoginProvCtx = expect_context();
 
-    let click_action = Action::new(move |()| async move {
-        LoginMethodSelected.send_event(prov);
-    });
+    let click_action = Action::new(move |()| async move {});
 
     view! {
         <button
@@ -158,31 +125,12 @@ pub fn LoginProviders(
 
     let processing = RwSignal::new(None);
 
-    let event_ctx = auth.event_ctx();
-
-    let loc = use_location();
-
     let nav = use_navigate();
-
-    if let Some(global) = MixpanelGlobalProps::from_ev_ctx(event_ctx) {
-        let page_name = global.page_name();
-        MixPanelEvent::track_auth_screen_viewed(global, page_name);
-    }
-
-    let (_, set_auth_journey_page) =
-        use_cookie_with_options::<BottomNavigationCategory, JsonSerdeCodec>(
-            AUTH_JOURNEY_PAGE,
-            UseCookieOptions::default()
-                .path("/")
-                .max_age(REFRESH_MAX_AGE.as_millis() as i64),
-        );
 
     let login_action = Action::new(move |new_id: &NewIdentity| {
         // Clone the necessary parts
         let new_id = new_id.clone();
         let redirect_to = redirect_to.clone();
-        let path = loc.pathname.get();
-        let page_name = BottomNavigationCategory::try_from(path.clone()).ok();
 
         let nav = nav.clone();
         // let start = start.clone();
@@ -232,9 +180,7 @@ pub fn LoginProviders(
 
             if let Err(e) = handle_user_login(
                 canisters.clone(),
-                auth.event_ctx(),
                 referrer,
-                page_name,
                 new_id.email,
             )
             .await
@@ -242,13 +188,10 @@ pub fn LoginProviders(
                 log::warn!("failed to handle user login, err {e}. skipping");
             }
 
-            let _ = LoginSuccessful.send_event(&canisters);
-
             if reload_window {
                 let res = window().location().reload();
                 logging::log!("Reloading window after login: {:#?}", res);
             }
-            set_auth_journey_page.set(None);
             show_modal.set(false);
 
             if let Some(redir_loc) = redirect_to {

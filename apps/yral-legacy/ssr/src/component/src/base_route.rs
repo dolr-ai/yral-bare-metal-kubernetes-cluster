@@ -9,10 +9,8 @@ use consts::{ACCOUNT_CONNECTED_STORE, NOTIFICATIONS_ENABLED_STORE, NOTIFICATION_
 use leptos_use::storage::use_local_storage;
 use state::audio_state::AudioState;
 use state::canisters::AuthState;
-use utils::event_streaming::events::PageVisit;
-use utils::mixpanel::mixpanel_events::{MixPanelEvent, MixpanelGlobalProps};
-use utils::notifications::get_fcm_token;
 use utils::sentry::{set_sentry_user, set_sentry_user_canister};
+use utils::notifications::get_fcm_token;
 use yral_metadata_client::MetadataClient;
 
 #[derive(Clone)]
@@ -77,18 +75,6 @@ fn CtxProvider(children: Children) -> impl IntoView {
         if old_account_connected_store.get() {
             set_new_account_connected_store.set(Some(true));
             clear_from_storage();
-        }
-    });
-
-    Effect::new(move |_| {
-        let pathname = location.pathname.get();
-        let is_logged_in = auth.is_logged_in_with_oauth();
-        let Some(principal) = auth.user_principal_if_available() else {
-            return;
-        };
-        PageVisit.send_event(principal, is_logged_in.get_untracked(), pathname.clone());
-        if let Some(global) = MixpanelGlobalProps::from_ev_ctx(auth.event_ctx()) {
-            MixPanelEvent::track_page_viewed(pathname, global);
         }
     });
 

@@ -22,7 +22,6 @@ use utils::UserAuthInfo;
 
 use types::delegated_identity::DelegatedIdentityWire;
 use utils::{
-    event_streaming::events::EventCtx,
     types::NewIdentity,
     MockPartialEq,
 };
@@ -230,7 +229,6 @@ pub struct AuthState {
     user_canister_id_cookie: (Signal<Option<Principal>>, WriteSignal<Option<Principal>>),
     pub user_principal: Resource<Result<Principal, ServerFnError>>,
     user_principal_cookie: (Signal<Option<Principal>>, WriteSignal<Option<Principal>>),
-    event_ctx: EventCtx,
     pub user_identity: Resource<Result<NewIdentity, ServerFnError>>,
     new_cans_setter: RwSignal<Option<AuthSession>>,
 }
@@ -375,33 +373,6 @@ impl Default for AuthState {
                 .max_age(AUTH_UTIL_COOKIES_MAX_AGE_MS),
         );
 
-        let event_ctx = EventCtx {
-            is_connected: StoredValue::new(Box::new(move || {
-                is_logged_in_with_oauth
-                    .0
-                    .get_untracked()
-                    .unwrap_or_default()
-            })),
-            user_details: StoredValue::new(Box::new(move || {
-                #[cfg(not(feature = "hydrate"))]
-                {
-                    None
-                }
-
-                #[cfg(feature = "hydrate")]
-                canisters_resource
-                    .into_future()
-                    .now_or_never()
-                    .and_then(|c| {
-                        let cans = c.ok()?;
-                        Some(EventUserDetails {
-                            details: cans.user_identity(),
-                            canister_id: cans.user_canister(),
-                        })
-                    })
-            })),
-        };
-
         Self {
             _temp_identity_resource: temp_identity_resource,
             _temp_id_cookie_resource: temp_id_cookie_resource,
@@ -412,7 +383,6 @@ impl Default for AuthState {
             user_principal,
             user_principal_cookie,
             user_canister_id_cookie,
-            event_ctx,
             user_identity: user_identity_resource,
             new_cans_setter,
         }
@@ -486,12 +456,6 @@ impl AuthState {
     /// NOT RECOMMENDED TO BE USED IN DOM
     pub fn user_canister_if_available(&self) -> Option<Principal> {
         self.user_canister_id_cookie.0.get_untracked()
-    }
-
-    /// WARN: Only use this for analytics
-    // TODO: I really want to refactor events as a whole
-    pub fn event_ctx(&self) -> EventCtx {
-        self.event_ctx
     }
 
     pub fn derive_resource<

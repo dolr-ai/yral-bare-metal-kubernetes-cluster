@@ -1,10 +1,6 @@
 use indexmap::IndexSet;
 use leptos::logging;
 use leptos::{html::Video, prelude::*};
-use state::canisters::auth_state;
-// TODO: bring back video watched events
-#[allow(unused_imports)]
-use utils::event_streaming::events::VideoWatched;
 
 use component::video_player::VideoPlayer;
 use futures::FutureExt;
@@ -133,9 +129,6 @@ pub fn VideoView(
         }
     });
 
-    let auth = auth_state();
-    let ev_ctx = auth.event_ctx();
-
     // Handles mute/unmute
     Effect::new(move |_| {
         let vid = _ref.get()?;
@@ -161,12 +154,6 @@ pub fn VideoView(
         }
         Some(())
     });
-
-    if let Some(is_current) = is_current {
-        VideoWatched.send_event_with_current(ev_ctx, post, _ref, muted, is_current);
-    } else {
-        VideoWatched.send_event(ev_ctx, post, _ref, muted);
-    }
 
     view! {
         <VideoPlayer
