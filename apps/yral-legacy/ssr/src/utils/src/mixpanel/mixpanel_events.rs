@@ -359,12 +359,6 @@ impl MixpanelGlobalProps {
     }
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum MixpanelOnboardingPopupType {
-    SatsCreditPopup,
-}
-
 use std::convert::TryFrom;
 
 impl TryFrom<String> for BottomNavigationCategory {
@@ -416,7 +410,6 @@ pub enum MixpanelMenuClickedCTAType {
 #[serde(rename_all = "snake_case")]
 
 pub enum StakeType {
-    Sats,
     DolrAi,
     Btc,
     Usdc,
@@ -533,11 +526,6 @@ derive_event!(track_share_invites_clicked {
     referral_bonus: u64
 });
 
-derive_event!(track_onboarding_popup_shown {
-    credited_amount: u64,
-    popup_type: MixpanelOnboardingPopupType
-});
-
 derive_event!(track_bottom_navigation_clicked {
     category_name: BottomNavigationCategory
 });
@@ -569,16 +557,7 @@ derive_event!(track_login_success {
     page_name: BottomNavigationCategory
 });
 
-derive_event!(track_sats_to_btc_converted {
-    sats_converted: f64,
-    conversion_ratio: f64
-});
-
 derive_event!(track_enable_nsfw_popup_shown { page_name: String });
-
-derive_event!(track_low_on_sats_popup_shown {
-    page_name: String
-});
 
 derive_event!(track_nsfw_enabled {
     publisher_user_id: String,

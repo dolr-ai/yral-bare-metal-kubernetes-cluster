@@ -5,7 +5,6 @@ use leptos_meta::*;
 use leptos_router::hooks::use_location;
 use leptos_router::{components::*, path, MatchNestedRoutes};
 use page::about_us::AboutUs;
-use page::internal::clear_sats::ClearSats;
 use page::post_view::PostDetailsCacheCtx;
 // use page::pumpdump; // TODO: re-enable when pumpdump module is restored
 use page::terms_android::TermsAndroid;
@@ -150,7 +149,6 @@ pub fn App() -> impl IntoView {
                         <Route path=path!("/logout") view=Logout />
                         <Route path=path!("/terms-ios") view=TermsIos />
                         <Route path=path!("/terms-android") view=TermsAndroid />
-                        <Route path=path!("/internal/clear-sats") view=ClearSats />
                     </ParentRoute>
                 </Routes>
 

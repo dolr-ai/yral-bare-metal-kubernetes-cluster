@@ -1,1 +1,1 @@
-pub mod clear_sats;
+// Sats balance clearing page removed — legacy feature pruned.

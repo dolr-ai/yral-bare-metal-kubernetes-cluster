@@ -308,12 +308,3 @@ impl PageVisit {
         let _ = (user_id, is_connected, pathname);
     }
 }
-
-#[derive(Default)]
-pub struct SatsWithdrawn;
-
-impl SatsWithdrawn {
-    pub fn send_event(&self, ctx: EventCtx, amount_withdrawn: f64) {
-        let _ = (ctx, amount_withdrawn);
-    }
-}
