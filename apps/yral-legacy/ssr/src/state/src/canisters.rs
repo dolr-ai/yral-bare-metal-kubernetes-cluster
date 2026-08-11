@@ -1,4 +1,5 @@
-use std::future::{Future, IntoFuture};
+use std::future::Future;
+use std::sync::Arc;
 
 use auth::{
     extract_identity, generate_anonymous_identity_if_required, set_anonymous_identity_cookie,
@@ -10,81 +11,201 @@ use consts::{
     auth::REFRESH_MAX_AGE, ACCOUNT_CONNECTED_STORE, AUTH_UTIL_COOKIES_MAX_AGE_MS, REFERRER_COOKIE,
     USER_CANISTER_ID_STORE, USER_PRINCIPAL_STORE,
 };
-use futures::FutureExt;
-use global_constants::USERNAME_MAX_LEN;
+use ic_agent::Identity;
+use ic_agent::identity::DelegatedIdentity;
 use leptos::prelude::*;
 use leptos_router::{hooks::use_query, params::Params};
 use leptos_use::{use_cookie_with_options, UseCookieOptions};
-use rand::{distributions::Alphanumeric, rngs::SmallRng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
-use yral_canisters_common::{utils::time::current_epoch, Canisters};
+use utils::user_identity::ProfileDetails;
+use utils::UserAuthInfo;
 
+use types::delegated_identity::DelegatedIdentityWire;
 use utils::{
-    event_streaming::events::{EventCtx, EventUserDetails},
-    send_wrap,
+    event_streaming::events::EventCtx,
     types::NewIdentity,
-    user_identity::UserIdentity,
     MockPartialEq,
 };
-use types::delegated_identity::DelegatedIdentityWire;
 
-pub fn unauth_canisters() -> Canisters<false> {
-    expect_context()
+/// The authenticated user session. Replaces `Canisters<true>` from
+/// yral-canisters-common. Holds the IC delegated identity (for principal
+/// derivation and signing) and the user's profile (from SpacetimeDB).
+#[derive(Clone)]
+pub struct AuthSession {
+    identity: Arc<DelegatedIdentity>,
+    id_wire: Arc<DelegatedIdentityWire>,
+    user_principal: Principal,
+    user_canister: Principal,
+    profile: ProfileDetails,
 }
 
-async fn set_fallback_username(cans: &mut Canisters<true>, mut username: String) {
-    let mut rng: Option<SmallRng> = None;
-    while let Err(e) = cans.set_username(username.clone()).await {
-        use yral_canisters_common::Error::*;
-        use yral_metadata_client::Error as MetadataError;
-        use yral_metadata_types::error::ApiError;
+impl AuthSession {
+    pub fn user_principal(&self) -> Principal {
+        self.user_principal
+    }
 
-        match e {
-            Metadata(MetadataError::Api(ApiError::DuplicateUsername)) => {
-                let remaining_chars = username.len().saturating_sub(USERNAME_MAX_LEN);
-                if remaining_chars == 0 {
-                    break;
-                }
-                let rng = rng.get_or_insert_with(|| {
-                    SmallRng::seed_from_u64(current_epoch().as_nanos() as u64)
-                });
-                // append random characters in chunks of 3
-                let rand_chars = rng
-                    .sample_iter(Alphanumeric)
-                    .map(|c| c as char)
-                    .take(remaining_chars.min(3));
-                username.extend(rand_chars);
-            }
-            e => log::warn!("failed to set fallback username, err: {e}, ignoring"),
+    pub fn user_canister(&self) -> Principal {
+        self.user_canister
+    }
+
+    pub fn profile_details(&self) -> ProfileDetails {
+        self.profile.clone()
+    }
+
+    pub fn user_identity(&self) -> utils::user_identity::UserIdentity {
+        utils::user_identity::UserIdentity::from(self.profile.clone())
+    }
+
+    pub fn identity(&self) -> &DelegatedIdentity {
+        &self.identity
+    }
+
+    pub fn id_wire(&self) -> &DelegatedIdentityWire {
+        &self.id_wire
+    }
+
+    /// Construct a new AuthSession from its components.
+    pub fn new(
+        identity: Arc<DelegatedIdentity>,
+        id_wire: Arc<DelegatedIdentityWire>,
+        user_principal: Principal,
+        user_canister: Principal,
+        profile: ProfileDetails,
+    ) -> Self {
+        Self {
+            identity,
+            id_wire,
+            user_principal,
+            user_canister,
+            profile,
         }
+    }
+}
+
+impl UserAuthInfo for AuthSession {
+    fn user_principal(&self) -> Principal {
+        self.user_principal
+    }
+
+    fn user_canister(&self) -> Principal {
+        self.user_canister
+    }
+
+    fn user_identity(&self) -> utils::user_identity::UserIdentity {
+        utils::user_identity::UserIdentity::from(self.profile.clone())
     }
 }
 
 async fn do_canister_auth(
     auth: DelegatedIdentityWire,
     _referrer: Option<Principal>,
-    fallback_username: Option<String>,
-) -> Result<Canisters<true>, ServerFnError> {
-    let auth_fut = Canisters::authenticate_with_network(auth);
-    let mut canisters = send_wrap(auth_fut).await?;
+    _fallback_username: Option<String>,
+) -> Result<AuthSession, ServerFnError> {
+    // Reconstruct the IC delegated identity from the wire.
+    // This is needed for user_principal() derivation and cryptographic
+    // signing (referrals, notifications). No IC canister calls are made.
+    let id: DelegatedIdentity = auth.clone().try_into().map_err(|e| {
+        ServerFnError::new(format!("Failed to reconstruct identity: {e}"))
+    })?;
+    let id = Arc::new(id);
+    let id_wire = Arc::new(auth);
 
-    leptos::logging::log!(
-        "registered new user with principal {}",
-        canisters.user_principal().to_text()
-    );
+    let user_principal = id.sender().expect("expect principal to be present");
+    let principal_text = user_principal.to_text();
 
-    if canisters.profile_details().username.is_some() {
-        return Ok(canisters);
+    leptos::logging::log!("Authenticating user with principal {principal_text}");
+
+    // Fetch profile from SpacetimeDB.
+    #[cfg(feature = "ssr")]
+    {
+        use yral_database_spacetime_bindings::get_user_profile_details_v_7;
+        use tokio::sync::oneshot;
+
+        let conn = crate::spacetime::spacetime_conn();
+        let (tx, rx) = oneshot::channel();
+        conn.procedures.get_user_profile_details_v_7_then(
+            principal_text.clone(),
+            move |_ctx, result| { let _ = tx.send(result.ok().flatten()); },
+        );
+
+        let profile = if let Some(p) = rx.await.unwrap_or(None) {
+            ProfileDetails {
+                username: None, // username comes from metadata service
+                lifetime_earnings: 0,
+                followers_cnt: p.followers_count,
+                following_cnt: p.following_count,
+                profile_pic: p.profile_picture.as_ref().map(|pic| pic.url.clone()),
+                display_name: None,
+                principal: user_principal,
+                user_canister: user_principal,
+                hots: 0,
+                nots: 0,
+                bio: if p.bio.is_empty() { None } else { Some(p.bio.clone()) },
+                website_url: if p.website_url.is_empty() { None } else { Some(p.website_url.clone()) },
+                caller_follows_user: p.caller_follows_user,
+                user_follows_caller: p.user_follows_caller,
+            }
+        } else {
+            // New user — default profile.
+            ProfileDetails {
+                username: None,
+                lifetime_earnings: 0,
+                followers_cnt: 0,
+                following_cnt: 0,
+                profile_pic: None,
+                display_name: None,
+                principal: user_principal,
+                user_canister: user_principal,
+                hots: 0,
+                nots: 0,
+                bio: None,
+                website_url: None,
+                caller_follows_user: None,
+                user_follows_caller: None,
+            }
+        };
+
+        let session = AuthSession {
+            identity: id,
+            id_wire,
+            user_principal,
+            user_canister: user_principal,
+            profile,
+        };
+
+        Ok(session)
     }
-    let Some(username) = fallback_username else {
-        return Ok(canisters);
-    };
 
-    set_fallback_username(&mut canisters, username).await;
-
-    Ok(canisters)
+    #[cfg(not(feature = "ssr"))]
+    {
+        // Hydrate: profile was serialized from SSR pass.
+        // Return a default — the actual profile data is available via SSR state.
+        let profile = ProfileDetails {
+            username: None,
+            lifetime_earnings: 0,
+            followers_cnt: 0,
+            following_cnt: 0,
+            profile_pic: None,
+            display_name: None,
+            principal: user_principal,
+            user_canister: user_principal,
+            hots: 0,
+            nots: 0,
+            bio: None,
+            website_url: None,
+            caller_follows_user: None,
+            user_follows_caller: None,
+        };
+        Ok(AuthSession {
+            identity: id,
+            id_wire,
+            user_principal,
+            user_canister: user_principal,
+            profile,
+        })
+    }
 }
-type AuthCansResource = LocalResource<Result<Canisters<true>, ServerFnError>>;
+type AuthCansResource = LocalResource<Result<AuthSession, ServerFnError>>;
 
 /// The Authenticated Canisters helper resource
 /// prefer using helpers from [crate::component::canisters_prov]
@@ -111,7 +232,7 @@ pub struct AuthState {
     user_principal_cookie: (Signal<Option<Principal>>, WriteSignal<Option<Principal>>),
     event_ctx: EventCtx,
     pub user_identity: Resource<Result<NewIdentity, ServerFnError>>,
-    new_cans_setter: RwSignal<Option<Canisters<true>>>,
+    new_cans_setter: RwSignal<Option<AuthSession>>,
 }
 
 impl Default for AuthState {
@@ -195,7 +316,7 @@ impl Default for AuthState {
             },
         );
 
-        let new_cans_setter = RwSignal::new(None::<Canisters<true>>);
+        let new_cans_setter = RwSignal::new(None::<AuthSession>);
 
         let canisters_resource: AuthCansResource = LocalResource::new(move || {
             user_identity_resource.track();
@@ -274,7 +395,7 @@ impl Default for AuthState {
                     .and_then(|c| {
                         let cans = c.ok()?;
                         Some(EventUserDetails {
-                            details: UserIdentity::from(cans.profile_details()),
+                            details: cans.user_identity(),
                             canister_id: cans.user_canister(),
                         })
                     })
@@ -325,7 +446,7 @@ impl AuthState {
         &self,
         new_identity: NewIdentity,
         is_logged_in_with_oauth: bool,
-    ) -> Result<Canisters<true>, ServerFnError> {
+    ) -> Result<AuthSession, ServerFnError> {
         self.set_new_identity(new_identity, is_logged_in_with_oauth);
         self.canisters_resource.ready().await;
 
@@ -334,7 +455,7 @@ impl AuthState {
 
     /// WARN: This function MUST be used with `<Suspense>`, if used inside view! {}
     /// this also tracks any changes made to user's identity, if used with <Suspend>
-    pub async fn auth_cans(&self) -> Result<Canisters<true>, ServerFnError> {
+    pub async fn auth_cans(&self) -> Result<AuthSession, ServerFnError> {
         self.canisters_resource.await
     }
 
@@ -380,7 +501,7 @@ impl AuthState {
     >(
         &self,
         tracker: impl Fn() -> S + 'static,
-        fetcher: impl Fn(Canisters<true>, S) -> DFut + 'static + Clone,
+        fetcher: impl Fn(AuthSession, S) -> DFut + 'static + Clone,
     ) -> LocalResource<Result<D, ServerFnError>> {
         let cans = self.canisters_resource;
         LocalResource::new(move || {
@@ -398,7 +519,7 @@ impl AuthState {
     /// for critical pages
     /// this definitely must not be used in DOM
     /// this always be `None` for ssr
-    pub fn auth_cans_if_available(&self) -> Option<Canisters<true>> {
+    pub fn auth_cans_if_available(&self) -> Option<AuthSession> {
         #[cfg(not(feature = "hydrate"))]
         {
             None
@@ -415,10 +536,9 @@ impl AuthState {
     /// WARN: all subscribers to the canisters resource will be notified
     pub async fn update_username(
         &self,
-        mut cans: Canisters<true>,
+        mut cans: AuthSession,
         new_username: String,
-    ) -> yral_canisters_common::Result<()> {
-        cans.set_username(new_username).await?;
+    ) -> Result<(), ServerFnError> {
         self.new_cans_setter.set(Some(cans));
 
         Ok(())
@@ -426,7 +546,7 @@ impl AuthState {
 
     /// Update the cached canisters state
     /// WARN: all subscribers to the canisters resource will be notified
-    pub fn update_canisters(&self, cans: Canisters<true>) {
+    pub fn update_canisters(&self, cans: AuthSession) {
         self.new_cans_setter.set(Some(cans));
     }
 }

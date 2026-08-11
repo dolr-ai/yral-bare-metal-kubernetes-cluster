@@ -10,6 +10,8 @@ use consts::AUTH_JOURNEY_PAGE;
 use global_constants::REFERRAL_REWARD_SATS;
 use hon_worker_common::sign_referral_request;
 use hon_worker_common::ReferralReqWithSignature;
+use ic_agent::identity::DelegatedIdentity;
+use ic_agent::Identity;
 use leptos::logging;
 use leptos::prelude::ServerFnError;
 use leptos::{ev, prelude::*, reactive::wrappers::write::SignalSetter};
@@ -19,6 +21,7 @@ use leptos_router::hooks::use_navigate;
 use leptos_use::use_cookie_with_options;
 use leptos_use::UseCookieOptions;
 use state::canisters::auth_state;
+use state::canisters::AuthSession;
 use utils::event_streaming::events::EventCtx;
 use utils::event_streaming::events::{LoginMethodSelected, LoginSuccessful, ProviderKind};
 use utils::mixpanel::mixpanel_events::BottomNavigationCategory;
@@ -26,7 +29,7 @@ use utils::mixpanel::mixpanel_events::MixPanelEvent;
 use utils::mixpanel::mixpanel_events::MixpanelGlobalProps;
 use utils::send_wrap;
 use utils::types::NewIdentity;
-use yral_canisters_common::Canisters;
+use utils::user_identity::ProfileDetails;
 use yral_metadata_client::MetadataClient;
 
 #[server]
@@ -40,7 +43,7 @@ async fn mark_user_registered(user_principal: Principal) -> Result<bool, ServerF
 }
 
 pub async fn handle_user_login(
-    canisters: Canisters<true>,
+    canisters: AuthSession,
     event_ctx: EventCtx,
     referrer: Option<Principal>,
     page_name: Option<BottomNavigationCategory>,
@@ -196,7 +199,35 @@ pub fn LoginProviders(
             if canisters.user_principal()
                 != Principal::self_authenticating(&new_id.id_wire.from_key)
             {
-                canisters = Canisters::authenticate_with_network(new_id.id_wire).await?;
+                // Reconstruct AuthSession from the new identity
+                let id: DelegatedIdentity = new_id.id_wire.clone().try_into().map_err(|e| {
+                    ServerFnError::new(format!("Failed to reconstruct identity: {e}"))
+                })?;
+                let id = std::sync::Arc::new(id);
+                let id_wire = std::sync::Arc::new(new_id.id_wire.clone());
+                let user_principal = id.sender().expect("expect principal to be present");
+                canisters = AuthSession::new(
+                    id,
+                    id_wire,
+                    user_principal,
+                    user_principal,
+                    ProfileDetails {
+                        username: None,
+                        lifetime_earnings: 0,
+                        followers_cnt: 0,
+                        following_cnt: 0,
+                        profile_pic: None,
+                        display_name: None,
+                        principal: user_principal,
+                        user_canister: user_principal,
+                        hots: 0,
+                        nots: 0,
+                        bio: None,
+                        website_url: None,
+                        caller_follows_user: None,
+                        user_follows_caller: None,
+                    },
+                );
             }
 
             if let Err(e) = handle_user_login(
@@ -211,7 +242,7 @@ pub fn LoginProviders(
                 log::warn!("failed to handle user login, err {e}. skipping");
             }
 
-            let _ = LoginSuccessful.send_event(canisters.clone());
+            let _ = LoginSuccessful.send_event(&canisters);
 
             if reload_window {
                 let res = window().location().reload();

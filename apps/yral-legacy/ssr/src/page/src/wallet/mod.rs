@@ -15,7 +15,7 @@ use leptos_router::params::{Params, ParamsError};
 use leptos_use::storage::use_local_storage;
 use leptos_use::use_event_listener;
 use state::app_state::AppState;
-use state::canisters::{auth_state, unauth_canisters};
+use state::canisters::auth_state;
 use utils::notifications::get_device_registeration_token;
 use utils::user_identity::UserIdentity;
 use utils::{send_wrap, UsernameOrPrincipal};
@@ -182,27 +182,86 @@ pub fn WalletImpl(id: UsernameOrPrincipal) -> impl IntoView {
 
     provide_context(ShowLoginSignal(show_login));
 
-    let cans = unauth_canisters();
-
     let id = StoredValue::new(id);
 
-    let cans2 = cans.clone();
     let auth = auth_state();
 
     let query_user_metadata_result = OnceResource::new(send_wrap(async move {
-        let canisters = cans2;
-        let user_canister = canisters
-            .get_user_metadata(id.with_value(|id| id.to_string()))
+        let metadata_client: MetadataClient<false> = MetadataClient::default();
+        let user_meta = metadata_client
+            .get_user_metadata_v2(id.with_value(|id| id.to_string()))
             .await?;
-        Ok::<_, ServerFnError>(user_canister)
+        Ok::<_, ServerFnError>(user_meta)
     }));
 
     let user_info_res = OnceResource::new(send_wrap(async move {
-        let user_details = cans
-            .get_profile_details(format!("{}", id.get_value()))
-            .await
-            .inspect_err(|e| log::warn!("{e}"))?;
-        Ok::<_, ServerFnError>(user_details)
+        // Resolve username/principal to principal via metadata, then fetch
+        // profile from SpacetimeDB.
+        let metadata_client: MetadataClient<false> = MetadataClient::default();
+        let meta = metadata_client
+            .get_user_metadata_v2(format!("{}", id.get_value()))
+            .await?;
+
+        #[cfg(feature = "ssr")]
+        {
+            use yral_database_spacetime_bindings::get_user_profile_details_v_7;
+            use tokio::sync::oneshot;
+            use state::spacetime::spacetime_conn;
+
+            let Some(meta) = meta else {
+                return Ok::<_, ServerFnError>(None);
+            };
+            let user_principal = meta.user_principal;
+
+            let conn = spacetime_conn();
+            let (tx, rx) = oneshot::channel();
+            conn.procedures.get_user_profile_details_v_7_then(
+                user_principal.to_text(),
+                move |_ctx, result| { let _ = tx.send(result.ok().flatten()); },
+            );
+            let p = rx.await.unwrap_or(None);
+            let profile = if let Some(p) = p {
+                utils::user_identity::ProfileDetails {
+                    username: Some(meta.user_name),
+                    lifetime_earnings: 0,
+                    followers_cnt: p.followers_count,
+                    following_cnt: p.following_count,
+                    profile_pic: p.profile_picture.as_ref().map(|pic| pic.url.clone()),
+                    display_name: None,
+                    principal: user_principal,
+                    user_canister: user_principal,
+                    hots: 0,
+                    nots: 0,
+                    bio: if p.bio.is_empty() { None } else { Some(p.bio.clone()) },
+                    website_url: if p.website_url.is_empty() { None } else { Some(p.website_url.clone()) },
+                    caller_follows_user: p.caller_follows_user,
+                    user_follows_caller: p.user_follows_caller,
+                }
+            } else {
+                utils::user_identity::ProfileDetails {
+                    username: Some(meta.user_name),
+                    lifetime_earnings: 0,
+                    followers_cnt: 0,
+                    following_cnt: 0,
+                    profile_pic: None,
+                    display_name: None,
+                    principal: user_principal,
+                    user_canister: user_principal,
+                    hots: 0,
+                    nots: 0,
+                    bio: None,
+                    website_url: None,
+                    caller_follows_user: None,
+                    user_follows_caller: None,
+                }
+            };
+            Ok::<_, ServerFnError>(Some(profile))
+        }
+        #[cfg(not(feature = "ssr"))]
+        {
+            let _ = meta;
+            Ok::<Option<utils::user_identity::ProfileDetails>, ServerFnError>(None)
+        }
     }));
 
     // Edge Case: unauthenticated user navigates to wallet page
@@ -214,7 +273,7 @@ pub fn WalletImpl(id: UsernameOrPrincipal) -> impl IntoView {
         let is_own_account = match id.get_value() {
             UsernameOrPrincipal::Principal(p) => p == logged_in_user.user_principal(),
             UsernameOrPrincipal::Username(u) => {
-                Some(u) == UserIdentity::from(logged_in_user.profile_details()).username
+                Some(u) == logged_in_user.user_identity().username
             }
         };
         if is_own_account {
@@ -235,14 +294,15 @@ pub fn WalletImpl(id: UsernameOrPrincipal) -> impl IntoView {
                 p == authenticated_canister_resource.user_principal()
             }
             UsernameOrPrincipal::Username(u) => {
-                Some(u) == UserIdentity::from(authenticated_canister_resource.profile_details()).username
+                Some(u) == authenticated_canister_resource.user_identity().username
             }
         };
         let user_details = if is_own_account {
-            UserIdentity::from(authenticated_canister_resource.profile_details())
+            authenticated_canister_resource.user_identity()
         } else {
             let user_details = user_info_res.await?;
-            UserIdentity::from(user_details.ok_or_else(|| ServerFnError::new("User canister not found"))?)
+            let details = user_details.ok_or_else(|| ServerFnError::new("User canister not found"))?;
+            utils::user_identity::UserIdentity::from(details)
         };
         Ok::<_, ServerFnError>((user_details, is_own_account))
     });

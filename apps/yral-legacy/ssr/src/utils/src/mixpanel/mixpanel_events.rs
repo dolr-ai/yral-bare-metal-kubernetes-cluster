@@ -13,12 +13,11 @@ use leptos_use::{use_cookie, use_cookie_with_options, UseCookieOptions, UseTimeo
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
-use yral_canisters_common::Canisters;
+use crate::UserAuthInfo;
 use yral_metadata_client::MetadataClient;
 
 use crate::event_streaming::events::EventCtx;
 use crate::event_streaming::events::HistoryCtx;
-use crate::user_identity::UserIdentity;
 use crate::mixpanel::state::MixpanelState;
 
 #[server]
@@ -216,7 +215,7 @@ impl MixpanelGlobalProps {
     }
 
     /// Load global state (login, principal, NSFW toggle)
-    pub fn try_get(cans: &Canisters<true>, is_logged_in: bool) -> Self {
+    pub fn try_get(cans: &impl UserAuthInfo, is_logged_in: bool) -> Self {
         let (is_nsfw_enabled, _) = use_cookie_with_options::<bool, FromToStringCodec>(
             NSFW_ENABLED_COOKIE,
             UseCookieOptions::default()
@@ -240,7 +239,7 @@ impl MixpanelGlobalProps {
             is_logged_in,
             canister_id: cans.user_canister().to_text(),
             is_nsfw_enabled,
-            username: UserIdentity::from(cans.profile_details()).username,
+            username: cans.user_identity().username,
         }
     }
 
@@ -324,7 +323,7 @@ impl MixpanelGlobalProps {
     }
 
     pub fn try_get_with_nsfw_info(
-        cans: &Canisters<true>,
+        cans: &impl UserAuthInfo,
         is_logged_in: bool,
         is_nsfw_enabled: bool,
     ) -> Self {
@@ -342,7 +341,7 @@ impl MixpanelGlobalProps {
             is_logged_in,
             canister_id: cans.user_canister().to_text(),
             is_nsfw_enabled,
-            username: UserIdentity::from(cans.profile_details()).username,
+            username: cans.user_identity().username,
         }
     }
 

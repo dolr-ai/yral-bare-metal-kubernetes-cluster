@@ -5,7 +5,6 @@ use axum_extra::extract::cookie::Key;
 use leptos::prelude::*;
 use leptos_axum::AxumRouteListing;
 use state::server::AppState;
-use yral_canisters_common::Canisters;
 
 #[cfg(feature = "cloudflare")]
 fn init_cf() -> gob_cloudflare::CloudflareAuth {
@@ -110,7 +109,6 @@ impl AppStateBuilder {
 
         let app_state = AppState {
             leptos_options: self.leptos_options,
-            canisters: Canisters::default(),
             routes: self.routes,
             #[cfg(feature = "backend-admin")]
             admin_canisters: init_admin_canisters(),
@@ -127,6 +125,9 @@ impl AppStateBuilder {
                 let jwt = env::var("HON_WORKER_JWT").expect("`HON_WORKER_JWT` is required!");
                 HonWorkerJwt(std::sync::Arc::new(jwt))
             },
+            #[cfg(feature = "ssr")]
+            spacetime_conn: state::spacetime::init_spacetime()
+                .expect("Failed to connect to SpacetimeDB"),
         };
 
         AppStateRes { app_state }

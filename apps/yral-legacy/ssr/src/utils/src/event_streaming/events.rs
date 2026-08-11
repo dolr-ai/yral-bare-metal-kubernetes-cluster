@@ -97,10 +97,8 @@ impl HistoryCtx {
 use crate::ml_feed::QuickPostDetails;
 use crate::user_identity::UserIdentity;
 use leptos::html::Video;
-use yral_canisters_common::{
-    utils::posts::PostDetails,
-    Canisters,
-};
+use yral_canisters_common::utils::posts::PostDetails;
+use crate::UserAuthInfo;
 
 pub enum AnalyticsEvent {
     VideoWatched(VideoWatched),
@@ -224,7 +222,7 @@ impl ReferShareLink {
 pub struct LoginSuccessful;
 
 impl LoginSuccessful {
-    pub fn send_event(&self, canisters: Canisters<true>) -> Result<(), anyhow::Error> {
+    pub fn send_event(&self, canisters: &impl UserAuthInfo) -> Result<(), anyhow::Error> {
         let _ = canisters;
         Ok(())
     }
@@ -297,7 +295,7 @@ impl TokenCreationStarted {
 pub struct TokensTransferred;
 
 impl TokensTransferred {
-    pub fn send_event(&self, amount: String, to: Principal, cans_store: Canisters<true>) {
+    pub fn send_event(&self, amount: String, to: Principal, cans_store: &impl UserAuthInfo) {
         let _ = (amount, to, cans_store);
     }
 }

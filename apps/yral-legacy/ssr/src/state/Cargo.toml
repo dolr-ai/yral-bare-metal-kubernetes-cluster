@@ -111,6 +111,8 @@ regex = { workspace = true, optional = true }
 anyhow = { workspace = true }
 send_wrapper = { workspace = true, features = ["futures"] }
 jsonwebtoken = { workspace = true, optional = true }
+spacetimedb-sdk = { workspace = true, optional = true }
+yral-database-spacetime-bindings = { workspace = true, optional = true }
 rand = { workspace = true, default-features = false, features = ["small_rng"] }
 
 # workspace deps
@@ -160,7 +162,9 @@ ssr = [
     "auth/ssr",
     "consts/ssr",
     "utils/ssr",
-    "yral-metadata-client/rustls-tls"
+    "yral-metadata-client/rustls-tls",
+    "dep:spacetimedb-sdk",
+    "dep:yral-database-spacetime-bindings"
 ]
 # Fetch mock referral history instead of history via canister
 mock-referral-history = ["dep:rand_chacha", "k256/arithmetic"]

@@ -50,7 +50,7 @@ pub fn Notif() -> impl IntoView {
                     match res {
                         Ok(cans) => {
                             Either::Left(
-                                view! { <NotifInnerComponent details=UserIdentity::from(cans.profile_details()) /> },
+                                view! { <NotifInnerComponent details=cans.user_identity() /> },
                             )
                         }
                         Err(e) => {

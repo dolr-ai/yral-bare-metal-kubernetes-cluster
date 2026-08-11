@@ -2,6 +2,15 @@ use candid::Principal;
 use futures::Future;
 use serde::{Deserialize, Serialize};
 
+/// Trait for accessing authenticated user info.
+/// Implemented by `AuthSession` (state crate). This lets utils functions
+/// accept the auth type without a circular dependency on `state`.
+pub trait UserAuthInfo {
+    fn user_principal(&self) -> Principal;
+    fn user_canister(&self) -> Principal;
+    fn user_identity(&self) -> crate::user_identity::UserIdentity;
+}
+
 pub mod ab_testing;
 pub mod client_ip;
 pub mod event_streaming;

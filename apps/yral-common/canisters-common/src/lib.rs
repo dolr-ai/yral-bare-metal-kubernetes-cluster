@@ -161,7 +161,7 @@ impl Canisters<true> {
         self.profile_details
             .clone()
             .expect("Authenticated canisters must have profile details")
-    }
+}
 
     pub fn user_principal(&self) -> Principal {
         self.identity()

@@ -28,7 +28,6 @@ pub async fn server_fn_handler(
 ) -> impl IntoResponse {
     handle_server_fns_with_context(
         move || {
-            provide_context(app_state.canisters.clone());
             #[cfg(feature = "backend-admin")]
             provide_context(app_state.admin_canisters.clone());
             #[cfg(feature = "cloudflare")]
@@ -43,6 +42,8 @@ pub async fn server_fn_handler(
             }
 
             provide_context(app_state.hon_worker_jwt.clone());
+            #[cfg(feature = "ssr")]
+            provide_context(app_state.spacetime_conn.clone());
         },
         request,
     )
@@ -55,7 +56,6 @@ pub async fn leptos_routes_handler(state: State<AppState>, req: Request<AxumBody
     let handler = leptos_axum::render_route_with_context(
         app_state.routes.clone(),
         move || {
-            provide_context(app_state.canisters.clone());
             #[cfg(feature = "backend-admin")]
             provide_context(app_state.admin_canisters.clone());
             #[cfg(feature = "cloudflare")]
@@ -65,6 +65,8 @@ pub async fn leptos_routes_handler(state: State<AppState>, req: Request<AxumBody
             #[cfg(feature = "oauth-ssr")]
             provide_context(app_state.yral_oauth_client.clone());
             provide_context(app_state.hon_worker_jwt.clone());
+            #[cfg(feature = "ssr")]
+            provide_context(app_state.spacetime_conn.clone());
         },
         move || shell(app_state.leptos_options.clone()),
     );

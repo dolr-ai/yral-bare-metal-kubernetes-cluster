@@ -4,6 +4,8 @@ pub mod app_state;
 pub mod app_type;
 pub mod audio_state;
 pub mod canisters;
+#[cfg(feature = "ssr")]
+pub mod spacetime;
 
 #[cfg(not(feature = "ssr"))]
 pub mod server {
@@ -19,7 +21,6 @@ pub mod server {
     use axum_extra::extract::cookie::Key;
     use leptos::prelude::*;
     use leptos_axum::AxumRouteListing;
-    use yral_canisters_common::Canisters;
 
     #[derive(Clone)]
     pub struct HonWorkerJwt(pub std::sync::Arc<String>);
@@ -27,7 +28,6 @@ pub mod server {
     #[derive(FromRef, Clone)]
     pub struct AppState {
         pub leptos_options: LeptosOptions,
-        pub canisters: Canisters<false>,
         #[cfg(feature = "backend-admin")]
         pub admin_canisters: super::admin_canisters::AdminCanisters,
         #[cfg(feature = "cloudflare")]
@@ -40,5 +40,7 @@ pub mod server {
         #[cfg(feature = "oauth-ssr")]
         pub yral_auth_migration_key: jsonwebtoken::EncodingKey,
         pub hon_worker_jwt: HonWorkerJwt,
+        #[cfg(feature = "ssr")]
+        pub spacetime_conn: std::sync::Arc<yral_database_spacetime_bindings::DbConnection>,
     }
 }

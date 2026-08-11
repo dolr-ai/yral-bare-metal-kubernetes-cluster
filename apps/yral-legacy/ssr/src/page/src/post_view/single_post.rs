@@ -6,10 +6,8 @@ use super::{overlay::VideoDetailsOverlay, video_loader::VideoView};
 use crate::scrolling_post_view::MuteUnmuteOverlay;
 use component::{back_btn::go_back_or_fallback, spinner::FullScreenSpinner};
 use leptos_router::{components::Redirect, hooks::use_params, params::Params};
-use state::{
-    audio_state::AudioState,
-    canisters::{auth_state, unauth_canisters},
-};
+use state::audio_state::AudioState;
+use utils::user_identity::propic_from_principal;
 use utils::{bg_url, send_wrap};
 use yral_canisters_common::utils::posts::PostDetails;
 #[derive(Params, PartialEq, Clone)]
@@ -67,27 +65,67 @@ fn UnavailablePost() -> impl IntoView {
 pub fn SinglePost() -> impl IntoView {
     let params = use_params::<PostParams>();
 
-    let auth = auth_state();
-
     let fetch_post = Resource::new(move || params.get(), move |params| {
         send_wrap(async move {
             let params = params.map_err(|_| PostFetchError::Invalid)?;
             let canister_id = params.canister_id.ok_or(PostFetchError::Invalid)?;
             let post_id = params.post_id.ok_or(PostFetchError::Invalid)?;
-            let unauth_cans = unauth_canisters();
-            let post_uid = if let Some(canisters) = auth.auth_cans_if_available() {
-                canisters
-                    .get_post_details(canister_id, post_id.clone())
-                    .await
-            } else {
-                let canisters = unauth_cans;
-                canisters
-                    .get_post_details(canister_id, post_id.clone())
-                    .await
-            };
-            post_uid
-                .map_err(|e| PostFetchError::GetUid(e.to_string()))
-                .and_then(|post| post.ok_or(PostFetchError::Unavailable))
+
+            // Fetch post from SpacetimeDB (SSR) or IC (hydrate fallback).
+            #[cfg(feature = "ssr")]
+            {
+                use tokio::sync::oneshot;
+                use yral_database_spacetime_bindings::get_individual_post_details_by_id;
+
+                let conn = state::spacetime::spacetime_conn();
+                let (tx, rx) = oneshot::channel();
+                conn.procedures.get_individual_post_details_by_id_then(
+                    post_id.clone(),
+                    move |_ctx, result| { let _ = tx.send(result.ok().flatten()); },
+                );
+                let post = match rx.await.unwrap_or(None) {
+                    Some(p) => p,
+                    None => return Err(PostFetchError::Unavailable),
+                };
+                // Map SpacetimeDB PostDetailsForFrontend to the PostDetails struct
+                // expected by the rest of the page.
+                let poster_principal = candid::Principal::from_text(&post.creator_principal_text)
+                    .unwrap_or(candid::Principal::anonymous());
+                Ok(yral_canisters_common::utils::posts::PostDetails {
+                    canister_id,
+                    post_id: post.id,
+                    uid: post.video_uid,
+                    description: post.description,
+                    views: post.total_view_count,
+                    likes: post.like_count,
+                    display_name: None,
+                    username: None,
+                    propic_url: propic_from_principal(poster_principal),
+                    liked_by_user: Some(post.liked_by_me),
+                    poster_principal,
+                    creator_follows_user: None,
+                    user_follows_creator: None,
+                    creator_bio: None,
+                    hastags: post.hashtags,
+                    is_nsfw: false,
+                    hot_or_not_feed_ranking_score: Some(0),
+                    created_at: {
+                        let micros = post.created_at.to_micros_since_unix_epoch();
+                        web_time::Duration::new(
+                            (micros / 1_000_000) as u64,
+                            ((micros % 1_000_000) * 1000) as u32,
+                        )
+                    },
+                    nsfw_probability: 0.0,
+                })
+            }
+
+            #[cfg(not(feature = "ssr"))]
+            {
+                // Hydrate: post data is serialized from SSR pass.
+                // If SSR didn't populate it, the post is unavailable.
+                Err(PostFetchError::Unavailable)
+            }
         })
     });
 

@@ -6,21 +6,28 @@ use num_bigint::Sign;
 use reqwest::Url;
 use state::{canisters::auth_state, server::HonWorkerJwt};
 use utils::{send_wrap, try_or_redirect_opt};
-use yral_canisters_common::Canisters;
+
+/// Fetch sats balance from the hon-worker (HTTP, not IC).
+async fn load_sats_balance(user_principal: Principal) -> Result<SatsBalanceInfo, ServerFnError> {
+    let url: Url = WORKER_URL.parse().expect("url to be valid");
+    let balance_url = url
+        .join(&format!("/balance/{user_principal}"))
+        .expect("url to be valid");
+    let res: SatsBalanceInfo = reqwest::get(balance_url).await?.json().await?;
+    Ok(res)
+}
 
 #[server(input = server_fn::codec::Json)]
 pub async fn clear_sats(
     _user_canister: Principal,
     user_principal: Principal,
 ) -> Result<(), ServerFnError> {
-    let cans: Canisters<false> = expect_context();
-
     if !WHITELIST_FOR_SATS_CLEARING.contains(user_principal.to_text().as_str()) {
         leptos::logging::log!("sats clearing({user_principal}): not whitelisted");
         return Err(ServerFnError::new(""));
     }
 
-    let balance = yral_canisters_common::utils::token::load_sats_balance(user_principal)
+    let balance = load_sats_balance(user_principal)
         .await?
         .balance;
 
@@ -73,7 +80,7 @@ pub fn ClearSats() -> impl IntoView {
                 return Err(ServerFnError::new("who dis?"));
             }
             let sats_info: SatsBalanceInfo =
-                yral_canisters_common::utils::token::load_sats_balance(user_principal).await?;
+                load_sats_balance(user_principal).await?;
 
             let res = (sats_info.balance, user_canister, user_principal);
 

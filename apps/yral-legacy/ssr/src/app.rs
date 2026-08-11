@@ -26,7 +26,6 @@ use state::audio_state::AudioState;
 use utils::event_streaming::events::HistoryCtx;
 use utils::mixpanel::state::MixpanelState;
 use utils::types::PostParams;
-use yral_canisters_common::Canisters;
 
 #[component]
 fn NotFound() -> impl IntoView {
@@ -88,7 +87,6 @@ pub fn App() -> impl IntoView {
     provide_context(app_state.clone());
 
     // Existing context providers
-    provide_context(Canisters::default());
     provide_context(AudioState::default());
     provide_context(PostDetailsCacheCtx::default());
 

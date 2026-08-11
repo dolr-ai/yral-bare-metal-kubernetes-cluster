@@ -5,7 +5,6 @@ use hon_worker_common::ReferralReqWithSignature;
 use leptos::prelude::*;
 #[cfg(not(feature = "backend-admin"))]
 use no_op::*;
-use state::canisters::unauth_canisters;
 
 pub async fn issue_referral_rewards(
     worker_req: ReferralReqWithSignature,
@@ -18,14 +17,9 @@ pub async fn issue_referral_rewards(
 pub async fn mark_user_registered(user_principal: Principal) -> Result<bool, ServerFnError> {
     ensure_user_logged_in_with_oauth(user_principal).await?;
 
-    let unauth_canisters = unauth_canisters();
-
-    let user_canister = unauth_canisters
-        .get_individual_canister_v2(user_principal.to_text())
-        .await?
-        .ok_or(ServerFnError::new("user canister not found"))?;
-
-    mark_user_registered_impl(user_principal, user_canister).await
+    // user_canister is no longer needed — mark_user_registered_impl ignores it.
+    // In SpacetimeDB, users are identified by principal, not a per-user canister.
+    mark_user_registered_impl(user_principal, Principal::anonymous()).await
 }
 
 async fn ensure_user_logged_in_with_oauth(user_principal: Principal) -> Result<(), ServerFnError> {
