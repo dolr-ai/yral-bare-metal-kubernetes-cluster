@@ -16,13 +16,19 @@ use k256::elliptic_curve::JwkEcKey;
 use leptos::prelude::*;
 use leptos_axum::{extract_with_state, ResponseOptions};
 use rand_chacha::rand_core::OsRng;
-use yral_canisters_common::utils::time::current_epoch;
 
 use consts::auth::{REFRESH_MAX_AGE, REFRESH_TOKEN_COOKIE};
 
 use crate::{delegate_identity, AnonymousIdentity};
 
 use self::store::{KVStore, KVStoreImpl};
+
+/// Current time since UNIX_EPOCH.
+fn current_epoch() -> web_time::Duration {
+    web_time::SystemTime::now()
+        .duration_since(web_time::SystemTime::UNIX_EPOCH)
+        .unwrap()
+}
 use types::delegated_identity::DelegatedIdentityWire;
 
 use super::RefreshTokenLegacy;

@@ -1,16 +1,40 @@
-#[cfg(feature = "backend-admin")]
-use backend_admin::*;
 use candid::Principal;
 use leptos::prelude::*;
-#[cfg(not(feature = "backend-admin"))]
-use no_op::*;
 
 pub async fn mark_user_registered(user_principal: Principal) -> Result<bool, ServerFnError> {
     ensure_user_logged_in_with_oauth(user_principal).await?;
 
-    // user_canister is no longer needed — mark_user_registered_impl ignores it.
-    // In SpacetimeDB, users are identified by principal, not a per-user canister.
-    mark_user_registered_impl(user_principal, Principal::anonymous()).await
+    // Check if user already exists in SpacetimeDB.
+    #[cfg(feature = "ssr")]
+    {
+        use yral_database_spacetime_bindings::get_user_profile_details_v_7;
+        use tokio::sync::oneshot;
+        use state::spacetime::spacetime_conn;
+
+        let conn = spacetime_conn();
+        let (tx, rx) = oneshot::channel();
+        conn.procedures.get_user_profile_details_v_7_then(
+            user_principal.to_text(),
+            move |_ctx, result| { let _ = tx.send(result.ok().flatten()); },
+        );
+        let existing = rx.await.unwrap_or(None);
+        if existing.is_some() {
+            return Ok(false); // returning user
+        }
+
+        // New user — register via SpacetimeDB reducer.
+        use yral_database_spacetime_bindings::accept_new_user_registration_v_2;
+        conn.reducers.accept_new_user_registration_v_2(
+            user_principal.to_text(),
+            true,
+            None,
+        )?;
+        Ok(true)
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        Ok(true)
+    }
 }
 
 async fn ensure_user_logged_in_with_oauth(user_principal: Principal) -> Result<(), ServerFnError> {
@@ -55,58 +79,5 @@ async fn ensure_user_logged_in_with_oauth(user_principal: Principal) -> Result<(
     {
         _ = user_principal;
         Err(ServerFnError::new("not logged in"))
-    }
-}
-
-#[cfg(feature = "backend-admin")]
-mod backend_admin {
-    use candid::Principal;
-    use leptos::prelude::*;
-    use canisters_client::user_info_service::Result_;
-    use canisters_client::user_info_service::Result8 as UserServiceResult8;
-
-    pub async fn mark_user_registered_impl(
-        user_principal: Principal,
-        _user_canister: Principal,
-    ) -> Result<bool, ServerFnError> {
-        use state::admin_canisters::admin_canisters;
-        use canisters_client::user_info_service::SessionType as UserServiceSessionType;
-
-        let admin_cans = admin_canisters();
-
-        // All users now use user_info_service; individual_user_template canisters
-        // have been decommissioned.
-        let user_service = admin_cans.user_info_service().await;
-        if matches!(
-            user_service.get_user_session_type(user_principal).await?,
-            UserServiceResult8::Ok(UserServiceSessionType::RegisteredSession)
-        ) {
-            return Ok(false);
-        }
-        user_service
-            .update_session_type(user_principal, UserServiceSessionType::RegisteredSession)
-            .await
-            .map_err(ServerFnError::from)
-            .and_then(|res| match res {
-                Result_::Ok => Ok(()),
-                Result_::Err(e) => Err(ServerFnError::new(format!(
-                    "failed to mark user as registered {e}"
-                ))),
-            })?;
-
-        Ok(true)
-    }
-}
-
-#[cfg(not(feature = "backend-admin"))]
-mod no_op {
-    use candid::Principal;
-    use leptos::prelude::ServerFnError;
-
-    pub async fn mark_user_registered_impl(
-        _user_principal: Principal,
-        _user_canister: Principal,
-    ) -> Result<bool, ServerFnError> {
-        Ok(true)
     }
 }

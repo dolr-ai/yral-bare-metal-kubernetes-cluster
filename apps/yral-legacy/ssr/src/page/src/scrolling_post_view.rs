@@ -7,7 +7,7 @@ use leptos_use::{use_intersection_observer_with_options, UseIntersectionObserver
 
 use state::audio_state::AudioState;
 use utils::{ml_feed::QuickPostDetails, posts::FeedPostCtx};
-use yral_canisters_common::utils::posts::PostDetails;
+use utils::posts::PostDetails;
 
 /// A trait that requires some post details to be accessible instantly while others may be suspended
 pub trait PostDetailResolver {

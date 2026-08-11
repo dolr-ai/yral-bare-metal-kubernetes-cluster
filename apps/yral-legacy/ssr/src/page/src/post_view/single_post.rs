@@ -9,7 +9,7 @@ use leptos_router::{components::Redirect, hooks::use_params, params::Params};
 use state::audio_state::AudioState;
 use utils::user_identity::propic_from_principal;
 use utils::{bg_url, send_wrap};
-use yral_canisters_common::utils::posts::PostDetails;
+use utils::posts::PostDetails;
 #[derive(Params, PartialEq, Clone)]
 struct PostParams {
     canister_id: Option<Principal>,
@@ -91,7 +91,7 @@ pub fn SinglePost() -> impl IntoView {
                 // expected by the rest of the page.
                 let poster_principal = candid::Principal::from_text(&post.creator_principal_text)
                     .unwrap_or(candid::Principal::anonymous());
-                Ok(yral_canisters_common::utils::posts::PostDetails {
+                Ok(PostDetails {
                     canister_id,
                     post_id: post.id,
                     uid: post.video_uid,
@@ -108,7 +108,6 @@ pub fn SinglePost() -> impl IntoView {
                     creator_bio: None,
                     hastags: post.hashtags,
                     is_nsfw: false,
-                    hot_or_not_feed_ranking_score: Some(0),
                     created_at: {
                         let micros = post.created_at.to_micros_since_unix_epoch();
                         web_time::Duration::new(

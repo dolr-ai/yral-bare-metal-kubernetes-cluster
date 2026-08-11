@@ -1,6 +1,5 @@
 use candid::Principal;
 use serde::{Deserialize, Serialize};
-use canisters_client::user_post_service::PostStatus as PostStatusCandid;
 use types::delegated_identity::DelegatedIdentityWire;
 
 pub type PostId = (Principal, String);
@@ -21,21 +20,6 @@ pub enum PostStatus {
     ReadyToView,
     Transcoding,
     Deleted,
-}
-
-impl From<&PostStatusCandid> for PostStatus {
-    fn from(status: &PostStatusCandid) -> Self {
-        match status {
-            PostStatusCandid::BannedForExplicitness => PostStatus::BannedForExplicitness,
-            PostStatusCandid::Draft => PostStatus::Draft,
-            PostStatusCandid::BannedDueToUserReporting => PostStatus::BannedDueToUserReporting,
-            PostStatusCandid::Uploaded => PostStatus::Uploaded,
-            PostStatusCandid::CheckingExplicitness => PostStatus::CheckingExplicitness,
-            PostStatusCandid::ReadyToView => PostStatus::ReadyToView,
-            PostStatusCandid::Transcoding => PostStatus::Transcoding,
-            PostStatusCandid::Deleted => PostStatus::Deleted,
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Clone)]

@@ -63,19 +63,6 @@ fn init_yral_auth_migration_key() -> jsonwebtoken::EncodingKey {
     enc_key
 }
 
-#[cfg(feature = "backend-admin")]
-fn init_admin_canisters() -> state::admin_canisters::AdminCanisters {
-    use state::admin_canisters::AdminCanisters;
-    use ic_agent::identity::Secp256k1Identity;
-
-    let admin_id_pem =
-        env::var("BACKEND_ADMIN_IDENTITY").expect("`BACKEND_ADMIN_IDENTITY` is required!");
-    let admin_id_pem_by = admin_id_pem.as_bytes();
-    let admin_id =
-        Secp256k1Identity::from_pem(admin_id_pem_by).expect("Invalid `BACKEND_ADMIN_IDENTITY`");
-    AdminCanisters::new(admin_id)
-}
-
 pub struct AppStateRes {
     pub app_state: AppState,
 }
@@ -110,8 +97,6 @@ impl AppStateBuilder {
         let app_state = AppState {
             leptos_options: self.leptos_options,
             routes: self.routes,
-            #[cfg(feature = "backend-admin")]
-            admin_canisters: init_admin_canisters(),
             #[cfg(feature = "cloudflare")]
             cloudflare: init_cf(),
             kv,

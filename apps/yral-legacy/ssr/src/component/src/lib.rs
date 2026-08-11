@@ -10,7 +10,6 @@ pub mod dashbox;
 pub mod hn_icons;
 pub mod ic_symbol;
 pub mod icons;
-pub mod infinite_scroller;
 pub mod loading;
 pub mod login_icons;
 pub mod login_modal;

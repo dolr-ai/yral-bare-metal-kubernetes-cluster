@@ -1,7 +1,6 @@
 #![recursion_limit = "256"]
 #![allow(clippy::empty_docs)]
 pub mod app;
-pub mod canister_ids;
 pub mod error_template;
 #[cfg(feature = "ssr")]
 pub mod fallback;

@@ -14,10 +14,16 @@ use leptos::{server, server_fn::codec::Json};
 use rand_chacha::rand_core::OsRng;
 use serde::{Deserialize, Serialize};
 use web_time::Duration;
-use yral_canisters_common::utils::time::current_epoch;
 
 use consts::auth::DELEGATION_MAX_AGE;
 use types::delegated_identity::DelegatedIdentityWire;
+
+/// Current time since UNIX_EPOCH.
+fn current_epoch() -> Duration {
+    web_time::SystemTime::now()
+        .duration_since(web_time::SystemTime::UNIX_EPOCH)
+        .unwrap()
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AnonymousIdentity {

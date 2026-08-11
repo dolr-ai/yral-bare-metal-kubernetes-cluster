@@ -10,7 +10,28 @@ use leptos_use::{
 };
 use state::canisters::auth_state;
 use utils::types::NewIdentity;
-use yral_canisters_common::yral_auth_login_hint;
+
+use serde::Serialize;
+
+/// Build a yral-auth login hint by signing a message with the IC identity.
+fn yral_auth_login_hint(identity: &impl ic_agent::Identity) -> identity::Result<String> {
+    let msg =
+        identity::msg_builder::Message::default().method_name("yral_auth_v2_login_hint".into());
+    let sig = identity::ic_agent::sign_message(identity, msg)?;
+
+    #[derive(Serialize)]
+    struct LoginHint {
+        pub user_principal: candid::Principal,
+        pub signature: identity::Signature,
+    }
+
+    let login_hint = LoginHint {
+        user_principal: identity.sender().unwrap(),
+        signature: sig,
+    };
+
+    Ok(serde_json::to_string(&login_hint).expect("login hint should serialize"))
+}
 
 pub type YralAuthMessage = Result<NewIdentity, String>;
 

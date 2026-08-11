@@ -13,7 +13,7 @@ use leptos_use::{use_cookie_with_options, UseCookieOptions};
 use state::audio_state::AudioState;
 use utils::host::show_nsfw_content;
 
-use yral_canisters_common::utils::posts::PostDetails;
+use utils::posts::PostDetails;
 
 #[component]
 pub fn VideoDetailsOverlay(

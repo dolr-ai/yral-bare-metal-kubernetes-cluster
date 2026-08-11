@@ -28,8 +28,6 @@ pub async fn server_fn_handler(
 ) -> impl IntoResponse {
     handle_server_fns_with_context(
         move || {
-            #[cfg(feature = "backend-admin")]
-            provide_context(app_state.admin_canisters.clone());
             #[cfg(feature = "cloudflare")]
             provide_context(app_state.cloudflare.clone());
             provide_context(app_state.kv.clone());
@@ -56,8 +54,6 @@ pub async fn leptos_routes_handler(state: State<AppState>, req: Request<AxumBody
     let handler = leptos_axum::render_route_with_context(
         app_state.routes.clone(),
         move || {
-            #[cfg(feature = "backend-admin")]
-            provide_context(app_state.admin_canisters.clone());
             #[cfg(feature = "cloudflare")]
             provide_context(app_state.cloudflare.clone());
             provide_context(app_state.kv.clone());

@@ -1,5 +1,3 @@
-#[cfg(feature = "backend-admin")]
-pub mod admin_canisters;
 pub mod app_state;
 pub mod app_type;
 pub mod audio_state;
@@ -19,8 +17,6 @@ pub mod server {
     #[derive(FromRef, Clone)]
     pub struct AppState {
         pub leptos_options: LeptosOptions,
-        #[cfg(feature = "backend-admin")]
-        pub admin_canisters: super::admin_canisters::AdminCanisters,
         #[cfg(feature = "cloudflare")]
         pub cloudflare: gob_cloudflare::CloudflareAuth,
         pub kv: KVStoreImpl,

@@ -1,5 +1,5 @@
 use candid::Principal;
-use yral_canisters_common::utils::posts::PostDetails;
+use crate::posts::PostDetails;
 
 /// Piece of post details that should be available as quickly as possible to ensure fast loading of the infinite scroller
 #[derive(Clone)]
