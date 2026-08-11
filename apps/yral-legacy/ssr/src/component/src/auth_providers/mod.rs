@@ -229,7 +229,7 @@ pub fn LoginProviders(
                     </div>
                     <div class="flex flex-col items-center text-center text-md">
                         <div>"By signing up, you agree to our"</div>
-                        <a class="font-bold text-pink-300" target="_blank" href="/terms-of-service">
+                        <a class="font-bold text-pink-300" target="_blank" href="https://yral.com/terms-android">
                             "Terms of Service"
                         </a>
                     </div>

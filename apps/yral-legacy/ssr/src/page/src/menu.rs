@@ -175,8 +175,8 @@ pub fn Menu() -> impl IntoView {
                 // Legal section
                 <SectionHeader text="Legal" />
                 <div class="flex flex-col gap-4">
-                    <MenuItem href="/terms-of-service" text="Terms of service" icon=icondata::TbBook2 />
-                    <MenuItem href="/privacy-policy" text="Privacy Policy" icon=icondata::TbLock />
+                    <MenuItem href="https://yral.com/terms-android" text="Terms of service" icon=icondata::TbBook2 target="_blank" />
+                    <MenuItem href="https://yral.com/privacy-policy" text="Privacy Policy" icon=icondata::TbLock target="_blank" />
                     <MenuItem href="/about-us" text="About Us" icon=icondata::TbInfoCircle />
                 </div>
 

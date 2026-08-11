@@ -6,15 +6,11 @@ use leptos_router::hooks::use_location;
 use leptos_router::{components::*, path, MatchNestedRoutes};
 use page::about_us::AboutUs;
 use page::post_view::PostDetailsCacheCtx;
-use page::terms_android::TermsAndroid;
-use page::terms_ios::TermsIos;
 use page::{
     err::ServerErrorPage,
     logout::Logout,
     menu::Menu,
     post_view::single_post::SinglePost,
-    privacy::PrivacyPolicy,
-    terms::TermsOfService,
     wallet::Wallet,
 };
 use state::app_state::AppState;
@@ -122,14 +118,10 @@ pub fn App() -> impl IntoView {
                         <Route path=path!("/post/:canister_id/:post_id") view=SinglePost />
                         <Route path=path!("/error") view=ServerErrorPage />
                         <Route path=path!("/menu") view=Menu />
-                        <Route path=path!("/terms-of-service") view=TermsOfService />
-                        <Route path=path!("/privacy-policy") view=PrivacyPolicy />
                         <Route path=path!("/about-us") view=AboutUs />
                         <Route path=path!("/wallet/:id") view=Wallet />
                         <Route path=path!("/wallet") view=Wallet />
                         <Route path=path!("/logout") view=Logout />
-                        <Route path=path!("/terms-ios") view=TermsIos />
-                        <Route path=path!("/terms-android") view=TermsAndroid />
                     </ParentRoute>
                 </Routes>
 

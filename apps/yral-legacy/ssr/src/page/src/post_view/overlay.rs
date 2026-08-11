@@ -119,7 +119,8 @@ pub fn VideoDetailsOverlay(
                 <div class="flex flex-col gap-4 items-center w-full">
                     <a
                         class="text-sm font-bold text-center text-[#E2017B] font-kumbh"
-                        href="/terms-of-service"
+                        href="https://yral.com/terms-android"
+                        target="_blank"
                     >
                         View NSFW Content Policy
                     </a>

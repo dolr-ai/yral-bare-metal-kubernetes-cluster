@@ -6,11 +6,7 @@ pub mod logout;
 pub mod menu;
 pub mod notifs;
 pub mod post_view;
-pub mod privacy;
 pub mod scrolling_post_view;
-pub mod terms;
-pub mod terms_android;
-pub mod terms_ios;
 pub mod wallet;
 #[cfg(any(feature = "oauth-ssr", feature = "oauth-hydrate"))]
 pub mod yral_auth_redirect;
