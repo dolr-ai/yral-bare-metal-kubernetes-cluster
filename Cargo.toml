@@ -31,11 +31,15 @@ members = ["apps/hello-world",
   "apps/yral-metadata/types",
 ]
 
-# apps/yral-backend-canister is an independent Cargo workspace (IC canister, WASM target)
-# and is not a member of this root workspace.
+exclude = [
+  # Independent Cargo workspace (IC canister, WASM target, resolver = "2")
+  "apps/yral-backend-canister",
+  # Gradle project with a Rust submodule — not part of this workspace because
+  # git submodules are not present in shallow clones (Shipwright/BuildKit).
+  "apps/yral-mobile/shared/rust/rust-agent/rust-agent-uniffi",
+]
+
 # apps/website is a non-Cargo project.
-# apps/yral-mobile is a Gradle project with a Rust submodule — excluded from
-# this workspace because git submodules are not present in shallow clones
 # (Shipwright/BuildKit docker builds).
 
 [workspace.dependencies]

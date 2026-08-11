@@ -1,15 +1,12 @@
 use candid::Principal;
 use consts::WHITELIST_FOR_SATS_CLEARING;
-use hon_worker_common::{SatsBalanceUpdateRequestV2, WORKER_URL};
+use hon_worker_common::{SatsBalanceInfo, SatsBalanceUpdateRequestV2, WORKER_URL};
 use leptos::prelude::*;
 use num_bigint::Sign;
 use reqwest::Url;
 use state::{canisters::auth_state, server::HonWorkerJwt};
 use utils::{send_wrap, try_or_redirect_opt};
-use canisters_client::user_info_service::{Result8, SessionType};
-use yral_canisters_common::{utils::token::load_sats_balance, Canisters};
-
-use crate::wallet::tokens::BalanceFetcherType;
+use yral_canisters_common::Canisters;
 
 #[server(input = server_fn::codec::Json)]
 pub async fn clear_sats(
@@ -17,36 +14,15 @@ pub async fn clear_sats(
     user_principal: Principal,
 ) -> Result<(), ServerFnError> {
     let cans: Canisters<false> = expect_context();
-    let user_info_service = cans.user_info_service().await;
-    let profile_owner = user_info_service
-        .get_profile_details_v_4(user_principal)
-        .await?;
-    let profile_owner = match profile_owner {
-        canisters_client::user_info_service::Result3::Ok(details) => details,
-        canisters_client::user_info_service::Result3::Err(e) => {
-            return Err(ServerFnError::new(format!(
-                "failed to get profile details: {e}"
-            )));
-        }
-    };
-    let sess = user_info_service.get_user_session_type(user_principal).await?;
-    if profile_owner.principal_id != user_principal {
-        leptos::logging::log!(
-            "sats clearing({user_principal}): doesn't match expected = {}",
-            profile_owner.principal_id
-        );
-        return Err(ServerFnError::new(""));
-    }
+
     if !WHITELIST_FOR_SATS_CLEARING.contains(user_principal.to_text().as_str()) {
         leptos::logging::log!("sats clearing({user_principal}): not whitelisted");
         return Err(ServerFnError::new(""));
     }
-    if !matches!(sess, Result8::Ok(SessionType::RegisteredSession)) {
-        leptos::logging::log!("sats clearing({user_principal}): not logged in");
-        return Err(ServerFnError::new(""));
-    }
 
-    let balance = load_sats_balance(user_principal).await?.balance;
+    let balance = yral_canisters_common::utils::token::load_sats_balance(user_principal)
+        .await?
+        .balance;
 
     let Some(jwt): Option<HonWorkerJwt> = use_context() else {
         leptos::logging::log!("sats clearing({user_principal}): no token");
@@ -90,25 +66,16 @@ pub fn ClearSats() -> impl IntoView {
     let balance = Resource::new_blocking(
         || (),
         move |_| async move {
-            let fetcher = BalanceFetcherType::Sats;
             let cans = send_wrap(auth.auth_cans()).await?;
             let user_canister = cans.user_canister();
             let user_principal = cans.user_principal();
             if !WHITELIST_FOR_SATS_CLEARING.contains(user_principal.to_text().as_str()) {
                 return Err(ServerFnError::new("who dis?"));
             }
-            let user_info_service = cans.user_info_service().await;
-            let logged_in = send_wrap(
-                user_info_service.get_user_session_type(user_principal),
-            )
-            .await?;
-            if !matches!(logged_in, Result8::Ok(SessionType::RegisteredSession)) {
-                return Err(ServerFnError::new("invalid session"));
-            }
-            let balance =
-                send_wrap(fetcher.fetch(Default::default(), user_canister, user_principal)).await?;
+            let sats_info: SatsBalanceInfo =
+                yral_canisters_common::utils::token::load_sats_balance(user_principal).await?;
 
-            let res = (balance, user_canister, user_principal);
+            let res = (sats_info.balance, user_canister, user_principal);
 
             Ok::<_, ServerFnError>(res)
         },
@@ -122,32 +89,49 @@ pub fn ClearSats() -> impl IntoView {
 
     let value = action.value();
 
-    view! {
-        <div class="text-white">
-            <Suspense>
-            {move || Suspend::new(async move {
-                let (balance, user_canister, user_principal) = try_or_redirect_opt!(balance.await.inspect_err(|err| {
-                    leptos::logging::log!("balance fetching for sat clears failed: {err:?}");
-                }).map_err(|_| "not found"));
+    use leptos::html::*;
+    use leptos::ev;
+    use leptos::suspense::{Suspense, SuspenseProps};
+    use leptos::children::ToChildren;
 
-                Some(
-                    view! {
-                        <p>user principal: {user_principal.to_text()}</p>
-                        <p>user canister : {user_canister.to_text()}</p>
-                        <p>balance: {balance.humanize()}</p>
-                        {move || value.get().map(|res| {
-                            match res {
-                                Ok(_) => view! { <p>balance was cleared</p>}.into_any(),
-                                Err(err) => view! { <p>Couldnt clear balance: {format!("{err:#?}")}</p>}.into_any(),
-                            }
-                        })}
-                        <button class="bg-red text-white border-white" on:click=move |_| { action.dispatch((user_canister, user_principal)); }>
-                            Clear My Sats Balance
-                        </button>
-                    }
-                )
-            })}
-            </Suspense>
-        </div>
-    }
+    div()
+        .attr("class", "text-white")
+        .child(
+            Suspense(SuspenseProps::builder()
+                .children(ToChildren::to_children(move || {
+                    Suspend::new(async move {
+                        let (balance, user_canister, user_principal) =
+                            try_or_redirect_opt!(balance.await.inspect_err(|err| {
+                                leptos::logging::log!(
+                                    "balance fetching for sat clears failed: {err:?}"
+                                );
+                            })
+                            .map_err(|_| "not found"));
+
+                        Some(
+                            div()
+                                .child(p().child(format!("user principal: {}", user_principal.to_text())))
+                                .child(p().child(format!("user canister : {}", user_canister.to_text())))
+                                .child(p().child(format!("balance: {}", balance.to_string())))
+                                .child(move || {
+                                    value.get().map(|res| match res {
+                                        Ok(_) => p().child("balance was cleared").into_any(),
+                                        Err(err) => p()
+                                            .child(format!("Couldnt clear balance: {err:#?}"))
+                                            .into_any(),
+                                    })
+                                })
+                                .child(
+                                    button()
+                                        .attr("class", "bg-red text-white border-white")
+                                        .on(ev::click, move |_| {
+                                            action.dispatch((user_canister, user_principal));
+                                        })
+                                        .child("Clear My Sats Balance"),
+                                ),
+                        )
+                    })
+                }))
+                .build()),
+        )
 }

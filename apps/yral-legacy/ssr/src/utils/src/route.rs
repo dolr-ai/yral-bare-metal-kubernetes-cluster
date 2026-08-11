@@ -35,7 +35,7 @@ pub fn failure_redirect<E: Display>(err: E) {
         let nav = leptos_router::hooks::use_navigate();
         nav(&path, Default::default());
     }
-    #[cfg(not(feature = "hydrate"))]
+    #[cfg(feature = "ssr")]
     {
         use leptos_axum::redirect;
         redirect(&path);
@@ -49,7 +49,7 @@ pub fn go_to_root() {
         let nav = leptos_router::hooks::use_navigate();
         nav(path, Default::default());
     }
-    #[cfg(not(feature = "hydrate"))]
+    #[cfg(feature = "ssr")]
     {
         use leptos_axum::redirect;
         redirect(&path);

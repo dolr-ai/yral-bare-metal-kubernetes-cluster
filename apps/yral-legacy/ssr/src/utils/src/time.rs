@@ -1,3 +1,4 @@
+#[cfg(feature = "ssr")]
 use speedate::{DateTime, ParseError};
 use uts2ts::uts2ts;
 use web_time::Duration;
@@ -47,6 +48,7 @@ pub async fn sleep(duration: Duration) {
     }
 }
 
+#[cfg(feature = "ssr")]
 pub fn parse_ns_to_datetime(timestamp: u64) -> Result<String, ParseError> {
     DateTime::from_timestamp(
         (timestamp / 1_000_000_000) as i64,           // seconds

@@ -16,7 +16,6 @@ use leptos_use::storage::use_local_storage;
 use leptos_use::use_event_listener;
 use state::app_state::AppState;
 use state::canisters::{auth_state, unauth_canisters};
-use tokens::TokenList;
 use utils::notifications::get_device_registeration_token;
 use utils::user_identity::UserIdentity;
 use utils::{send_wrap, UsernameOrPrincipal};
@@ -298,16 +297,12 @@ pub fn WalletImpl(id: UsernameOrPrincipal) -> impl IntoView {
                     {move || Suspend::new(async move {
                         let meta = query_user_principal_and_canister_res.run(()).await;
                         match meta {
-                            Ok((user_principal, user_canister)) => {
+                            Ok((_user_principal, _user_canister)) => {
                                 Either::Left(
                                     view! {
                                         <div class="self-start pt-3 text-lg font-bold text-white font-kumbh">
-                                            My tokens
+                                            Wallet
                                         </div>
-                                        <TokenList
-                                            user_principal
-                                            user_canister
-                                        />
                                     },
                                 )
                             }

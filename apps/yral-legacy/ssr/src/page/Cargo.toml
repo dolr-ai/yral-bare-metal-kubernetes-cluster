@@ -12,8 +12,8 @@ console_error_panic_hook = { workspace = true }
 console_log = { workspace = true }
 leptos = { workspace = true, features = ["nightly"] }
 leptos_axum = { workspace = true, optional = true }
-leptos_meta = { workspace = true, optional = true }
-leptos_router = { workspace = true, features = ["nightly"], optional = true }
+leptos_meta = { workspace = true }
+leptos_router = { workspace = true, features = ["nightly"] }
 log = { workspace = true }
 simple_logger = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "signal", "time"], optional = true }
@@ -131,8 +131,6 @@ state = { path = "../state" }
 [features]
 hydrate = [
     "leptos/hydrate",
-    "leptos_meta",
-    "leptos_router",
     "ic-agent/wasm-bindgen",
     "dep:web-sys",
     "dep:rand_chacha",

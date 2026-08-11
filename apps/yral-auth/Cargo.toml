@@ -73,8 +73,14 @@ bin-target = "yral-auth"
 crate-type = ["cdylib", "rlib"]
 
 [[bin]]
+name = "yral-auth"
+path = "src/main.rs"
+required-features = ["ssr"]
+
+[[bin]]
 name = "jwt-secret-gen"
 path = "src/jwt_secret_gen.rs"
+required-features = ["ssr"]
 
 [dependencies]
 anyhow = { workspace = true }
