@@ -59,7 +59,6 @@ web-sys = {
   ],
   optional = true
 }
-circular-buffer = { workspace = true }
 enum_dispatch = { workspace = true, optional = true }
 axum-extra = {
   workspace = true,
@@ -93,7 +92,6 @@ gob-cloudflare = { workspace = true, optional = true }
 gloo-utils = { workspace = true, features = ["serde"] }
 hmac = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true }
-sns-validation = { workspace = true }
 js-sys = { workspace = true }
 priority-queue = { workspace = true }
 rust_decimal = { workspace = true }
@@ -103,7 +101,6 @@ types = { workspace = true }
 username-gen = { workspace = true }
 canisters-client = { workspace = true, features = ["full"] }
 yral-canisters-common = { workspace = true }
-global-constants = { workspace = true }
 ic-certification = { workspace = true }
 ciborium = { workspace = true }
 yral-metadata-client = { workspace = true }
@@ -115,7 +112,6 @@ send_wrapper = { workspace = true, features = ["futures"] }
 indexmap = { workspace = true }
 chrono = "0.4"
 num-bigint = { workspace = true }
-hon-worker-common = { workspace = true, features = ["client"] }
 identity = { workspace = true, features = ["wasm-bindgen"] }
 
 # workspace specific deps
@@ -159,25 +155,11 @@ ssr = [
     "dep:regex",
     "consts/ssr",
 ]
-# Fetch mock referral history instead of history via canister
-mock-referral-history = [
-    "dep:rand_chacha",
-    "k256/arithmetic",
-    "consts/mock-referral-history",
-]
-
-
-mock-history = [
-    "mock-referral-history",
-    "mock-wallet-history",
-    "consts/mock-history",
-]
 oauth-ssr = ["dep:openidconnect", "consts/oauth-ssr"]
 oauth-hydrate = ["consts/oauth-hydrate"]
 redis-kv = ["consts/redis-kv"]
 cloudflare = ["dep:gob-cloudflare", "consts/cloudflare"]
 backend-admin = ["consts/backend-admin"]
-mock-wallet-history = ["dep:rand_chacha", "consts/mock-wallet-history"]
 release-bin = [
     "ssr",
     "cloudflare",

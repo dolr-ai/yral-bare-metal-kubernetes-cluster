@@ -38,7 +38,7 @@ pub fn AboutUs() -> impl IntoView {
                 </div>
 
                 <div class="mb-8 text-sm text-left whitespace-pre-line md:text-lg md:text-center">
-                    {"Yral is operated by HotorNot (HON) GmbH."}
+                    {"Yral is operated by Yral GmbH."}
                 </div>
 
                 <div class="flex flex-col mb-12 space-y-4">

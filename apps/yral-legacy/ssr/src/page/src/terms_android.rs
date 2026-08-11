@@ -29,7 +29,7 @@ pub fn TermsAndroid() -> impl IntoView {
     let page_title = app_state.unwrap().name.to_owned() + " - Android Terms of Service";
 
     // Define content sections for easier editing
-    let intro_content = "Welcome to Yral, a community-driven platform where users share and discover short videos.\n\nThese Terms of Use (\"Terms\") govern your use of the Yral mobile and web application (\"App\", \"Services\"), operated by HotorNot (HON) Gmbh (\"Company\", \"we,\" \"our,\" or \"us\"). By using the App, you agree to these Terms. If you do not agree, please do not use the App.";
+    let intro_content = "Welcome to Yral, a community-driven platform where users share and discover short videos.\n\nThese Terms of Use (\"Terms\") govern your use of the Yral mobile and web application (\"App\", \"Services\"), operated by Yral GmbH (\"Company\", \"we,\" \"our,\" or \"us\"). By using the App, you agree to these Terms. If you do not agree, please do not use the App.";
 
     let account_bullets = vec![
         "Provide accurate information and keep it updated.",

@@ -27,7 +27,6 @@ candid.workspace = true
 canisters-client = { workspace = true, features = ["full"] }
 chrono = "0.4"
 ciborium = { workspace = true }
-circular-buffer = { workspace = true }
 codee = { workspace = true, features = ["json_serde"] }
 component = { path = "../component" }
 console_error_panic_hook = { workspace = true }
@@ -37,13 +36,11 @@ crc32fast = { workspace = true }
 dotenv = { workspace = true, optional = true }
 futures = { workspace = true }
 getrandom = { workspace = true, features = ["wasm_js"], optional = true }
-global-constants = { workspace = true }
 gloo = { workspace = true, features = ["futures", "net"] }
 gloo-utils = { workspace = true, features = ["serde"] }
 gob-cloudflare = { workspace = true, optional = true }
 hex = { workspace = true }
 hmac = { workspace = true, optional = true }
-hon-worker-common = { workspace = true, features = ["client"] }
 http = { workspace = true }
 ic-agent = { workspace = true, features = ["pem"] }
 ic-certification = { workspace = true }
@@ -65,7 +62,6 @@ num-traits.workspace = true
 once_cell = { workspace = true }
 openidconnect = { workspace = true, optional = true }
 priority-queue = { workspace = true }
-pump-n-dump-common = { workspace = true, features = ["client"] }
 rand = { workspace = true, default-features = false, features = ["small_rng"] }
 rand_chacha = { workspace = true, optional = true }
 redis = {
@@ -90,7 +86,6 @@ serde = { workspace = true, features = ["derive"] }
 serde_bytes.workspace = true
 serde_json = { workspace = true }
 simple_logger = { workspace = true }
-sns-validation = { workspace = true }
 speedate = { workspace = true, optional = true }
 state = { path = "../state" }
 thiserror = { workspace = true }
@@ -144,15 +139,6 @@ hydrate = [
   "state/hydrate",
   "utils/hydrate",
 ]
-# Fetch mock referral history instead of history via canister
-mock-referral-history = [
-  "component/mock-referral-history",
-  "consts/mock-referral-history",
-  "dep:rand_chacha",
-  "k256/arithmetic",
-  "state/mock-referral-history",
-  "utils/mock-referral-history",
-]
 ssr = [
   "auth/ssr",
   "axum-extra",
@@ -195,21 +181,6 @@ cloudflare = [
   "dep:gob-cloudflare",
   "state/cloudflare",
   "utils/cloudflare",
-]
-mock-history = [
-  "component/mock-history",
-  "consts/mock-history",
-  "mock-referral-history",
-  "mock-wallet-history",
-  "state/mock-history",
-  "utils/mock-history",
-]
-mock-wallet-history = [
-  "component/mock-wallet-history",
-  "consts/mock-wallet-history",
-  "dep:rand_chacha",
-  "state/mock-wallet-history",
-  "utils/mock-wallet-history",
 ]
 oauth-hydrate = [
   "component/oauth-hydrate",

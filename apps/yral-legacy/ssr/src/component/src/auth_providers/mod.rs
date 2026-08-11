@@ -4,9 +4,6 @@ mod server_impl;
 pub mod yral;
 
 use candid::Principal;
-use global_constants::REFERRAL_REWARD_SATS;
-use hon_worker_common::sign_referral_request;
-use hon_worker_common::ReferralReqWithSignature;
 use ic_agent::identity::DelegatedIdentity;
 use ic_agent::Identity;
 use leptos::logging;
@@ -23,18 +20,12 @@ use utils::user_identity::ProfileDetails;
 use yral_metadata_client::MetadataClient;
 
 #[server]
-async fn issue_referral_rewards(worker_req: ReferralReqWithSignature) -> Result<(), ServerFnError> {
-    server_impl::issue_referral_rewards(worker_req).await
-}
-
-#[server]
 async fn mark_user_registered(user_principal: Principal) -> Result<bool, ServerFnError> {
     server_impl::mark_user_registered(user_principal).await
 }
 
 pub async fn handle_user_login(
     canisters: AuthSession,
-    referrer: Option<Principal>,
     email: Option<String>,
 ) -> Result<(), ServerFnError> {
     let user_principal = canisters.user_principal();
@@ -52,24 +43,7 @@ pub async fn handle_user_login(
         .set_signup_datetime(user_principal, !first_time_login)
         .await;
 
-    match referrer {
-        Some(referrer_principal) if first_time_login => {
-            let req = hon_worker_common::ReferralReq {
-                referrer: referrer_principal,
-                referee: user_principal,
-                referee_canister: canisters.user_canister(),
-                amount: REFERRAL_REWARD_SATS,
-            };
-            let sig = sign_referral_request(canisters.identity(), req.clone())?;
-            issue_referral_rewards(ReferralReqWithSignature {
-                request: req,
-                signature: sig,
-            })
-            .await?;
-            Ok(())
-        }
-        _ => Ok(()),
-    }
+    Ok(())
 }
 
 #[derive(Clone, Copy)]
@@ -136,8 +110,6 @@ pub fn LoginProviders(
         // let start = start.clone();
         // Capture the context signal setter
         send_wrap(async move {
-            let referrer = auth.referrer_store.get_untracked();
-
             let mut canisters = auth
                 .set_new_identity_and_wait_for_authentication(new_id.clone(), true)
                 .await?;
@@ -180,7 +152,6 @@ pub fn LoginProviders(
 
             if let Err(e) = handle_user_login(
                 canisters.clone(),
-                referrer,
                 new_id.email,
             )
             .await
@@ -240,14 +211,12 @@ pub fn LoginProviders(
                             view! {
                                 <span>
                                     "Login in to watch, play & earn Bitcoin"
-                                    <img src="/img/hotornot/bitcoin.svg" alt="Bitcoin" class="w-4 h-4 inline ml-0.5 -mt-0.5" />
                                 </span>
                             }.into_any()
                         } else {
                             view! {
                                 <span>
                                     {text}
-                                    <img src="/img/hotornot/bitcoin.svg" alt="Bitcoin" class="w-4 h-4 inline ml-0.5 -mt-0.5" />
                                 </span>
                             }.into_any()
                         }}

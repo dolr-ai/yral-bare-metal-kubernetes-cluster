@@ -58,7 +58,6 @@ web-sys = {
   ],
   optional = true
 }
-circular-buffer = { workspace = true }
 enum_dispatch = { workspace = true, optional = true }
 axum-extra = {
   workspace = true,
@@ -92,7 +91,6 @@ gob-cloudflare = { workspace = true, optional = true }
 gloo-utils = { workspace = true, features = ["serde"] }
 hmac = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true }
-sns-validation = { workspace = true }
 js-sys = { workspace = true }
 priority-queue = { workspace = true }
 rust_decimal = { workspace = true }
@@ -144,17 +142,11 @@ ssr = [
     "speedate",
     "dep:regex",
 ]
-# Fetch mock referral history instead of history via canister
-mock-referral-history = ["dep:rand_chacha", "k256/arithmetic"]
-
-
-mock-history = ["mock-referral-history", "mock-wallet-history"]
 oauth-ssr = ["dep:openidconnect", "dep:jsonwebtoken"]
 oauth-hydrate = []
 redis-kv = []
 cloudflare = ["dep:gob-cloudflare"]
 backend-admin = []
-mock-wallet-history = ["dep:rand_chacha"]
 release-bin = [
     "ssr",
     "cloudflare",

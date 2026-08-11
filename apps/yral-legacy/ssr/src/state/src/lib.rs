@@ -7,12 +7,6 @@ pub mod canisters;
 #[cfg(feature = "ssr")]
 pub mod spacetime;
 
-#[cfg(not(feature = "ssr"))]
-pub mod server {
-    #[derive(Clone)]
-    pub struct HonWorkerJwt(pub std::sync::Arc<String>);
-}
-
 #[cfg(feature = "ssr")]
 pub mod server {
 
@@ -21,9 +15,6 @@ pub mod server {
     use axum_extra::extract::cookie::Key;
     use leptos::prelude::*;
     use leptos_axum::AxumRouteListing;
-
-    #[derive(Clone)]
-    pub struct HonWorkerJwt(pub std::sync::Arc<String>);
 
     #[derive(FromRef, Clone)]
     pub struct AppState {
@@ -39,7 +30,6 @@ pub mod server {
         pub yral_oauth_client: auth::server_impl::yral::YralOAuthClient,
         #[cfg(feature = "oauth-ssr")]
         pub yral_auth_migration_key: jsonwebtoken::EncodingKey,
-        pub hon_worker_jwt: HonWorkerJwt,
         #[cfg(feature = "ssr")]
         pub spacetime_conn: std::sync::Arc<yral_database_spacetime_bindings::DbConnection>,
     }

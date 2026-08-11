@@ -8,13 +8,12 @@ use auth::{
 use candid::Principal;
 use codee::string::FromToStringCodec;
 use consts::{
-    auth::REFRESH_MAX_AGE, ACCOUNT_CONNECTED_STORE, AUTH_UTIL_COOKIES_MAX_AGE_MS, REFERRER_COOKIE,
+    auth::REFRESH_MAX_AGE, ACCOUNT_CONNECTED_STORE, AUTH_UTIL_COOKIES_MAX_AGE_MS,
     USER_CANISTER_ID_STORE, USER_PRINCIPAL_STORE,
 };
 use ic_agent::Identity;
 use ic_agent::identity::DelegatedIdentity;
 use leptos::prelude::*;
-use leptos_router::{hooks::use_query, params::Params};
 use leptos_use::{use_cookie_with_options, UseCookieOptions};
 use serde::{Deserialize, Serialize};
 use utils::user_identity::ProfileDetails;
@@ -97,7 +96,6 @@ impl UserAuthInfo for AuthSession {
 
 async fn do_canister_auth(
     auth: DelegatedIdentityWire,
-    _referrer: Option<Principal>,
     _fallback_username: Option<String>,
 ) -> Result<AuthSession, ServerFnError> {
     // Reconstruct the IC delegated identity from the wire.
@@ -213,16 +211,10 @@ pub fn auth_state() -> AuthState {
     expect_context()
 }
 
-#[derive(Params, PartialEq, Clone)]
-struct Referrer {
-    user_refer: Option<String>,
-}
-
 #[derive(Copy, Clone)]
 pub struct AuthState {
     _temp_identity_resource: OnceResource<Option<AnonymousIdentity>>,
     _temp_id_cookie_resource: LocalResource<()>,
-    pub referrer_store: Signal<Option<Principal>>,
     is_logged_in_with_oauth: (Signal<Option<bool>>, WriteSignal<Option<bool>>),
     new_identity_setter: RwSignal<Option<NewIdentity>>,
     pub canisters_resource: AuthCansResource,
@@ -248,28 +240,6 @@ impl Default for AuthState {
             };
             if let Err(e) = set_anonymous_identity_cookie(temp_identity.refresh_token).await {
                 log::error!("Failed to set anonymous identity as cookie?! err {e}");
-            }
-        });
-
-        let (referrer_cookie, set_referrer_cookie) =
-            use_cookie_with_options::<Principal, FromToStringCodec>(
-                REFERRER_COOKIE,
-                UseCookieOptions::default()
-                    .path("/")
-                    .max_age(AUTH_UTIL_COOKIES_MAX_AGE_MS),
-            );
-        let referrer_query = use_query::<Referrer>();
-        let referrer_principal = Signal::derive(move || {
-            let referrer_query_val = referrer_query.get()
-                .ok()
-                .and_then(|r| r.user_refer.and_then(|s| Principal::from_text(s).ok()));
-
-            let referrer_cookie_val = referrer_cookie.get_untracked();
-            if let Some(ref_princ) = referrer_query_val {
-                set_referrer_cookie.set(Some(ref_princ));
-                Some(ref_princ)
-            } else {
-                referrer_cookie_val
             }
         });
 
@@ -333,9 +303,8 @@ impl Default for AuthState {
                     // 2. Logged in with oauth (or logged out)
                     _ => {}
                 };
-                let ref_principal = referrer_principal.get_untracked();
 
-                let res = do_canister_auth(new_id.id_wire, ref_principal, new_id.fallback_username)
+                let res = do_canister_auth(new_id.id_wire, new_id.fallback_username)
                     .await?;
 
                 Ok::<_, ServerFnError>(res)
@@ -376,7 +345,6 @@ impl Default for AuthState {
         Self {
             _temp_identity_resource: temp_identity_resource,
             _temp_id_cookie_resource: temp_id_cookie_resource,
-            referrer_store: referrer_principal,
             is_logged_in_with_oauth,
             new_identity_setter,
             canisters_resource,

@@ -41,7 +41,7 @@ pub async fn server_fn_handler(
                 provide_context(app_state.yral_auth_migration_key.clone());
             }
 
-            provide_context(app_state.hon_worker_jwt.clone());
+
             #[cfg(feature = "ssr")]
             provide_context(app_state.spacetime_conn.clone());
         },
@@ -64,7 +64,7 @@ pub async fn leptos_routes_handler(state: State<AppState>, req: Request<AxumBody
             provide_context(app_state.cookie_key.clone());
             #[cfg(feature = "oauth-ssr")]
             provide_context(app_state.yral_oauth_client.clone());
-            provide_context(app_state.hon_worker_jwt.clone());
+
             #[cfg(feature = "ssr")]
             provide_context(app_state.spacetime_conn.clone());
         },

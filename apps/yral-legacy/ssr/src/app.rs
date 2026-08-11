@@ -6,7 +6,6 @@ use leptos_router::hooks::use_location;
 use leptos_router::{components::*, path, MatchNestedRoutes};
 use page::about_us::AboutUs;
 use page::post_view::PostDetailsCacheCtx;
-// use page::pumpdump; // TODO: re-enable when pumpdump module is restored
 use page::terms_android::TermsAndroid;
 use page::terms_ios::TermsIos;
 use page::{
@@ -15,7 +14,6 @@ use page::{
     menu::Menu,
     post_view::single_post::SinglePost,
     privacy::PrivacyPolicy,
-    refer_earn::ReferEarn,
     terms::TermsOfService,
     wallet::Wallet,
 };
@@ -124,7 +122,6 @@ pub fn App() -> impl IntoView {
                         <Route path=path!("/post/:canister_id/:post_id") view=SinglePost />
                         <Route path=path!("/error") view=ServerErrorPage />
                         <Route path=path!("/menu") view=Menu />
-                        <Route path=path!("/refer-earn") view=ReferEarn />
                         <Route path=path!("/terms-of-service") view=TermsOfService />
                         <Route path=path!("/privacy-policy") view=PrivacyPolicy />
                         <Route path=path!("/about-us") view=AboutUs />

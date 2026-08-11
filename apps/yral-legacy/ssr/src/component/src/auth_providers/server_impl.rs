@@ -1,18 +1,9 @@
 #[cfg(feature = "backend-admin")]
 use backend_admin::*;
 use candid::Principal;
-use hon_worker_common::ReferralReqWithSignature;
 use leptos::prelude::*;
 #[cfg(not(feature = "backend-admin"))]
 use no_op::*;
-
-pub async fn issue_referral_rewards(
-    worker_req: ReferralReqWithSignature,
-) -> Result<(), ServerFnError> {
-    ensure_user_logged_in_with_oauth(worker_req.request.referee).await?;
-
-    issue_referral_rewards_impl(worker_req).await
-}
 
 pub async fn mark_user_registered(user_principal: Principal) -> Result<bool, ServerFnError> {
     ensure_user_logged_in_with_oauth(user_principal).await?;
@@ -70,35 +61,9 @@ async fn ensure_user_logged_in_with_oauth(user_principal: Principal) -> Result<(
 #[cfg(feature = "backend-admin")]
 mod backend_admin {
     use candid::Principal;
-    use hon_worker_common::ReferralReqWithSignature;
-    use hon_worker_common::WORKER_URL;
     use leptos::prelude::*;
-    use state::server::HonWorkerJwt;
     use canisters_client::user_info_service::Result_;
     use canisters_client::user_info_service::Result8 as UserServiceResult8;
-
-    pub async fn issue_referral_rewards_impl(
-        worker_req: ReferralReqWithSignature,
-    ) -> Result<(), ServerFnError> {
-        let req_url = format!("{WORKER_URL}referral_reward");
-        let client = reqwest::Client::new();
-        let jwt = expect_context::<HonWorkerJwt>();
-        let res = client
-            .post(&req_url)
-            .json(&worker_req)
-            .bearer_auth(jwt.0)
-            .send()
-            .await?;
-
-        if res.status() != reqwest::StatusCode::OK {
-            return Err(ServerFnError::new(format!(
-                "worker error: {}",
-                res.text().await?
-            )));
-        }
-
-        Ok(())
-    }
 
     pub async fn mark_user_registered_impl(
         user_principal: Principal,
@@ -136,13 +101,7 @@ mod backend_admin {
 #[cfg(not(feature = "backend-admin"))]
 mod no_op {
     use candid::Principal;
-    use hon_worker_common::ReferralReqWithSignature;
     use leptos::prelude::ServerFnError;
-    pub async fn issue_referral_rewards_impl(
-        _worker_req: ReferralReqWithSignature,
-    ) -> Result<(), ServerFnError> {
-        Ok(())
-    }
 
     pub async fn mark_user_registered_impl(
         _user_principal: Principal,

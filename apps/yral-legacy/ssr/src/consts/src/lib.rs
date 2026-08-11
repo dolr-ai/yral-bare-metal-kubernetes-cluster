@@ -1,11 +1,9 @@
 mod remote;
 
-use candid::Principal;
 pub use remote::*;
 
 use once_cell::sync::Lazy;
 use reqwest::Url;
-use serde::{Deserialize, Serialize};
 
 pub const CF_STREAM_BASE: &str = "https://customer-2p3jflss4r4hmpnz.cloudflarestream.com";
 pub const FALLBACK_PROPIC_BASE: &str = "https://api.dicebear.com/7.x/big-smile/svg";
@@ -22,7 +20,6 @@ pub const NOTIFICATIONS_ENABLED_STORE: &str = "yral-notifications-enabled";
 pub const NOTIFICATION_MIGRATED_STORE: &str = "notifications-migrated";
 pub const NSFW_TOGGLE_STORE: &str = "nsfw-enabled";
 pub const NSFW_ENABLED_COOKIE: &str = "nsfw-enabled-cookie";
-pub const REFERRER_COOKIE: &str = "referrer";
 pub const USER_CANISTER_ID_STORE: &str = "user-canister-id";
 pub const USER_PRINCIPAL_STORE: &str = "user-principal";
 pub const USER_INTERNAL_STORE: &str = "user-internal";
@@ -87,9 +84,4 @@ MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEoqN3/0RNfrnrnYGxKBgy/qHnmITr
     pub const YRAL_AUTH_CLIENT_ID_ENV: &str = "YRAL_AUTH_CLIENT_ID";
 }
 
-pub const USER_ONBOARDING_STORE_KEY: &str = "user-onboarding";
-#[derive(Serialize, Deserialize, Clone, PartialEq, Default)]
-pub struct UserOnboardingStore {
-    pub has_seen_onboarding: bool,
-    pub has_seen_hon_bet_help: bool,
-}
+

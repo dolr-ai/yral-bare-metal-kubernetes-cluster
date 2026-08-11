@@ -120,11 +120,6 @@ impl AppStateBuilder {
             yral_oauth_client: init_yral_oauth(),
             #[cfg(feature = "oauth-ssr")]
             yral_auth_migration_key: init_yral_auth_migration_key(),
-            hon_worker_jwt: {
-                use state::server::HonWorkerJwt;
-                let jwt = env::var("HON_WORKER_JWT").expect("`HON_WORKER_JWT` is required!");
-                HonWorkerJwt(std::sync::Arc::new(jwt))
-            },
             #[cfg(feature = "ssr")]
             spacetime_conn: state::spacetime::init_spacetime()
                 .expect("Failed to connect to SpacetimeDB"),

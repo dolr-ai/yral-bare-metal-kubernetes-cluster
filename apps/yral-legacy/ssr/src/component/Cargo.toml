@@ -11,8 +11,6 @@ axum = { workspace = true, features = ["macros"], optional = true }
 chrono = "0.4"
 console_error_panic_hook = { workspace = true }
 console_log = { workspace = true }
-hon-worker-common = { workspace = true, features = ["client"] }
-global-constants = { workspace = true }
 leptos = { workspace = true, features = ["nightly"] }
 leptos_axum = { workspace = true, optional = true }
 leptos_meta = { workspace = true }
@@ -61,7 +59,6 @@ web-sys = {
   ],
   optional = true
 }
-circular-buffer = { workspace = true }
 enum_dispatch = { workspace = true, optional = true }
 axum-extra = {
   workspace = true,
@@ -95,7 +92,6 @@ gob-cloudflare = { workspace = true, optional = true }
 gloo-utils = { workspace = true, features = ["serde"] }
 hmac = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true }
-sns-validation = { workspace = true }
 js-sys = { workspace = true }
 priority-queue = { workspace = true }
 rust_decimal = { workspace = true }
@@ -161,23 +157,6 @@ ssr = [
     "auth/ssr",
     "dep:jsonwebtoken",
 ]
-# Fetch mock referral history instead of history via canister
-mock-referral-history = [
-    "dep:rand_chacha",
-    "k256/arithmetic",
-    "consts/mock-referral-history",
-    "utils/mock-referral-history",
-    "state/mock-referral-history",
-]
-
-
-mock-history = [
-    "mock-referral-history",
-    "mock-wallet-history",
-    "consts/mock-history",
-    "utils/mock-history",
-    "state/mock-history",
-]
 oauth-ssr = [
     "dep:openidconnect",
     "consts/oauth-ssr",
@@ -201,12 +180,6 @@ backend-admin = [
     "consts/backend-admin",
     "utils/backend-admin",
     "state/backend-admin",
-]
-mock-wallet-history = [
-    "dep:rand_chacha",
-    "consts/mock-wallet-history",
-    "utils/mock-wallet-history",
-    "state/mock-wallet-history",
 ]
 release-bin = [
     "ssr",

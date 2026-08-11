@@ -33,7 +33,7 @@ pub fn TermsIos() -> impl IntoView {
     let page_title = app_state.unwrap().name.to_owned() + " - iOS Terms of Service";
 
     // Define content sections for easier editing
-    let intro_content = "Welcome to Yral, a community-driven platform where users share and discover short videos.\n\nThese Terms of Use (\"Terms\") govern your use of the Yral mobile and web application (\"App\", \"Services\"), operated by HotorNot (HON) Gmbh (\"Company\", \"we,\" \"our,\" or \"us\"). By using the App, you agree to these Terms. If you do not agree, please do not use the App.";
+    let intro_content = "Welcome to Yral, a community-driven platform where users share and discover short videos.\n\nThese Terms of Use (\"Terms\") govern your use of the Yral mobile and web application (\"App\", \"Services\"), operated by Yral GmbH (\"Company\", \"we,\" \"our,\" or \"us\"). By using the App, you agree to these Terms. If you do not agree, please do not use the App.";
 
     let account_text = "You must be at least 13 years old to use the App and you must be represented by a legal guardian if you are below the legal age in your respective jurisdiction to register or use the App. You represent and warrant that you will provide accurate and up to date information while creating an account with us and you agree to keep the information accurate at all times. You must keep your account password confidential. If at any time, if you fail to comply with the provision of these terms or if activities occur on your account which might cause damage to the Services or infringe or violate any third party rights or violate any laws or regulations, or for any other reason, we reserve the right to, at our discretion, disable your account and remove or disable any content you upload or share. You agree that:";
 
@@ -263,12 +263,12 @@ pub fn TermsIos() -> impl IntoView {
                             <p class="mb-3 text-xs">You acknowledge and agree that:</p>
                             {bullet_list(
                                 vec![
-                                    "The license is granted by HotorNot (HON) GmbH (\"we\", \"our\", or \"us\"), and not by Apple.",
+                                    "The license is granted by Yral GmbH (\"we\", \"our\", or \"us\"), and not by Apple.",
                                     "We are solely responsible for the App and the content moderation therein.",
                                     "Apple has no obligation whatsoever to furnish any maintenance or support services with respect to the App.",
                                     "In the event of any failure of the App to conform to any applicable warranty, you may notify Apple, and Apple will refund the purchase price (if any). To the maximum extent permitted by law, Apple will have no other warranty obligation with respect to the App.",
                                     "We are solely responsible for addressing any claims by you or any third party relating to the App or your possession and/or use of the App, including but not limited to: product liability claims, any claim that the App fails to conform to any applicable legal or regulatory requirement, and claims arising under consumer protection, privacy, or similar legislation.",
-                                    "If a third party claims that the App or your possession and use of the App infringes their intellectual property rights, you acknowledge that HotorNot (HON) GmbH, not Apple, is solely responsible for addressing, investigating, defending against, settling, and resolving such claims.",
+                                    "If a third party claims that the App or your possession and use of the App infringes their intellectual property rights, you acknowledge that Yral GmbH, not Apple, is solely responsible for addressing, investigating, defending against, settling, and resolving such claims.",
                                     "Apple and its subsidiaries are third-party beneficiaries of this EULA. Upon your acceptance of this agreement, Apple will have the right (and will be deemed to have accepted the right) to enforce these Terms against you as a third-party beneficiary.",
                                 ],
                             )}

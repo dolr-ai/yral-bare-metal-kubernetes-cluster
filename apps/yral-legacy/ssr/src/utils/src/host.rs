@@ -53,13 +53,11 @@ pub fn show_preview_component() -> bool {
 
 // TODO: migrate to AppType
 pub fn show_nsfw_content() -> bool {
-    let host = get_host();
-
-    show_nsfw_condition(host)
+    false
 }
 
-pub fn show_nsfw_condition(host: String) -> bool {
-    host == "hotornot.wtf"
+pub fn show_nsfw_condition(_host: String) -> bool {
+    false
 }
 
 #[cfg(test)]
