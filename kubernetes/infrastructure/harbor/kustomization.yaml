@@ -10,5 +10,5 @@ resources:
   - helmrepository.yaml
   - helmrelease.yaml
   - harbor-admin-secret.sops.yaml
-  # harbor-db-superuser.sops.yaml temporarily removed to recreate with correct type.
+  - harbor-db-superuser.sops.yaml
   - cnpg-cluster.yaml
