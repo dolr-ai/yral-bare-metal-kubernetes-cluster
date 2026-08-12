@@ -11,4 +11,5 @@ resources:
   - helmrelease.yaml
   - harbor-admin-secret.sops.yaml
   - harbor-db-superuser.sops.yaml
-  - cnpg-cluster.yaml
+  # cnpg-cluster.yaml temporarily removed to recreate the Harbor DB from scratch.
+  # Re-add after Flux has pruned the old Cluster + PVCs.
