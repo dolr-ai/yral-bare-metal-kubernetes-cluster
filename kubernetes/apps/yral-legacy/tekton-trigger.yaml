@@ -1,3 +1,5 @@
+# Tekton Trigger resources for yral-legacy builds.
+# Triggered by GitHub push webhooks to main branch (filtered by CEL interceptor).
 ---
 # ServiceAccount for the Tekton EventListener.
 apiVersion: v1
