@@ -66,12 +66,11 @@ spec:
 
     # Core Harbor settings
     # podAnnotations trigger a restart when changed — Harbor core needs to
-    # reconnect to the DB after the CNPG enableSuperuserAccess fix synced
-    # the postgres password.
+    # re-run schema migrations on the fresh DB (recreated after purge).
     core:
       replicas: 1
       podAnnotations:
-        restart-trigger: "enableSuperuserAccess-fix"
+        restart-trigger: "fresh-db-migrations"
       resources:
         requests:
           cpu: 100m
