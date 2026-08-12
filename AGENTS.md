@@ -347,7 +347,7 @@ Never push code changes to git without first verifying they compile and run loca
 - Overlay `expression`: CEL expression evaluated against `body` (JSON payload), `header`, `extensions`, `requestURL`
 - TriggerBinding access: `$(extensions.image_tag)` — NOT `$(body.extensions.image_tag)`
 - Available CEL functions: `truncate(uint)`, `translate(regex, repl)`, `split(sep)`, `join(sep)`, `replace(old, new)`, `substring(start, end)`, `lowerAscii()`, `upperAscii()`, `parseJSON()`, `parseURL()`
-- **Image tag CEL expression:** Use `.translate('[-:TZ+]', '')` (note the `+` — GitHub timestamps include `+HH:MM` timezone offsets, and `+` is invalid in Docker image tags). The full expression: `body.head_commit.timestamp.translate('[-:TZ+]', '') + '-' + body.after.truncate(8)`
+- **Image tag CEL expression:** Use `.substring(0, 19).translate('[-:TZ]', '')` to extract the timestamp portion (first 19 chars of ISO 8601: `YYYY-MM-DDTHH:MM:SS`) and strip separators, producing exactly 14 digits. Do NOT use `translate('[-:TZ+]', '')` on the full timestamp — GitHub timestamps include `+HH:MM` timezone offsets, and stripping `+` leaves the offset digits appended (e.g., `202608121520030400` instead of `20260812152003`), which doesn't match the ImagePolicy `filterTags` pattern `^\d{14}-[0-9a-f]{8}$`. The full expression: `body.head_commit.timestamp.substring(0, 19).translate('[-:TZ]', '') + '-' + body.after.truncate(8)`
 
 **Flux ImagePolicy (official — only 3 policy types exist):**
 - `SemVer` — semantic versioning range (e.g. `>=1.0.0`)
