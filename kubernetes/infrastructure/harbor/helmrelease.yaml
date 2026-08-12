@@ -65,8 +65,13 @@ spec:
       type: Recreate
 
     # Core Harbor settings
+    # podAnnotations trigger a restart when changed — Harbor core needs to
+    # reconnect to the DB after the CNPG enableSuperuserAccess fix synced
+    # the postgres password.
     core:
       replicas: 1
+      podAnnotations:
+        restart-trigger: "enableSuperuserAccess-fix"
       resources:
         requests:
           cpu: 100m
