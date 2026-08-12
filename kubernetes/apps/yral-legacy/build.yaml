@@ -18,9 +18,11 @@ spec:
   source:
     type: Git
     git:
-      url: https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster.git
+      # SSH URL so the infra SSH key (github-ssh-secret) works for both
+      # the main repo clone and submodule clones (submodules use SSH URLs).
+      url: git@github.com:dolr-ai/yral-bare-metal-kubernetes-cluster.git
       revision: main
-      cloneSecret: github-clone-secret
+      cloneSecret: github-ssh-secret
     # No contextDir — use the full repo as build context (needed for local path deps)
     # contextDir defaults to repo root when omitted
   strategy:

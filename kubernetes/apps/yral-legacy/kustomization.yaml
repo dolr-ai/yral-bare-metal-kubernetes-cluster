@@ -8,6 +8,7 @@ resources:
   - reference-grant.yaml
   - harbor-pull-secret.sops.yaml
   - github-clone-secret.sops.yaml
+  - github-ssh-secret.sops.yaml
   - secrets.sops.yaml
   - build.yaml
   - image-repository.yaml
