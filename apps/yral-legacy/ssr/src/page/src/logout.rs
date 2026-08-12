@@ -16,7 +16,7 @@ pub fn Logout() -> impl IntoView {
     let (_, set_notifs_enabled, _) =
         use_local_storage::<bool, FromToStringCodec>(NOTIFICATIONS_ENABLED_STORE);
 
-    let (_, _set_device_id, _) = use_local_storage::<String, FromToStringCodec>(DEVICE_ID);
+    let (_, set_device_id, _) = use_local_storage::<String, FromToStringCodec>(DEVICE_ID);
 
     view! {
         <Loading text="Logging out...".to_string()>

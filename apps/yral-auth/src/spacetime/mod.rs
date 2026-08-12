@@ -59,3 +59,10 @@ pub const EXT_SPACETIMEDB_TOKEN_CLAIM: &str = "ext_spacetimedb_token";
 pub fn spacetime_identity_for_principal(issuer: &str, principal: &Principal) -> Identity {
     Identity::from_claims(issuer, &principal.to_text())
 }
+
+#[cfg(test)]
+mod tests;
+
+#[cfg(test)]
+#[cfg(feature = "ssr")]
+mod integration_tests;

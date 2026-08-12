@@ -4,7 +4,9 @@ Concise architectural rules and constraints for this repository. Follow to maint
 
 ## Immutable GitOps & Ansible Separation (Hard Rule)
 
-**All mutations to cluster state must go through Git (Flux) or Ansible playbooks/roles. Never use imperative tools on a live cluster.**
+**GitOps-first is the default for ALL infrastructure changes.** Every change to cluster state — Kubernetes resources, database config, secrets, passwords, schemas, node configuration — must be made declaratively through Git (Flux reconciles) or Ansible playbooks/roles. The git/Ansible declaration is the source of truth; the live system converges to match it.
+
+**Never mutate live production state imperatively** (via `kubectl exec`, SQL clients, SSH commands, `helm install`, etc.) as the primary approach. Imperative mutations are the **exception**, not the rule — used only when a declarative path genuinely doesn't exist (rare), and even then must be documented with rationale and converted to a declarative equivalent as soon as possible. When in doubt: commit to git and let the operator/controller/Ansible reconcile.
 
 ### Strictly Prohibited (no exceptions once cluster is up)
 - `kubectl delete` (namespace/deployment/service/configmap/secret/pvc/kustomization/pod — except CrashLoopBackOff)
@@ -15,6 +17,7 @@ Concise architectural rules and constraints for this repository. Follow to maint
 - `kubectl run`
 - Direct `helm` CLI mutations (install/upgrade/uninstall/repo add) — must be inside Ansible roles
 - SSH mutating commands (`apt`, `systemctl restart`, `kubeadm`, manual file copies)
+- **SQL mutations on live databases** (`ALTER USER`, `ALTER ROLE`, `CREATE DATABASE`, password changes, schema mutations via `kubectl exec -- psql -c ...` or any SQL client). All database configuration (passwords, roles, schemas) must be managed declaratively through the operator's CR spec (e.g., CNPG `enableSuperuserAccess` + `superuserSecret`) or through Ansible roles — never via imperative SQL against a live database.
 
 **Allowed read-only only:** `kubectl get/describe/logs/events/top/diff/auth/can-i`, `kubectl version`, `kubectl api-*`, etc.
 
@@ -162,6 +165,16 @@ Workloads currently using 1-replica:
 Do NOT use 1-replica for workloads without app-layer replication. Losing the single node that holds the data means permanent data loss.
 - PostgreSQL (CloudNativePG): see `kubernetes/infrastructure/cloudnative-pg/helmrelease.yaml` for the per-service model and conventions.
 
+### CNPG Superuser Password Management (Hard Rule)
+
+**Never `ALTER USER postgres PASSWORD ...` on a live CNPG database.** The password is managed declaratively via the CNPG Cluster CR spec:
+
+- `enableSuperuserAccess: true` — the operator syncs the `postgres` superuser password from the `superuserSecret` into the database on every reconcile. Without this (default `false`), the operator **ignores** the secret and sets the password to `NULL`, disabling password auth.
+- `superuserSecret: name: <secret-name>` — references a Secret of type `kubernetes.io/basic-auth` (or `Opaque` with `username` + `password` keys) containing the desired superuser credentials.
+- To change the superuser password: update the SOPS-encrypted secret in git, ensure `enableSuperuserAccess: true` is set on the Cluster, push, and let the CNPG operator reconcile the new password into the database.
+- The `harbor-db` Cluster in `kubernetes/infrastructure/harbor/cnpg-cluster.yaml` must have `enableSuperuserAccess: true` set, with `superuserSecret: name: harbor-db-superuser` (the SOPS-encrypted secret in `harbor-db-superuser.sops.yaml`).
+- This applies to ALL CNPG clusters in the repo — every service's PostgreSQL cluster must use this pattern for superuser password management.
+
 ### Backups
 Velero only (full cluster DR, 30-day self-managed `ttl: 720h`). Named prefix `velero/` in the bucket. No bucket lifecycle policy (Velero GC handles it).
 
@@ -171,7 +184,7 @@ Velero only (full cluster DR, 30-day self-managed `ttl: 720h`). Named prefix `ve
 - **No L2 Announcements:** Cilium L2 announcements are intentionally disabled. L2 ARP/NDP only works within a single L2 broadcast domain — our cluster spans multiple DCs and will include nodes from other providers. The only network requirement for adding nodes is internet connectivity with a static IP. Service exposure uses `externalIPs` (L3, cross-provider via VXLAN tunnel) and LoadBalancer services. Do not enable `l2announcements` without revisiting this constraint.
 - **ReferenceGrant (cross-namespace routes):** When an HTTPRoute/TLSRoute in namespace A references a Service in namespace B, a `ReferenceGrant` must exist in the **target** namespace (B) allowing it. Without it, Cilium Gateway silently returns HTTP 500 for all requests (`ResolvedRefs: False, RefNotPermitted`). Always add the ReferenceGrant in the same commit as the HTTPRoute when they span namespaces.
 - **NetworkPolicy rule:** Never rely on `fromCIDRSet`/`namespaceSelector`/`podSelector` for gateway-originated traffic (cilium-envoy runs hostNetwork; appears as node IP). Use an explicit ingress rule with only a `ports:` clause (app-level auth does the real enforcement).
-- **SOPS encryption mechanism:** To encrypt `*.sops.yaml` files, extract the age key from Ansible vault (`ansible-vault view ansible/inventory/group_vars/all/vault.yml | grep AGE-SECRET-KEY`), write to temp file, then `SOPS_AGE_KEY_FILE=/tmp/sops-age.key sops --encrypt --in-place <file>.sops.yaml`. The `.sops.yaml` creation rules in repo root handle age key selection automatically — no need to pass `--age` explicitly. Always clean up the temp key file after.
+- **SOPS encryption mechanism:** To encrypt `*.sops.yaml` files, use the mise tasks: `mise run sops-encrypt -- <file>.sops.yaml` (encrypts in-place) or `mise run sops-edit -- <file>.sops.yaml` (opens in `$EDITOR`). These tasks extract the age key from Ansible vault automatically. The `.sops.yaml` creation rules in repo root handle age key selection automatically — no need to pass `--age` explicitly. For decryption, use `mise run sops-decrypt -- <file>.sops.yaml`. To get the raw age key for ad-hoc use: `mise run ansible-vault-view -- vault_age_private_key`.
 
 ### Local Environment & Parity
 The repo uses a single monorepo-wide `mise.toml` at the repository root as the source of truth for tool versions, task orchestration, and all app-specific environment variables. There are **no per-app `mise.toml`, `fnox.toml`, or `pitchfork.toml` files** — all env vars, secrets, and daemon definitions live in the root `mise.toml`, root `fnox.toml`, and root `pitchfork.toml` respectively. App-specific env vars are grouped by `# ── <app> ──` comment headers in the root `[env]` section. Avoid adding per-project config files unless there is a strong, documented reason.
@@ -195,7 +208,7 @@ There are **two distinct age keys** in this repo. Do not confuse them:
 - SOPS-encrypted `*.sops.yaml` files under `kubernetes/` use a **separate native age key** (not the SSH key).
 - The age private key is stored in Ansible vault as `vault_age_private_key` (a standard age key with `AGE-SECRET-KEY-...` format).
 - The corresponding public key (`age1pdqae3ffmt9rxtmn2758pxjqaaxnytg6mzx3wpepuhs7de2ttfkqk3z7hl`) is in `.sops.yaml`.
-- To extract and use: `ansible-vault view ansible/inventory/group_vars/all/vault.yml | grep vault_age_private_key` → write the `AGE-SECRET-KEY-...` line to a temp file → `SOPS_AGE_KEY_FILE=/tmp/sops-age.key sops --decrypt <file>.sops.yaml`.
+- To extract and use the age key: `mise run ansible-vault-view -- vault_age_private_key` → write to a temp file → `SOPS_AGE_KEY_FILE=/tmp/sops-age.key sops --decrypt <file>.sops.yaml`. Or simply use `mise run sops-decrypt -- <file>.sops.yaml` which handles this automatically.
 - **Never edit SOPS files outside of `sops`** — use `sops <file>.sops.yaml` to edit, or decrypt → edit → re-encrypt. Manual edits break the SOPS MAC integrity check.
 - To populate fnox secrets from SOPS: decrypt the SOPS file, extract values, and `fnox set <KEY> --provider age` for each.
 
@@ -271,6 +284,13 @@ See `ansible/roles/vastai-provision/defaults/main.yml` for provisioning rules an
 ### Ansible / Playbook Execution
 - `become` is globally false; remote plays SSH as root; localhost plays as vscode user.
 - Always run playbooks in foreground.
+- **Always use mise tasks for Ansible operations.** Never invoke `ansible-playbook`, `ansible-vault`, `ansible-lint`, or `.venv/bin/ansible-*` directly — use the corresponding mise task instead:
+  - `mise run ansible-playbook -- ansible/playbooks/operations/<playbook>.yml [-e target_host=...]` — run a playbook
+  - `mise run ansible-lint` — lint playbooks and roles (runs on `ansible/playbooks/operations/`)
+  - `mise run ansible-vault-decrypt` / `ansible-vault-encrypt` — decrypt/encrypt the vault for editing
+  - `mise run ansible-vault-view -- <yaml key>` — extract a single vault key (e.g. `mise run ansible-vault-view -- vault_age_private_key`)
+  - `mise run sops-decrypt -- <file>.sops.yaml` / `sops-encrypt -- <file>.sops.yaml` / `sops-edit -- <file>.sops.yaml` — SOPS file operations (extracts age key from vault automatically)
+  This ensures the `.venv` Python environment is used, the vault password file is found via `ansible.cfg`, and all operations are reproducible. Raw `ansible-vault view ... | grep ...` pipes in scripts bypass this and should be replaced with `mise run ansible-vault-view`.
 - **Never truncate or filter terminal output during runs** — do not use `tail`, `head`, `grep`, pipes, or similar tools that cut off output. Run commands directly and let the full output stream so we can follow along together. `tail`/`head` only for post-hoc analysis after a run completes. This applies to `docker build`, `kubectl logs`, and all other long-running commands — stream full output, don't pipe through filters.
 - Short poll loops (≤10s sleep) when waiting. Never use long sleeps (e.g. 120s) — instead poll with short intervals and re-check, or stop and let the user reinitiate.
 - Lint before PRs.

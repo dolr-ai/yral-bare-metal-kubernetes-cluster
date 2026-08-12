@@ -27,6 +27,39 @@ ready_http = "http://127.0.0.1:3000/v1/health"
 stop_signal = "SIGINT"
 retry = 3
 
+# ── SpacetimeDB local dev (in-memory, auto-publishes module) ────────────────
+# Used by the `dev` group. Starts the local server, publishes the module,
+# and stays running. Data is lost on restart (in-memory).
+# Auto-starts when entering the project directory, auto-stops on leaving.
+#
+# JWT key configuration: the local server verifies JWTs using yral-auth's
+# public ES256 key (JWT_PUB_EC_PEM from mise.toml [env]). The PEM is written
+# to a temp file before starting, then passed via --jwt-pub-key-path. This
+# makes yral-auth-minted JWTs valid SpacetimeDB tokens — the server derives
+# a deterministic Identity from the iss + sub claims.
+#
+# The private key (JWT_EC_PEM) lives in fnox.toml (age-encrypted). Tests and
+# the yral-auth-dev daemon decrypt it via `fnox exec`.
+
+[daemons.spacetimedb-dev]
+run = '''
+JWT_PUB_FILE=$(mktemp /tmp/spacetimedb-jwt-pub-XXXXXX.pem) && \
+JWT_PRIV_FILE=$(mktemp /tmp/spacetimedb-jwt-priv-XXXXXX.pem) && \
+printf '%s' "$JWT_PUB_EC_PEM" > "$JWT_PUB_FILE" && \
+fnox get JWT_EC_PEM --non-interactive > "$JWT_PRIV_FILE" && \
+exec spacetimedb-cli start --in-memory --listen-addr 127.0.0.1:3000 --non-interactive --jwt-pub-key-path "$JWT_PUB_FILE" --jwt-priv-key-path "$JWT_PRIV_FILE"
+'''
+mise = true
+ready_http = "http://127.0.0.1:3000/v1/health"
+stop_signal = "SIGINT"
+retry = 3
+auto = ["start", "stop"]
+
+[daemons.spacetimedb-dev.hooks]
+# Publish the module to the local server once it's ready.
+# --env dev loads spacetime.dev.json (server: local) on top of spacetime.json.
+on_ready = "spacetimedb-cli build -p apps/yral-database-spacetime && spacetimedb-cli publish --env dev --yes --server local yral-database-spacetime-4lbo7"
+
 # ── yral-auth dev server (release binary) ──────────────────────────────────
 # Runs the pre-built musl binary with env vars from mise + secrets from fnox.
 # Build first with: mise run yral-auth-build
@@ -76,6 +109,38 @@ mise = true
 ready_http = "http://localhost:8080/healthz"
 stop_signal = "SIGINT"
 env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
+
+# ── yral-auth dev (local SpacetimeDB, port 8080) ───────────────────────────
+# Dev variant: points SPACETIMEDB_URL to local server (127.0.0.1:3000).
+# Depends on spacetimedb-dev being ready (module is published via on_ready hook).
+# Build first with: mise run yral-auth-build
+# Auto-starts/stops with shell hook.
+
+[daemons.yral-auth-dev]
+run = "exec fnox exec -- ./target/x86_64-unknown-linux-musl/release/yral-auth"
+dir = "apps/yral-auth"
+mise = true
+ready_http = "http://localhost:8080/healthz"
+stop_signal = "SIGINT"
+depends = ["spacetimedb-dev"]
+auto = ["start", "stop"]
+env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080", SPACETIMEDB_URL = "http://127.0.0.1:3000", SPACETIMEDB_DB_NAME = "yral-database-spacetime-4lbo7" }
+
+# ── yral-legacy dev (local SpacetimeDB, port 8081) ─────────────────────────
+# Dev variant: points SPACETIMEDB_URL to local server, uses port 8081 to
+# avoid conflict with yral-auth-dev on 8080.
+# Build first with: mise run yral-legacy-build
+# Auto-starts/stops with shell hook.
+
+[daemons.yral-legacy-dev]
+run = "exec fnox exec -- ./target/x86_64-unknown-linux-musl/prod-release/yral-legacy"
+dir = "apps/yral-legacy"
+mise = true
+ready_http = "http://localhost:8081/healthz"
+stop_signal = "SIGINT"
+depends = ["spacetimedb-dev", "yral-auth-dev"]
+auto = ["start", "stop"]
+env = { LEPTOS_SITE_ADDR = "0.0.0.0:8081", SPACETIMEDB_URL = "http://127.0.0.1:3000", SPACETIMEDB_DB_NAME = "yral-database-spacetime-4lbo7", GOOGLE_REDIRECT_URL = "http://127.0.0.1:8081/auth/google_redirect", YRAL_AUTH_REDIRECT_URL = "http://127.0.0.1:8081/auth/yral_redirect" }
 
 # ── yral-legacy container (podman) ──────────────────────────────────────────
 # Build first with: mise run yral-legacy-image
@@ -171,4 +236,21 @@ exec podman run --rm \
   -p 8080:80 test/my-website
 '''
 mise = true
+
+# ── Dev group ───────────────────────────────────────────────────────────────
+# Start all dev servers with: pitchfork start --group dev
+# Or rely on auto-start by cd'ing into the project directory (requires
+# `pitchfork activate bash` in ~/.bashrc).
+# Dependency order: spacetimedb-dev → (publish module via on_ready hook) →
+# yral-auth-dev → yral-legacy-dev
 ready_http = "http://localhost:8080/"
+
+# ── Dev group ───────────────────────────────────────────────────────────────
+# Start all dev servers with: pitchfork start --group dev
+# Or rely on auto-start by cd'ing into the project directory (requires
+# `pitchfork activate bash` in ~/.bashrc).
+# Dependency order: spacetimedb-dev → (publish module via on_ready hook) →
+# yral-auth-dev → yral-legacy-dev
+
+[groups.dev]
+daemons = ["spacetimedb-dev", "yral-auth-dev", "yral-legacy-dev"]

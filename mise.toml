@@ -97,9 +97,10 @@ RUST_LOG = "info"
 OFF_CHAIN_AGENT_URL = "http://localhost:50051/"
 
 # ── yral-legacy ───────────────────────────────────────────────────────────
-LEPTOS_SITE_ADDR = "0.0.0.0:8080"
+# LEPTOS_SITE_ADDR is set per-daemon in pitchfork.toml (prod: 8080, dev: 8081)
 LEPTOS_HASH_FILES = "true"
 # Plaintext (non-sensitive) values — public OAuth identifiers
+# These are the production redirect URLs; dev daemons override them in pitchfork.toml
 GOOGLE_REDIRECT_URL = "http://127.0.0.1:8080/auth/google_redirect"
 YRAL_AUTH_REDIRECT_URL = "http://127.0.0.1:8080/auth/yral_redirect"
 # Yral-auth client ID (same as yral-auth's GOOGLE_CLIENT_ID)
@@ -165,6 +166,21 @@ run = "./.venv/bin/ansible-vault decrypt ansible/inventory/group_vars/all/vault.
 [tasks.ansible-vault-encrypt]
 description = "Re-encrypt ansible/inventory/group_vars/all/vault.yml after editing"
 run = "./.venv/bin/ansible-vault encrypt ansible/inventory/group_vars/all/vault.yml"
+
+[tasks.ansible-vault-view]
+description = "View a value from Ansible vault (usage: mise run ansible-vault-view -- <yaml key>)"
+run = '''
+./.venv/bin/ansible-vault view ansible/inventory/group_vars/all/vault.yml | \
+  ./.venv/bin/python -c "import sys, yaml; print(yaml.safe_load(sys.stdin)[sys.argv[1]])" "$@"
+'''
+
+[tasks.ansible-playbook]
+description = "Run an Ansible playbook (usage: mise run ansible-playbook -- ansible/playbooks/operations/<playbook>.yml [-e target_host=...])"
+run = "./.venv/bin/ansible-playbook"
+
+[tasks.ansible-lint]
+description = "Lint Ansible playbooks and roles (runs ansible-lint on ansible/playbooks/operations/)"
+run = "./.venv/bin/ansible-lint ansible/playbooks/operations/"
 
 [tasks.sops-decrypt]
 description = "Decrypt a SOPS file (usage: mise run sops-decrypt -- kubernetes/path/to/file.sops.yaml)"
@@ -497,7 +513,7 @@ cd apps/yral-legacy && npm install
 description = "Build yral-legacy (release, musl static binary + WASM client)"
 dir = "apps/yral-legacy"
 run = "cargo leptos --manifest-path ssr/Cargo.toml build --release"
-env = { LEPTOS_BIN_TARGET_TRIPLE = "x86_64-unknown-linux-musl" }
+env = { LEPTOS_BIN_TARGET_TRIPLE = "x86_64-unknown-linux-musl", CC = "musl-gcc", CXX = "musl-g++" }
 
 [tasks.yral-legacy-run]
 description = "Run yral-legacy locally via pitchfork (release binary, port 8080)"
@@ -725,4 +741,43 @@ echo ""
 echo "=== Recent logs (last 20 lines, first pod) ==="
 FIRST_POD=$(kubectl -n my-website get pods -l app=my-website -o jsonpath='{.items[0].metadata.name}')
 kubectl -n my-website logs "$FIRST_POD" --tail=20
+'''
+
+# ── Dev: local SpacetimeDB + yral-auth + yral-legacy ────────────────────────
+# These tasks build the binaries and start all dev servers via pitchfork.
+# The pitchfork `dev` group manages the daemons with dependency ordering:
+#   spacetimedb-dev → yral-auth-dev → yral-legacy-dev
+# With `pitchfork activate bash` in ~/.bashrc, the dev group auto-starts
+# when you cd into the repo and auto-stops when you leave.
+
+[tasks.dev-build]
+description = "Build all dev binaries (yral-auth + yral-legacy + spacetime module)"
+run = '''
+mise run yral-auth-build
+mise run yral-legacy-build
+mise run spacetime-build
+'''
+
+[tasks.dev-start]
+description = "Start all dev servers (SpacetimeDB local + yral-auth + yral-legacy) via pitchfork"
+depends = ["dev-build"]
+run = "pitchfork start --group dev --force"
+
+[tasks.dev-stop]
+description = "Stop all dev servers via pitchfork"
+run = "pitchfork stop --group dev"
+
+[tasks.dev-status]
+description = "Show status of all dev daemons"
+run = "pitchfork list"
+
+[tasks.test-spacetime-jwt]
+description = "Run end-to-end JWT→SpacetimeDB identity integration tests (requires dev servers running)"
+dir = "apps/yral-auth"
+run = '''
+if ! curl -sf http://127.0.0.1:3000/v1/health >/dev/null 2>&1; then
+  echo "SpacetimeDB dev server is not running. Start it with: mise run dev-start"
+  exit 1
+fi
+fnox exec -- cargo test -p yral-auth --features ssr spacetime::integration_tests -- --test-threads=1
 '''

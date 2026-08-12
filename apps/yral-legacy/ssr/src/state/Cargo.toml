@@ -111,6 +111,7 @@ send_wrapper = { workspace = true, features = ["futures"] }
 jsonwebtoken = { workspace = true, optional = true }
 spacetimedb-sdk = { workspace = true, optional = true }
 yral-database-spacetime-bindings = { workspace = true, optional = true }
+openssl-sys = { workspace = true, features = ["vendored"], optional = true }
 rand = { workspace = true, default-features = false, features = ["small_rng"] }
 
 # workspace deps
@@ -162,7 +163,8 @@ ssr = [
     "utils/ssr",
     "yral-metadata-client/rustls-tls",
     "dep:spacetimedb-sdk",
-    "dep:yral-database-spacetime-bindings"
+    "dep:yral-database-spacetime-bindings",
+    "dep:openssl-sys"
 ]
 oauth-ssr = ["dep:openidconnect", "dep:jsonwebtoken"]
 oauth-hydrate = []

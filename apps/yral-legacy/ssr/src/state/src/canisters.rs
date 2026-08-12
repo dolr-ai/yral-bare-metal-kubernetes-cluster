@@ -1,6 +1,3 @@
-use std::future::Future;
-use std::sync::Arc;
-
 use auth::{
     extract_identity, generate_anonymous_identity_if_required, set_anonymous_identity_cookie,
     AnonymousIdentity,
@@ -11,19 +8,18 @@ use consts::{
     auth::REFRESH_MAX_AGE, ACCOUNT_CONNECTED_STORE, AUTH_UTIL_COOKIES_MAX_AGE_MS,
     USER_CANISTER_ID_STORE, USER_PRINCIPAL_STORE,
 };
-use ic_agent::Identity;
+use futures::FutureExt;
 use ic_agent::identity::DelegatedIdentity;
+use ic_agent::Identity;
 use leptos::prelude::*;
 use leptos_use::{use_cookie_with_options, UseCookieOptions};
 use serde::{Deserialize, Serialize};
+use std::future::{Future, IntoFuture};
+use std::sync::Arc;
+use types::delegated_identity::DelegatedIdentityWire;
 use utils::user_identity::ProfileDetails;
 use utils::UserAuthInfo;
-
-use types::delegated_identity::DelegatedIdentityWire;
-use utils::{
-    types::NewIdentity,
-    MockPartialEq,
-};
+use utils::{types::NewIdentity, MockPartialEq};
 
 /// The authenticated user session. Replaces `Canisters<true>` from
 /// yral-canisters-common. Holds the IC delegated identity (for principal
@@ -101,9 +97,10 @@ async fn do_canister_auth(
     // Reconstruct the IC delegated identity from the wire.
     // This is needed for user_principal() derivation and cryptographic
     // signing (referrals, notifications). No IC canister calls are made.
-    let id: DelegatedIdentity = auth.clone().try_into().map_err(|e| {
-        ServerFnError::new(format!("Failed to reconstruct identity: {e}"))
-    })?;
+    let id: DelegatedIdentity = auth
+        .clone()
+        .try_into()
+        .map_err(|e| ServerFnError::new(format!("Failed to reconstruct identity: {e}")))?;
     let id = Arc::new(id);
     let id_wire = Arc::new(auth);
 
@@ -115,14 +112,16 @@ async fn do_canister_auth(
     // Fetch profile from SpacetimeDB.
     #[cfg(feature = "ssr")]
     {
-        use yral_database_spacetime_bindings::get_user_profile_details_v_7;
         use tokio::sync::oneshot;
+        use yral_database_spacetime_bindings::get_user_profile_details_v_7;
 
         let conn = crate::spacetime::spacetime_conn();
         let (tx, rx) = oneshot::channel();
         conn.procedures.get_user_profile_details_v_7_then(
             principal_text.clone(),
-            move |_ctx, result| { let _ = tx.send(result.ok().flatten()); },
+            move |_ctx, result| {
+                let _ = tx.send(result.ok().flatten());
+            },
         );
 
         let profile = if let Some(p) = rx.await.unwrap_or(None) {
@@ -137,8 +136,16 @@ async fn do_canister_auth(
                 user_canister: user_principal,
                 hots: 0,
                 nots: 0,
-                bio: if p.bio.is_empty() { None } else { Some(p.bio.clone()) },
-                website_url: if p.website_url.is_empty() { None } else { Some(p.website_url.clone()) },
+                bio: if p.bio.is_empty() {
+                    None
+                } else {
+                    Some(p.bio.clone())
+                },
+                website_url: if p.website_url.is_empty() {
+                    None
+                } else {
+                    Some(p.website_url.clone())
+                },
                 caller_follows_user: p.caller_follows_user,
                 user_follows_caller: p.user_follows_caller,
             }
@@ -304,8 +311,7 @@ impl Default for AuthState {
                     _ => {}
                 };
 
-                let res = do_canister_auth(new_id.id_wire, new_id.fallback_username)
-                    .await?;
+                let res = do_canister_auth(new_id.id_wire, new_id.fallback_username).await?;
 
                 Ok::<_, ServerFnError>(res)
             }

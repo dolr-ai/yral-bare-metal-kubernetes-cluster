@@ -7,6 +7,7 @@ use crate::scrolling_post_view::MuteUnmuteOverlay;
 use component::{back_btn::go_back_or_fallback, spinner::FullScreenSpinner};
 use leptos_router::{components::Redirect, hooks::use_params, params::Params};
 use state::audio_state::AudioState;
+#[cfg(feature = "ssr")]
 use utils::user_identity::propic_from_principal;
 use utils::{bg_url, send_wrap};
 use utils::posts::PostDetails;

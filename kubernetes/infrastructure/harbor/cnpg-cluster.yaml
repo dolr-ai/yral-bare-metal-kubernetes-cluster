@@ -21,7 +21,11 @@ spec:
   instances: 2
   imageName: ghcr.io/cloudnative-pg/postgresql:18.4
 
-  # Superuser credentials (used by Harbor core and dbx to connect)
+  # Superuser credentials (used by Harbor core and dbx to connect).
+# enableSuperuserAccess must be true — otherwise CNPG ignores the
+# superuserSecret and sets the postgres password to NULL, breaking
+# password auth. See AGENTS.md "CNPG Superuser Password Management".
+  enableSuperuserAccess: true
   superuserSecret:
     name: harbor-db-superuser
 
