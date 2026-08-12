@@ -138,7 +138,7 @@ reqwest = { version = "0.13.4", default-features = false }
 rust_decimal = "1.36"
 rustls = { version = "0.23.26", default-features = false }
 send_wrapper = "0.6.0"
-sentry = { version = "0.37.0", default-features = false }
+sentry = { version = "0.37.0", default-features = false, features = ["reqwest", "rustls"] }
 sentry-tower = "0.37.0"
 sentry-tracing = "0.37.0"
 serde = "1.0.210"
