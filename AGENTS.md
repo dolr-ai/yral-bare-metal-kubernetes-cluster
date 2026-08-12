@@ -347,6 +347,7 @@ Never push code changes to git without first verifying they compile and run loca
 - Overlay `expression`: CEL expression evaluated against `body` (JSON payload), `header`, `extensions`, `requestURL`
 - TriggerBinding access: `$(extensions.image_tag)` — NOT `$(body.extensions.image_tag)`
 - Available CEL functions: `truncate(uint)`, `translate(regex, repl)`, `split(sep)`, `join(sep)`, `replace(old, new)`, `substring(start, end)`, `lowerAscii()`, `upperAscii()`, `parseJSON()`, `parseURL()`
+- **Image tag CEL expression:** Use `.translate('[-:TZ+]', '')` (note the `+` — GitHub timestamps include `+HH:MM` timezone offsets, and `+` is invalid in Docker image tags). The full expression: `body.head_commit.timestamp.translate('[-:TZ+]', '') + '-' + body.after.truncate(8)`
 
 **Flux ImagePolicy (official — only 3 policy types exist):**
 - `SemVer` — semantic versioning range (e.g. `>=1.0.0`)

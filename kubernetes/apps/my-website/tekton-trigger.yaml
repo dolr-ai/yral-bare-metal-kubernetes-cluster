@@ -127,4 +127,4 @@ spec:
             - name: overlays
               value:
                 - key: image_tag
-                  expression: "body.head_commit.timestamp.translate('[-:TZ]', '') + '-' + body.after.truncate(8)"
+                  expression: "body.head_commit.timestamp.translate('[-:TZ+]', '') + '-' + body.after.truncate(8)"
