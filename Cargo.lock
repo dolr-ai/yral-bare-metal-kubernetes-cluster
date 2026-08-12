@@ -7747,7 +7747,7 @@ dependencies = [
  "httpdate",
  "reqwest 0.12.28",
  "rustls 0.23.42",
- "sentry-core",
+ "sentry-core 0.37.0",
  "tokio",
  "ureq",
  "webpki-roots 0.26.11",
@@ -7761,21 +7761,34 @@ checksum = "1a6409d845707d82415c800290a5d63be5e3df3c2e417b0997c60531dfbd35ef"
 dependencies = [
  "once_cell",
  "rand 0.8.7",
- "sentry-types",
+ "sentry-types 0.37.0",
  "serde",
  "serde_json",
 ]
 
 [[package]]
-name = "sentry-tower"
-version = "0.37.0"
+name = "sentry-core"
+version = "0.49.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b98005537e38ee3bc10e7d36e7febe9b8e573d03f2ddd85fcdf05d21f9abd6d"
+checksum = "48759bc392fb5e3b36b4efcb485f51074c0ba8479711cd5c8cf79e86f9f75d41"
+dependencies = [
+ "rand 0.9.5",
+ "sentry-types 0.49.1",
+ "serde",
+ "serde_json",
+ "url",
+]
+
+[[package]]
+name = "sentry-tower"
+version = "0.49.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6a7519104172a9cdf1b6cdb3b77e91b7fce672ae90c0cf9947415882e3d07a9"
 dependencies = [
  "axum",
  "http 1.4.2",
  "pin-project",
- "sentry-core",
+ "sentry-core 0.49.1",
  "tower-layer",
  "tower-service",
  "url",
@@ -7787,7 +7800,7 @@ version = "0.37.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49f4e86402d5c50239dc7d8fd3f6d5e048221d5fcb4e026d8d50ab57fe4644cb"
 dependencies = [
- "sentry-core",
+ "sentry-core 0.37.0",
  "tracing-core",
  "tracing-subscriber",
 ]
@@ -7804,6 +7817,23 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 1.0.69",
+ "time",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "sentry-types"
+version = "0.49.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fab146d15a30ab4897a95fd15d6a038b8d7fbf2661c5f8b13738ce8df7a095b7"
+dependencies = [
+ "debugid",
+ "hex",
+ "rand 0.9.5",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
  "time",
  "url",
  "uuid",
