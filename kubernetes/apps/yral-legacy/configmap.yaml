@@ -13,3 +13,7 @@ data:
   LEPTOS_SITE_ADDR: "0.0.0.0:8080"
   LEPTOS_HASH_FILES: "true"
   APP_ENV: "production"
+
+  # SpacetimeDB config (same as yral-auth)
+  SPACETIMEDB_URL: "https://maincloud.spacetimedb.com"
+  SPACETIMEDB_DB_NAME: "yral-database-spacetime-4lbo7"
