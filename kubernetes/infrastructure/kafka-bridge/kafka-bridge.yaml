@@ -62,13 +62,26 @@ spec:
       acks: all
 
   # Resource limits
+  # JVM baseline (Metaspace, thread stacks, Kafka client native buffers, Vert.x)
+  # exceeds 1Gi for this workload — pod was OOMKilled 31x with the previous
+  # 1Gi limit. 2Gi limit with explicit -Xmx512m bounds heap and leaves ~1.5Gi
+  # for non-heap. Per Strimzi docs, resources/jvmOptions are NOT set by the
+  # operator and must be tuned per workload.
   resources:
     requests:
       cpu: 100m
-      memory: 256Mi
+      memory: 512Mi
     limits:
       cpu: 500m
-      memory: 1Gi
+      memory: 2Gi
+
+  # Explicit JVM heap — bounds heap to 512Mi (25% of limit would be the JVM
+  # default, but explicit is clearer and prevents heap from growing into
+  # non-heap territory). Leaves ~1.5Gi for Metaspace, direct buffers, native
+  # Kafka client memory, and Vert.x event-loop buffers.
+  jvmOptions:
+    -Xms: "512m"
+    -Xmx: "512m"
 
   # Pod scheduling — pin to falkenstein region
   template:

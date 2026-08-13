@@ -86,6 +86,8 @@ Never use terminal commands (`sed`, `awk`, `echo >`, `cat >`, `tee`, etc.) for t
 ### Default-First Configuration
 Prefer component defaults. Add explicit config only when a concrete problem requires deviation. Explicitly matching the default creates maintenance burden and obscures intent.
 
+**Almost always prefer the developer-set defaults unless our specific use case requires tuning.** The developers of a tool/operator know its sensible defaults best — overriding them without a concrete, observed reason is more likely to introduce regressions than improvements. Only deviate when: (a) a specific symptom (OOMKilled, latency, throughput, errors) is observed in production, AND (b) the default is genuinely the cause (not just correlated). Document the symptom and rationale in a comment on the manifest where the override lives. This applies to JVM options, resource limits, Kafka broker config, operator env vars, Helm chart values, etc.
+
 ### Docs-First for Tooling (Hard Rule)
 When using a tool or library for the first time (or encountering a non-trivial configuration question), **always check the official documentation first** before trial-and-error. Find the canonical/prescribed way to do it, implement that, and record it in AGENTS.md under the relevant tooling section. Never guess at API shapes, configuration fields, or patterns — fetch the docs, read the prescribed approach, and follow it exactly. This prevents hours of wasted iteration on wrong assumptions.
 
