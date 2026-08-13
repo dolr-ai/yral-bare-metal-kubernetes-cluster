@@ -3,6 +3,9 @@ kind: HelmRelease
 metadata:
   name: kube-prometheus-stack
   namespace: monitoring
+  annotations:
+    # Force new generation to retry upgrade after Grafana alerting-rules YAML fix
+    retrigger: "grafana-alerting-yaml-fix"
 spec:
   interval: 1h
   chart:
