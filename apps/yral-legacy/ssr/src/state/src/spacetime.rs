@@ -21,9 +21,10 @@ use yral_database_spacetime_bindings::DbConnection;
 /// The connection runs on a background thread (`run_threaded`).
 pub fn init_spacetime() -> anyhow::Result<Arc<DbConnection>> {
     let url = std::env::var("SPACETIMEDB_URL").context("SPACETIMEDB_URL is not set")?;
-    let db_name =
-        std::env::var("SPACETIMEDB_DB_NAME").unwrap_or_else(|_| "yral-database-spacetime-4lbo7".to_string());
-    let token = std::env::var("SPACETIMEDB_ADMIN_TOKEN").context("SPACETIMEDB_ADMIN_TOKEN is not set")?;
+    let db_name = std::env::var("SPACETIMEDB_DB_NAME")
+        .unwrap_or_else(|_| "yral-database-spacetime-4lbo7".to_string());
+    let token =
+        std::env::var("SPACETIMEDB_ADMIN_TOKEN").context("SPACETIMEDB_ADMIN_TOKEN is not set")?;
 
     log::info!("Connecting to SpacetimeDB at {url}, database: {db_name}");
 
@@ -31,6 +32,9 @@ pub fn init_spacetime() -> anyhow::Result<Arc<DbConnection>> {
         .with_uri(url)
         .with_database_name(db_name)
         .with_token(Some(token))
+        .on_connect(move |_ctx, identity, _token| {
+            log::info!("SpacetimeDB connected. Identity: {}", identity.to_hex());
+        })
         .build()?;
 
     let conn = Arc::new(conn);
@@ -44,9 +48,6 @@ pub fn init_spacetime() -> anyhow::Result<Arc<DbConnection>> {
             }
         }
     });
-
-    let identity = conn.identity();
-    log::info!("SpacetimeDB connected. Identity: {}", identity.to_hex());
 
     Ok(conn)
 }
