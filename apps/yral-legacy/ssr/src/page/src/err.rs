@@ -29,24 +29,6 @@ pub fn ServerErrorPage() -> impl IntoView {
             .unwrap_or_else(|_| "Server Error".to_string())
     });
 
-    let error_str = params
-        .get()
-        .map(|p| p.err.clone().unwrap_or_else(|| "Server Error".to_string()))
-        .unwrap_or_else(|_| "Server Error".to_string());
-
-    let error_str_clone = error_str.clone();
-    Effect::new(move |_| {
-        let _ = js_sys::eval(&format!(
-            r#"
-            window.Sentry &&
-                        Sentry.onLoad(function () {{
-                                Sentry.captureException(new Error("{}"));
-                        }});
-            "#,
-            &error_str_clone
-        ));
-    });
-
     view! { <ErrorView error /> }
 }
 

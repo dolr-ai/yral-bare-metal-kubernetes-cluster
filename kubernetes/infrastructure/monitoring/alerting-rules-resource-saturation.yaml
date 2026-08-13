@@ -83,7 +83,7 @@ data:
             execErrState: OK
             for: 5m
             annotations:
-              summary: "\U0001F7E1 {{ $labels.namespace }}/{{ $labels.pod }}: memory at {{ printf "\%.0f" $values.B.Value }}% of limit"
+              summary: "\U0001F7E1 {{ $labels.namespace }}/{{ $labels.pod }}: memory at {{ printf \"%.0f\" $values.B.Value }}% of limit"
               description: "Container {{ $labels.container }} in pod {{ $labels.pod }} (namespace {{ $labels.namespace }}) is using more than 80% of its memory limit. This is a warning — OOM kill is imminent if usage keeps growing."
             labels:
               severity: warning
@@ -146,7 +146,7 @@ data:
             execErrState: OK
             for: 2m
             annotations:
-              summary: "\U0001F534 {{ $labels.namespace }}/{{ $labels.pod }}: memory at {{ printf "\%.0f" $values.B.Value }}% of limit — OOM imminent"
+              summary: "\U0001F534 {{ $labels.namespace }}/{{ $labels.pod }}: memory at {{ printf \"%.0f\" $values.B.Value }}% of limit — OOM imminent"
               description: "Container {{ $labels.container }} in pod {{ $labels.pod }} (namespace {{ $labels.namespace }}) is at or above 95% of its memory limit. An OOM kill is likely within minutes. Consider increasing the memory limit."
             labels:
               severity: critical

@@ -18,7 +18,7 @@ const DEFAULT_BODY_LIMIT: usize = 10 * 1024;
 
 /// Get body size limit from environment or use default
 fn get_body_limit() -> usize {
-    std::env::var("SENTRY_HTTP_BODY_LIMIT")
+    std::env::var("HTTP_BODY_LIMIT")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(DEFAULT_BODY_LIMIT)
@@ -26,7 +26,7 @@ fn get_body_limit() -> usize {
 
 /// Check if HTTP logging is enabled
 fn is_logging_enabled() -> bool {
-    std::env::var("SENTRY_ENABLE_HTTP_LOGGING")
+    std::env::var("HTTP_ENABLE_LOGGING")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(true)
@@ -46,7 +46,7 @@ fn should_capture_body(content_type: Option<&str>) -> bool {
     }
 }
 
-/// HTTP logging middleware that captures request/response data as Sentry breadcrumbs
+/// HTTP logging middleware that captures request/response data as structured logs
 /// Optimized: Only parses/scrubs bodies for error responses (status >= 400)
 pub async fn http_logging_middleware(
     req: Request,
@@ -292,7 +292,7 @@ fn add_lightweight_breadcrumb(method: &str, path: &str, status: u16, duration_ms
     );
 }
 
-/// Add request breadcrumb to Sentry
+/// Add request breadcrumb for structured logging
 fn add_request_breadcrumb(
     request_id: u64,
     method: &str,
@@ -310,7 +310,7 @@ fn add_request_breadcrumb(
     );
 }
 
-/// Add response breadcrumb to Sentry
+/// Add response breadcrumb for structured logging
 fn add_response_breadcrumb(
     request_id: u64,
     status: u16,

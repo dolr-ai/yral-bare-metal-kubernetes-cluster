@@ -21,7 +21,6 @@ pub mod ml_feed;
 pub mod notifications;
 pub mod posts;
 pub mod route;
-pub mod sentry;
 pub mod time;
 pub mod types;
 pub mod user_identity;

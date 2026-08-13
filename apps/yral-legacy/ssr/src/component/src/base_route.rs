@@ -9,7 +9,6 @@ use consts::{ACCOUNT_CONNECTED_STORE, NOTIFICATIONS_ENABLED_STORE, NOTIFICATION_
 use leptos_use::storage::use_local_storage;
 use state::audio_state::AudioState;
 use state::canisters::AuthState;
-use utils::sentry::{set_sentry_user, set_sentry_user_canister};
 use utils::notifications::get_fcm_token;
 use yral_metadata_client::MetadataClient;
 
@@ -31,14 +30,6 @@ fn CtxProvider(children: Children) -> impl IntoView {
     //     }
     // });
 
-    Effect::new(move |_| {
-        let user_canister = auth.canisters_resource.read().as_ref().and_then(|c| {
-            let cans = c.as_ref().ok()?;
-            Some(cans.user_canister().to_string())
-        });
-        set_sentry_user_canister(user_canister);
-    });
-
     let window_target = use_window();
 
     let notification = Notification(RwSignal::new(None));
@@ -55,12 +46,6 @@ fn CtxProvider(children: Children) -> impl IntoView {
         },
     );
     provide_context(notification);
-
-    Effect::new(move |_| {
-        let user_principal = auth.user_principal.get();
-        let user_principal = user_principal.and_then(|c| c.ok()).map(|c| c.to_text());
-        set_sentry_user(user_principal);
-    });
 
     // migrates account connected local storage to cookie
     let (_, set_new_account_connected_store) = use_cookie_with_options::<bool, FromToStringCodec>(

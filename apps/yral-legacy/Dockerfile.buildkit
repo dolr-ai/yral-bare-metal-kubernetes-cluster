@@ -1,6 +1,5 @@
 # Multi-stage Dockerfile for building yral-legacy from source (Shipwright/BuildKit).
 # Build context: repo root (set by Shipwright spec.source.contextDir).
-# Includes sentry reqwest+rustls transport for crash reporting.
 # Retry build after transient Swagger UI download failure.
 
 # ── Stage 1: Build ──────────────────────────────────────────────────────────

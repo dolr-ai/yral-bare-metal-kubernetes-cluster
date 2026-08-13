@@ -6,9 +6,7 @@ use axum::{
     http::Request,
     response::{IntoResponse, Response},
 };
-use sentry_tower::{NewSentryLayer, SentryHttpLayer};
 use state::server::AppState;
-use tower::ServiceBuilder;
 use tracing::instrument;
 use utils::host::is_host_or_origin_from_preview_domain;
 use yral_legacy::fallback::file_and_error_handler;
@@ -115,11 +113,6 @@ async fn main_impl() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    // Create HTTP tracing layer with OpenTelemetry semantic conventions
-    let sentry_tower_layer = ServiceBuilder::new()
-        .layer(NewSentryLayer::new_from_top())
-        .layer(SentryHttpLayer::with_transaction());
-
     // build our application with a route
     let app = Router::new()
         .route("/healthz", get(|| async { "ok" }))
@@ -134,7 +127,6 @@ async fn main_impl() -> Result<(), Box<dyn std::error::Error>> {
                     header::AUTHORIZATION,
                     header::CONTENT_TYPE,
                     header::ACCEPT,
-                    HeaderName::from_static("sentry-trace"),
                     HeaderName::from_static("baggage"),
                 ])
                 .allow_methods([Method::POST, Method::GET, Method::PUT, Method::OPTIONS])
@@ -148,7 +140,6 @@ async fn main_impl() -> Result<(), Box<dyn std::error::Error>> {
         )
         .leptos_routes_with_handler(routes, get(leptos_routes_handler))
         .fallback(file_and_error_handler)
-        .layer(sentry_tower_layer)
         .with_state(res.app_state);
 
     // run our app with hyper
@@ -166,7 +157,7 @@ async fn main_impl() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn setup_sentry_subscriber() {
+fn setup_tracing_subscriber() {
     use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
     tracing_subscriber::registry()
@@ -182,22 +173,11 @@ fn setup_sentry_subscriber() {
             }),
         )
         .with(tracing_subscriber::fmt::layer())
-        .with(sentry_tracing::layer())
         .init();
 }
 
 fn main() {
-    let _guard = sentry::init((
-        "https://977a043cf2740d750f871cc121e70f7b@apm.yral.com/7",
-        sentry::ClientOptions {
-            release: sentry::release_name!(),
-            // debug: false,
-            traces_sample_rate: 0.4,
-            ..Default::default()
-        },
-    ));
-
-    setup_sentry_subscriber();
+    setup_tracing_subscriber();
 
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
