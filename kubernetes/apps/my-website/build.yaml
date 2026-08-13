@@ -4,6 +4,7 @@
 # Source: the monorepo (dolr-ai/yral-bare-metal-kubernetes-cluster) at apps/my-website/
 # Strategy: buildkit (ClusterBuildStrategy, rootless BuildKit v0.31.1)
 # Output: harbor.yral.com/my-website/my-website
+# Push secret: harbor-pull-secret (robot$kubernetes-access with push+pull permissions)
 #
 # BuildRuns are created automatically by the Tekton EventListener on git push
 # to main (when changes touch apps/my-website/).
