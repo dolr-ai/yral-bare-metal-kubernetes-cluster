@@ -5780,6 +5780,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "once_cell",
+ "openssl-sys",
  "rand 0.8.7",
  "redis 1.4.1",
  "regex",

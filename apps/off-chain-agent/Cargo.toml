@@ -45,6 +45,7 @@ log = { workspace = true }
 num-bigint = { workspace = true }
 num-traits = { workspace = true }
 once_cell = { workspace = true }
+openssl-sys = { workspace = true, features = ["vendored"] }
 rand = { workspace = true }
 redis = {
   workspace = true,
