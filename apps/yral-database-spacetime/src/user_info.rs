@@ -58,6 +58,14 @@ pub struct UserProfile {
     pub csam_detected: bool,
     pub last_access_time: Timestamp,
     pub account_type: UserAccountType,
+    /// Display name from the yral-metadata service (Redis/Dragonfly).
+    /// Backfilled from `UserMetadata.user_name`. `None` if not yet backfilled.
+    #[default(None::<String>)]
+    pub username: Option<String>,
+    /// Email from the yral-metadata service (Redis/Dragonfly).
+    /// Backfilled from `UserMetadata.email`. `None` if not set.
+    #[default(None::<String>)]
+    pub email: Option<String>,
 }
 
 /// A follow relationship. Primary key is a composite key
@@ -217,6 +225,10 @@ pub struct UserProfileBatchEntry {
     pub nsfw_gore: String,
     pub csam_detected: bool,
     pub last_access_time: Timestamp,
+    /// Display name from the yral-metadata service (Redis/Dragonfly).
+    pub username: Option<String>,
+    /// Email from the yral-metadata service (Redis/Dragonfly).
+    pub email: Option<String>,
 }
 
 /// Batch upsert entry for follow relationships (backfill).
@@ -313,6 +325,8 @@ pub fn register_new_user(ctx: &ReducerContext) -> Result<(), String> {
         csam_detected: false,
         last_access_time: ctx.timestamp,
         account_type: UserAccountType::MainAccount { bots: Vec::new() },
+        username: None,
+        email: None,
     });
 
     Ok(())
@@ -605,6 +619,8 @@ pub fn accept_new_user_registration_v2(
                 csam_detected: false,
                 last_access_time: ctx.timestamp,
                 account_type: UserAccountType::BotAccount { owner: owner_text },
+                username: None,
+                email: None,
             });
         }
         None => {
@@ -624,6 +640,8 @@ pub fn accept_new_user_registration_v2(
                 csam_detected: false,
                 last_access_time: ctx.timestamp,
                 account_type: UserAccountType::MainAccount { bots: Vec::new() },
+                username: None,
+                email: None,
             });
         }
     }
@@ -874,6 +892,8 @@ pub fn upsert_user_profile_batch(
             csam_detected: entry.csam_detected,
             last_access_time: entry.last_access_time,
             account_type: UserAccountType::MainAccount { bots: Vec::new() },
+            username: entry.username,
+            email: entry.email,
         });
     }
 

@@ -1,4 +1,4 @@
-//! One-time IC→SpacetimeDB backfill test for user_info (profiles + follows).
+//! One-time IC→SpacetimeDB backfill test for user_info (profiles).
 //!
 //! Run with: `cargo test --package yral_database_spacetime backfill_user_info_from_ic -- --ignored --nocapture`
 //!
@@ -6,240 +6,359 @@
 //!
 //! ## Strategy
 //!
-//! 1. **Enumerate user principals** from a file (`BACKFILL_PRINCIPALS_FILE`
-//!    env var — one IC Principal per line).
-//! 2. **Fetch profiles** from IC `user_info_service` canister in batches of 100
-//!    via `get_users_profile_details` (V7).
-//! 3. **Upsert to SpacetimeDB** via the generated SDK bindings — typed
-//!    `conn.reducers.upsert_user_profile_batch(entries)` fire-and-forget call.
-//!    No manual JSON, no REST — native Rust structs all the way.
+//! **Streaming + resumable.** Streams IC `fetch_posts` in batches of 1000
+//! (same cursor pagination as the posts backfill). For each batch of posts,
+//! extracts unique `creator_principal` values not yet seen, fetches their
+//! profiles from IC `user_info_service` in batches of 100, and upserts to
+//! SpacetimeDB via REST immediately. Nothing is buffered beyond a single
+//! post batch + a single profile batch in memory.
 //!
-//! **Idempotent:** safe to run multiple times (delete-then-insert by PK).
-//! **Streaming:** nothing buffered beyond a single batch in memory.
+//! **Resumable:** The posts cursor (`last_post_id_fetched`) is printed every
+//! batch. If interrupted, restart from a known cursor by setting
+//! `BACKFILL_START_CURSOR` env var to the last printed cursor value.
+//! Already-upserted profiles are idempotent (delete-then-insert by PK).
+//!
+//! **Idempotent:** safe to run multiple times. Re-running with the same
+//! principal updates the row instead of duplicating.
+//!
+//! **Username/email:** Set to `None` — the metadata backfill
+//! (`backfill_metadata_from_redis.rs`) fills those from the yral-metadata
+//! service (Redis/Dragonfly).
 //!
 //! **Delete this file once the mobile update has shipped and the IC canister
 //! is decommissioned (Phase J cleanup).**
 
 #![cfg(test)]
 
+use std::collections::BTreeSet;
+
 use anyhow::Context;
 use candid::Principal;
+use canisters_client::user_post_service::{FetchPostsArgs, UserPostService};
 use canisters_client::user_info_service::{
     Result9, UserProfileDetailsForFrontendV7, UserInfoService,
 };
 use ic_agent::Agent;
-use spacetimedb_sdk::{DbContext, Timestamp};
-use yral_database_spacetime_bindings::{
-    DbConnection,
-    upsert_user_profile_batch, UserProfileBatchEntry, SubscriptionPlan, YralProSubscription,
-};
+
+/// IC canister ID for `user_post_service` on mainnet.
+const IC_POSTS_CANISTER_ID: &str = "gxhc3-pqaaa-aaaas-qbh3q-cai";
 
 /// IC canister ID for `user_info_service` on mainnet.
-const IC_CANISTER_ID: &str = "ivkka-7qaaa-aaaas-qbg3q-cai";
+const IC_USER_INFO_CANISTER_ID: &str = "ivkka-7qaaa-aaaas-qbg3q-cai";
 
 /// IC boundary node URL.
 const IC_URL: &str = "https://ic0.app";
 
+/// Batch size for IC `fetch_posts` pagination.
+const IC_POSTS_BATCH_SIZE: u64 = 1000;
+
 /// Batch size for IC `get_users_profile_details` (max 100 per call).
 const IC_PROFILE_BATCH_SIZE: usize = 100;
 
-/// Build an anonymous IC agent (no identity needed — `get_users_profile_details` is a query).
+/// Build an anonymous IC agent (no identity needed — all calls are queries).
 async fn build_ic_agent() -> anyhow::Result<Agent> {
     let agent = Agent::builder().with_url(IC_URL).build()?;
     agent.fetch_root_key().await?;
     Ok(agent)
 }
 
-/// Map an IC `UserProfileDetailsForFrontendV7` to a SpacetimeDB `UserProfileBatchEntry`.
-fn ic_profile_to_entry(principal: &Principal, profile: &UserProfileDetailsForFrontendV7) -> UserProfileBatchEntry {
+/// Escape a string for JSON.
+fn json_escape(s: &str) -> String {
+    serde_json::to_string(s).unwrap_or_else(|_| format!("\"{}\"", s.replace('"', "\\\"")))
+}
+
+/// Build the JSON for a single `UserProfileBatchEntry` (SpacetimeDB REST format).
+///
+/// SpacetimeDB serializes:
+/// - Strings as `"text"`
+/// - Integers as bare numbers
+/// - Bools as `true`/`false`
+/// - Enums as `{"variantName":{fields}}` or `{"variantName":value}`
+/// - `Option<T>` as `[0, value]` (Some) or `[1, []]` (None)
+/// - `Timestamp` as `[microseconds]`
+fn build_entry_json(principal: &Principal, profile: &UserProfileDetailsForFrontendV7) -> String {
     let pic = profile.profile_picture.as_ref();
-    UserProfileBatchEntry {
-        principal_text: principal.to_text(),
-        bio: profile.bio.clone().unwrap_or_default(),
-        website_url: profile.website_url.clone().unwrap_or_default(),
-        profile_picture_url: pic.map(|p| p.url.clone()).unwrap_or_default(),
-        followers_count: profile.followers_count,
-        following_count: profile.following_count,
-        subscription_plan: match &profile.subscription_plan {
-            canisters_client::user_info_service::SubscriptionPlan::Free => SubscriptionPlan::Free,
-            canisters_client::user_info_service::SubscriptionPlan::Pro(sub) => {
-                SubscriptionPlan::Pro(YralProSubscription {
-                    free_video_credits_left: sub.free_video_credits_left,
-                    total_video_credits_alloted: sub.total_video_credits_alloted,
-                })
+
+    let principal_text = principal.to_text();
+    let bio = profile.bio.clone().unwrap_or_default();
+    let website_url = profile.website_url.clone().unwrap_or_default();
+    let profile_picture_url = pic.map(|p| p.url.clone()).unwrap_or_default();
+    let followers_count = profile.followers_count;
+    let following_count = profile.following_count;
+    let is_ai_influencer = profile.is_ai_influencer;
+    let is_nsfw = pic.map(|p| p.nsfw_info.is_nsfw).unwrap_or(false);
+    let nsfw_ec = pic.map(|p| p.nsfw_info.nsfw_ec.clone()).unwrap_or_default();
+    let nsfw_gore = pic.map(|p| p.nsfw_info.nsfw_gore.clone()).unwrap_or_default();
+    let csam_detected = pic.map(|p| p.nsfw_info.csam_detected).unwrap_or(false);
+
+    // SubscriptionPlan: {"free":{}} or {"pro":{"free_video_credits_left":N,"total_video_credits_alloted":N}}
+    let subscription_plan_json = match &profile.subscription_plan {
+        canisters_client::user_info_service::SubscriptionPlan::Free => {
+            r#"{"free":{}}"#.to_string()
+        }
+        canisters_client::user_info_service::SubscriptionPlan::Pro(sub) => {
+            format!(
+                r#"{{"pro":{{"free_video_credits_left":{},"total_video_credits_alloted":{}}}}}"#,
+                sub.free_video_credits_left, sub.total_video_credits_alloted
+            )
+        }
+    };
+
+    // last_access_time: Timestamp as [microseconds] — use 0 (UNIX_EPOCH)
+    let last_access_time_json = "[0]";
+
+    // username: Option<String> → [1, []] for None
+    let username_json = "[1,[]]";
+    // email: Option<String> → [1, []] for None
+    let email_json = "[1,[]]";
+
+    format!(
+        r#"{{"principal_text":{},"bio":{},"website_url":{},"profile_picture_url":{},"followers_count":{},"following_count":{},"subscription_plan":{},"is_ai_influencer":{},"is_nsfw":{},"nsfw_ec":{},"nsfw_gore":{},"csam_detected":{},"last_access_time":{},"username":{},"email":{}}}"#,
+        json_escape(&principal_text),
+        json_escape(&bio),
+        json_escape(&website_url),
+        json_escape(&profile_picture_url),
+        followers_count,
+        following_count,
+        subscription_plan_json,
+        is_ai_influencer,
+        is_nsfw,
+        json_escape(&nsfw_ec),
+        json_escape(&nsfw_gore),
+        csam_detected,
+        last_access_time_json,
+        username_json,
+        email_json,
+    )
+}
+
+/// Build the JSON argument for `upsert_user_profile_batch(profiles: Vec<UserProfileBatchEntry>)`.
+/// The REST API wraps reducer args in an outer array: `[[<Vec<UserProfileBatchEntry> as JSON array>]]`.
+fn build_batch_json(entries: &[String]) -> String {
+    format!("[[{}]]", entries.join(","))
+}
+
+/// Upsert a batch of profiles to SpacetimeDB via a single `upsert_user_profile_batch` REST call.
+/// Retries up to 3 times with exponential backoff on transient errors.
+/// Returns (success_count, error_count).
+async fn upsert_profile_batch(
+    http: &reqwest::Client,
+    call_url: &str,
+    token: &str,
+    entries_json: &[String],
+) -> (usize, usize) {
+    let body = build_batch_json(entries_json);
+
+    for attempt in 0..3u32 {
+        let resp = match http
+            .post(call_url)
+            .bearer_auth(token)
+            .header("Content-Type", "application/json")
+            .body(body.clone())
+            .send()
+            .await
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                if attempt < 2 {
+                    eprintln!("  retry {}/3 profile batch (conn error: {})", attempt + 1, e);
+                    tokio::time::sleep(std::time::Duration::from_secs(1 << attempt)).await;
+                    continue;
+                }
+                eprintln!("  FAILED profile batch after 3 retries: {}", e);
+                return (0, entries_json.len());
             }
-        },
-        is_ai_influencer: profile.is_ai_influencer,
-        is_nsfw: pic.map(|p| p.nsfw_info.is_nsfw).unwrap_or(false),
-        nsfw_ec: pic.map(|p| p.nsfw_info.nsfw_ec.clone()).unwrap_or_default(),
-        nsfw_gore: pic.map(|p| p.nsfw_info.nsfw_gore.clone()).unwrap_or_default(),
-        csam_detected: pic.map(|p| p.nsfw_info.csam_detected).unwrap_or(false),
-        last_access_time: Timestamp::UNIX_EPOCH,
-    }
-}
+        };
 
-/// Enumerate all user principals from a file (one IC Principal per line).
-fn enumerate_user_principals() -> anyhow::Result<Vec<Principal>> {
-    eprintln!("Enumerating user principals from file...");
+        let status = resp.status();
+        if status.is_success() {
+            return (entries_json.len(), 0);
+        }
 
-    let principals_file = std::env::var("BACKFILL_PRINCIPALS_FILE")
-        .context("BACKFILL_PRINCIPALS_FILE not set — provide a file with one IC Principal per line")?;
+        if (status.is_server_error() || status.as_u16() == 429) && attempt < 2 {
+            let resp_body = resp.text().await.unwrap_or_default();
+            eprintln!("  retry {}/3 profile batch ({} {})", attempt + 1, status, resp_body);
+            tokio::time::sleep(std::time::Duration::from_secs(1 << attempt)).await;
+            continue;
+        }
 
-    let content = std::fs::read_to_string(&principals_file)
-        .with_context(|| format!("Failed to read {}", principals_file))?;
-
-    let principals: Vec<Principal> = content
-        .lines()
-        .map(|l| l.trim())
-        .filter(|l| !l.is_empty() && !l.starts_with('#'))
-        .filter_map(|l| Principal::from_text(l).ok())
-        .collect();
-
-    eprintln!("  Found {} principals", principals.len());
-    Ok(principals)
-}
-
-/// Establish a SpacetimeDB connection via the SDK bindings.
-async fn connect_spacetimedb() -> anyhow::Result<DbConnection> {
-    let url = std::env::var("SPACETIMEDB_URL")
-        .unwrap_or_else(|_| "http://127.0.0.1:3000".to_string());
-    let db_name = std::env::var("SPACETIMEDB_DB_NAME")
-        .unwrap_or_else(|_| "yral-database-spacetime-4lbo7".to_string());
-    let token = std::env::var("SPACETIMEDB_ADMIN_TOKEN")
-        .context("SPACETIMEDB_ADMIN_TOKEN")?;
-
-    eprintln!("Connecting to SpacetimeDB at {url}, database: {db_name}");
-
-    let conn = DbConnection::builder()
-        .with_uri(url)
-        .with_database_name(db_name)
-        .with_token(Some(token))
-        .build()?;
-
-    // Keep the connection alive in a background thread.
-    conn.run_threaded();
-
-    let identity = conn.identity();
-    eprintln!("SpacetimeDB connected. Identity: {}", identity.to_hex());
-
-    Ok(conn)
-}
-
-#[tokio::test]
-#[ignore]
-async fn backfill_user_info_from_ic() -> anyhow::Result<()> {
-    eprintln!("=== IC → SpacetimeDB User Info Backfill (SDK bindings) ===");
-
-    // --- IC agent ---
-    eprintln!("Connecting to IC canister {}...", IC_CANISTER_ID);
-    let agent = build_ic_agent().await?;
-    let canister_id = Principal::from_text(IC_CANISTER_ID)?;
-    let user_info_service = UserInfoService(canister_id, &agent);
-
-    // --- SpacetimeDB SDK connection ---
-    let conn = connect_spacetimedb().await?;
-
-    // --- Enumerate user principals ---
-    let principals = enumerate_user_principals()?;
-    if principals.is_empty() {
-        eprintln!("No principals found. Nothing to backfill.");
-        return Ok(());
+        let resp_body = resp.text().await.unwrap_or_default();
+        eprintln!("  FAILED profile batch: {} {}", status, resp_body);
+        return (0, entries_json.len());
     }
 
-    // --- Stream: fetch profiles from IC in batches → upsert to SpacetimeDB via SDK ---
-    let mut total_read: u64 = 0;
-    let mut total_upserted: u64 = 0;
-    let mut total_errors: u64 = 0;
-    let mut total_skipped: u64 = 0;
-    let mut batch_num: u64 = 0;
+    (0, entries_json.len())
+}
+
+/// Fetch profiles from IC and upsert to SpacetimeDB. Returns (fetched, upserted, errors).
+async fn fetch_and_upsert_profiles(
+    agent: &Agent,
+    http: &reqwest::Client,
+    call_url: &str,
+    token: &str,
+    principals: &[Principal],
+) -> (usize, usize, usize) {
+    let user_info_canister_id = Principal::from_text(IC_USER_INFO_CANISTER_ID)
+        .expect("invalid user_info canister ID");
+    let user_info_service = UserInfoService(user_info_canister_id, agent);
+
+    let mut total_fetched = 0usize;
+    let mut total_upserted = 0usize;
+    let mut total_errors = 0usize;
 
     for chunk in principals.chunks(IC_PROFILE_BATCH_SIZE) {
-        batch_num += 1;
-
-        // Fetch profiles from IC (batch lookup)
         let result = match user_info_service
             .get_users_profile_details(chunk.to_vec())
             .await
         {
             Ok(r) => r,
             Err(e) => {
-                eprintln!("  Batch {batch_num}: IC agent error: {e}");
-                total_errors += chunk.len() as u64;
+                eprintln!("  IC profile fetch error: {e}");
+                total_errors += chunk.len();
                 continue;
             }
         };
 
         let profiles: Vec<(Principal, UserProfileDetailsForFrontendV7)> = match result {
-            Result9::Ok(profiles) => {
-                // IC silently skips not-found users. Match by principal_id.
-                profiles
-                    .into_iter()
-                    .filter_map(|p| {
-                        if chunk.contains(&p.principal_id) {
-                            Some((p.principal_id, p))
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
-            }
+            Result9::Ok(profiles) => profiles
+                .into_iter()
+                .filter_map(|p| {
+                    if chunk.contains(&p.principal_id) {
+                        Some((p.principal_id, p))
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
             Result9::Err(e) => {
-                eprintln!("  Batch {batch_num}: IC error: {e}");
-                total_errors += chunk.len() as u64;
+                eprintln!("  IC profile error: {e}");
+                total_errors += chunk.len();
                 continue;
             }
         };
 
+        total_fetched += profiles.len();
         let skipped = chunk.len() - profiles.len();
-        total_read += chunk.len() as u64;
-        total_skipped += skipped as u64;
 
         if profiles.is_empty() {
-            eprintln!(
-                "  Batch {batch_num}: {} principals, all skipped (not found in IC)",
-                chunk.len()
-            );
             continue;
         }
 
-        // Map IC profiles → SpacetimeDB UserProfileBatchEntry (typed Rust structs)
-        let entries: Vec<UserProfileBatchEntry> = profiles
+        // Build JSON entries
+        let entries_json: Vec<String> = profiles
             .iter()
-            .map(|(p, v)| ic_profile_to_entry(p, v))
+            .map(|(p, v)| build_entry_json(p, v))
             .collect();
 
-        // Upsert to SpacetimeDB via SDK bindings (fire-and-forget, typed)
-        match conn.reducers.upsert_user_profile_batch(entries.clone()) {
-            Ok(()) => {
-                total_upserted += entries.len() as u64;
-                eprintln!(
-                    "  Batch {batch_num}: {} principals → {} profiles, {} upserted, {} skipped | Cumulative: {} read, {} upserted, {} skipped, {} errors",
-                    chunk.len(),
-                    profiles.len(),
-                    entries.len(),
-                    skipped,
-                    total_read,
-                    total_upserted,
-                    total_skipped,
-                    total_errors,
-                );
-            }
-            Err(e) => {
-                eprintln!("  Batch {batch_num}: SpacetimeDB upsert error: {e}");
-                total_errors += entries.len() as u64;
-            }
+        let (ok, err) = upsert_profile_batch(http, call_url, token, &entries_json).await;
+        total_upserted += ok;
+        total_errors += err;
+
+        if skipped > 0 {
+            eprintln!("    profiles: {} fetched, {} upserted, {} skipped (not in IC)", profiles.len(), ok, skipped);
+        }
+    }
+
+    (total_fetched, total_upserted, total_errors)
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn backfill_user_info_from_ic() -> anyhow::Result<()> {
+    eprintln!("=== IC → SpacetimeDB User Info Backfill (streaming, resumable) ===");
+
+    // --- IC agent ---
+    eprintln!("Connecting to IC...");
+    let agent = build_ic_agent().await?;
+    let posts_canister_id = Principal::from_text(IC_POSTS_CANISTER_ID)?;
+    let post_service = UserPostService(posts_canister_id, &agent);
+
+    // --- SpacetimeDB REST config ---
+    let db_name = std::env::var("SPACETIMEDB_DB_NAME")
+        .unwrap_or_else(|_| "yral-database-spacetime-4lbo7".to_string());
+    let uri = std::env::var("SPACETIMEDB_URL")
+        .unwrap_or_else(|_| "https://maincloud.spacetimedb.com".to_string());
+    let token = std::env::var("SPACETIMEDB_ADMIN_TOKEN").context("SPACETIMEDB_ADMIN_TOKEN")?;
+
+    let http = reqwest::Client::new();
+    let call_url = format!(
+        "{}/v1/database/{}/call/upsert_user_profile_batch",
+        uri.trim_end_matches('/'),
+        db_name,
+    );
+    eprintln!("SpacetimeDB REST: {}", call_url);
+
+    // --- Resumable: start from a known cursor if provided ---
+    let mut last_uuid: Option<String> = std::env::var("BACKFILL_START_CURSOR").ok().filter(|s| !s.is_empty());
+
+    // Track principals already processed (avoids re-fetching profiles on resume)
+    let mut seen_principals: BTreeSet<String> = BTreeSet::new();
+
+    let mut total_posts_read: u64 = 0;
+    let mut total_profiles_fetched: u64 = 0;
+    let mut total_profiles_upserted: u64 = 0;
+    let mut total_errors: u64 = 0;
+    let mut batch_num: u64 = 0;
+
+    eprintln!("=== Streaming IC posts → collecting principals → fetching profiles → upserting ===");
+
+    loop {
+        let result = post_service
+            .fetch_posts(FetchPostsArgs {
+                limit: IC_POSTS_BATCH_SIZE,
+                last_uuid_processed: last_uuid.clone(),
+            })
+            .await?;
+
+        if result.posts.is_empty() {
+            break;
         }
 
-        // Small delay between batches to avoid overwhelming the connection
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        let batch_len = result.posts.len();
+        last_uuid = result.last_post_id_fetched.clone();
+        batch_num += 1;
+        total_posts_read += batch_len as u64;
+
+        // Extract new unique principals from this batch
+        let new_principals: Vec<Principal> = result
+            .posts
+            .iter()
+            .map(|p| p.creator_principal.to_text())
+            .filter(|p| seen_principals.insert(p.clone()))
+            .filter_map(|p| Principal::from_text(&p).ok())
+            .collect();
+
+        let new_count = new_principals.len();
+
+        if new_count > 0 {
+            // Fetch profiles from IC and upsert to SpacetimeDB immediately
+            let (fetched, upserted, errors) =
+                fetch_and_upsert_profiles(&agent, &http, &call_url, &token, &new_principals)
+                    .await;
+
+            total_profiles_fetched += fetched as u64;
+            total_profiles_upserted += upserted as u64;
+            total_errors += errors as u64;
+        }
+
+        eprintln!(
+            "  Batch {batch_num}: {batch_len} posts, {new_count} new principals | Cumulative: {total_posts_read} posts, {total_seen} principals, {total_profiles_fetched} fetched, {total_profiles_upserted} upserted, {total_errors} errors, cursor={cursor:?}",
+            total_seen = seen_principals.len(),
+            cursor = last_uuid,
+        );
+
+        if last_uuid.is_none() {
+            break;
+        }
     }
 
     eprintln!();
     eprintln!("=== User Info Backfill Complete ===");
-    eprintln!("  Total principals read:        {total_read}");
-    eprintln!("  Profiles upserted:           {total_upserted}");
-    eprintln!("  Skipped (not found in IC):    {total_skipped}");
-    eprintln!("  Errors:                       {total_errors}");
+    eprintln!("  Total posts streamed:          {total_posts_read}");
+    eprintln!("  Unique principals found:       {}", seen_principals.len());
+    eprintln!("  Profiles fetched from IC:      {total_profiles_fetched}");
+    eprintln!("  Profiles upserted:             {total_profiles_upserted}");
+    eprintln!("  Errors:                        {total_errors}");
 
     if total_errors > 0 {
         anyhow::bail!("{total_errors} errors (see above)");

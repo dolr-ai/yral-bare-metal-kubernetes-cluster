@@ -27,6 +27,7 @@ canisters-client = {
 }
 ic-agent = { workspace = true }
 reqwest = { workspace = true, features = ["json", "rustls"] }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 spacetimedb-sdk = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }

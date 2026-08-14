@@ -24,6 +24,8 @@ pub struct UserProfile {
     pub csam_detected: bool,
     pub last_access_time: __sdk::Timestamp,
     pub account_type: UserAccountType,
+    pub username: Option<String>,
+    pub email: Option<String>,
 }
 
 impl __sdk::InModule for UserProfile {
@@ -48,6 +50,8 @@ pub struct UserProfileCols {
     pub csam_detected: __sdk::__query_builder::Col<UserProfile, bool>,
     pub last_access_time: __sdk::__query_builder::Col<UserProfile, __sdk::Timestamp>,
     pub account_type: __sdk::__query_builder::Col<UserProfile, UserAccountType>,
+    pub username: __sdk::__query_builder::Col<UserProfile, Option<String>>,
+    pub email: __sdk::__query_builder::Col<UserProfile, Option<String>>,
 }
 
 impl __sdk::__query_builder::HasCols for UserProfile {
@@ -71,6 +75,8 @@ impl __sdk::__query_builder::HasCols for UserProfile {
             csam_detected: __sdk::__query_builder::Col::new(table_name, "csam_detected"),
             last_access_time: __sdk::__query_builder::Col::new(table_name, "last_access_time"),
             account_type: __sdk::__query_builder::Col::new(table_name, "account_type"),
+            username: __sdk::__query_builder::Col::new(table_name, "username"),
+            email: __sdk::__query_builder::Col::new(table_name, "email"),
         }
     }
 }

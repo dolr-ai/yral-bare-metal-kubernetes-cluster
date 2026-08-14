@@ -22,6 +22,8 @@ pub struct UserProfileBatchEntry {
     pub nsfw_gore: String,
     pub csam_detected: bool,
     pub last_access_time: __sdk::Timestamp,
+    pub username: Option<String>,
+    pub email: Option<String>,
 }
 
 impl __sdk::InModule for UserProfileBatchEntry {
