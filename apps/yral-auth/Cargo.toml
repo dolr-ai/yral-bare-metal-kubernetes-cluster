@@ -144,21 +144,7 @@ anyhow = { workspace = true }
 jsonwebtoken = { workspace = true }
 p256 = { workspace = true, features = ["pkcs8"] }
 rand = { workspace = true }
-redis = {
-  workspace = true,
-  features = [
-    "acl",
-    "aio",
-    "cluster",
-    "cluster-async",
-    "connection-manager",
-    "sentinel",
-    "tokio-rustls-comp"
-  ]
-}
-spacetimedb-sdk = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }
-yral-database-spacetime-bindings = { workspace = true }
 
 [features]
 apple-oauth = []
