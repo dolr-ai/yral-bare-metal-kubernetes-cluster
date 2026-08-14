@@ -30,7 +30,8 @@ fn init_yral_oauth() -> auth::server_impl::yral::YralOAuthClient {
         YRAL_AUTH_AUTHORIZATION_URL, YRAL_AUTH_CLIENT_ID_ENV, YRAL_AUTH_ISSUER_URL,
         YRAL_AUTH_TOKEN_URL,
     };
-    use openidconnect::{AuthType, AuthUrl, TokenUrl};
+    use openidconnect::Client;
+    use openidconnect::{AuthType, AuthUrl, JsonWebKeySet, TokenUrl};
     use openidconnect::{ClientId, ClientSecret, IssuerUrl, RedirectUrl};
 
     let client_id = env::var(YRAL_AUTH_CLIENT_ID_ENV)
@@ -40,27 +41,16 @@ fn init_yral_oauth() -> auth::server_impl::yral::YralOAuthClient {
     let redirect_uri =
         env::var("YRAL_AUTH_REDIRECT_URL").expect("`YRAL_AUTH_REDIRECT_URL` is required!");
 
-    YralOAuthClient::new(
+    Client::new(
         ClientId::new(client_id),
-        Some(ClientSecret::new(client_secret)),
         IssuerUrl::new(YRAL_AUTH_ISSUER_URL.to_string()).unwrap(),
-        AuthUrl::new(YRAL_AUTH_AUTHORIZATION_URL.to_string()).unwrap(),
-        Some(TokenUrl::new(YRAL_AUTH_TOKEN_URL.to_string()).unwrap()),
-        None,
-        Default::default(),
+        JsonWebKeySet::default(),
     )
+    .set_client_secret(ClientSecret::new(client_secret))
+    .set_auth_uri(AuthUrl::new(YRAL_AUTH_AUTHORIZATION_URL.to_string()).unwrap())
+    .set_token_uri(TokenUrl::new(YRAL_AUTH_TOKEN_URL.to_string()).unwrap())
     .set_redirect_uri(RedirectUrl::new(redirect_uri).unwrap())
     .set_auth_type(AuthType::RequestBody)
-}
-
-#[cfg(feature = "oauth-ssr")]
-fn init_yral_auth_migration_key() -> jsonwebtoken::EncodingKey {
-    let raw_pem = env::var("YRAL_AUTH_MIGRATION_ES256_PEM")
-        .expect("`YRAL_AUTH_MIGRATION_ES256_PEM` is required!");
-    let enc_key = jsonwebtoken::EncodingKey::from_ec_pem(raw_pem.as_bytes())
-        .expect("Invalid `YRAL_AUTH_MIGRATION_ES256_PEM`");
-
-    enc_key
 }
 
 pub struct AppStateRes {
@@ -103,8 +93,6 @@ impl AppStateBuilder {
             cookie_key: init_cookie_key(),
             #[cfg(feature = "oauth-ssr")]
             yral_oauth_client: init_yral_oauth(),
-            #[cfg(feature = "oauth-ssr")]
-            yral_auth_migration_key: init_yral_auth_migration_key(),
             #[cfg(feature = "ssr")]
             spacetime_conn: state::spacetime::init_spacetime()
                 .expect("Failed to connect to SpacetimeDB"),

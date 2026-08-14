@@ -1,6 +1,7 @@
 #![recursion_limit = "256"]
 pub mod about_us;
 pub mod err;
+pub mod feed;
 pub mod internal;
 pub mod logout;
 pub mod menu;

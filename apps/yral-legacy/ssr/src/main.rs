@@ -34,7 +34,6 @@ pub async fn server_fn_handler(
             #[cfg(feature = "oauth-ssr")]
             {
                 provide_context(app_state.yral_oauth_client.clone());
-                provide_context(app_state.yral_auth_migration_key.clone());
             }
 
 

@@ -412,6 +412,7 @@ dependencies = [
  "anyhow",
  "axum",
  "axum-extra",
+ "base64 0.22.1",
  "bb8",
  "bb8-redis",
  "candid",
@@ -430,6 +431,7 @@ dependencies = [
  "rand_chacha 0.3.1",
  "redis 1.4.1",
  "regex",
+ "reqwest 0.13.4",
  "rustls 0.23.42",
  "serde",
  "serde_json",
@@ -8461,8 +8463,14 @@ dependencies = [
  "flate2",
  "futures",
  "futures-channel",
+ "getrandom 0.3.4",
+ "gloo-console",
+ "gloo-net 0.6.0",
+ "gloo-storage",
+ "gloo-utils",
  "home",
  "http 1.4.2",
+ "js-sys",
  "log",
  "native-tls",
  "once_cell",
@@ -8478,6 +8486,10 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tokio-tungstenite 0.27.0",
+ "tokio-tungstenite-wasm",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
@@ -8572,6 +8584,7 @@ dependencies = [
  "auth",
  "axum",
  "axum-extra",
+ "base64 0.22.1",
  "bb8",
  "bb8-redis",
  "candid",
@@ -8584,6 +8597,7 @@ dependencies = [
  "dotenv",
  "enum_dispatch",
  "futures",
+ "getrandom 0.3.4",
  "global-constants",
  "gloo",
  "gloo-utils",
@@ -9149,6 +9163,18 @@ dependencies = [
 
 [[package]]
 name = "tokio-tungstenite"
+version = "0.26.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a9daff607c6d2bf6c16fd681ccb7eecc83e4e2cdc1ca067ffaadfca5de7f084"
+dependencies = [
+ "futures-util",
+ "log",
+ "tokio",
+ "tungstenite 0.26.2",
+]
+
+[[package]]
+name = "tokio-tungstenite"
 version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "489a59b6730eda1b0171fcfda8b121f4bee2b35cba8645ca35c5f7ba3eb736c1"
@@ -9171,6 +9197,25 @@ dependencies = [
  "log",
  "tokio",
  "tungstenite 0.29.0",
+]
+
+[[package]]
+name = "tokio-tungstenite-wasm"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4585aa997e4afb43c64f9101c27411b8e1bf9dde49b22e3e47acdde3055b325c"
+dependencies = [
+ "bytes",
+ "futures-channel",
+ "futures-util",
+ "http 1.4.2",
+ "httparse",
+ "js-sys",
+ "thiserror 2.0.19",
+ "tokio",
+ "tokio-tungstenite 0.26.2",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
@@ -9485,6 +9530,23 @@ name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
+
+[[package]]
+name = "tungstenite"
+version = "0.26.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4793cb5e56680ecbb1d843515b23b6de9a75eb04b66643e256a396d43be33c13"
+dependencies = [
+ "bytes",
+ "data-encoding",
+ "http 1.4.2",
+ "httparse",
+ "log",
+ "rand 0.9.5",
+ "sha1 0.10.7",
+ "thiserror 2.0.19",
+ "utf-8",
+]
 
 [[package]]
 name = "tungstenite"

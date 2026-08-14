@@ -96,6 +96,24 @@ pub async fn extract_identity() -> Result<Option<DelegatedIdentityWire>, ServerF
     server_impl::extract_identity_impl().await
 }
 
+/// Get the current id_token for SpacetimeDB authentication.
+/// Reads the ID_TOKEN cookie. If the token has < 1h remaining, transparently
+/// refreshes it using the httpOnly REFRESH_TOKEN cookie.
+/// Returns None for anonymous users (no cookies set).
+#[server(endpoint = "get_id_token", input = Json, output = Json)]
+pub async fn get_id_token() -> Result<Option<String>, ServerFnError> {
+    server_impl::get_id_token_impl().await
+}
+
+/// Force-refresh the id_token using the httpOnly refresh_token cookie.
+/// Exchanges the refresh_token at yral-auth's /oauth/token endpoint,
+/// updates both cookies, and returns the new id_token.
+/// Returns None if not logged in (no refresh_token cookie).
+#[server(endpoint = "refresh_id_token", input = Json, output = Json)]
+pub async fn refresh_id_token() -> Result<Option<String>, ServerFnError> {
+    server_impl::refresh_id_token_impl().await
+}
+
 #[server]
 pub async fn logout_identity() -> Result<DelegatedIdentityWire, ServerFnError> {
     server_impl::logout_identity_impl().await

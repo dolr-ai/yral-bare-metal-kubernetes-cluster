@@ -5,6 +5,7 @@ use leptos_meta::*;
 use leptos_router::hooks::use_location;
 use leptos_router::{components::*, path, MatchNestedRoutes};
 use page::about_us::AboutUs;
+use page::feed::Home;
 use page::post_view::PostDetailsCacheCtx;
 use page::{
     err::ServerErrorPage,
@@ -114,6 +115,7 @@ pub fn App() -> impl IntoView {
                     // auth redirect routes exist outside main context
                     <GoogleAuthRedirectHandlerRoute />
                     <ParentRoute path=path!("") view=BaseRoute>
+                        <Route path=path!("/") view=Home />
                         <Route path=path!("/post/:canister_id/:post_id") view=SinglePost />
                         <Route path=path!("/error") view=ServerErrorPage />
                         <Route path=path!("/menu") view=Menu />

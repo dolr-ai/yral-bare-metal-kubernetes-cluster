@@ -55,6 +55,13 @@ pub mod auth {
     /// Refresh expiry, 29 days
     pub const REFRESH_MAX_AGE: Duration = Duration::from_secs(60 * 60 * 24 * 29);
     pub const REFRESH_TOKEN_COOKIE: &str = "user-identity";
+    /// ID token cookie — non-httpOnly so client-side WASM can read it
+    /// for SpacetimeDB authentication. Contains the yral-auth id_token JWT.
+    pub const ID_TOKEN_COOKIE: &str = "id-token";
+    /// Access/ID token expiry, 7 days (matches ACCESS_TOKEN_MAX_AGE in yral-auth)
+    pub const ID_TOKEN_MAX_AGE: Duration = Duration::from_secs(60 * 60 * 24 * 7);
+    /// Refresh threshold — if less than this remains, refresh the token
+    pub const ONE_HOUR_SECS: usize = 60 * 60;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

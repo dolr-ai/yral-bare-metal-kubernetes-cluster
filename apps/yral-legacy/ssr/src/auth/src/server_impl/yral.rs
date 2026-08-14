@@ -12,13 +12,12 @@ use leptos_axum::{extract_with_state, ResponseOptions};
 use openidconnect::{
     core::{
         CoreAuthDisplay, CoreAuthPrompt, CoreAuthenticationFlow, CoreErrorResponseType,
-        CoreGenderClaim, CoreIdTokenVerifier, CoreJsonWebKey, CoreJsonWebKeyType,
-        CoreJsonWebKeyUse, CoreJweContentEncryptionAlgorithm, CoreJwsSigningAlgorithm,
-        CoreRevocableToken, CoreRevocationErrorResponse, CoreTokenIntrospectionResponse,
-        CoreTokenType,
+        CoreGenderClaim, CoreIdTokenVerifier, CoreJsonWebKey,
+        CoreJweContentEncryptionAlgorithm, CoreJwsSigningAlgorithm,
+        CoreRevocableToken, CoreTokenType,
     },
-    reqwest::async_http_client,
     AdditionalClaims, AuthorizationCode, CsrfToken, EmptyExtraTokenFields, IdTokenFields,
+    EndpointNotSet, EndpointSet,
     LoginHint, Nonce, OAuth2TokenResponse, PkceCodeChallenge, PkceCodeVerifier, Scope,
     StandardErrorResponse, StandardTokenResponse,
 };
@@ -27,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use web_time::Duration;
 use types::delegated_identity::DelegatedIdentityWire;
 
-use super::{set_cookies, update_user_identity};
+use super::{set_cookies, set_id_token_cookie, update_user_identity};
 
 const PKCE_VERIFIER_COOKIE: &str = "google-pkce-verifier";
 const CSRF_TOKEN_COOKIE: &str = "google-csrf-token";
@@ -55,9 +54,6 @@ pub type YralOAuthClient = openidconnect::Client<
     CoreAuthDisplay,
     CoreGenderClaim,
     CoreJweContentEncryptionAlgorithm,
-    CoreJwsSigningAlgorithm,
-    CoreJsonWebKeyType,
-    CoreJsonWebKeyUse,
     CoreJsonWebKey,
     CoreAuthPrompt,
     StandardErrorResponse<CoreErrorResponseType>,
@@ -68,14 +64,21 @@ pub type YralOAuthClient = openidconnect::Client<
             CoreGenderClaim,
             CoreJweContentEncryptionAlgorithm,
             CoreJwsSigningAlgorithm,
-            CoreJsonWebKeyType,
         >,
         CoreTokenType,
     >,
-    CoreTokenType,
-    CoreTokenIntrospectionResponse,
+    openidconnect::StandardTokenIntrospectionResponse<
+        EmptyExtraTokenFields,
+        CoreTokenType,
+    >,
     CoreRevocableToken,
-    CoreRevocationErrorResponse,
+    StandardErrorResponse<CoreErrorResponseType>,
+    EndpointSet,
+    EndpointNotSet,
+    EndpointNotSet,
+    EndpointNotSet,
+    EndpointSet,
+    EndpointNotSet,
 >;
 
 pub fn token_verifier() -> CoreIdTokenVerifier<'static> {
@@ -177,10 +180,11 @@ pub async fn perform_yral_auth_impl(
     let resp: ResponseOptions = expect_context();
     set_cookies(&resp, jar);
 
+    let http_client = openidconnect::reqwest::Client::new();
     let token_res = oauth2
         .exchange_code(AuthorizationCode::new(auth_code))
         .set_pkce_verifier(pkce_verifier)
-        .request_async(async_http_client)
+        .request_async(&http_client)
         .await?;
 
     let id_token_verifier = token_verifier();
@@ -216,7 +220,11 @@ pub async fn perform_yral_auth_impl(
         .refresh_token()
         .expect("Yral Auth V2 must return a refresh token");
 
-    update_user_identity(&resp, jar, refresh_token.secret().clone())?;
+    // Store the id_token JWT in a non-httpOnly cookie for client-side WASM
+    // (SpacetimeDB authentication). The refresh_token goes in httpOnly.
+    let id_token_str = id_token.to_string();
+    update_user_identity(&resp, jar.clone(), refresh_token.secret().clone())?;
+    set_id_token_cookie(&resp, jar, id_token_str)?;
 
     Ok((identity, username, email))
 }

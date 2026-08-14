@@ -520,6 +520,12 @@ description = "Run yral-legacy locally via pitchfork (release binary, port 8080)
 depends = ["yral-legacy-build"]
 run = "pitchfork start yral-legacy --force"
 
+[tasks.yral-legacy-watch]
+description = "Run yral-legacy with hot reload via cargo leptos watch (debug, port 8080)"
+dir = "apps/yral-legacy"
+run = "fnox exec -- cargo leptos --manifest-path ssr/Cargo.toml watch --hot-reload --bin-features ssr,oauth-ssr"
+env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
+
 [tasks.yral-legacy-test]
 description = "Run yral-legacy tests (ssr feature + fnox secrets for DragonflyDB integration tests)"
 dir = "apps/yral-legacy"
@@ -536,7 +542,7 @@ run = "pitchfork start yral-legacy-container --force"
 
 [tasks.yral-legacy-stop]
 description = "Stop yral-legacy dev server or container via pitchfork"
-run = "pitchfork stop yral-legacy yral-legacy-container"
+run = "pitchfork stop yral-legacy yral-legacy-watch yral-legacy-container"
 
 [tasks.yral-legacy-all]
 description = "Full yral-legacy workflow: build → test → image → image-run → validate → stop"

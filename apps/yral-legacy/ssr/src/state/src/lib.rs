@@ -4,6 +4,8 @@ pub mod audio_state;
 pub mod canisters;
 #[cfg(feature = "ssr")]
 pub mod spacetime;
+#[cfg(feature = "hydrate")]
+pub mod spacetime_client;
 
 #[cfg(feature = "ssr")]
 pub mod server {
@@ -24,8 +26,6 @@ pub mod server {
         pub cookie_key: Key,
         #[cfg(feature = "oauth-ssr")]
         pub yral_oauth_client: auth::server_impl::yral::YralOAuthClient,
-        #[cfg(feature = "oauth-ssr")]
-        pub yral_auth_migration_key: jsonwebtoken::EncodingKey,
         #[cfg(feature = "ssr")]
         pub spacetime_conn: std::sync::Arc<yral_database_spacetime_bindings::DbConnection>,
     }

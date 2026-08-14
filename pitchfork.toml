@@ -110,6 +110,20 @@ ready_http = "http://localhost:8080/healthz"
 stop_signal = "SIGINT"
 env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
 
+# ── yral-legacy watch (cargo leptos watch, hot reload, debug) ──────────────
+# Runs cargo leptos watch for hot-reload development. Rebuilds server + WASM
+# on file change, live-reloads the browser. Uses debug profiles (fast rebuilds).
+# No pre-build needed — cargo leptos watch handles building + serving.
+# fnox exec loads secrets from fnox.toml (age-encrypted) + root fnox.toml (Dragonfly).
+
+[daemons.yral-legacy-watch]
+run = "exec fnox exec -- cargo leptos --manifest-path ssr/Cargo.toml watch --hot-reload --bin-features ssr,oauth-ssr"
+dir = "apps/yral-legacy"
+mise = true
+ready_output = "Serving at"
+stop_signal = "SIGINT"
+env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
+
 # ── yral-auth dev (local SpacetimeDB, port 8080) ───────────────────────────
 # Dev variant: points SPACETIMEDB_URL to local server (127.0.0.1:3000).
 # Depends on spacetimedb-dev being ready (module is published via on_ready hook).
