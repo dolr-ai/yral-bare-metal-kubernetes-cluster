@@ -15,8 +15,8 @@ use types::{
 use crate::{
     api::implementation::{
         delete_metadata_bulk_impl, get_canister_to_principal_bulk_impl,
-        get_user_metadata_bulk_impl, get_user_metadata_impl, set_user_metadata_impl,
-        set_user_metadata_using_admin_identity_impl,
+        get_user_metadata_bulk_impl, get_user_metadata_impl, set_user_metadata_core,
+        set_user_metadata_impl,
     },
     dragonfly::YRAL_METADATA_KEY_PREFIX,
     services::error_wrappers::{ErrorWrapper, NullOk, OkWrapper},
@@ -83,16 +83,13 @@ pub async fn admin_set_user_metadata(
     Path(user_principal): Path<Principal>,
     Json(req): Json<SetUserMetadataReq>,
 ) -> Result<Json<ApiResult<SetUserMetadataRes>>> {
-    let admin_principal = state.backend_admin_ic_agent.get_principal().map_err(|e| {
-        log::error!("Error getting admin identity principal: {}", e);
-        Error::EnvironmentVariable(std::env::VarError::NotPresent)
-    })?;
-
-    let result = set_user_metadata_using_admin_identity_impl(
+    // IC admin identity removed — admin metadata updates now use the same
+    // set_user_metadata_core path without IC signature verification.
+    // Admin authorization is handled by the API gateway / network policy.
+    let result = set_user_metadata_core(
         &state.dragonfly_redis_store,
-        admin_principal,
         user_principal,
-        req,
+        &req.metadata,
         CANISTER_TO_PRINCIPAL_KEY,
         YRAL_METADATA_KEY_PREFIX,
     )

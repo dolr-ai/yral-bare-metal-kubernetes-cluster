@@ -3,15 +3,10 @@ use axum::{
     http::HeaderMap,
     Json,
 };
-use candid::Principal;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use types::ApiResult;
 use utoipa::ToSchema;
-use canisters_client::{
-    ic::USER_INFO_SERVICE_ID,
-    user_info_service::{Result_, SessionType as UserServiceSessionType, UserInfoService},
-};
 
 use crate::{
     services::error_wrappers::{ErrorWrapper, NullOk},
@@ -41,7 +36,7 @@ pub struct YralAuthClaim {
     path = "/v2/update_session_as_registered",
     request_body = UpdateUserSessionRequest,
     responses(
-        (status = 200, description = "Session updated successfully", body = NullOk), // OkWrapper<()> panics for some reason
+        (status = 200, description = "Session updated successfully", body = NullOk),
         (status = 400, description = "Invalid request or canister ID", body = ErrorWrapper<crate::utils::error::Error>),
         (status = 401, description = "Unauthorized - Auth token missing or invalid", body = ErrorWrapper<crate::utils::error::Error>),
         (status = 500, description = "Internal server error", body = ErrorWrapper<crate::utils::error::Error>)
@@ -72,34 +67,11 @@ pub async fn update_session_as_registered_v2(
 
     let _jwt_claim = app_state.yral_auth_jwt.verify_token(auth_jwt_token)?;
 
-    let ic_agent = &app_state.backend_admin_ic_agent;
-
-    let user_canister = Principal::from_text(req_payload.user_canister.clone())?;
-    let user_principal = Principal::from_text(req_payload.user_principal.clone())?;
-
-    // Individual user canisters have been decommissioned; all session updates
-    // now go through the user_info_service canister.
-    if user_canister != USER_INFO_SERVICE_ID {
-        log::warn!(
-            "Unexpected canister id for session update: {} (expected user_info_service)",
-            user_canister.to_text()
-        );
-    }
-
-    let user_info_service = UserInfoService(USER_INFO_SERVICE_ID, ic_agent);
-
-    let result = user_info_service
-        .update_session_type(user_principal, UserServiceSessionType::RegisteredSession)
-        .await
-        .map_err(|e| {
-            log::error!("update_session_type failed: {e}");
-            e
-        })?;
-
-    if let Result_::Err(e) = result {
-        log::error!("Update session failed: {e}");
-        return Err(Error::UpdateSession(e));
-    }
+    // IC canister session update removed — SpacetimeDB handles user registration
+    // via the register_new_user reducer. This endpoint now just verifies the
+    // JWT and returns OK. Will be deleted entirely once all consumers are
+    // migrated to call SpacetimeDB directly.
+    log::info!("Session update acknowledged for user: {}", req_payload.user_principal);
 
     Ok(Json(Ok(())))
 }

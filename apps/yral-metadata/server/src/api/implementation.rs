@@ -116,31 +116,6 @@ pub async fn set_user_metadata_impl<S: MetadataKvStore>(
     .await
 }
 
-pub async fn set_user_metadata_using_admin_identity_impl<S: MetadataKvStore>(
-    store: &S,
-    admin_principal: Principal,
-    user_principal: Principal,
-    req: SetUserMetadataReq,
-    can2prin_key: &str,
-    key_prefix: &str,
-) -> Result<SetUserMetadataRes> {
-    req.signature.verify_identity(
-        admin_principal,
-        req.metadata
-            .clone()
-            .try_into()
-            .map_err(|_| Error::AuthTokenMissing)?,
-    )?;
-    set_user_metadata_core(
-        store,
-        user_principal,
-        &req.metadata,
-        can2prin_key,
-        key_prefix,
-    )
-    .await
-}
-
 /// Core implementation for getting user metadata.
 pub async fn get_user_metadata_impl<S: MetadataKvStore>(
     store: &S,

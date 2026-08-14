@@ -1,5 +1,4 @@
 // rebuild trigger
-mod admin;
 mod api;
 mod auth;
 mod config;
@@ -75,11 +74,6 @@ async fn main_impl() -> Result<()> {
         .route(
             "/signup/{user_principal}",
             post(signup::set_signup_datetime),
-        )
-        // Admin routes
-        .route(
-            "/admin/populate-canister-index",
-            post(admin::populate_canister_index),
         )
         // OpenAPI/Swagger UI routes
         .route("/explorer/{*tail}", get(services::openapi::get_swagger))

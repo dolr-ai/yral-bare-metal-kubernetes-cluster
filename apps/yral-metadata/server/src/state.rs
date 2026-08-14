@@ -7,18 +7,13 @@ use crate::dragonfly::{
 };
 use crate::utils::error::{Error, Result};
 use crate::utils::yral_auth_jwt::YralAuthJwt;
-use ic_agent::identity::Secp256k1Identity;
-use ic_agent::Agent;
 use std::sync::Arc;
-
-pub static IC_AGENT_URL: &str = "https://ic0.app";
 
 #[derive(Clone)]
 pub struct AppState {
     pub dragonfly_redis_store: Arc<DragonflyPool>,
     pub jwt_details: JwtDetails,
     pub yral_auth_jwt: YralAuthJwt,
-    pub backend_admin_ic_agent: ic_agent::Agent,
 }
 
 impl AppState {
@@ -36,20 +31,6 @@ impl AppState {
             .await?,
             jwt_details: init_jwt(app_config)?,
             yral_auth_jwt: YralAuthJwt::init(app_config.yral_auth_public_key.clone())?,
-            backend_admin_ic_agent: init_backend_admin_key(app_config).await?,
         })
     }
-}
-
-pub async fn init_backend_admin_key(config: &AppConfig) -> Result<ic_agent::Agent> {
-    let admin_id_pem: &str = config.backend_admin_identity.as_ref();
-    let admin_id_pem_by = admin_id_pem.as_bytes();
-    let admin_id =
-        Secp256k1Identity::from_pem(admin_id_pem_by).expect("Invalid BACKEND_ADMIN_IDENTITY");
-
-    Agent::builder()
-        .with_url(IC_AGENT_URL)
-        .with_identity(admin_id)
-        .build()
-        .map_err(|e| Error::Unknown(e.to_string()))
 }
