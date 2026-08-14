@@ -92,6 +92,7 @@ pub fn SinglePost() -> impl IntoView {
                 // expected by the rest of the page.
                 let poster_principal = candid::Principal::from_text(&post.creator_principal_text)
                     .unwrap_or(candid::Principal::anonymous());
+                let poster_principal_text = poster_principal.to_text();
                 Ok(PostDetails {
                     canister_id,
                     post_id: post.id,
@@ -101,7 +102,7 @@ pub fn SinglePost() -> impl IntoView {
                     likes: post.like_count,
                     display_name: None,
                     username: None,
-                    propic_url: propic_from_principal(poster_principal),
+                    propic_url: propic_from_principal(&poster_principal_text),
                     liked_by_user: Some(post.liked_by_me),
                     poster_principal,
                     creator_follows_user: None,

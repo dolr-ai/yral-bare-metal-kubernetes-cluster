@@ -51,3 +51,4 @@ Migrate the other useful bits
 - Remove the other unused UIs
 - https://github.com/dolr-ai/yral-bare-metal-kubernetes-cluster/blob/343ed901a2a25d701455d20e2d1d41b4253573a2/kubernetes/infrastructure/kafka/kafka.yaml#L107-L116 - Do we need these still?
 - off-chain - remove anything to do with backfilling videos
+- propic_from_principal to hash the principal bytes for the GobGob NFT index. Let me add it back to the utils Cargo.toml - We can remove everything related to GobGob NFTs

@@ -129,7 +129,6 @@ ssr = [
     "dep:dotenv",
     "bb8",
     "bb8-redis",
-    ,
     "speedate",
     "dep:regex",
 ]

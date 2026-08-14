@@ -3,8 +3,11 @@
 //! `ProfileDetails` is the full profile struct (fetched from SpacetimeDB).
 //! `UserIdentity` is a lightweight view model used by non-profile pages
 //! (wallet, notifs, settings, menu, analytics).
+//!
+//! In the SpacetimeDB era, the user identifier is the IC Principal text
+//! (from the JWT `sub` claim). We store it as a plain `String` — no need
+//! for `candid::Principal` since we don't make IC canister calls anymore.
 
-use candid::Principal;
 use serde::{Deserialize, Serialize};
 use username_gen::random_username_from_principal;
 
@@ -15,14 +18,14 @@ const USERNAME_MAX_LEN: usize = 29;
 const GOBGOB_TOTAL_COUNT: u32 = 18557;
 const GOBGOB_PROPIC_URL: &str = "https://imagedelivery.net/abXI9nS4DYYtyR1yFFtziA/gob.";
 
-fn index_from_principal(principal: Principal) -> u32 {
-    let hash_value = crc32fast::hash(principal.as_slice());
+fn index_from_principal_text(principal_text: &str) -> u32 {
+    let hash_value = crc32fast::hash(principal_text.as_bytes());
     (hash_value % GOBGOB_TOTAL_COUNT) + 1
 }
 
 /// Deterministic fallback profile picture URL derived from a principal.
-pub fn propic_from_principal(principal: Principal) -> String {
-    let index = index_from_principal(principal);
+pub fn propic_from_principal(principal_text: &str) -> String {
+    let index = index_from_principal_text(principal_text);
     format!("{GOBGOB_PROPIC_URL}{index}/public")
 }
 
@@ -35,8 +38,9 @@ pub struct ProfileDetails {
     pub following_cnt: u64,
     pub profile_pic: Option<String>,
     pub display_name: Option<String>,
-    pub principal: Principal,
-    pub user_canister: Principal,
+    /// The user's IC Principal text (e.g. "dfgqp-6u6ic-...").
+    /// Used as the unique user identifier across the app.
+    pub user_identifier: String,
     pub hots: u64,
     pub nots: u64,
     pub bio: Option<String>,
@@ -47,7 +51,7 @@ pub struct ProfileDetails {
 
 impl ProfileDetails {
     pub fn username_or_principal(&self) -> String {
-        self.username.clone().unwrap_or_else(|| self.principal())
+        self.username.clone().unwrap_or_else(|| self.user_identifier.clone())
     }
 
     /// Username, or a consistent random username.
@@ -56,11 +60,17 @@ impl ProfileDetails {
     pub fn username_or_fallback(&self) -> String {
         self.username
             .clone()
-            .unwrap_or_else(|| random_username_from_principal(self.principal, USERNAME_MAX_LEN))
+            .unwrap_or_else(|| {
+                // username_gen expects a Principal — parse from text.
+                // This will be removed once username_gen is migrated to accept &str.
+                let principal = candid::Principal::from_text(&self.user_identifier)
+                    .unwrap_or(candid::Principal::anonymous());
+                random_username_from_principal(principal, USERNAME_MAX_LEN)
+            })
     }
 
     pub fn principal(&self) -> String {
-        self.principal.to_text()
+        self.user_identifier.clone()
     }
 
     pub fn display_name_or_fallback(&self) -> String {
@@ -74,7 +84,7 @@ impl ProfileDetails {
         if !propic.is_empty() {
             return propic;
         }
-        propic_from_principal(self.principal)
+        propic_from_principal(&self.user_identifier)
     }
 }
 
@@ -85,7 +95,8 @@ pub struct UserIdentity {
     pub username: Option<String>,
     pub profile_pic: Option<String>,
     pub display_name: Option<String>,
-    pub principal: Principal,
+    /// The user's IC Principal text (e.g. "dfgqp-6u6ic-...").
+    pub user_identifier: String,
 }
 
 impl From<ProfileDetails> for UserIdentity {
@@ -94,7 +105,7 @@ impl From<ProfileDetails> for UserIdentity {
             username: details.username,
             profile_pic: details.profile_pic,
             display_name: details.display_name,
-            principal: details.principal,
+            user_identifier: details.user_identifier,
         }
     }
 }
@@ -105,7 +116,7 @@ impl UserIdentity {
     pub fn username_or_principal(&self) -> String {
         self.username
             .clone()
-            .unwrap_or_else(|| self.principal())
+            .unwrap_or_else(|| self.user_identifier.clone())
     }
 
     /// Username, or a deterministic random fallback username.
@@ -113,11 +124,15 @@ impl UserIdentity {
     pub fn username_or_fallback(&self) -> String {
         self.username
             .clone()
-            .unwrap_or_else(|| random_username_from_principal(self.principal, USERNAME_MAX_LEN))
+            .unwrap_or_else(|| {
+                let principal = candid::Principal::from_text(&self.user_identifier)
+                    .unwrap_or(candid::Principal::anonymous());
+                random_username_from_principal(principal, USERNAME_MAX_LEN)
+            })
     }
 
     pub fn principal(&self) -> String {
-        self.principal.to_text()
+        self.user_identifier.clone()
     }
 
     pub fn display_name_or_fallback(&self) -> String {
@@ -131,6 +146,6 @@ impl UserIdentity {
         if !propic.is_empty() {
             return propic;
         }
-        propic_from_principal(self.principal)
+        propic_from_principal(&self.user_identifier)
     }
 }

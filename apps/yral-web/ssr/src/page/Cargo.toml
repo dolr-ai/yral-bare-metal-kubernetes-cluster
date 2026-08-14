@@ -26,6 +26,7 @@ bb8-redis = { workspace = true, optional = true }
 candid.workspace = true
 canisters-client = { workspace = true, features = ["full"] }
 chrono = "0.4"
+uuid = { workspace = true, features = ["v4", "js"] }
 codee = { workspace = true, features = ["json_serde"] }
 component = { path = "../component" }
 console_error_panic_hook = { workspace = true }
@@ -147,7 +148,6 @@ ssr = [
   "dep:tower",
   "dep:tower-http",
   "dep:yral-database-spacetime-bindings",
-  ,
   "leptos_meta/ssr",
   "leptos_router/ssr",
   "leptos-use/axum",

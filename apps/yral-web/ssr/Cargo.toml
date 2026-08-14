@@ -248,7 +248,6 @@ ssr = [
   "dep:tracing-futures",
   "dep:tracing-log",
   "dep:tracing-subscriber",
-  "hmac",
   "leptos_meta/ssr",
   "leptos_router/ssr",
   "leptos-use/axum",

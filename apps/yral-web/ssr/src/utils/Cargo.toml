@@ -26,6 +26,7 @@ tracing = { workspace = true, optional = true }
 http = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 candid.workspace = true
+crc32fast = { workspace = true }
 ic-agent = { workspace = true, features = ["pem"] }
 futures = { workspace = true }
 leptos-use = { workspace = true }
@@ -91,6 +92,7 @@ wasm-bindgen-futures = { workspace = true }
 js-sys = { workspace = true }
 speedate = { workspace = true, optional = true }
 urlencoding = { workspace = true }
+uuid = { workspace = true, features = ["v4", "js"] }
 types = { workspace = true }
 username-gen = { workspace = true }
 canisters-client = { workspace = true, features = ["full"] }
@@ -141,7 +143,6 @@ ssr = [
     "dep:dotenv",
     "bb8",
     "bb8-redis",
-    ,
     "speedate",
     "dep:regex",
     "consts/ssr",

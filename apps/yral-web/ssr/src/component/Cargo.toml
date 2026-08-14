@@ -187,7 +187,6 @@ ssr = [
   "dep:tower-http",
   "dep:tracing",
   "dep:yral-database-spacetime-bindings",
-  ,
   "leptos_meta/ssr",
   "leptos_router/ssr",
   "leptos-use/axum",
