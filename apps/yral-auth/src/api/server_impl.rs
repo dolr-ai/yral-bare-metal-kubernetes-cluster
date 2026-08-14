@@ -1,26 +1,24 @@
+//! Token grant handlers — thin wrappers over pure JWT logic.
+//!
+//! All JWT claim construction and validation is in pure functions
+//! (`oauth/jwt/generate.rs`, `oauth/jwt/mod.rs`). This module handles
+//! only the I/O: reading from the KV store, decoding/encoding JWTs,
+//! and returning the token grant response.
+
 use axum::{
     http::HeaderMap,
     response::{IntoResponse, Response},
     Extension, Form, Json,
 };
-use candid::Principal;
-use ic_agent::{
-    identity::{Delegation, Secp256k1Identity, SignedDelegation},
-    Identity,
-};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use url::Url;
 use web_time::Duration;
-use types::delegated_identity::DelegatedIdentityWire;
 
 use crate::{
-    api::ai_accounts::get_ai_accounts_for_principal,
+    api::ai_accounts::get_ai_account_ids_for_user,
     context::server::ServerCtx,
-    kv::{
-        format_to_dragonfly_key, KEY_PREFIX,
-        KVStore,
-    },
+    kv::KVStore,
     oauth::{
         client_validation::{ClientIdValidator, OAuthClientType, ValidationRes},
         jwt::{
@@ -31,11 +29,76 @@ use crate::{
         TokenGrantResult,
     },
     utils::{
-        identity::generate_random_identity_and_save,
         server_url::{self, get_server_url_from_headers, get_server_url_from_request},
-        time::current_epoch,
+        user_id::generate_user_id,
     },
 };
+
+// ─────────────────────────────────────────────────────────────────────────
+// Pure functions
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Build the token grant response from claims data.
+/// Pure — no I/O, just JWT encoding.
+#[allow(clippy::too_many_arguments)]
+fn build_token_grant(
+    encoding_key: &jsonwebtoken::EncodingKey,
+    user_id: &str,
+    client_id: &str,
+    nonce: Option<String>,
+    is_anonymous: bool,
+    access_max_age: Duration,
+    refresh_max_age: Duration,
+    email: Option<String>,
+    ai_account_ids: Vec<String>,
+    server_url: &str,
+) -> TokenGrantRes {
+    let (access_token, id_token) = generate_access_token_and_id_token_jwt(
+        encoding_key,
+        user_id,
+        client_id,
+        nonce.clone(),
+        is_anonymous,
+        access_max_age,
+        email.clone(),
+        ai_account_ids,
+        server_url,
+    );
+    let refresh_token = generate_refresh_token_jwt(
+        encoding_key,
+        user_id,
+        client_id,
+        nonce,
+        is_anonymous,
+        refresh_max_age,
+        email,
+        server_url,
+    );
+    TokenGrantRes::new(access_token, id_token, refresh_token)
+}
+
+/// KV key for storing/retrieving a user's existence marker.
+fn user_existence_key(user_id: &str) -> String {
+    format!("user:{user_id}")
+}
+
+/// KV key for backend service user ID lookup.
+fn backend_service_lookup_key(client_id: &str) -> String {
+    format!("internal-login-{client_id}")
+}
+
+/// Verify PKCE code challenge against the verifier.
+/// Pure — no I/O.
+fn verify_pkce(code_verifier: &str, challenge: &[u8; 32]) -> bool {
+    let mut hash = Sha256::new();
+    hash.update(code_verifier.as_bytes());
+    let hash: [u8; 32] = hash.finalize().into();
+    hash == *challenge
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Thin wrappers (I/O only)
+// ─────────────────────────────────────────────────────────────────────────
 
 async fn verify_client_secret(
     ctx: &ServerCtx,
@@ -78,7 +141,6 @@ pub async fn handle_well_known_jwks(Extension(ctx): Extension<Arc<ServerCtx>>) -
 pub async fn handle_oidc_configuration(headers: HeaderMap) -> Response {
     let server_url = server_url::get_server_url_from_headers(&headers);
     let jwks_uri = format!("{}/.well-known/jwks.json", server_url);
-
     Json(PartialOIDCConfig { jwks_uri }).into_response()
 }
 
@@ -136,79 +198,12 @@ pub async fn handle_oauth_token_grant(
     }
 }
 
-fn delegate_identity(from: &impl Identity, max_age: Duration) -> DelegatedIdentityWire {
-    let mut rng = rand::thread_rng();
-    let to_secret = k256::SecretKey::random(&mut rng);
-    let to_secret_jwk = to_secret.to_jwk();
-    let to_identity = Secp256k1Identity::from_private_key(to_secret);
-    let expiry = current_epoch() + max_age;
-    let delegation = Delegation {
-        pubkey: to_identity.public_key().unwrap(),
-        expiration: expiry.as_nanos() as u64,
-        targets: None,
-        permissions: None,
-    };
-    let sig = from.sign_delegation(&delegation).unwrap();
-    let signed_delegation = SignedDelegation {
-        delegation,
-        signature: sig.signature.unwrap(),
-    };
-
-    let mut delegation_chain = from.delegation_chain();
-    delegation_chain.push(signed_delegation);
-
-    DelegatedIdentityWire {
-        from_key: sig.public_key.unwrap(),
-        to_secret: to_secret_jwk,
-        delegation_chain,
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn generate_access_token_with_identity(
-    ctx: &ServerCtx,
-    identity: Secp256k1Identity,
-    client_id: &str,
-    nonce: Option<String>,
-    is_anonymous: bool,
-    res: ValidationRes,
-    email: Option<String>,
-    ai_account_delegated_identities: Vec<DelegatedIdentityWire>,
-    server_url: &str,
-) -> TokenGrantRes {
-    let delegated_identity = delegate_identity(&identity, res.access_max_age);
-    let user_principal = identity.sender().unwrap();
-
-    let (access_token, id_token) = generate_access_token_and_id_token_jwt(
-        &ctx.jwk_pairs.auth_tokens.encoding_key,
-        user_principal,
-        delegated_identity,
-        client_id,
-        nonce.clone(),
-        is_anonymous,
-        res.access_max_age,
-        email.clone(),
-        ai_account_delegated_identities,
-        server_url,
-    );
-    let refresh_token = generate_refresh_token_jwt(
-        &ctx.jwk_pairs.auth_tokens.encoding_key,
-        user_principal,
-        client_id,
-        nonce,
-        is_anonymous,
-        res.refresh_max_age,
-        email,
-        server_url,
-    );
-
-    TokenGrantRes::new(access_token, id_token, refresh_token)
-}
-
+/// Generate access/ID/refresh tokens for a known user ID.
+/// Thin wrapper — reads AI account IDs from KV, delegates to pure `build_token_grant`.
 #[allow(clippy::too_many_arguments)]
 async fn generate_access_token(
     ctx: &ServerCtx,
-    user_principal: Principal,
+    user_id: &str,
     client_id: &str,
     nonce: Option<String>,
     is_anonymous: bool,
@@ -216,52 +211,41 @@ async fn generate_access_token(
     email: Option<String>,
     server_url: &str,
 ) -> Result<TokenGrantRes, TokenGrantError> {
-    let identity_jwk = ctx
+    let exists = ctx
         .kv_store
-        .read(format_to_dragonfly_key(
-            KEY_PREFIX,
-            &user_principal.to_text(),
-        ))
+        .has_key(user_existence_key(user_id))
         .await
         .map_err(|e| TokenGrantError {
             error: TokenGrantErrorKind::ServerError,
             error_description: e.to_string(),
-        })?
-        .ok_or_else(|| TokenGrantError {
-            error: TokenGrantErrorKind::ServerError,
-            error_description: format!("unknown principal {user_principal}"),
         })?;
 
-    let sk = k256::SecretKey::from_jwk_str(&identity_jwk).map_err(|_| TokenGrantError {
-        error: TokenGrantErrorKind::ServerError,
-        error_description: "invalid identity in store?!".into(),
-    })?;
-    let id = Secp256k1Identity::from_private_key(sk);
+    if !exists {
+        return Err(TokenGrantError {
+            error: TokenGrantErrorKind::ServerError,
+            error_description: format!("unknown user {user_id}"),
+        });
+    }
 
-    let ai_accounts = get_ai_accounts_for_principal(ctx, user_principal)
+    let ai_account_ids = get_ai_account_ids_for_user(ctx, user_id)
         .await
         .map_err(|e| TokenGrantError {
             error: TokenGrantErrorKind::ServerError,
             error_description: format!("Failed to fetch AI accounts: {}", e),
         })?;
-    let ai_account_delegated_identities: Vec<DelegatedIdentityWire> = ai_accounts
-        .into_iter()
-        .map(|a| a.delegated_identity)
-        .collect();
 
-    let grant = generate_access_token_with_identity(
-        ctx,
-        id,
+    Ok(build_token_grant(
+        &ctx.jwk_pairs.auth_tokens.encoding_key,
+        user_id,
         client_id,
         nonce,
         is_anonymous,
-        validation_res,
+        validation_res.access_max_age,
+        validation_res.refresh_max_age,
         email,
-        ai_account_delegated_identities,
+        ai_account_ids,
         server_url,
-    );
-
-    Ok(grant)
+    ))
 }
 
 async fn handle_authorization_code_grant(
@@ -299,19 +283,16 @@ async fn handle_authorization_code_grant(
         });
     }
 
-    let mut verifier_hash = Sha256::new();
-    verifier_hash.update(code_verifier.as_bytes());
-    let verifier_hash: [u8; 32] = verifier_hash.finalize().into();
-    if verifier_hash != code_claims.ext_code_challenge_s256.0 {
+    if !verify_pkce(&code_verifier, &code_claims.ext_code_challenge_s256.0) {
         return Err(TokenGrantError {
             error: TokenGrantErrorKind::InvalidGrant,
             error_description: "Invalid code verifier".to_string(),
         });
     }
 
-    let grant = generate_access_token(
+    generate_access_token(
         ctx,
-        code_claims.sub,
+        &code_claims.sub,
         &client_id,
         code_claims.nonce.clone(),
         false,
@@ -319,9 +300,7 @@ async fn handle_authorization_code_grant(
         code_claims.ext_email,
         server_url,
     )
-    .await?;
-
-    Ok(grant)
+    .await
 }
 
 async fn handle_refresh_token_grant(
@@ -349,10 +328,9 @@ async fn handle_refresh_token_grant(
 
     let refresh_claims = refresh_token.claims;
 
-
-    let grant = generate_access_token(
+    generate_access_token(
         ctx,
-        refresh_claims.sub,
+        &refresh_claims.sub,
         &client_id,
         None,
         refresh_claims.ext_is_anonymous,
@@ -360,13 +338,7 @@ async fn handle_refresh_token_grant(
         refresh_claims.ext_email,
         server_url,
     )
-    .await?;
-
-    Ok(grant)
-}
-
-fn backend_service_principal_lookup_key(client_id: &str) -> String {
-    format!("internal-login-{client_id}")
+    .await
 }
 
 async fn client_credentials_grant_for_backend(
@@ -374,7 +346,6 @@ async fn client_credentials_grant_for_backend(
     client_id: String,
     res: ValidationRes,
 ) -> Result<TokenGrantRes, TokenGrantError> {
-
     let server_url = match get_server_url_from_request().await {
         Ok(url) => url,
         Err(e) => {
@@ -385,26 +356,21 @@ async fn client_credentials_grant_for_backend(
         }
     };
 
-    let internal_key = backend_service_principal_lookup_key(&client_id);
-    let princ_res = ctx
+    let lookup_key = backend_service_lookup_key(&client_id);
+
+    let existing_user_id = ctx
         .kv_store
-        .read(format_to_dragonfly_key(KEY_PREFIX, &internal_key))
+        .read(lookup_key.clone())
         .await
         .map_err(|e| TokenGrantError {
             error: TokenGrantErrorKind::ServerError,
             error_description: e.to_string(),
-        })?
-        .map(Principal::from_text)
-        .transpose()
-        .map_err(|_| TokenGrantError {
-            error: TokenGrantErrorKind::ServerError,
-            error_description: "Invalid principal in KV".to_string(),
         })?;
 
-    if let Some(principal) = princ_res {
+    if let Some(user_id) = existing_user_id {
         return generate_access_token(
             ctx,
-            principal,
+            &user_id,
             &client_id,
             None,
             false,
@@ -415,39 +381,36 @@ async fn client_credentials_grant_for_backend(
         .await;
     }
 
-    let identity = generate_random_identity_and_save(&ctx.kv_store)
-        .await
-        .map_err(|e| TokenGrantError {
-            error: TokenGrantErrorKind::ServerError,
-            error_description: e.to_string(),
-        })?;
-    let principal = identity.sender().unwrap();
-
+    let new_user_id = generate_user_id();
 
     ctx.kv_store
-        .write(
-            format_to_dragonfly_key(KEY_PREFIX, &internal_key),
-            principal.to_text(),
-        )
+        .write(lookup_key, new_user_id.clone())
         .await
         .map_err(|e| TokenGrantError {
             error: TokenGrantErrorKind::ServerError,
             error_description: e.to_string(),
         })?;
 
-    let grant = generate_access_token_with_identity(
-        ctx,
-        identity,
+    ctx.kv_store
+        .write(user_existence_key(&new_user_id), "1".to_string())
+        .await
+        .map_err(|e| TokenGrantError {
+            error: TokenGrantErrorKind::ServerError,
+            error_description: e.to_string(),
+        })?;
+
+    Ok(build_token_grant(
+        &ctx.jwk_pairs.auth_tokens.encoding_key,
+        &new_user_id,
         &client_id,
         None,
         false,
-        res,
+        res.access_max_age,
+        res.refresh_max_age,
         None,
         Vec::new(),
         &server_url,
-    );
-
-    Ok(grant)
+    ))
 }
 
 async fn handle_client_credentials_grant(
@@ -461,24 +424,26 @@ async fn handle_client_credentials_grant(
         return client_credentials_grant_for_backend(ctx, client_id, validation_res).await;
     }
 
-    let identity = generate_random_identity_and_save(&ctx.kv_store)
+    let new_user_id = generate_user_id();
+
+    ctx.kv_store
+        .write(user_existence_key(&new_user_id), "1".to_string())
         .await
         .map_err(|e| TokenGrantError {
             error: TokenGrantErrorKind::ServerError,
             error_description: e.to_string(),
         })?;
 
-    let grant = generate_access_token_with_identity(
-        ctx,
-        identity,
+    Ok(build_token_grant(
+        &ctx.jwk_pairs.auth_tokens.encoding_key,
+        &new_user_id,
         &client_id,
         None,
         true,
-        validation_res,
+        validation_res.access_max_age,
+        validation_res.refresh_max_age,
         None,
         Vec::new(),
         server_url,
-    );
-
-    Ok(grant)
+    ))
 }

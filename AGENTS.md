@@ -130,6 +130,26 @@ Always use well-named, descriptive variable and type names. Never use shortened 
 
 Modern IDEs and language tooling make long names ergonomic regardless of language. Descriptive names serve as inline documentation and make grep/code-search effective. Abbreviations create cognitive overhead and inconsistency.
 
+### Pure Functions & Thin API Wrappers (Hard Rule)
+All business logic must be implemented as **pure functions** — no I/O, no side effects, no external service calls. Functions that call external APIs (HTTP, database, KV store, IC canister, SpacetimeDB, etc.) must be **thin wrappers** that delegate to pure functions for all logic. This applies to all application code (Rust, Kotlin, TypeScript, etc.):
+
+- **Pure functions** take inputs, return outputs, and have no side effects. They contain all business logic: validation, transformation, computation, decision-making.
+- **Thin wrappers** handle only I/O: calling the external API, passing the result to a pure function, and returning/writing the result. No business logic in wrappers.
+- **Unit tests** must be written for all pure functions. Thin wrappers are tested via integration tests (which may require external services).
+- When touching existing code that mixes logic and I/O, refactor to separate the two in the same change.
+
+Example pattern:
+```rust
+// Pure — fully testable
+pub fn build_token_claims(user_id: &str, issuer: &str, ...) -> AccessTokenClaims { ... }
+
+// Thin wrapper — just I/O + delegation
+pub async fn generate_token(ctx: &ServerCtx, user_id: &str) -> Result<String, Error> {
+    let claims = build_token_claims(user_id, &ctx.server_url, ...);
+    Ok(jsonwebtoken::encode(&header(), &claims, &ctx.encoding_key)?)
+}
+```
+
 ### Workspace Dependency Versioning (Hard Rule)
 All dependency **versions** must be declared once in the root `Cargo.toml` `[workspace.dependencies]` section — never specify versions in individual member `Cargo.toml` files. Member crates use `{ workspace = true }` (optionally adding `features = [...]` if needed). This keeps all members in sync and avoids version drift. If a new dependency is needed, add it to `[workspace.dependencies]` first, then reference it with `workspace = true` in the member.
 

@@ -12,14 +12,14 @@ pub const SELF_SERVICE_CLIENT_ID: &str = "7a2f3b8c-1d4e-4f5a-9b6c-7d8e9f0a1b2c";
 // Server functions (defined here so client stubs are available on hydrate)
 // ---------------------------------------------------------------------------
 
-/// Returns the authenticated principal from the session cookie, if any.
+/// Returns the authenticated user ID from the session cookie, if any.
 #[server(endpoint = "get_delete_account_session")]
 pub async fn get_delete_account_session() -> Result<Option<String>, ServerFnError> {
     #[cfg(feature = "ssr")]
     {
-        use crate::api::delete_account::read_session_principal;
-        let principal = read_session_principal().await?;
-        Ok(principal.map(|p| p.to_text()))
+        use crate::api::delete_account::read_session_user_id;
+        let user_id = read_session_user_id().await?;
+        Ok(user_id)
     }
     #[cfg(not(feature = "ssr"))]
     {

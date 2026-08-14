@@ -3,18 +3,14 @@ pub mod jwk_cache;
 #[cfg(feature = "ssr")]
 pub mod jwt;
 
+use crate::{consts::ACCESS_TOKEN_MAX_AGE, error::AuthErrorKind};
+use base64::{prelude::BASE64_URL_SAFE_NO_PAD, Engine};
+use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Display},
     str::FromStr,
 };
-
-use base64::{prelude::BASE64_URL_SAFE_NO_PAD, Engine};
-use candid::Principal;
-use serde::{Deserialize, Serialize};
 use url::Url;
-use identity::Signature;
-
-use crate::{consts::ACCESS_TOKEN_MAX_AGE, error::AuthErrorKind};
 
 pub mod client_validation;
 
@@ -174,22 +170,6 @@ impl FromStr for CodeChallenge {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct AuthLoginHint {
-    pub user_principal: Principal,
-    pub signature: Signature,
-}
-
-impl FromStr for AuthLoginHint {
-    type Err = AuthErrorKind;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let res: Self = serde_json::from_str(s).map_err(|_| AuthErrorKind::InvalidLoginHint)?;
-
-        Ok(res)
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 
 pub struct AuthQuery {
@@ -200,7 +180,6 @@ pub struct AuthQuery {
     pub code_challenge: CodeChallenge,
     pub code_challenge_method: CodeChallengeMethod,
     pub nonce: Option<String>,
-    pub login_hint: Option<AuthLoginHint>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

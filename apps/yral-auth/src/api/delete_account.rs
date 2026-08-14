@@ -12,34 +12,21 @@ use axum_extra::extract::{
     cookie::{Cookie, SameSite},
     PrivateCookieJar,
 };
-use candid::Principal;
-use ic_agent::{
-    identity::{Delegation, Secp256k1Identity, SignedDelegation},
-    Identity,
-};
 use leptos::prelude::*;
 use leptos_axum::{extract_with_state, ResponseOptions};
 use web_time::Duration;
-use types::delegated_identity::DelegatedIdentityWire;
 
 use crate::{
     consts::OFF_CHAIN_AGENT_URL,
     context::server::{expect_server_ctx, ServerCtx},
-    kv::{
-        format_to_dragonfly_key, KEY_PREFIX,
-        KVStore,
-    },
-    utils::time::current_epoch,
+    kv::KVStore,
 };
 
-/// Cookie name for the account session (stores the user's principal text).
+/// Cookie name for the account session (stores the user's ID).
 pub const DELETE_ACCOUNT_SESSION_COOKIE: &str = "delete-account-session";
 
 /// Cookie max age: 10 minutes.
 const SESSION_COOKIE_MAX_AGE: Duration = Duration::from_secs(10 * 60);
-
-/// Delegation max age for the delete-request identity: 10 minutes.
-const DELETE_DELEGATION_MAX_AGE: Duration = Duration::from_secs(10 * 60);
 
 /// Self-service OAuth client ID (registered in the whitelist).
 pub const SELF_SERVICE_CLIENT_ID: &str = "7a2f3b8c-1d4e-4f5a-9b6c-7d8e9f0a1b2c";
@@ -48,28 +35,20 @@ pub const SELF_SERVICE_CLIENT_ID: &str = "7a2f3b8c-1d4e-4f5a-9b6c-7d8e9f0a1b2c";
 // Session cookie helpers
 // ---------------------------------------------------------------------------
 
-/// Reads the authenticated principal from the encrypted session cookie.
-pub async fn read_session_principal() -> Result<Option<Principal>, ServerFnError> {
+/// Reads the authenticated user ID from the encrypted session cookie.
+pub async fn read_session_user_id() -> Result<Option<String>, ServerFnError> {
     let ctx = expect_server_ctx();
     let jar: PrivateCookieJar = extract_with_state(&ctx.cookie_key)
         .await
         .map_err(|e| ServerFnError::new(format!("Failed to extract cookie jar: {e:?}")))?;
 
-    let principal_str = jar
+    Ok(jar
         .get(DELETE_ACCOUNT_SESSION_COOKIE)
-        .map(|c| c.value().to_string());
-    match principal_str {
-        Some(s) => {
-            let principal = Principal::from_text(&s)
-                .map_err(|_| ServerFnError::new("Invalid principal in session cookie"))?;
-            Ok(Some(principal))
-        }
-        None => Ok(None),
-    }
+        .map(|c| c.value().to_string()))
 }
 
-/// Stores the principal in the encrypted session cookie.
-async fn set_session_principal(principal: &Principal) -> Result<(), ServerFnError> {
+/// Stores the user ID in the encrypted session cookie.
+async fn set_session_user_id(user_id: &str) -> Result<(), ServerFnError> {
     use axum::http::header;
 
     let ctx = expect_server_ctx();
@@ -78,7 +57,7 @@ async fn set_session_principal(principal: &Principal) -> Result<(), ServerFnErro
         .map_err(|e| ServerFnError::new(format!("Failed to extract cookie jar: {e:?}")))?;
 
     let cookie_life = SESSION_COOKIE_MAX_AGE.try_into().unwrap();
-    let cookie = Cookie::build((DELETE_ACCOUNT_SESSION_COOKIE, principal.to_text()))
+    let cookie = Cookie::build((DELETE_ACCOUNT_SESSION_COOKIE, user_id.to_string()))
         .same_site(SameSite::Lax)
         .secure(true)
         .path("/")
@@ -137,47 +116,11 @@ pub async fn clear_session_principal() -> Result<(), ServerFnError> {
 }
 
 // ---------------------------------------------------------------------------
-// Delegated identity creation
-// ---------------------------------------------------------------------------
-
-/// Creates a short-lived `DelegatedIdentityWire` from the user's root secret key.
-fn create_delegated_identity(
-    secret_key: &k256::SecretKey,
-    max_age: Duration,
-) -> DelegatedIdentityWire {
-    let from_identity = Secp256k1Identity::from_private_key(secret_key.clone());
-
-    let to_secret = k256::SecretKey::random(&mut rand::rngs::OsRng);
-    let to_secret_jwk = to_secret.to_jwk();
-    let to_identity = Secp256k1Identity::from_private_key(to_secret);
-
-    let expiry = current_epoch() + max_age;
-    let delegation = Delegation {
-        pubkey: to_identity.public_key().unwrap(),
-        expiration: expiry.as_nanos() as u64,
-        targets: None,
-        permissions: None,
-    };
-
-    let sig = from_identity.sign_delegation(&delegation).unwrap();
-    let signed_delegation = SignedDelegation {
-        delegation,
-        signature: sig.signature.unwrap(),
-    };
-
-    DelegatedIdentityWire {
-        from_key: sig.public_key.unwrap(),
-        to_secret: to_secret_jwk,
-        delegation_chain: vec![signed_delegation],
-    }
-}
-
-// ---------------------------------------------------------------------------
 // Public impl functions (called from #[server] fns in page files)
 // ---------------------------------------------------------------------------
 
 /// Completes the OAuth login by decoding the auth code JWT and storing
-/// the principal in an encrypted session cookie.
+/// the user ID in an encrypted session cookie.
 pub async fn complete_account_login_impl(code: String) -> Result<(), ServerFnError> {
     use crate::oauth::jwt::AuthCodeClaims;
 
@@ -194,59 +137,62 @@ pub async fn complete_account_login_impl(code: String) -> Result<(), ServerFnErr
     )
     .map_err(|e| ServerFnError::new(format!("Failed to decode auth code: {e}")))?;
 
-    let principal = auth_code.claims.sub;
+    let user_id = auth_code.claims.sub;
 
-    set_session_principal(&principal).await?;
+    set_session_user_id(&user_id).await?;
 
     Ok(())
 }
 
 /// Deletes the user's account.
 ///
-/// Reads the principal from the session cookie, looks up the root identity
-/// in KV, creates a short-lived delegated identity, and calls the off-chain
-/// agent's `DELETE /api/v1/user` endpoint.
+/// Reads the user ID from the session cookie, generates an access token,
+/// and calls the off-chain agent's `DELETE /api/v1/user` endpoint with
+/// the token as a Bearer header.
 pub async fn delete_account_impl() -> Result<(), ServerFnError> {
     let ctx = expect_context::<Arc<ServerCtx>>();
 
-    // 1. Read the principal from the session cookie
-    let principal = read_session_principal()
+    // 1. Read the user ID from the session cookie
+    let user_id = read_session_user_id()
         .await?
         .ok_or_else(|| ServerFnError::new("Not authenticated"))?;
 
-    // 2. Look up the root identity secret key in KV
-    let identity_jwk = ctx
-        .kv_store
-        .read(format_to_dragonfly_key(
-            KEY_PREFIX,
-            &principal.to_text(),
-        ))
+    // 2. Generate a short-lived access token for the user
+    let server_url = crate::utils::server_url::get_server_url_from_request()
         .await
-        .map_err(|e| ServerFnError::new(format!("KV error: {e}")))?
-        .ok_or_else(|| ServerFnError::new("User not found"))?;
+        .map_err(|e| ServerFnError::new(format!("Failed to get server URL: {e}")))?;
 
-    let sk = k256::SecretKey::from_jwk_str(&identity_jwk)
-        .map_err(|_| ServerFnError::new("Invalid identity in store"))?;
+    let access_token = crate::oauth::jwt::generate::generate_access_token_and_id_token_jwt(
+        &ctx.jwk_pairs.auth_tokens.encoding_key,
+        &user_id,
+        SELF_SERVICE_CLIENT_ID,
+        None,
+        false,
+        Duration::from_secs(10 * 60),
+        None,
+        Vec::new(),
+        &server_url,
+    ).0; // Take only the access token
 
-    // 3. Create a short-lived delegated identity
-    let delegated_identity = create_delegated_identity(&sk, DELETE_DELEGATION_MAX_AGE);
-
-    // 4. Call the off-chain agent's delete endpoint
+    // 3. Call the off-chain agent's delete endpoint with Bearer token
     let client = reqwest::Client::new();
-    let body = serde_json::json!({
-        "delegated_identity_wire": delegated_identity
-    });
-
     let url = OFF_CHAIN_AGENT_URL.join("api/v1/user").unwrap();
 
     let response = client
         .delete(url)
-        .json(&body)
+        .bearer_auth(&access_token)
         .send()
         .await
         .map_err(|e| ServerFnError::new(format!("Failed to call delete API: {e}")))?;
 
     if response.status().is_success() {
+        // 4. Delete user data from KV
+        let existence_key = format!("user:{user_id}");
+        ctx.kv_store
+            .write(existence_key, "".to_string())
+            .await
+            .map_err(|e| ServerFnError::new(format!("KV error: {e}")))?;
+
         // 5. Clear the session cookie
         clear_session_principal().await?;
         Ok(())

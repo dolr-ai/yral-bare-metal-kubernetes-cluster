@@ -10,7 +10,7 @@
 //!
 //! yral-auth already mints ES256 JWTs (`id_token`) with:
 //! - `iss` = the yral-auth server URL (e.g. `https://auth.yral.com`)
-//! - `sub` = the user's IC Principal (as text)
+//! - `sub` = the user's OAuth `sub` (a string, e.g. Google account ID)
 //!
 //! Therefore, the existing yral-auth `id_token` IS the SpacetimeDB token.
 //! No separate token minting, no KV storage, no Dragonfly/Redis needed.
@@ -19,21 +19,18 @@
 //!
 //! ## No vendor lock-in
 //!
-//! User auth details (Google/Apple/WhatsApp OAuth, IC identity keys) live
-//! in yral-auth — fully under your control. The JWT is signed by yral-auth's
-//! own ES256 key. If you migrate from Maincloud to self-hosted SpacetimeDB,
-//! the same JWTs still work — just point clients at the new server URL.
+//! User auth details (Google/Apple/WhatsApp OAuth) live in yral-auth —
+//! fully under your control. The JWT is signed by yral-auth's own ES256 key.
+//! If you migrate from Maincloud to self-hosted SpacetimeDB, the same JWTs
+//! still work — just point clients at the new server URL.
 //!
 //! ## What this module provides
 //!
-//! - `spacetime_identity_for_principal`: compute the SpacetimeDB `Identity`
-//!   for a given IC principal + yral-auth issuer URL. Used by the backfill
-//!   test (to map IC principal → SpacetimeDB identity) and the `ADMINS`
-//!   constant in the SpacetimeDB module.
+//! - `spacetime_identity_for_user_id`: compute the SpacetimeDB `Identity`
+//!   for a given user ID + yral-auth issuer URL.
 //! - `EXT_SPACETIMEDB_TOKEN_CLAIM`: the JWT claim key that signals to clients
 //!   that the `id_token` can be used as a SpacetimeDB token.
 
-use candid::Principal;
 use spacetimedb_sdk::Identity;
 
 /// The JWT claim key that tells clients "this id_token is also a valid
@@ -45,19 +42,13 @@ use spacetimedb_sdk::Identity;
 pub const EXT_SPACETIMEDB_TOKEN_CLAIM: &str = "ext_spacetimedb_token";
 
 /// Compute the SpacetimeDB `Identity` that SpacetimeDB will derive for a
-/// given IC principal + yral-auth issuer URL.
+/// given user ID + yral-auth issuer URL.
 ///
 /// This mirrors SpacetimeDB's `Identity::from_claims(issuer, subject)`
 /// which hashes the `iss` + `sub` claims to produce a deterministic
-/// identity. The same principal + issuer always produces the same identity.
-///
-/// Used by:
-/// - The backfill test (to map IC principal → SpacetimeDB identity)
-/// - Logging/debugging in yral-auth
-/// - The `ADMINS` constant in the SpacetimeDB module (to compute admin
-///   identities from their IC principals)
-pub fn spacetime_identity_for_principal(issuer: &str, principal: &Principal) -> Identity {
-    Identity::from_claims(issuer, &principal.to_text())
+/// identity. The same user ID + issuer always produces the same identity.
+pub fn spacetime_identity_for_user_id(issuer: &str, user_id: &str) -> Identity {
+    Identity::from_claims(issuer, user_id)
 }
 
 #[cfg(test)]

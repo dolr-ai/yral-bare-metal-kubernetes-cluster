@@ -1,102 +1,84 @@
-use candid::Principal;
-use ic_agent::Identity;
-
 use crate::{
     error::AuthErrorKind,
-    kv::{
-        format_to_dragonfly_key, KEY_PREFIX,
-        KVStore, KVStoreImpl,
-    },
-    oauth::{AuthLoginHint, SupportedOAuthProviders},
-    utils::identity::generate_random_identity_and_save,
+    kv::{KVStore, KVStoreImpl},
+    oauth::SupportedOAuthProviders,
+    utils::user_id::generate_user_id,
 };
 
-pub fn login_hint_message() -> identity::msg_builder::Message {
-    use identity::msg_builder::Message;
-
-    Message::default().method_name("yral_auth_v2_login_hint".into())
-}
-
-pub fn principal_lookup_key(provider: SupportedOAuthProviders, sub_id: &str) -> String {
+/// KV key for OAuth provider → user ID mapping.
+/// Pure function.
+pub fn oauth_lookup_key(provider: SupportedOAuthProviders, sub_id: &str) -> String {
     format!("{provider}-login-{sub_id}")
 }
 
-pub async fn try_extract_principal_from_oauth_sub(
+/// KV key for user existence marker.
+fn user_existence_key(user_id: &str) -> String {
+    format!("user:{user_id}")
+}
+
+/// Look up an existing user ID by OAuth provider + sub.
+/// Returns `None` if the user doesn't exist yet.
+pub async fn try_extract_user_id_from_oauth_sub(
     provider: SupportedOAuthProviders,
     kv: &KVStoreImpl,
     sub_id: &str,
     email: Option<&str>,
 ) -> Result<Option<String>, AuthErrorKind> {
-    let key = principal_lookup_key(provider, sub_id);
-    let formatted_key = format_to_dragonfly_key(KEY_PREFIX, &key);
-    let Some(principal_str) = kv
-        .read(formatted_key)
-        .await
-        .map_err(AuthErrorKind::unexpected)?
-    else {
-        log::debug!("No principal found for {provider} : {email:?}");
+    let key = oauth_lookup_key(provider, sub_id);
+    let Some(user_id) = kv.read(key).await.map_err(AuthErrorKind::unexpected)? else {
+        log::debug!("No user found for {provider} : {email:?}");
         return Ok(None);
     };
 
-    log::debug!("Found principal {principal_str} for {provider} : {email:?}");
+    log::debug!("Found user {user_id} for {provider} : {email:?}");
 
     if kv
-        .has_key(format_to_dragonfly_key(KEY_PREFIX, &principal_str))
+        .has_key(user_existence_key(&user_id))
         .await
         .map_err(AuthErrorKind::unexpected)?
     {
-        log::debug!("Principal {principal_str} is valid for {provider} : {email:?}");
-        Ok(Some(principal_str))
+        log::debug!("User {user_id} is valid for {provider} : {email:?}");
+        Ok(Some(user_id))
     } else if email
         .map(|e| e.ends_with("@gobazzinga.io"))
         .unwrap_or(false)
     {
-        log::debug!("Principal {principal_str} is banned, but email {email:?} is whitelisted");
-        // Allow whitelisted users to create a new account
+        log::debug!("User {user_id} is banned, but email {email:?} is whitelisted");
         Ok(None)
     } else {
-        // User had deleted their account,
-        // don't allow creation of new account again
-        log::debug!("Principal {principal_str} is banned for {provider} : {email:?}");
-        // Temporarily allow banned users to create a new account
+        log::debug!("User {user_id} is banned for {provider} : {email:?}");
         Ok(None)
     }
 }
 
-pub async fn principal_from_login_hint_or_generate_and_save(
+/// Get or create a user ID for an OAuth login.
+/// The OAuth `sub` is used directly as the user ID.
+/// Thin wrapper — stores the mapping in KV.
+pub async fn user_id_from_oauth_or_create(
     provider: SupportedOAuthProviders,
     kv: &KVStoreImpl,
     sub_id: &str,
-    login_hint: Option<AuthLoginHint>,
     email: Option<&str>,
-) -> Result<Principal, AuthErrorKind> {
-    let user_principal = if let Some(login_hint) = login_hint {
-        let msg = login_hint_message();
-        login_hint
-            .signature
-            .verify_identity(login_hint.user_principal, msg)
-            .map_err(|_| AuthErrorKind::InvalidLoginHint)?;
-        log::debug!(
-            "Using login hint principal {} for provider {provider} for email {email:?}",
-            login_hint.user_principal.to_text()
-        );
-        login_hint.user_principal
-    } else {
-        log::debug!(
-            "No login hint provided, generating new principal for provider {provider} for email {email:?}"
-        );
-        let identity = generate_random_identity_and_save(kv)
-            .await
-            .map_err(|_| AuthErrorKind::unexpected("failed to generate id"))?;
-        identity.sender().unwrap()
-    };
+) -> Result<String, AuthErrorKind> {
+    // Check if user already exists
+    if let Some(existing_user_id) =
+        try_extract_user_id_from_oauth_sub(provider, kv, sub_id, email).await?
+    {
+        return Ok(existing_user_id);
+    }
 
-    kv.write(
-        format_to_dragonfly_key(KEY_PREFIX, &principal_lookup_key(provider, sub_id)),
-        user_principal.to_text(),
-    )
-    .await
-    .map_err(|_| AuthErrorKind::unexpected("failed to associated id with oauth"))?;
+    // New user — use the OAuth sub as the user ID
+    let user_id = sub_id.to_string();
 
-    Ok(user_principal)
+    // Store: OAuth provider+sub → user_id
+    kv.write(oauth_lookup_key(provider, sub_id), user_id.clone())
+        .await
+        .map_err(|_| AuthErrorKind::unexpected("failed to associate id with oauth"))?;
+
+    // Store: existence marker
+    kv.write(user_existence_key(&user_id), "1".to_string())
+        .await
+        .map_err(|_| AuthErrorKind::unexpected("failed to write existence marker"))?;
+
+    Ok(user_id)
 }

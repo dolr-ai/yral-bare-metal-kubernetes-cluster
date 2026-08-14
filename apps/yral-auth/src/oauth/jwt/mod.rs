@@ -1,8 +1,6 @@
-use candid::Principal;
 use jsonwebtoken::jwk::Jwk;
 use serde::{Deserialize, Serialize};
 use url::Url;
-use types::delegated_identity::DelegatedIdentityWire;
 
 use super::CodeChallenge;
 
@@ -14,7 +12,7 @@ pub struct AuthCodeClaims {
     exp: usize,
     iat: usize,
     iss: String,
-    pub sub: Principal,
+    pub sub: String,
     pub ext_redirect_uri: Url,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nonce: Option<String>,
@@ -29,7 +27,7 @@ pub struct AccessTokenClaims {
     exp: usize,
     iat: usize,
     iss: String,
-    sub: Principal,
+    sub: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     nonce: Option<String>,
     ext_is_anonymous: bool,
@@ -41,15 +39,15 @@ pub struct IdTokenClaims {
     exp: usize,
     iat: usize,
     iss: String,
-    sub: Principal,
+    sub: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     nonce: Option<String>,
     ext_is_anonymous: bool,
-    ext_delegated_identity: DelegatedIdentityWire,
     #[serde(skip_serializing_if = "Option::is_none")]
     email: Option<String>,
+    /// AI account user IDs owned by this user (for influencer bots).
     #[serde(default)]
-    ext_ai_account_delegated_identities: Vec<DelegatedIdentityWire>,
+    ext_ai_account_ids: Vec<String>,
     /// Signals to clients that this `id_token` is also a valid SpacetimeDB
     /// token — pass it to `DbConnection::builder().with_token(id_token)`.
     /// SpacetimeDB derives a deterministic `Identity` from the `iss` + `sub`
@@ -64,7 +62,7 @@ pub struct RefreshTokenClaims {
     exp: usize,
     iat: usize,
     iss: String,
-    pub sub: Principal,
+    pub sub: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     nonce: Option<String>,
     pub ext_is_anonymous: bool,

@@ -1,7 +1,12 @@
-use ic_agent::Identity;
-use std::borrow::Cow;
-use web_time::Duration;
-
+use crate::{
+    api::identity_provider::{try_extract_user_id_from_oauth_sub, user_id_from_oauth_or_create},
+    context::server::expect_server_ctx,
+    error::AuthErrorKind,
+    kv::{KVStore, KVStoreImpl},
+    oauth::{jwt::generate::generate_code_grant_jwt, AuthQuery, SupportedOAuthProviders},
+    oauth_provider::OAuthProvider,
+    utils::server_url::get_server_url_from_request,
+};
 use axum::{
     extract::Form,
     http::header,
@@ -12,29 +17,15 @@ use axum_extra::extract::{
     PrivateCookieJar,
 };
 use base64::{prelude::BASE64_URL_SAFE, Engine};
-use candid::Principal;
 use leptos::prelude::{expect_context, ServerFnError};
 use leptos_axum::{extract_with_state, ResponseOptions};
 use openidconnect::{
     core::CoreAuthenticationFlow, AuthorizationCode, CsrfToken, Nonce, PkceCodeChallenge,
-    PkceCodeVerifier, RedirectUrl, Scope,
+    PkceCodeVerifier, RedirectUrl,
 };
 use serde::{Deserialize, Serialize};
-
-use crate::{
-    api::identity_provider::login_hint_message,
-    context::server::expect_server_ctx,
-    error::AuthErrorKind,
-    kv::{
-        format_to_dragonfly_key, KEY_PREFIX,
-        KVStore, KVStoreImpl,
-    },
-    oauth::{
-        jwt::generate::generate_code_grant_jwt, AuthLoginHint, AuthQuery, SupportedOAuthProviders,
-    },
-    oauth_provider::OAuthProvider,
-    utils::{identity::generate_random_identity_and_save, server_url::get_server_url_from_request},
-};
+use std::borrow::Cow;
+use web_time::Duration;
 
 const PKCE_VERIFIER_COOKIE: &str = "oauth-pkce-verifier";
 const CSRF_TOKEN_COOKIE: &str = "oauth-csrf-token";
@@ -167,90 +158,6 @@ pub async fn get_oauth_url_impl(
     Ok(auth_url.to_string())
 }
 
-fn principal_lookup_key(provider: SupportedOAuthProviders, sub_id: &str) -> String {
-    format!("{provider}-login-{sub_id}")
-}
-
-async fn try_extract_principal_from_oauth_sub(
-    provider: SupportedOAuthProviders,
-    kv: &KVStoreImpl,
-    sub_id: &str,
-    email: Option<&str>,
-) -> Result<Option<String>, AuthErrorKind> {
-    let key = principal_lookup_key(provider, sub_id);
-    let formatted_key = format_to_dragonfly_key(KEY_PREFIX, &key);
-    let Some(principal_str) = kv
-        .read(formatted_key)
-        .await
-        .map_err(AuthErrorKind::unexpected)?
-    else {
-        log::debug!("No principal found for {provider} : {email:?}");
-        return Ok(None);
-    };
-
-    log::debug!("Found principal {principal_str} for {provider} : {email:?}");
-
-    if kv
-        .has_key(format_to_dragonfly_key(KEY_PREFIX, &principal_str))
-        .await
-        .map_err(AuthErrorKind::unexpected)?
-    {
-        log::debug!("Principal {principal_str} is valid for {provider} : {email:?}");
-        Ok(Some(principal_str))
-    } else if email
-        .map(|e| e.ends_with("@gobazzinga.io"))
-        .unwrap_or(false)
-    {
-        log::debug!("Principal {principal_str} is banned, but email {email:?} is whitelisted");
-        // Allow whitelisted users to create a new account
-        Ok(None)
-    } else {
-        // User had deleted their account,
-        // don't allow creation of new account again
-        log::debug!("Principal {principal_str} is banned for {provider} : {email:?}");
-        // Temporarily allow banned users to create a new account
-        Ok(None)
-    }
-}
-
-async fn principal_from_login_hint_or_generate_and_save(
-    provider: SupportedOAuthProviders,
-    kv: &KVStoreImpl,
-    sub_id: &str,
-    login_hint: Option<AuthLoginHint>,
-    email: Option<&str>,
-) -> Result<Principal, AuthErrorKind> {
-    let user_principal = if let Some(login_hint) = login_hint {
-        let msg = login_hint_message();
-        login_hint
-            .signature
-            .verify_identity(login_hint.user_principal, msg)
-            .map_err(|_| AuthErrorKind::InvalidLoginHint)?;
-        log::debug!(
-            "Using login hint principal {} for provider {provider} for email {email:?}",
-            login_hint.user_principal.to_text()
-        );
-        login_hint.user_principal
-    } else {
-        log::debug!(
-            "No login hint provided, generating new principal for provider {provider} for email {email:?}"
-        );
-        let identity = generate_random_identity_and_save(kv)
-            .await
-            .map_err(|_| AuthErrorKind::unexpected("failed to generate id"))?;
-        identity.sender().unwrap()
-    };
-
-    kv.write(
-        format_to_dragonfly_key(KEY_PREFIX, &principal_lookup_key(provider, sub_id)),
-        user_principal.to_text(),
-    )
-    .await
-    .map_err(|_| AuthErrorKind::unexpected("failed to associated id with oauth"))?;
-
-    Ok(user_principal)
-}
-
 async fn generate_oauth_login_code(
     code: String,
     pkce_verifier: PkceCodeVerifier,
@@ -315,31 +222,9 @@ async fn generate_oauth_login_code(
         email
     );
 
-    let maybe_principal =
-        try_extract_principal_from_oauth_sub(provider, &ctx.kv_store, sub_id, email.as_deref())
-            .await
-            .map_err(|e| {
-                log::error!("Error reading principal from KV: {}", e);
-                e
-            })?;
-    let principal = if let Some(principal_str) = maybe_principal {
-        Principal::from_text(principal_str).map_err(|_| {
-            log::error!(
-                "Invalid principal stored in KV for subject: {}",
-                sub_id.as_str()
-            );
-            AuthErrorKind::unexpected("Invalid principal from KV")
-        })?
-    } else {
-        principal_from_login_hint_or_generate_and_save(
-            provider,
-            &ctx.kv_store,
-            sub_id,
-            query.login_hint.clone(),
-            email.as_deref(),
-        )
-        .await?
-    };
+    let user_id =
+        user_id_from_oauth_or_create(provider, &ctx.kv_store, sub_id.as_str(), email.as_deref())
+            .await?;
 
     let server_url = get_server_url_from_request().await.map_err(|e| {
         log::error!("Failed to get server url for code_grant: {}", e);
@@ -348,7 +233,7 @@ async fn generate_oauth_login_code(
 
     let code_grant = generate_code_grant_jwt(
         &ctx.jwk_pairs.auth_tokens.encoding_key,
-        principal,
+        &user_id,
         &server_url,
         query,
         email,
@@ -426,7 +311,7 @@ pub async fn perform_oauth_login_impl(
 
         Err(e) => {
             let err_msg = e.to_string();
-        log::error!("OAuth error occurred: {err_msg}");
+            log::error!("OAuth error occurred: {err_msg}");
             redirect_uri
                 .query_pairs_mut()
                 .clear()

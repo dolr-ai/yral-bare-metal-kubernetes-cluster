@@ -96,16 +96,12 @@ axum-extra = {
   optional = true
 }
 base64 = { workspace = true }
-candid = { workspace = true }
 console_error_panic_hook = { workspace = true, optional = true }
 console_log = { workspace = true, optional = true }
 enum_dispatch = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true, optional = true }
-ic-agent = { workspace = true }
-identity = { workspace = true }
 jsonwebtoken = { workspace = true, optional = true }
-k256 = { workspace = true, features = ["jwk"], optional = true }
 leptos = { workspace = true }
 leptos_axum = { workspace = true, optional = true }
 leptos_meta = { workspace = true }
@@ -140,13 +136,13 @@ tracing-subscriber = {
 }
 types = { workspace = true }
 url = { workspace = true, features = ["serde"] }
+uuid = { workspace = true, features = ["v4"] }
 wasm-bindgen = { workspace = true, optional = true }
 web-time = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
 jsonwebtoken = { workspace = true }
-k256 = { workspace = true, features = ["jwk"] }
 p256 = { workspace = true, features = ["pkcs8"] }
 rand = { workspace = true }
 redis = {
@@ -172,7 +168,6 @@ hydrate = [
   "dep:console_error_panic_hook",
   "dep:console_log",
   "dep:wasm-bindgen",
-  "ic-agent/wasm-bindgen",
   "leptos/hydrate",
 ]
 phone-auth = []
@@ -183,7 +178,6 @@ ssr = [
   "dep:axum-extra",
   "dep:hex",
   "dep:jsonwebtoken",
-  "dep:k256",
   "dep:leptos_axum",
   "dep:openssl-sys",
   "dep:p256",
@@ -197,7 +191,6 @@ ssr = [
   "dep:tower_governor",
   "dep:tracing",
   "dep:tracing-subscriber",
-  "identity/verify",
   "leptos_meta/ssr",
   "leptos_router/ssr",
   "leptos/ssr",

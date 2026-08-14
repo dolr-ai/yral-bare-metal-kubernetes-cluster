@@ -1,14 +1,11 @@
 use web_time::Duration;
 
-use candid::Principal;
-use types::delegated_identity::DelegatedIdentityWire;
-
 use super::{AccessTokenClaims, AuthCodeClaims, IdTokenClaims, RefreshTokenClaims};
 use crate::{consts::AUTH_TOKEN_KID, oauth::AuthQuery, utils::time::current_epoch_secs};
 
 pub fn generate_code_grant_jwt(
     encoding_key: &jsonwebtoken::EncodingKey,
-    user_principal: Principal,
+    user_id: &str,
     server_url: &str,
     query: AuthQuery,
     email: Option<String>,
@@ -22,7 +19,7 @@ pub fn generate_code_grant_jwt(
             iat,
             exp: iat + 10 * 60,
             iss: server_url.to_string(),
-            sub: user_principal,
+            sub: user_id.to_string(),
             ext_redirect_uri: query.redirect_uri,
             nonce: query.nonce,
             ext_code_challenge_s256: query.code_challenge,
@@ -46,14 +43,13 @@ fn jwt_header() -> jsonwebtoken::Header {
 #[allow(clippy::too_many_arguments)]
 pub fn generate_access_token_and_id_token_jwt(
     encoding_key: &jsonwebtoken::EncodingKey,
-    user_principal: Principal,
-    identity: DelegatedIdentityWire,
+    user_id: &str,
     client_id: &str,
     nonce: Option<String>,
     is_anonymous: bool,
     max_age: Duration,
     email: Option<String>,
-    ai_account_delegated_identities: Vec<DelegatedIdentityWire>,
+    ai_account_ids: Vec<String>,
     server_url: &str,
 ) -> (String, String) {
     let iat = current_epoch_secs();
@@ -63,7 +59,7 @@ pub fn generate_access_token_and_id_token_jwt(
         exp: iat + max_age.as_secs() as usize,
         iat,
         iss: server_url.to_string(),
-        sub: user_principal,
+        sub: user_id.to_string(),
         nonce: nonce.clone(),
         ext_is_anonymous: is_anonymous,
     };
@@ -72,12 +68,11 @@ pub fn generate_access_token_and_id_token_jwt(
         exp: iat + max_age.as_secs() as usize,
         iat,
         iss: server_url.to_string(),
-        sub: user_principal,
+        sub: user_id.to_string(),
         nonce,
         ext_is_anonymous: is_anonymous,
-        ext_delegated_identity: identity,
         email,
-        ext_ai_account_delegated_identities: ai_account_delegated_identities,
+        ext_ai_account_ids: ai_account_ids,
         ext_spacetimedb_token: true,
     };
 
@@ -94,7 +89,7 @@ pub fn generate_access_token_and_id_token_jwt(
 #[allow(clippy::too_many_arguments)]
 pub fn generate_refresh_token_jwt(
     encoding_key: &jsonwebtoken::EncodingKey,
-    user_principal: Principal,
+    user_id: &str,
     client_id: &str,
     nonce: Option<String>,
     is_anonymous: bool,
@@ -111,7 +106,7 @@ pub fn generate_refresh_token_jwt(
             exp: iat + max_age.as_secs() as usize,
             iat,
             iss: server_url.to_string(),
-            sub: user_principal,
+            sub: user_id.to_string(),
             nonce,
             ext_is_anonymous: is_anonymous,
             ext_email: email,
