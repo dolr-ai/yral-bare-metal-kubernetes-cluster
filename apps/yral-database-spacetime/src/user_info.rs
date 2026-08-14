@@ -915,6 +915,7 @@ pub fn upsert_user_profile_batch(
             account_type: UserAccountType::MainAccount { bots: Vec::new() },
             username: entry.username,
             email: entry.email,
+            user_id: None,
         });
     }
 

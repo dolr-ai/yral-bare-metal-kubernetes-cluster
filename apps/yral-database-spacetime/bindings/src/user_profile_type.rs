@@ -26,6 +26,7 @@ pub struct UserProfile {
     pub account_type: UserAccountType,
     pub username: Option<String>,
     pub email: Option<String>,
+    pub user_id: Option<String>,
 }
 
 impl __sdk::InModule for UserProfile {
@@ -52,6 +53,7 @@ pub struct UserProfileCols {
     pub account_type: __sdk::__query_builder::Col<UserProfile, UserAccountType>,
     pub username: __sdk::__query_builder::Col<UserProfile, Option<String>>,
     pub email: __sdk::__query_builder::Col<UserProfile, Option<String>>,
+    pub user_id: __sdk::__query_builder::Col<UserProfile, Option<String>>,
 }
 
 impl __sdk::__query_builder::HasCols for UserProfile {
@@ -77,6 +79,7 @@ impl __sdk::__query_builder::HasCols for UserProfile {
             account_type: __sdk::__query_builder::Col::new(table_name, "account_type"),
             username: __sdk::__query_builder::Col::new(table_name, "username"),
             email: __sdk::__query_builder::Col::new(table_name, "email"),
+            user_id: __sdk::__query_builder::Col::new(table_name, "user_id"),
         }
     }
 }

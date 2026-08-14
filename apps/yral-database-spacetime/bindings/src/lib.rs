@@ -26,16 +26,19 @@ pub mod get_draft_posts_of_user_procedure;
 pub mod get_followers_procedure;
 pub mod get_following_procedure;
 pub mod get_individual_post_details_by_id_procedure;
+pub mod get_notification_tokens_procedure;
 pub mod get_post_by_id_procedure;
 pub mod get_posts_of_user_by_principal_procedure;
 pub mod get_posts_of_user_procedure;
 pub mod get_profile_details_v_4_procedure;
+pub mod get_user_profile_by_user_id_procedure;
 pub mod get_user_profile_details_v_7_procedure;
 pub mod get_users_profile_details_procedure;
 pub mod kv_delete_reducer;
 pub mod kv_get_procedure;
 pub mod kv_get_result_type;
 pub mod kv_set_reducer;
+pub mod link_user_id_reducer;
 pub mod nsfw_info_type;
 pub mod post_details_for_frontend_type;
 pub mod post_list_offset_type;
@@ -48,9 +51,11 @@ pub mod posts_table;
 pub mod posts_v_2_table;
 pub mod profile_picture_data_type;
 pub mod register_new_user_reducer;
+pub mod register_notification_token_reducer;
 pub mod remove_pro_plan_free_video_credits_reducer;
 pub mod subscription_plan_type;
 pub mod unfollow_user_reducer;
+pub mod unregister_notification_token_reducer;
 pub mod update_post_status_reducer;
 pub mod update_profile_ai_influencer_status_reducer;
 pub mod update_profile_details_reducer;
@@ -67,6 +72,8 @@ pub mod user_account_type_type;
 pub mod user_follow_batch_entry_type;
 pub mod user_follow_type;
 pub mod user_follows_table;
+pub mod user_notification_token_type;
+pub mod user_notification_tokens_table;
 pub mod user_profile_batch_entry_type;
 pub mod user_profile_details_v_4_type;
 pub mod user_profile_details_v_7_type;
@@ -94,16 +101,19 @@ pub use get_draft_posts_of_user_procedure::get_draft_posts_of_user;
 pub use get_followers_procedure::get_followers;
 pub use get_following_procedure::get_following;
 pub use get_individual_post_details_by_id_procedure::get_individual_post_details_by_id;
+pub use get_notification_tokens_procedure::get_notification_tokens;
 pub use get_post_by_id_procedure::get_post_by_id;
 pub use get_posts_of_user_by_principal_procedure::get_posts_of_user_by_principal;
 pub use get_posts_of_user_procedure::get_posts_of_user;
 pub use get_profile_details_v_4_procedure::get_profile_details_v_4;
+pub use get_user_profile_by_user_id_procedure::get_user_profile_by_user_id;
 pub use get_user_profile_details_v_7_procedure::get_user_profile_details_v_7;
 pub use get_users_profile_details_procedure::get_users_profile_details;
 pub use kv_delete_reducer::kv_delete;
 pub use kv_get_procedure::kv_get;
 pub use kv_get_result_type::KvGetResult;
 pub use kv_set_reducer::kv_set;
+pub use link_user_id_reducer::link_user_id;
 pub use nsfw_info_type::NsfwInfo;
 pub use post_details_for_frontend_type::PostDetailsForFrontend;
 pub use post_list_offset_type::PostListOffset;
@@ -116,9 +126,11 @@ pub use posts_table::*;
 pub use posts_v_2_table::*;
 pub use profile_picture_data_type::ProfilePictureData;
 pub use register_new_user_reducer::register_new_user;
+pub use register_notification_token_reducer::register_notification_token;
 pub use remove_pro_plan_free_video_credits_reducer::remove_pro_plan_free_video_credits;
 pub use subscription_plan_type::SubscriptionPlan;
 pub use unfollow_user_reducer::unfollow_user;
+pub use unregister_notification_token_reducer::unregister_notification_token;
 pub use update_post_status_reducer::update_post_status;
 pub use update_profile_ai_influencer_status_reducer::update_profile_ai_influencer_status;
 pub use update_profile_details_reducer::update_profile_details;
@@ -135,6 +147,8 @@ pub use user_account_type_type::UserAccountType;
 pub use user_follow_batch_entry_type::UserFollowBatchEntry;
 pub use user_follow_type::UserFollow;
 pub use user_follows_table::*;
+pub use user_notification_token_type::UserNotificationToken;
+pub use user_notification_tokens_table::*;
 pub use user_profile_batch_entry_type::UserProfileBatchEntry;
 pub use user_profile_details_v_4_type::UserProfileDetailsV4;
 pub use user_profile_details_v_7_type::UserProfileDetailsV7;
@@ -191,13 +205,23 @@ pub enum Reducer {
         key: String,
         value: String,
     },
+    LinkUserId {
+        principal_text: String,
+        user_id: String,
+    },
     RegisterNewUser,
+    RegisterNotificationToken {
+        token: String,
+    },
     RemoveProPlanFreeVideoCredits {
         principal_text: String,
         credits: u32,
     },
     UnfollowUser {
         followee_text: String,
+    },
+    UnregisterNotificationToken {
+        token: String,
     },
     UpdatePostStatus {
         post_id: String,
@@ -259,9 +283,12 @@ impl __sdk::Reducer for Reducer {
             Reducer::FollowUser { .. } => "follow_user",
             Reducer::KvDelete { .. } => "kv_delete",
             Reducer::KvSet { .. } => "kv_set",
+            Reducer::LinkUserId { .. } => "link_user_id",
             Reducer::RegisterNewUser => "register_new_user",
+            Reducer::RegisterNotificationToken { .. } => "register_notification_token",
             Reducer::RemoveProPlanFreeVideoCredits { .. } => "remove_pro_plan_free_video_credits",
             Reducer::UnfollowUser { .. } => "unfollow_user",
+            Reducer::UnregisterNotificationToken { .. } => "unregister_notification_token",
             Reducer::UpdatePostStatus { .. } => "update_post_status",
             Reducer::UpdateProfileAiInfluencerStatus { .. } => {
                 "update_profile_ai_influencer_status"
@@ -354,9 +381,21 @@ impl __sdk::Reducer for Reducer {
                 key: key.clone(),
                 value: value.clone(),
             }),
+            Reducer::LinkUserId {
+                principal_text,
+                user_id,
+            } => __sats::bsatn::to_vec(&link_user_id_reducer::LinkUserIdArgs {
+                principal_text: principal_text.clone(),
+                user_id: user_id.clone(),
+            }),
             Reducer::RegisterNewUser => {
                 __sats::bsatn::to_vec(&register_new_user_reducer::RegisterNewUserArgs {})
             }
+            Reducer::RegisterNotificationToken { token } => __sats::bsatn::to_vec(
+                &register_notification_token_reducer::RegisterNotificationTokenArgs {
+                    token: token.clone(),
+                },
+            ),
             Reducer::RemoveProPlanFreeVideoCredits {
                 principal_text,
                 credits,
@@ -371,6 +410,11 @@ impl __sdk::Reducer for Reducer {
                     followee_text: followee_text.clone(),
                 })
             }
+            Reducer::UnregisterNotificationToken { token } => __sats::bsatn::to_vec(
+                &unregister_notification_token_reducer::UnregisterNotificationTokenArgs {
+                    token: token.clone(),
+                },
+            ),
             Reducer::UpdatePostStatus { post_id, status } => {
                 __sats::bsatn::to_vec(&update_post_status_reducer::UpdatePostStatusArgs {
                     post_id: post_id.clone(),
@@ -458,6 +502,7 @@ pub struct DbUpdate {
     posts: __sdk::TableUpdate<Post>,
     posts_v_2: __sdk::TableUpdate<PostV2>,
     user_follows: __sdk::TableUpdate<UserFollow>,
+    user_notification_tokens: __sdk::TableUpdate<UserNotificationToken>,
     user_profiles: __sdk::TableUpdate<UserProfile>,
 }
 
@@ -476,6 +521,9 @@ impl TryFrom<__ws::v2::TransactionUpdate> for DbUpdate {
                 "user_follows" => db_update
                     .user_follows
                     .append(user_follows_table::parse_table_update(table_update)?),
+                "user_notification_tokens" => db_update.user_notification_tokens.append(
+                    user_notification_tokens_table::parse_table_update(table_update)?,
+                ),
                 "user_profiles" => db_update
                     .user_profiles
                     .append(user_profiles_table::parse_table_update(table_update)?),
@@ -514,6 +562,12 @@ impl __sdk::DbUpdate for DbUpdate {
         diff.user_follows = cache
             .apply_diff_to_table::<UserFollow>("user_follows", &self.user_follows)
             .with_updates_by_pk(|row| &row.key);
+        diff.user_notification_tokens = cache
+            .apply_diff_to_table::<UserNotificationToken>(
+                "user_notification_tokens",
+                &self.user_notification_tokens,
+            )
+            .with_updates_by_pk(|row| &row.key);
         diff.user_profiles = cache
             .apply_diff_to_table::<UserProfile>("user_profiles", &self.user_profiles)
             .with_updates_by_pk(|row| &row.principal_text);
@@ -532,6 +586,9 @@ impl __sdk::DbUpdate for DbUpdate {
                     .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
                 "user_follows" => db_update
                     .user_follows
+                    .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
+                "user_notification_tokens" => db_update
+                    .user_notification_tokens
                     .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
                 "user_profiles" => db_update
                     .user_profiles
@@ -558,6 +615,9 @@ impl __sdk::DbUpdate for DbUpdate {
                 "user_follows" => db_update
                     .user_follows
                     .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
+                "user_notification_tokens" => db_update
+                    .user_notification_tokens
+                    .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
                 "user_profiles" => db_update
                     .user_profiles
                     .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
@@ -579,6 +639,7 @@ pub struct AppliedDiff<'r> {
     posts: __sdk::TableAppliedDiff<'r, Post>,
     posts_v_2: __sdk::TableAppliedDiff<'r, PostV2>,
     user_follows: __sdk::TableAppliedDiff<'r, UserFollow>,
+    user_notification_tokens: __sdk::TableAppliedDiff<'r, UserNotificationToken>,
     user_profiles: __sdk::TableAppliedDiff<'r, UserProfile>,
     __unused: std::marker::PhantomData<&'r ()>,
 }
@@ -598,6 +659,11 @@ impl<'r> __sdk::AppliedDiff<'r> for AppliedDiff<'r> {
         callbacks.invoke_table_row_callbacks::<UserFollow>(
             "user_follows",
             &self.user_follows,
+            event,
+        );
+        callbacks.invoke_table_row_callbacks::<UserNotificationToken>(
+            "user_notification_tokens",
+            &self.user_notification_tokens,
             event,
         );
         callbacks.invoke_table_row_callbacks::<UserProfile>(
@@ -1268,8 +1334,14 @@ impl __sdk::SpacetimeModule for RemoteModule {
         posts_table::register_table(client_cache);
         posts_v_2_table::register_table(client_cache);
         user_follows_table::register_table(client_cache);
+        user_notification_tokens_table::register_table(client_cache);
         user_profiles_table::register_table(client_cache);
     }
-    const ALL_TABLE_NAMES: &'static [&'static str] =
-        &["posts", "posts_v2", "user_follows", "user_profiles"];
+    const ALL_TABLE_NAMES: &'static [&'static str] = &[
+        "posts",
+        "posts_v2",
+        "user_follows",
+        "user_notification_tokens",
+        "user_profiles",
+    ];
 }
