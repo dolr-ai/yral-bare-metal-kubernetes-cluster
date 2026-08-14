@@ -135,7 +135,7 @@ tracing-subscriber = {
 }
 types = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-uuid = { workspace = true, features = ["v4"] }
+uuid = { workspace = true, features = ["v4"], optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 web-time = { workspace = true }
 
@@ -189,6 +189,7 @@ ssr = [
   "dep:tower_governor",
   "dep:tracing",
   "dep:tracing-subscriber",
+  "dep:uuid",
   "leptos_meta/ssr",
   "leptos_router/ssr",
   "leptos/ssr",
