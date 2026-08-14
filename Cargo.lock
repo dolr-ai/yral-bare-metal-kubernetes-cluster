@@ -10510,7 +10510,6 @@ dependencies = [
  "p256",
  "postcard",
  "rand 0.8.7",
- "redis 1.4.1",
  "regex",
  "reqwest 0.13.4",
  "rustls 0.23.42",
@@ -10528,7 +10527,6 @@ dependencies = [
  "uuid",
  "wasm-bindgen",
  "web-time",
- "yral-database-spacetime-bindings",
  "yral-types",
 ]
 
