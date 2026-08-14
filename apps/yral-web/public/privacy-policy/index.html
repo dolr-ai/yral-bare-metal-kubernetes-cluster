@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YRAL — Privacy Policy</title>
+  <meta name="description" content="Privacy Policy for the Yral app." />
+  <link rel="icon" href="/assets/yral-favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #08080f;
+      --bg2:     #0d0d1a;
+      --surface: rgba(255,255,255,0.04);
+      --border:  rgba(255,255,255,0.08);
+      --white:   #ffffff;
+      --muted:   rgba(255,255,255,0.65);
+      --muted2:  rgba(255,255,255,0.35);
+      --purple:  #b347ea;
+      --cyan:    #00d4ff;
+      --pink:    #ff006e;
+      --blue:    #3b82f6;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--white);
+      min-height: 100vh;
+      line-height: 1.7;
+    }
+    h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
+
+    a { color: var(--blue); text-decoration: underline; }
+    a:hover { color: var(--cyan); }
+
+    /* ── HEADER ── */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8,8,15,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-logo {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 1.25rem;
+      background: linear-gradient(90deg, var(--cyan) 0%, var(--purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-decoration: none;
+    }
+    .back-link {
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: var(--white); }
+
+    /* ── MAIN ── */
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem 5rem;
+    }
+
+    /* ── PAGE TITLE ── */
+    .page-title {
+      text-align: center;
+      margin-bottom: 2.5rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .page-title h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      background: linear-gradient(90deg, var(--cyan) 0%, var(--purple) 50%, var(--pink) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .page-title .dates {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .page-title .dates p { margin-bottom: 0.25rem; }
+
+    /* ── INTRO ── */
+    .intro {
+      font-size: 0.875rem;
+      color: var(--muted);
+      line-height: 1.8;
+      margin-bottom: 2.5rem;
+    }
+    .intro p { margin-bottom: 0.85rem; }
+    .intro p:last-child { margin-bottom: 0; }
+
+    /* ── SECTION ── */
+    .policy-section {
+      margin-bottom: 2rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .policy-section:last-child { border-bottom: none; }
+
+    .policy-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--white);
+      margin-bottom: 0.85rem;
+    }
+
+    .policy-content {
+      font-size: 0.875rem;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+    .policy-content p { margin-bottom: 0.85rem; }
+    .policy-content p:last-child { margin-bottom: 0; }
+
+    .policy-content ol {
+      list-style: decimal;
+      padding-left: 1.5rem;
+      margin: 0.5rem 0 0.85rem;
+    }
+    .policy-content ul {
+      list-style: disc;
+      padding-left: 1.5rem;
+      margin: 0.5rem 0 0.85rem;
+    }
+    .policy-content li { margin-bottom: 0.5rem; }
+
+    .policy-content ol.nested,
+    .policy-content ul.nested {
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <a href="/" class="header-logo">YRAL</a>
+    <a href="/" class="back-link">← Back to Home</a>
+  </header>
+
+  <main class="container">
+
+    <div class="page-title">
+      <h1>Privacy Policy</h1>
+      <div class="dates">
+        <p><strong>Effective Date:</strong> 13th July 2023</p>
+        <p><strong>Last Updated:</strong> 30th April 2026</p>
+      </div>
+    </div>
+
+    <div class="intro">
+      <p>Yral is operated by <strong>GoBazzinga Inc.</strong>, a Delaware C-Corporation (File No. 6003019), with its registered office at 2055 Limestone Rd STE 200C, Wilmington, DE 19808, USA ("we", "us", "our"). "Yral" encompasses the Yral App, website, features, and associated services. It offers image and video posting capabilities along with various social and interactive features. This Privacy Policy outlines our information practices.</p>
+      <p>By installing, using, or accessing "Yral" or any of its features, you acknowledge that you have read and accepted the terms of this Policy. Additionally, you agree to the "Yral" Terms of Service, and other applicable terms available on the "Yral" App and Website. If you do not agree with these terms, please refrain from using "Yral" or any of its features.</p>
+      <p>This Policy applies to information provided by users while using "Yral" and not to information obtained by "Yral" from other sources. Information acquired from third-party websites, apps, landing pages, etc., accessed through "Yral" by users, will be subject to the privacy policies and terms of those respective platforms.</p>
+      <p>You also warrant and represent that any registration information and other information that you submit or otherwise provide to Yral is true, accurate and complete, and you agree to keep it that way at all times.</p>
+    </div>
+
+    <!-- Information We Collect -->
+    <div class="policy-section">
+      <div class="policy-title">Information We Collect</div>
+      <div class="policy-content">
+        <p>The below information is collected by Yral:</p>
+        <ol>
+          <li>
+            <strong>Information collected with a prompt:</strong>
+            <ul class="nested">
+              <li>In order to use Yral, we may need you to authenticate your account using your Google account.</li>
+              <li>We may ask you for location information and regional preferences to customise your experience by showing you relevant content. Yral may collect and store the current and past location of your device if you permit. You have full control over whether to allow Yral to collect this information by making changes to your device's settings.</li>
+              <li>Customer Support. You may also provide us with information related to your use of Yral, including copies of your messages / posts, and how to contact you so that we can provide you with customer support. For example, you may send us an email with information relating to our app performance, or other issues.</li>
+            </ul>
+          </li>
+          <li>
+            <strong>Information collected without a prompt:</strong>
+            <ul class="nested">
+              <li>
+                <strong>Device Information:</strong> We may collect the below with respect to any device through which Yral is used or accessed:
+                <ul class="nested">
+                  <li>Device Identifiers.</li>
+                  <li>IP Address.</li>
+                  <li>Operating System.</li>
+                  <li>Operating System Version.</li>
+                  <li>Advertising Identifiers.</li>
+                  <li>Device Make.</li>
+                  <li>Display Features.</li>
+                  <li>Network Provider/Wi-Fi or other ISP.</li>
+                  <li>Battery level and usage.</li>
+                  <li>Memory usage.</li>
+                  <li>Other apps or services installed or used through the device.</li>
+                  <li>Content Type and Non-Personal information related to ads.</li>
+                  <li>Profile Information.</li>
+                </ul>
+              </li>
+              <li>Information related to your use of Yral such as content preferences and consumption, interaction with other users, user activity, etc.</li>
+              <li>Yral may access your device's camera, microphone, photo and/or video and/or audio library or gallery.</li>
+              <li>Yral may also collect information provided by third parties who may disclose to Yral personal or non-personal information collected by them. Yral has no control over or responsibility in respect of third-party information practices or information collection methods.</li>
+              <li>Yral may also collect tracking information including cookies, DART, beacons, etc.</li>
+              <li>Usage and Log Information. We collect service-related, diagnostic, and performance information. This includes information about your activity (such as how you use Yral, how you interact with others using Yral, etc.), log files, and diagnostics, crash information, website, and performance logs and reports, etc.</li>
+            </ul>
+          </li>
+          <li>
+            <strong>Information You Share With Our AI Agents:</strong>
+            <p>When you interact with Yral's AI agents, you may voluntarily share information about your interests, routines, goals, and general wellness context. This may include birth date for personalized astrological inputs, food photographs and dietary preferences for diet planning, workout activity and fitness goals, and similar context relevant to the agent you are using.</p>
+            <p>This information is used and stored to personalize your experience with the AI agent and is stored in association with your account. Yral's AI agents do not provide medical advice, diagnosis, treatment, or therapy, and are not substitutes for licensed healthcare, mental health, fitness, or nutrition professionals.</p>
+            <p>You can clear an agent's memory entirely at any time by emailing <a href="mailto:support@yral.com">support@yral.com</a>.</p>
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- Information We Do Not Collect -->
+    <div class="policy-section">
+      <div class="policy-title">Information We Do Not Collect</div>
+      <div class="policy-content">
+        <p>Yral does not collect:</p>
+        <ul>
+          <li>Passwords for any other service</li>
+          <li>Financial account information</li>
+          <li>Government-issued identification numbers</li>
+          <li>Sexual orientation</li>
+          <li>Formal medical records, clinical diagnoses, or prescription history</li>
+          <li>Biometric identifiers</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- How We Use Information -->
+    <div class="policy-section">
+      <div class="policy-title">How We Use Information</div>
+      <div class="policy-content">
+        <p>We may use all the information we have to help us operate, provide, improve, understand, customise, support, and market Yral.</p>
+        <ol>
+          <li><strong>Our Services:</strong> We operate and provide Yral, and improve, fix, and customise Yral by using the said information. We understand how users use Yral, and analyse and use the information that we have to evaluate and improve Yral, research, develop, and test new services and features, and conduct troubleshooting activities. We also use your information to respond to you when you contact us. We may also use your information for (i) displaying content based on interest, location, offers, etc., (ii) displaying or providing access to promotions, advertisements, offers, etc. which may be based on your interests and also ad-targeting, ad-placement, and ad-measurement, (iii) displaying location specific news and weather related information, (iv) improving search results, content loading, performance, etc.</li>
+          <li><strong>Safety and Security:</strong> We also use your information to try and ensure safety and security of our users and their information. We verify accounts and activity, and promote safety and security on and off Yral, such as by investigating suspicious activity or violations of our policies, terms, etc., and to try and ensure that Yral is being used legally.</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- How We Share Information -->
+    <div class="policy-section">
+      <div class="policy-title">How We Share Information</div>
+      <div class="policy-content">
+        <p>We may share your information in ways including the following:</p>
+        <ol>
+          <li>With other Yral users: your username, profile photograph, content that you post or send or share. You may also be able to control how your content is shared with other Yral users by adjusting personal settings.</li>
+          <li>With our business partners, affiliates, investors: public information like your name, username and profile pictures and any content posted by you.</li>
+          <li>We may share information about you with third party service providers who perform services on our behalf, including to measure and optimise the performance of ads and deliver more relevant ads, including on third-party websites and apps.</li>
+          <li>We may share information about you, such as device and usage information, to help us and others prevent fraud.</li>
+          <li>We may share information about you for legal, safety, and security reasons.</li>
+          <li>We may share information about you if we reasonably believe that disclosing the information is needed to: (i) comply with any valid legal process, governmental request, or applicable law, rule, or regulation, (ii) investigate, remedy, or enforce potential violations of this Policy, the Terms of Service and the Community Guidelines.</li>
+          <li>To protect the rights, property, or safety of us, our users, or others.</li>
+          <li>To detect and resolve any fraud or security concerns.</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- Managing Your Google Account Access -->
+    <div class="policy-section">
+      <div class="policy-title">To Manage Access to Your Google Account</div>
+      <div class="policy-content">
+        <ol>
+          <li>Visit your Google Account settings.</li>
+          <li>Navigate to the "Security" section.</li>
+          <li>Look for the "Third-party apps with account access" or similar option. Here, you can view and manage the apps connected to your Google account.</li>
+          <li>Locate "Yral" in the list of connected apps.</li>
+          <li>You can adjust permissions or revoke access to your Google account as needed.</li>
+        </ol>
+        <p>Ensure to review and manage app permissions periodically to maintain control over your account's access rights and security. You can read about how Google helps users share their data safely here: <a href="https://safety.google/privacy/privacy-controls/" target="_blank" rel="noopener noreferrer">https://safety.google/privacy/privacy-controls/</a></p>
+      </div>
+    </div>
+
+    <!-- Security -->
+    <div class="policy-section">
+      <div class="policy-title">Security</div>
+      <div class="policy-content">
+        <p>We implement industry-standard security measures to protect your information, including encryption in transit (HTTPS/TLS), access controls, authentication safeguards, and regular review of our systems and practices. We continuously work to safeguard user data against unauthorised access, alteration, disclosure, or destruction.</p>
+        <p>While we take these measures seriously, no method of transmission over the internet or electronic storage is 100% secure. We cannot guarantee absolute security against events beyond our reasonable control, but we are committed to promptly investigating and responding to any security incident that may affect your information.</p>
+      </div>
+    </div>
+
+    <!-- Assignment, Change of Control, and Transfer -->
+    <div class="policy-section">
+      <div class="policy-title">Assignment, Change of Control, and Transfer</div>
+      <div class="policy-content">
+        <p>All of our rights and obligations under this Policy, the Terms of Service and the Community Guidelines are freely assignable by us to any of our affiliates or any others, in connection with a merger, acquisition, restructuring, or sale of assets, or by operation of law or otherwise, and we may transfer your information to any of our affiliates, any successor entities, or new management, etc.</p>
+      </div>
+    </div>
+
+    <!-- Law and Protection -->
+    <div class="policy-section">
+      <div class="policy-title">Law and Protection</div>
+      <div class="policy-content">
+        <p>We may collect, use, preserve, and share your information if we believe that it may be reasonably necessary to: (a) respond pursuant to applicable law or regulations, to legal process, or to government requests; (i) comply with any valid legal process, governmental request, or applicable law, rule, or regulation, (ii) investigate, remedy, or enforce potential violations of this Policy, the Terms of Service and Community Guidelines, (iii) to protect the rights, property, or safety of us, our users, or others, (iv) to detect and resolve any fraud or security concerns or technical issues, etc., (v) for other legal requirements, etc.</p>
+      </div>
+    </div>
+
+    <!-- Updates to Our Policy -->
+    <div class="policy-section">
+      <div class="policy-title">Updates to Our Policy</div>
+      <div class="policy-content">
+        <p>We may amend or update this Policy. We will provide you notice of amendments to this Policy, as appropriate, and update the "Last Modified" date at the top of this Policy. Your continued use of Yral confirms your acceptance of this Policy, as amended. If you do not agree with or accept this Policy, as amended, you must stop using Yral. Please review our Privacy Policy from time to time.</p>
+      </div>
+    </div>
+
+    <!-- Withdrawal of Consent -->
+    <div class="policy-section">
+      <div class="policy-title">Withdrawal of Consent</div>
+      <div class="policy-content">
+        <p>You also have the right to withdraw your consent at any time and request us to stop processing your data. However, withdrawing your consent will not affect the processing or use of your information prior to fulfilling your consent withdrawal request. You can email us with your registered email address.</p>
+      </div>
+    </div>
+
+    <!-- Right to Opt Out -->
+    <div class="policy-section">
+      <div class="policy-title">Right to Opt Out</div>
+      <div class="policy-content">
+        <p>You can opt out from our use of data from cookies and similar technologies that track your behaviour on the sites of others for ad targeting and other ad-related purposes. You can also opt out of marketing communication. We will ask you to opt-in before we use GPS or other tools to identify your precise location. However, you will continue to receive important emails relating to your account. You can email us with your registered email address to unsubscribe from such communications.</p>
+      </div>
+    </div>
+
+    <!-- Third Party Links -->
+    <div class="policy-section">
+      <div class="policy-title">Third Party Links</div>
+      <div class="policy-content">
+        <p>We are not responsible for any content nor any consequences either directly or indirectly arising out of clicking on any third party link you may come across posted by other users. We may share your information with approved third parties in order to provide our services through the Yral App.</p>
+      </div>
+    </div>
+
+    <!-- Data Transfers -->
+    <div class="policy-section">
+      <div class="policy-title">Data Transfers</div>
+      <div class="policy-content">
+        <p>We may transfer personal information to countries other than the country in which the data was originally collected.</p>
+      </div>
+    </div>
+
+    <!-- Governing Law and Jurisdiction -->
+    <div class="policy-section">
+      <div class="policy-title">Governing Law and Jurisdiction</div>
+      <div class="policy-content">
+        <p>The validity, construction and enforceability of these Terms and Content Policy, the Privacy Policy shall be governed and construed in accordance with the laws of the state of Delaware, United States of America.</p>
+      </div>
+    </div>
+
+    <!-- Contact Us -->
+    <div class="policy-section">
+      <div class="policy-title">Contact Us</div>
+      <div class="policy-content">
+        <p>If you have questions about this Policy, email at: <a href="mailto:support@gobazzinga.io">support@gobazzinga.io</a> or <a href="mailto:support@yral.com">support@yral.com</a></p>
+      </div>
+    </div>
+
+  </main>
+
+</body>
+</html>

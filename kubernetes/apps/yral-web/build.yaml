@@ -1,0 +1,43 @@
+# Shipwright Build CR for yral-web.
+#
+# Defines how to build the yral-web image from source using BuildKit.
+# Source: the monorepo (dolr-ai/yral-bare-metal-kubernetes-cluster) at apps/yral-web/
+# Strategy: buildkit (ClusterBuildStrategy, rootless BuildKit)
+# Output: harbor.yral.com/yral-web/yral-web
+#
+# BuildRuns are created automatically by the Tekton EventListener on git push
+# to main. The EventListener overrides the output image tag with the Git
+# commit SHA. Flux ImagePolicy detects the new SHA tag and updates the deployment.
+---
+apiVersion: shipwright.io/v1beta1
+kind: Build
+metadata:
+  name: yral-web
+  namespace: yral-web
+spec:
+  source:
+    type: Git
+    git:
+      # SSH URL so the infra SSH key (github-ssh-secret) works for both
+      # the main repo clone and submodule clones (submodules use SSH URLs).
+      url: git@github.com:dolr-ai/yral-bare-metal-kubernetes-cluster.git
+      revision: main
+      cloneSecret: github-ssh-secret
+    # No contextDir — use the full repo as build context (needed for local path deps)
+    # contextDir defaults to repo root when omitted
+  strategy:
+    name: buildkit
+    kind: ClusterBuildStrategy
+  paramValues:
+    - name: dockerfile
+      value: apps/yral-web/Dockerfile.buildkit
+    - name: cache
+      value: registry
+  output:
+    image: harbor.yral.com/yral-web/yral-web
+    pushSecret: harbor-pull-secret
+  retention:
+    succeededLimit: 3
+    failedLimit: 3
+    ttlAfterSucceeded: 1h
+    ttlAfterFailed: 24h

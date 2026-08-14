@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YRAL — iOS Terms of Service</title>
+  <meta name="description" content="iOS Terms of Service for the Yral app." />
+  <link rel="icon" href="/assets/yral-favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #08080f;
+      --bg2:     #0d0d1a;
+      --surface: rgba(255,255,255,0.04);
+      --border:  rgba(255,255,255,0.08);
+      --white:   #ffffff;
+      --muted:   rgba(255,255,255,0.65);
+      --muted2:  rgba(255,255,255,0.35);
+      --purple:  #b347ea;
+      --cyan:    #00d4ff;
+      --pink:    #ff006e;
+      --blue:    #3b82f6;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--white);
+      min-height: 100vh;
+      line-height: 1.7;
+    }
+    h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
+
+    a { color: var(--blue); text-decoration: underline; }
+    a:hover { color: var(--cyan); }
+
+    /* ── HEADER ── */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8,8,15,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-logo {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 1.25rem;
+      background: linear-gradient(90deg, var(--cyan) 0%, var(--purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-decoration: none;
+    }
+    .back-link {
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: var(--white); }
+
+    /* ── MAIN ── */
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem 5rem;
+    }
+
+    /* ── PAGE TITLE ── */
+    .page-title {
+      text-align: center;
+      margin-bottom: 2.5rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .page-title h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      background: linear-gradient(90deg, var(--cyan) 0%, var(--purple) 50%, var(--pink) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .page-title .dates {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .page-title .dates p { margin-bottom: 0.25rem; }
+
+    /* ── INTRO ── */
+    .intro {
+      font-size: 0.9rem;
+      color: var(--muted);
+      white-space: pre-line;
+      margin-bottom: 2rem;
+      line-height: 1.8;
+    }
+
+    /* ── SECTION ── */
+    .term-section {
+      margin-bottom: 2rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .term-section:last-child { border-bottom: none; }
+
+    .term-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--white);
+      margin-bottom: 0.85rem;
+    }
+
+    .term-content {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+    .term-content p { margin-bottom: 0.85rem; }
+    .term-content p:last-child { margin-bottom: 0; }
+
+    .term-content ul {
+      list-style: disc;
+      padding-left: 1.5rem;
+      margin: 0.5rem 0 0.85rem;
+    }
+    .term-content li { margin-bottom: 0.5rem; }
+
+    .term-content .sub-heading {
+      font-weight: 600;
+      color: rgba(255,255,255,0.8);
+      margin-bottom: 0.4rem;
+      margin-top: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <a href="/" class="header-logo">YRAL</a>
+    <a href="/" class="back-link">← Back to Home</a>
+  </header>
+
+  <main class="container">
+
+    <div class="page-title">
+      <h1>iOS Terms of Service</h1>
+      <div class="dates">
+        <p><strong>Effective Date:</strong> 13th July 2023</p>
+        <p><strong>Last Updated:</strong> 11th April 2025</p>
+      </div>
+    </div>
+
+    <div class="intro">Welcome to Yral, a community-driven platform where users share and discover short videos.
+
+These Terms of Use ("Terms") govern your use of the Yral mobile and web application ("App", "Services"), operated by GoBazzinga Inc ("Company", "we," "our," or "us"). By using the App, you agree to these Terms. If you do not agree, please do not use the App.</div>
+
+    <!-- Section 1 -->
+    <div class="term-section">
+      <div class="term-title">1. Your Account &amp; Registration</div>
+      <div class="term-content">
+        <p>You must be at least 13 years old to use the App and you must be represented by a legal guardian if you are below the legal age in your respective jurisdiction to register or use the App. You represent and warrant that you will provide accurate and up to date information while creating an account with us and you agree to keep the information accurate at all times. You must keep your account password confidential. If at any time, if you fail to comply with the provision of these terms or if activities occur on your account which might cause damage to the Services or infringe or violate any third party rights or violate any laws or regulations, or for any other reason, we reserve the right to, at our discretion, disable your account and remove or disable any content you upload or share. You agree that:</p>
+        <ul>
+          <li>You are at least 13 years old or above the minimum legal age in your jurisdiction (whichever is higher) to use the App. If you are below the legal age in your respective jurisdiction, you must be represented by a legal guardian even if you are over 13 years of age. If you are below 13 years of age, please do not use the App.</li>
+          <li>You must not be prohibited from receiving any aspect of our service under applicable laws or engaging in payments related services if you are on an applicable denied party listing.</li>
+          <li>We have not previously disabled your account for violation of law or any of our policies.</li>
+          <li>You are not a convicted sex offender.</li>
+          <li>You have read, understood and agreed to be bound by these Terms, privacy policy and community guidelines of the App for yourself and any minor in your care who has access to our Services.</li>
+          <li>You have the right, authority and legal capacity to agree to these Terms, privacy policy and community guidelines on behalf of yourself. Only persons who can form legally binding contracts under the law of their jurisdiction or those persons (such as minors) that are represented by persons (such as legal guardians) who can form legally binding contracts under the law of their jurisdiction, are permitted to use our Services.</li>
+          <li>You shall be solely responsible (to us and to others) for the activity on your account and its consequences.</li>
+          <li>You may not create an account if you are legally prohibited from using our services under local or international laws.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Section 2 -->
+    <div class="term-section">
+      <div class="term-title">2. Community Guidelines on Yral Content</div>
+      <div class="term-content">
+        <p>Yral is a platform for user-generated video content. By posting any content on or through our Services, you hereby grant us a non-exclusive, fully paid and royalty-free, worldwide, limited licence to display such content as felt appropriate, in any media formats through any media channels, and delete such content solely for the purpose of operating and improving the Yral platform. We do not claim any ownership or modification or derivative rights in any Content or to the underlying works in the content that you post on or through our Services. You agree that your use of the Services does not grant you any right to any compensation or share in revenue or value. To the extent it's necessary, when you generate content, you also grant us, our affiliates, and our business partners the unrestricted, worldwide, perpetual right and licence to use your name, likeness, and voice. You will not be entitled to any compensation from us, our affiliates, or our business partners if your name, likeness, or voice is conveyed through the Services. You represent, warrant and covenant, as applicable, that:</p>
+        <ul>
+          <li>You own the content posted by you on or through our Services or otherwise have the right to grant the licence set forth in this section.</li>
+          <li>The posting and use of your content on or through our Services does not violate the privacy rights, copyrights, contractual rights, intellectual property rights or any other rights of any person.</li>
+          <li>The posting of your content does not result in a breach of contract between you and a third party.</li>
+          <li>Your actions on Yral shall not be in violation of applicable law or regulation. We are not responsible for any Content posted by you or any consequences thereof.</li>
+        </ul>
+        <p>You agree that you shall not host, display, upload, modify, publish, transmit, store, update or share any information that:</p>
+        <ul>
+          <li>Belongs to another person and to which you do not have any right to;</li>
+          <li>Is grossly harmful, harassing, blasphemous, defamatory, obscene, pornographic, paedophilic, libellous, invasive of another's privacy, including bodily privacy, insulting or harassing on the basis of gender, libellous, hateful, racially or ethnically objectionable, disparaging, relating or encouraging money laundering or gambling, or otherwise unlawful inconsistent with or contrary to the laws in force in any manner whatever;</li>
+          <li>Harms minors in any way;</li>
+          <li>Infringes any patent, trademark, copyright or other proprietary rights;</li>
+          <li>Violates any law for the time being in force;</li>
+          <li>Deceives or misleads the addressee about the origin of such messages or communicates any information which is grossly offensive or menacing in nature or which is patently false or misleading in nature but may reasonably be perceived as a fact;</li>
+          <li>Impersonates another person;</li>
+          <li>Contains software viruses or any other computer code, files or programs designed to interrupt, destroy or limit the functionality of any computer resource;</li>
+          <li>Intimidates or harasses another, or promotes sexually explicit material, violence or discrimination based on race, sex, religion, nationality, disability, sexual orientation or age.</li>
+          <li>Contains material that contains a threat of any kind, including threats of physical violence;</li>
+          <li>Is slanderous or defamatory;</li>
+          <li>Is patently false and untrue, and is written or published in any form, with the intent to mislead or harass a person, entity or agency for financial gain or to cause any injury to any person.</li>
+        </ul>
+        <p>You acknowledge and agree that the content uploaded is the sole responsibility of the user who has uploaded such content and the views expressed are their own. We are not responsible for the content posted by you. You shall be solely responsible for the content posted, shared, modified, uploaded, transmitted, updated and hosted by you. You agree that your use of our Services will conform to the community guidelines as defined by the App. You agree that in case of non-compliance with applicable laws, or with these terms and conditions, or with the Yral privacy policy or with our community guidelines, we have the right to terminate your access or usage rights to Yral immediately and remove non-compliant content from Yral. You hereby agree that you will never use Yral in violation of any applicable law. If any violation of these terms is brought to our actual knowledge by an affected person, we shall act within twenty-four hours and where applicable, work with the user or owner of such information to delete/disable such information/content that is in contravention of these terms. We will not intimate you if any of the content posted by you is taken down / deleted or your account is disabled pursuant to the above. We will preserve such information and associated records for at least one hundred and eighty days for investigation purposes. Please contact the grievance officer whose details are provided in the last section of these terms, in case of any violation or grievances.</p>
+      </div>
+    </div>
+
+    <!-- Section 3 -->
+    <div class="term-section">
+      <div class="term-title">3. Community Guidelines</div>
+      <div class="term-content">
+        <p>You agree to follow Yral's Community Guidelines, which prohibit any sort of objectionable content that is:</p>
+        <ul>
+          <li>Defamatory, discriminatory, or mean-spirited content, including references or commentary about religion, race, sexual orientation, gender, national/ethnic origin, or other targeted groups—particularly if the app could humiliate, intimidate, or harm a targeted individual or group. Professional political satirists and humorists are exempt from this requirement.</li>
+          <li>Realistic portrayals of people or animals being killed, maimed, tortured, or abused, or content that encourages violence. In games, "enemies" cannot solely target a specific race, culture, real government, corporation, or any other real entity.</li>
+          <li>Depictions that encourage illegal or reckless use of weapons and dangerous objects, or facilitate the purchase of firearms or ammunition.</li>
+          <li>Overtly sexual or pornographic material—defined as "explicit descriptions or displays of sexual organs or activities intended to stimulate erotic rather than aesthetic or emotional feelings." This includes "hookup" apps and other applications that may contain pornography or be used to facilitate prostitution, human trafficking, or exploitation.</li>
+          <li>Inflammatory religious commentary or inaccurate or misleading quotations of religious texts.</li>
+          <li>False information and features, including inaccurate device data or trick/joke functionality, such as fake location trackers. Claiming an app is "for entertainment purposes" will not exempt it from this guideline. Apps enabling anonymous or prank phone calls or SMS/MMS messaging will be rejected.</li>
+          <li>Harmful content that attempts to profit from recent or current events such as violent conflicts, terrorist attacks, or epidemics.</li>
+        </ul>
+        <p>Violating these guidelines will result in content removal, account restrictions, or permanent suspension.</p>
+      </div>
+    </div>
+
+    <!-- Section 4 -->
+    <div class="term-section">
+      <div class="term-title">4. Content Moderation &amp; Safety</div>
+      <div class="term-content">
+        <p>Yral uses a mix of AI enabled automated filters and human moderation to detect and manage objectionable content. Our automated filters automatically delete Not Safe For Work (NSFW) content containing nudity, pornography, or other harmful content that violates our community guidelines. Further, users have the ability to report NSFW content while using the App. Users are encouraged to report NSFW content that our automated filters miss. Such reports are prioritized by our moderation team.</p>
+        <p>We have a dedicated team to review all valid reports within 24 hours and take appropriate action, including:</p>
+        <ul>
+          <li>Removing the reported content</li>
+          <li>Temporarily or permanently banning the offending user</li>
+        </ul>
+        <p>To ensure platform integrity and a safe environment, Yral takes violations of community standards very seriously and will block abusive users immediately and indefinitely. We aim to be transparent with moderation decisions and provide users with feedback when appropriate.</p>
+      </div>
+    </div>
+
+    <!-- Section 5 -->
+    <div class="term-section">
+      <div class="term-title">5. NSFW Content Policy</div>
+      <div class="term-content">
+        <p>By enabling the NSFW (Not Safe for Work) content toggle, you acknowledge and consent to viewing adult-oriented content within your feed. This content may include themes that are intended for mature audiences. You agree that:</p>
+        <ul>
+          <li>You are of legal age to view such content as per the laws and regulations of your jurisdiction.</li>
+          <li>The platform is not responsible for any distress or offense caused by NSFW content.</li>
+          <li>You may disable NSFW content at any time by turning off the toggle in your settings.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Section 6 -->
+    <div class="term-section">
+      <div class="term-title">6. Blocking Other Users</div>
+      <div class="term-content">
+        <p>You may block, report, or both block and report other users at any time if you experience inconvenience, discomfort, or simply wish to do so. When blocked:</p>
+        <ul>
+          <li>Their videos will no longer appear in your feed</li>
+          <li>They cannot view or interact with your content</li>
+          <li>They are not notified of the block</li>
+        </ul>
+        <p>This is a key part of maintaining your control over your in-app experience.</p>
+      </div>
+    </div>
+
+    <!-- Section 7 -->
+    <div class="term-section">
+      <div class="term-title">7. Use License (EULA Equivalent)</div>
+      <div class="term-content">
+        <p>We grant you a limited, non-exclusive, non-transferable, revocable license to use the Yral mobile and web application (the "App") solely for your personal, non-commercial use on any Apple-branded device that you own or control, and as permitted by the Usage Rules set forth in the Apple App Store Terms of Service. These Usage Rules govern how apps can be used on Apple devices, including limitations on sharing, duplication, and access based on your Apple ID and device ownership.</p>
+        <p>You agree not to:</p>
+        <p class="sub-heading">Technical Restrictions</p>
+        <ul>
+          <li>Reverse-engineer, decompile, disassemble, modify, translate, or attempt to discover the source code or underlying ideas or algorithms of the App;</li>
+          <li>Interfere with or disrupt the App, its servers, or networks connected to the App;</li>
+          <li>Upload, post, or transmit any viruses, worms, defects, Trojan horses, or any malicious code through the App;</li>
+        </ul>
+        <p class="sub-heading">Commercial Misuse</p>
+        <ul>
+          <li>Reproduce, redistribute, sublicense, lease, rent, publish, sell, or exploit the App or any portion of the App in any way;</li>
+        </ul>
+        <p class="sub-heading">User Data and Privacy</p>
+        <ul>
+          <li>Access or attempt to access data of other users without authorization.</li>
+        </ul>
+        <p>You acknowledge and agree that:</p>
+        <ul>
+          <li>The license is granted by GoBazzinga Inc ("we", "our", or "us"), and not by Apple.</li>
+          <li>We are solely responsible for the App and the content moderation therein.</li>
+          <li>Apple has no obligation whatsoever to furnish any maintenance or support services with respect to the App.</li>
+          <li>In the event of any failure of the App to conform to any applicable warranty, you may notify Apple, and Apple will refund the purchase price (if any). To the maximum extent permitted by law, Apple will have no other warranty obligation with respect to the App.</li>
+          <li>We are solely responsible for addressing any claims by you or any third party relating to the App or your possession and/or use of the App, including but not limited to: product liability claims, any claim that the App fails to conform to any applicable legal or regulatory requirement, and claims arising under consumer protection, privacy, or similar legislation.</li>
+          <li>If a third party claims that the App or your possession and use of the App infringes their intellectual property rights, you acknowledge that GoBazzinga Inc, not Apple, is solely responsible for addressing, investigating, defending against, settling, and resolving such claims.</li>
+          <li>Apple and its subsidiaries are third-party beneficiaries of this EULA. Upon your acceptance of this agreement, Apple will have the right (and will be deemed to have accepted the right) to enforce these Terms against you as a third-party beneficiary.</li>
+        </ul>
+        <p>This license is effective until terminated by you or by us. You may terminate the license at any time by uninstalling the App or deleting your account through the App's settings. Your rights under this license will also terminate automatically without notice if you fail to comply with any of its terms. Upon termination, you must cease all use of the App and destroy all copies, full or partial, of the App.</p>
+      </div>
+    </div>
+
+    <!-- Section 8 -->
+    <div class="term-section">
+      <div class="term-title">8. Content Removal and Disabling or Terminating Your Account</div>
+      <div class="term-content">
+        <p>We may remove any content, suspend or terminate your account without notice if:</p>
+        <ul>
+          <li>You breach these Terms</li>
+          <li>You violate laws or community accepted standards</li>
+          <li>Your behaviour puts other users at risk</li>
+        </ul>
+        <p>You may delete your account at any time via the app's settings.</p>
+      </div>
+    </div>
+
+    <!-- Section 9 -->
+    <div class="term-section">
+      <div class="term-title">9. Privacy Policy</div>
+      <div class="term-content">
+        <p>We take your privacy seriously. Please refer to our <a href="/privacy-policy">Privacy Policy</a> for detailed information on the data we collect, how we use it, your rights, and how to exercise them. You can access the full policy from the menu.</p>
+      </div>
+    </div>
+
+    <!-- Section 10 -->
+    <div class="term-section">
+      <div class="term-title">10. Disclaimers</div>
+      <div class="term-content">
+        <p>To the maximum extent permitted by applicable law, the App is licensed 'as is,' and you use it at your sole risk. The developer disclaims all warranties, express or implied. We do not guarantee:</p>
+        <ul>
+          <li>The accuracy or reliability of content. All opinions expressed belong solely to the users.</li>
+          <li>Uninterrupted or error-free service.</li>
+          <li>That content will remain available or accessible.</li>
+        </ul>
+        <p>Use Yral at your own risk.</p>
+      </div>
+    </div>
+
+    <!-- Section 11 -->
+    <div class="term-section">
+      <div class="term-title">11. Limitation of Liability</div>
+      <div class="term-content">
+        <p>We shall not be liable to you for any loss or damages or claims including but not limited to the following:</p>
+        <ul>
+          <li>Any loss of profit, opportunity or goodwill;</li>
+          <li>Any loss of data;</li>
+          <li>Any damage incurred as a result of your reliance on any advertisement appearing on the Service;</li>
+          <li>Any damage incurred as a result of any changes to the Service, its features and any temporary or permanent termination of our Services;</li>
+          <li>Any damage incurred as a result of your failure to provide us with accurate information and your failure to keep your account details and password confidential and secure;</li>
+          <li>Any damage incurred as a result of the actions of another user.</li>
+        </ul>
+        <p>Any dispute that may arise between you and any third party arising from your use of the services shall be only between you and a third party and you release us and our affiliates from any such claims and damages connected with such disputes.</p>
+      </div>
+    </div>
+
+    <!-- Section 12 -->
+    <div class="term-section">
+      <div class="term-title">12. Changes to These Terms</div>
+      <div class="term-content">
+        <p>We may update these Terms from time to time. We'll notify you of major changes through the App or email. Continued use of the App after changes means you accept the revised Terms.</p>
+      </div>
+    </div>
+
+    <!-- Section 13 -->
+    <div class="term-section">
+      <div class="term-title">13. Contact Us</div>
+      <div class="term-content">
+        <p>Have questions or concerns?</p>
+        <p>📧 Email us at: <a href="mailto:support@gobazzinga.io">support@gobazzinga.io</a> or <a href="mailto:support@yral.com">support@yral.com</a></p>
+      </div>
+    </div>
+
+  </main>
+
+</body>
+</html>

@@ -1,0 +1,140 @@
+# Tekton Trigger resources for yral-web builds.
+# Triggered by GitHub push webhooks to main branch (filtered by CEL interceptor).
+---
+# ServiceAccount for the Tekton EventListener.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tekton-trigger-sa
+  namespace: yral-web
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tekton-trigger-role
+  namespace: yral-web
+rules:
+  - apiGroups: ["shipwright.io"]
+    resources: ["buildruns", "builds"]
+    verbs: ["create", "get", "list", "watch"]
+  - apiGroups: ["triggers.tekton.dev"]
+    resources: ["triggerbindings", "triggertemplates", "eventlisteners", "triggers", "interceptors"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tekton-trigger-binding
+  namespace: yral-web
+subjects:
+  - kind: ServiceAccount
+    name: tekton-trigger-sa
+    namespace: yral-web
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tekton-trigger-role
+---
+# ClusterRole for the Tekton EventListener — needs cluster-scope read access
+# to ClusterInterceptor and ClusterTriggerBinding resources.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tekton-trigger-clusterrole-yral-web
+rules:
+  - apiGroups: ["triggers.tekton.dev"]
+    resources: ["clusterinterceptors", "clustertriggerbindings"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tekton-trigger-clusterbinding-yral-web
+subjects:
+  - kind: ServiceAccount
+    name: tekton-trigger-sa
+    namespace: yral-web
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-trigger-clusterrole-yral-web
+---
+# TriggerBinding extracts fields from the GitHub push event payload.
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: github-push-binding
+  namespace: yral-web
+spec:
+  params:
+    - name: repo-url
+      value: $(body.repository.html_url)
+    - name: revision
+      value: $(body.ref)
+    - name: commit-sha
+      value: $(body.after)
+    - name: image-tag
+      value: $(extensions.image_tag)
+---
+# TriggerTemplate creates a BuildRun with a timestamp-prefixed image tag.
+# Tag format: YYYYMMDDHHMMSS-<short-sha> (e.g. 20260716021700-a2e4e7b8).
+# The timestamp prefix ensures Alphabetical:desc in the Flux ImagePolicy
+# correctly selects the most recent build.
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: yral-web-buildrun-template
+  namespace: yral-web
+spec:
+  params:
+    - name: repo-url
+      description: The Git repository URL
+    - name: revision
+      description: The Git ref (e.g. refs/heads/main)
+    - name: commit-sha
+      description: The full commit SHA
+    - name: image-tag
+      description: Timestamp-prefixed tag (YYYYMMDDHHMMSS-short-sha)
+  resourcetemplates:
+    - apiVersion: shipwright.io/v1beta1
+      kind: BuildRun
+      metadata:
+        generateName: yral-web-auto-
+        namespace: yral-web
+        labels:
+          app: yral-web
+          trigger: github-push
+      spec:
+        build:
+          name: yral-web
+        output:
+          image: harbor.yral.com/yral-web/yral-web:$(tt.params.image-tag)
+---
+# EventListener receives GitHub push events and creates BuildRuns.
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: yral-web-build-listener
+  namespace: yral-web
+spec:
+  serviceAccountName: tekton-trigger-sa
+  triggers:
+    - name: github-push
+      bindings:
+        - kind: TriggerBinding
+          ref: github-push-binding
+      template:
+        ref: yral-web-buildrun-template
+      interceptors:
+        - name: filter-push-main
+          ref:
+            name: cel
+          params:
+            - name: filter
+              # Only trigger when files under apps/yral-web/ or kubernetes/apps/yral-web/ changed.
+              # Checks all commits in the push (added + modified + removed files).
+              value: "body.ref == 'refs/heads/main' && body.head_commit.author.username != 'fluxcdbot' && body.commits.exists(c, (c.added + c.modified + c.removed).exists(f, f.startsWith('apps/yral-web/') || f.startsWith('kubernetes/apps/yral-web/')))"
+            - name: overlays
+              value:
+                - key: image_tag
+                  expression: "body.head_commit.timestamp.substring(0, 19).translate('[-:TZ]', '') + '-' + body.after.truncate(8)"

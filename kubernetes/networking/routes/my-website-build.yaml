@@ -4,7 +4,7 @@
 # https://my-website-build.yral.com/ — GitHub sends push events here
 # to trigger Shipwright BuildRuns.
 #
-# Pattern: same as yral-auth-build, yral-legacy-build, etc.
+# Pattern: same as yral-auth-build, yral-web-build, etc.
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

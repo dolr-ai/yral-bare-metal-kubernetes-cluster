@@ -120,6 +120,16 @@ In all `Cargo.toml` (and other manifest) files, list dependencies **alphabetical
 ### Leptos Builder Syntax (Hard Rule)
 All Leptos-rs UI code must use the **builder syntax** (`leptos::view` with `.child()`, `.attr()`, `.prop()`, etc.), never the `view!` macro. This gives maximal benefit from compile-time static checking and rust-analyzer feedback (type inference, autocomplete, refactoring, error messages). See https://book.leptos.dev/view/builder.html for the canonical reference. Apply this to all Leptos components, pages, and views across the repo — both new code and existing code. When touching any file that uses `view!`, convert it to builder syntax in the same change (gradual migration, no big-bang rewrite). This avoids the macro's poor interaction with rust tooling.
 
+### Descriptive Naming (Hard Rule)
+Always use well-named, descriptive variable and type names. Never use shortened or abbreviated names. For code we are touching, rename abbreviated identifiers to their elongated, descriptive forms in the same change. This applies to **all code and configuration** — Rust, Kotlin, TypeScript, YAML, Ansible, TOML, etc.:
+- **Type names** — `ConversationResponse` not `ConversationDto`, `ChatMessage` not `ChatMessageDto`, `SendMessageRequest` not `SendMsgReq`. Do not carry over naming conventions from other languages (e.g. Kotlin's `Dto` suffix) into Rust.
+- **Variable names** — `influencer_identifier` not `inf_id`, `conversation_identifier` not `conv_id`, `authentication_token` not `auth_tok`.
+- **Function names** — `get_authentication_token` not `get_auth_tok`, `create_conversation` not `create_conv`.
+- **Constants** — `AGENT_BACKEND_URL` not `AGENT_URL`, `DISCOVERY_FEED_PATH` not `DISC_PATH`.
+- **Configuration keys** — `database_connection_timeout_seconds` not `db_timeout`, `maximum_retry_attempts` not `max_retries`.
+
+Modern IDEs and language tooling make long names ergonomic regardless of language. Descriptive names serve as inline documentation and make grep/code-search effective. Abbreviations create cognitive overhead and inconsistency.
+
 ### Workspace Dependency Versioning (Hard Rule)
 All dependency **versions** must be declared once in the root `Cargo.toml` `[workspace.dependencies]` section — never specify versions in individual member `Cargo.toml` files. Member crates use `{ workspace = true }` (optionally adding `features = [...]` if needed). This keeps all members in sync and avoids version drift. If a new dependency is needed, add it to `[workspace.dependencies]` first, then reference it with `workspace = true` in the member.
 

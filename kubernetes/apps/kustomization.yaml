@@ -4,7 +4,7 @@ kind: Kustomization
 resources:
   - dashboard
   - yral-auth
-  - yral-legacy
+  - yral-web
   - yral-metadata
   - off-chain-agent
   - my-website

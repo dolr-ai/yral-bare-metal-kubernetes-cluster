@@ -36,7 +36,7 @@ roleRef:
 ---
 # ClusterRole for the Tekton EventListener — needs cluster-scope read access
 # to ClusterInterceptor and ClusterTriggerBinding resources.
-# Note: uses the same ClusterRole as yral-auth/yral-legacy (tekton-trigger-clusterrole)
+# Note: uses the same ClusterRole as yral-auth/yral-web (tekton-trigger-clusterrole)
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:

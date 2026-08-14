@@ -1,0 +1,25 @@
+# Flux ImageUpdateAutomation — writes the latest image tag selected by
+# the yral-web ImagePolicy back into the Deployment manifest in git.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageUpdateAutomation
+metadata:
+  name: yral-web
+  namespace: flux-system
+spec:
+  interval: 5m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  git:
+    commit:
+      author:
+        name: fluxcdbot
+        email: fluxcdbot@users.noreply.github.com
+      messageTemplate: |
+        chore: update yral-web image tag
+    push:
+      branch: main
+  update:
+    path: ./kubernetes/apps/yral-web
+    strategy: Setters

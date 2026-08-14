@@ -19,13 +19,13 @@ members = ["apps/hello-world",
   "apps/yral-common/username-gen",
   "apps/yral-database-spacetime",
   "apps/yral-database-spacetime/bindings",
-  "apps/yral-legacy/ssr",
-  "apps/yral-legacy/ssr/src/auth",
-  "apps/yral-legacy/ssr/src/component",
-  "apps/yral-legacy/ssr/src/consts",
-  "apps/yral-legacy/ssr/src/page",
-  "apps/yral-legacy/ssr/src/state",
-  "apps/yral-legacy/ssr/src/utils",
+  "apps/yral-web/ssr",
+  "apps/yral-web/ssr/src/auth",
+  "apps/yral-web/ssr/src/component",
+  "apps/yral-web/ssr/src/consts",
+  "apps/yral-web/ssr/src/page",
+  "apps/yral-web/ssr/src/state",
+  "apps/yral-web/ssr/src/utils",
   "apps/yral-metadata/client",
   "apps/yral-metadata/server",
   "apps/yral-metadata/types",
@@ -199,7 +199,7 @@ yral-metadata-client = {
 yral-metadata-types = { path = "apps/yral-metadata/types" }
 yral-metrics = { package = "yral-metrics", path = "apps/yral-common/metrics" }
 
-# Profile for yral-legacy release binary (from apps/yral-legacy/Cargo.toml)
+# Profile for yral-web release binary (from apps/yral-web/Cargo.toml)
 [profile.prod-release]
 inherits = "release"
 debug = 1

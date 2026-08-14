@@ -29,7 +29,7 @@
 - The categorized scan completed. Here's the full breakdown of all 238,606 keys in the Redis/Dragonfly instance:
 
 Prefix	Count	What it is
-IC Principal keys (xxx-xxx-xxx-...:*)	193,023	Per-user data keyed by IC Principal — owned by other services (yral-legacy, off-chain-agent, etc.)
+IC Principal keys (xxx-xxx-xxx-...:*)	193,023	Per-user data keyed by IC Principal — owned by other services (yral-web, off-chain-agent, etc.)
 yral-auth:*	27,671	yral-auth auth KV store (session data, OAuth lookups, principal mappings)
 yral-metadata:*	12,451	yral-metadata service data
 impressions:*	5,322	Impression/view tracking
@@ -41,9 +41,9 @@ We're correctly only migrating yral-auth:* (27,671 keys). The SpacetimeDB auth_k
 The other prefixes belong to different services that share this Dragonfly instance and will have their own migration paths:
 
 yral-metadata:* — the yral-metadata service has its own Redis-backed store
-impressions:* — view/impression tracking, likely from the off-chain-agent or yral-legacy
+impressions:* — view/impression tracking, likely from the off-chain-agent or yral-web
 offchain:* — off-chain-agent's own data
-IC Principal keys — per-user canister data from yral-legacy
+IC Principal keys — per-user canister data from yral-web
 We should not bring everything into the auth_kv table — that would mix yral-auth's auth data with unrelated services' data in a single key-value store. Each service needs its own SpacetimeDB table or its own migration strategy.
 
 Migrate the other useful bits

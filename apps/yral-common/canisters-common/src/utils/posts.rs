@@ -141,7 +141,7 @@ impl<const A: bool> Canisters<A> {
     }
 
     /// Fetch post details from the IC canister, enriched with creator metadata
-    /// and NSFW probability. Still used by yral-legacy until SpacetimeDB rewiring.
+    /// and NSFW probability. Still used by yral-web until SpacetimeDB rewiring.
     #[tracing::instrument(skip(self))]
     pub async fn get_post_details(
         &self,

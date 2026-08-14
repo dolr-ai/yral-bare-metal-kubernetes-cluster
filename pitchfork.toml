@@ -96,29 +96,29 @@ mise = true
 ready_http = "http://localhost:8080/healthz"
 stop_signal = "SIGINT"
 
-# ── yral-legacy dev server (release binary) ─────────────────────────────────
+# ── yral-web dev server (release binary) ─────────────────────────────────
 # Runs the pre-built musl binary with env vars from mise + secrets from fnox.
-# Build first with: mise run yral-legacy-build
+# Build first with: mise run yral-web-build
 # dir ensures mise x -- loads the per-app mise.toml [env] (plaintext values).
 # fnox exec loads secrets from fnox.toml (age-encrypted) + root fnox.toml (Dragonfly).
 
-[daemons.yral-legacy]
-run = "exec fnox exec -- ./target/x86_64-unknown-linux-musl/prod-release/yral-legacy"
-dir = "apps/yral-legacy"
+[daemons.yral-web]
+run = "exec fnox exec -- ./target/x86_64-unknown-linux-musl/prod-release/yral-web"
+dir = "apps/yral-web"
 mise = true
 ready_http = "http://localhost:8080/healthz"
 stop_signal = "SIGINT"
 env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
 
-# ── yral-legacy watch (cargo leptos watch, hot reload, debug) ──────────────
+# ── yral-web watch (cargo leptos watch, hot reload, debug) ──────────────
 # Runs cargo leptos watch for hot-reload development. Rebuilds server + WASM
 # on file change, live-reloads the browser. Uses debug profiles (fast rebuilds).
 # No pre-build needed — cargo leptos watch handles building + serving.
 # fnox exec loads secrets from fnox.toml (age-encrypted) + root fnox.toml (Dragonfly).
 
-[daemons.yral-legacy-watch]
+[daemons.yral-web-watch]
 run = "exec fnox exec -- cargo leptos --manifest-path ssr/Cargo.toml watch --hot-reload --bin-features ssr,oauth-ssr"
-dir = "apps/yral-legacy"
+dir = "apps/yral-web"
 mise = true
 ready_output = "Serving at"
 stop_signal = "SIGINT"
@@ -140,15 +140,15 @@ depends = ["spacetimedb-dev"]
 auto = ["start", "stop"]
 env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080", SPACETIMEDB_URL = "http://127.0.0.1:3000", SPACETIMEDB_DB_NAME = "yral-database-spacetime-4lbo7" }
 
-# ── yral-legacy dev (local SpacetimeDB, port 8081) ─────────────────────────
+# ── yral-web dev (local SpacetimeDB, port 8081) ─────────────────────────
 # Dev variant: points SPACETIMEDB_URL to local server, uses port 8081 to
 # avoid conflict with yral-auth-dev on 8080.
-# Build first with: mise run yral-legacy-build
+# Build first with: mise run yral-web-build
 # Auto-starts/stops with shell hook.
 
-[daemons.yral-legacy-dev]
-run = "exec fnox exec -- ./target/x86_64-unknown-linux-musl/prod-release/yral-legacy"
-dir = "apps/yral-legacy"
+[daemons.yral-web-dev]
+run = "exec fnox exec -- ./target/x86_64-unknown-linux-musl/prod-release/yral-web"
+dir = "apps/yral-web"
 mise = true
 ready_http = "http://localhost:8081/healthz"
 stop_signal = "SIGINT"
@@ -156,10 +156,10 @@ depends = ["spacetimedb-dev", "yral-auth-dev"]
 auto = ["start", "stop"]
 env = { LEPTOS_SITE_ADDR = "0.0.0.0:8081", SPACETIMEDB_URL = "http://127.0.0.1:3000", SPACETIMEDB_DB_NAME = "yral-database-spacetime-4lbo7", GOOGLE_REDIRECT_URL = "http://127.0.0.1:8081/auth/google_redirect", YRAL_AUTH_REDIRECT_URL = "http://127.0.0.1:8081/auth/yral_redirect" }
 
-# ── yral-legacy container (podman) ──────────────────────────────────────────
-# Build first with: mise run yral-legacy-image
+# ── yral-web container (podman) ──────────────────────────────────────────
+# Build first with: mise run yral-web-image
 
-[daemons.yral-legacy-container]
+[daemons.yral-web-container]
 # fnox exec decrypts secrets from fnox.toml into the env so podman's -e VAR
 # (without =value) copies them from the parent process into the container.
 # mise = true wraps the whole command with `mise x --` for tools + plaintext [env].
@@ -175,9 +175,9 @@ exec fnox exec -- podman run --rm \
   -e DRAGONFLY_REDIS_STORE_PASSWORD -e DRAGONFLY_REDIS_STORE_HOSTS \
   -e DRAGONFLY_REDIS_STORE_CA_CERT -e DRAGONFLY_REDIS_STORE_CLIENT_CERT \
   -e DRAGONFLY_REDIS_STORE_CLIENT_KEY \
-  -p 8080:8080 test/yral-legacy
+  -p 8080:8080 test/yral-web
 '''
-dir = "apps/yral-legacy"
+dir = "apps/yral-web"
 mise = true
 ready_http = "http://localhost:8080/healthz"
 stop_signal = "SIGINT"
@@ -256,7 +256,7 @@ mise = true
 # Or rely on auto-start by cd'ing into the project directory (requires
 # `pitchfork activate bash` in ~/.bashrc).
 # Dependency order: spacetimedb-dev → (publish module via on_ready hook) →
-# yral-auth-dev → yral-legacy-dev
+# yral-auth-dev → yral-web-dev
 ready_http = "http://localhost:8080/"
 
 # ── Dev group ───────────────────────────────────────────────────────────────
@@ -264,7 +264,7 @@ ready_http = "http://localhost:8080/"
 # Or rely on auto-start by cd'ing into the project directory (requires
 # `pitchfork activate bash` in ~/.bashrc).
 # Dependency order: spacetimedb-dev → (publish module via on_ready hook) →
-# yral-auth-dev → yral-legacy-dev
+# yral-auth-dev → yral-web-dev
 
 [groups.dev]
-daemons = ["spacetimedb-dev", "yral-auth-dev", "yral-legacy-dev"]
+daemons = ["spacetimedb-dev", "yral-auth-dev", "yral-web-dev"]

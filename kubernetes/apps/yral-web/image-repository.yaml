@@ -1,0 +1,13 @@
+# Flux ImageRepository — scans Harbor for new yral-web image tags.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: yral-web
+  namespace: flux-system
+spec:
+  image: harbor.yral.com/yral-web/yral-web
+  interval: 1m
+  provider: generic
+  secretRef:
+    name: harbor-scan-secret

@@ -96,7 +96,7 @@ MCowBQYDK2VwAyEAKpZNfPOONR9AXiaGmHv8AHemm4SNK0uh+mf523ho5KU=
 RUST_LOG = "info"
 OFF_CHAIN_AGENT_URL = "http://localhost:50051/"
 
-# ── yral-legacy ───────────────────────────────────────────────────────────
+# ── yral-web ───────────────────────────────────────────────────────────
 # LEPTOS_SITE_ADDR is set per-daemon in pitchfork.toml (prod: 8080, dev: 8081)
 LEPTOS_HASH_FILES = "true"
 # Plaintext (non-sensitive) values — public OAuth identifiers
@@ -498,74 +498,74 @@ FIRST_POD=$(kubectl -n yral-auth get pods -l app=yral-auth -o jsonpath='{.items[
 kubectl -n yral-auth logs "$FIRST_POD" --tail=20
 '''
 
-# ── yral-legacy ─────────────────────────────────────────────────────────────
+# ── yral-web ─────────────────────────────────────────────────────────────
 
-[tasks.yral-legacy-bootstrap]
-description = "Install yral-legacy build prerequisites (cargo-leptos, musl+wasm targets, npm deps)"
+[tasks.yral-web-bootstrap]
+description = "Install yral-web build prerequisites (cargo-leptos, musl+wasm targets, npm deps)"
 depends = ["bootstrap"]
 run = '''
 rustup install
 cargo binstall cargo-leptos --no-confirm
-cd apps/yral-legacy && npm install
+cd apps/yral-web && npm install
 '''
 
-[tasks.yral-legacy-build]
-description = "Build yral-legacy (release, musl static binary + WASM client)"
-dir = "apps/yral-legacy"
+[tasks.yral-web-build]
+description = "Build yral-web (release, musl static binary + WASM client)"
+dir = "apps/yral-web"
 run = "cargo leptos --manifest-path ssr/Cargo.toml build --release"
 env = { LEPTOS_BIN_TARGET_TRIPLE = "x86_64-unknown-linux-musl", CC = "musl-gcc", CXX = "musl-g++" }
 
-[tasks.yral-legacy-run]
-description = "Run yral-legacy locally via pitchfork (release binary, port 8080)"
-depends = ["yral-legacy-build"]
-run = "pitchfork start yral-legacy --force"
+[tasks.yral-web-run]
+description = "Run yral-web locally via pitchfork (release binary, port 8080)"
+depends = ["yral-web-build"]
+run = "pitchfork start yral-web --force"
 
-[tasks.yral-legacy-watch]
-description = "Run yral-legacy with hot reload via cargo leptos watch (debug, port 8080)"
-dir = "apps/yral-legacy"
+[tasks.yral-web-watch]
+description = "Run yral-web with hot reload via cargo leptos watch (debug, port 8080)"
+dir = "apps/yral-web"
 run = "fnox exec -- cargo leptos --manifest-path ssr/Cargo.toml watch --hot-reload --bin-features ssr,oauth-ssr"
 env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
 
-[tasks.yral-legacy-test]
-description = "Run yral-legacy tests (ssr feature + fnox secrets for DragonflyDB integration tests)"
-dir = "apps/yral-legacy"
+[tasks.yral-web-test]
+description = "Run yral-web tests (ssr feature + fnox secrets for DragonflyDB integration tests)"
+dir = "apps/yral-web"
 run = "fnox exec -- cargo test --features ssr --bins --lib"
 
-[tasks.yral-legacy-image]
-description = "Build the yral-legacy container image locally (podman)"
-run = "podman build -f apps/yral-legacy/Dockerfile.buildkit -t test/yral-legacy --platform linux/amd64 ."
+[tasks.yral-web-image]
+description = "Build the yral-web container image locally (podman)"
+run = "podman build -f apps/yral-web/Dockerfile.buildkit -t test/yral-web --platform linux/amd64 ."
 
-[tasks.yral-legacy-image-run]
-description = "Run the yral-legacy container image locally via pitchfork (podman, port 8080)"
-depends = ["yral-legacy-image"]
-run = "pitchfork start yral-legacy-container --force"
+[tasks.yral-web-image-run]
+description = "Run the yral-web container image locally via pitchfork (podman, port 8080)"
+depends = ["yral-web-image"]
+run = "pitchfork start yral-web-container --force"
 
-[tasks.yral-legacy-stop]
-description = "Stop yral-legacy dev server or container via pitchfork"
-run = "pitchfork stop yral-legacy yral-legacy-watch yral-legacy-container"
+[tasks.yral-web-stop]
+description = "Stop yral-web dev server or container via pitchfork"
+run = "pitchfork stop yral-web yral-web-watch yral-web-container"
 
-[tasks.yral-legacy-all]
-description = "Full yral-legacy workflow: build → test → image → image-run → validate → stop"
+[tasks.yral-web-all]
+description = "Full yral-web workflow: build → test → image → image-run → validate → stop"
 run = '''
-mise run yral-legacy-build
-mise run yral-legacy-run
-mise run yral-legacy-test
-mise run yral-legacy-image
-mise run yral-legacy-image-run
+mise run yral-web-build
+mise run yral-web-run
+mise run yral-web-test
+mise run yral-web-image
+mise run yral-web-image-run
 '''
 
-[tasks.yral-legacy-validate]
-description = "Validate yral-legacy on prod (read-only kubectl checks)"
+[tasks.yral-web-validate]
+description = "Validate yral-web on prod (read-only kubectl checks)"
 run = '''
 echo "=== Pods ==="
-kubectl -n yral-legacy get pods -l app=yral-legacy -o wide
+kubectl -n yral-web get pods -l app=yral-web -o wide
 echo ""
 echo "=== Health ==="
-kubectl -n yral-legacy get pods -l app=yral-legacy -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.containerStatuses[0].ready}{"\n"}{end}'
+kubectl -n yral-web get pods -l app=yral-web -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.containerStatuses[0].ready}{"\n"}{end}'
 echo ""
 echo "=== Recent logs (last 20 lines, first pod) ==="
-FIRST_POD=$(kubectl -n yral-legacy get pods -l app=yral-legacy -o jsonpath='{.items[0].metadata.name}')
-kubectl -n yral-legacy logs "$FIRST_POD" --tail=20
+FIRST_POD=$(kubectl -n yral-web get pods -l app=yral-web -o jsonpath='{.items[0].metadata.name}')
+kubectl -n yral-web logs "$FIRST_POD" --tail=20
 '''
 
 # ── yral-metadata ───────────────────────────────────────────────────────────
@@ -749,23 +749,23 @@ FIRST_POD=$(kubectl -n my-website get pods -l app=my-website -o jsonpath='{.item
 kubectl -n my-website logs "$FIRST_POD" --tail=20
 '''
 
-# ── Dev: local SpacetimeDB + yral-auth + yral-legacy ────────────────────────
+# ── Dev: local SpacetimeDB + yral-auth + yral-web ────────────────────────
 # These tasks build the binaries and start all dev servers via pitchfork.
 # The pitchfork `dev` group manages the daemons with dependency ordering:
-#   spacetimedb-dev → yral-auth-dev → yral-legacy-dev
+#   spacetimedb-dev → yral-auth-dev → yral-web-dev
 # With `pitchfork activate bash` in ~/.bashrc, the dev group auto-starts
 # when you cd into the repo and auto-stops when you leave.
 
 [tasks.dev-build]
-description = "Build all dev binaries (yral-auth + yral-legacy + spacetime module)"
+description = "Build all dev binaries (yral-auth + yral-web + spacetime module)"
 run = '''
 mise run yral-auth-build
-mise run yral-legacy-build
+mise run yral-web-build
 mise run spacetime-build
 '''
 
 [tasks.dev-start]
-description = "Start all dev servers (SpacetimeDB local + yral-auth + yral-legacy) via pitchfork"
+description = "Start all dev servers (SpacetimeDB local + yral-auth + yral-web) via pitchfork"
 depends = ["dev-build"]
 run = "pitchfork start --group dev --force"
 

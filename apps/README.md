@@ -52,7 +52,7 @@ git submodule update --init --recursive
 | ------------------------------- | ----------------------------------------------------------- |
 | `apps/my-website/`             | `saikat.dev`                                                |
 | `apps/yral-auth/`               | `auth.yral.com`                                             |
-| `apps/yral-legacy/`             | `legacy.yral.com`                                           |
+| `apps/yral-web/`             | `legacy.yral.com`                                           |
 | `apps/yral-metadata/`           | `metadata.yral.com`                                         |
 | `apps/off-chain-agent/`         | `offchain.yral.com`                                         |
 | `apps/yral-common/`             | Shared library crates (consumed via git deps by other apps) |

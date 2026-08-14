@@ -1,0 +1,75 @@
+# Multi-stage Dockerfile for building yral-web from source (Shipwright/BuildKit).
+# Build context: repo root (set by Shipwright spec.source.contextDir).
+# Retry build after transient Swagger UI download failure.
+
+# ── Stage 1: Build ──────────────────────────────────────────────────────────
+FROM rust:latest AS builder
+
+# Install build dependencies (git needed for gob-cloudflare git dep, musl, mold linker, protobuf compiler)
+RUN apt-get update && apt-get install -y --no-install-recommends musl-tools git mold clang protobuf-compiler && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install cargo-binstall + cargo-leptos
+RUN curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-musl.tgz -o /tmp/cargo-binstall.tgz && \
+    tar -xzf /tmp/cargo-binstall.tgz -C /usr/local/bin && \
+    chmod +x /usr/local/bin/cargo-binstall && \
+    rm /tmp/cargo-binstall.tgz && \
+    cargo binstall cargo-leptos --no-confirm
+
+# Install Node.js for tailwindcss
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy the entire monorepo workspace (root Cargo.toml + all apps/)
+# rust-toolchain.toml at repo root auto-installs nightly + musl/wasm targets.
+# .dockerignore excludes target/, node_modules/, and git submodules.
+COPY . .
+
+# Install JS dependencies (tailwindcss) in the yral-web app dir
+RUN cd apps/yral-web && npm install
+
+# Set Leptos environment variables for the build
+ENV LEPTOS_OUTPUT_NAME="yral-web"
+ENV LEPTOS_SITE_ROOT="target/site"
+ENV LEPTOS_SITE_PKG_DIR="pkg"
+ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
+ENV LEPTOS_ENV="PROD"
+ENV LEPTOS_BIN_TARGET_TRIPLE="x86_64-unknown-linux-musl"
+
+# Build the app (uses bin-profile-release=prod-release from ssr/Cargo.toml metadata)
+# cargo-leptos runs from apps/yral-web/ with --manifest-path pointing to ssr/Cargo.toml
+# (the package manifest — apps/yral-web/Cargo.toml was the old standalone workspace root,
+# now retired; the actual [package] is in ssr/Cargo.toml).
+RUN cd apps/yral-web && cargo leptos --manifest-path ssr/Cargo.toml build --release
+
+# ── Stage 2: Runtime (scratch) ─────────────────────────────────────────────
+FROM scratch
+
+WORKDIR /app
+
+# Copy the built binary (cargo-leptos uses the workspace root target dir)
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/prod-release/yral-web .
+
+# Copy the Leptos hash file (read next to the binary at runtime when LEPTOS_HASH_FILES=true)
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/prod-release/hash.txt .
+
+# Copy the Leptos site assets (WASM, JS, CSS)
+COPY --from=builder /app/target/site ./site
+
+# Copy CA certificates (app makes HTTPS calls to external services)
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
+# Set Leptos environment variables (runtime config baked into image)
+ENV LEPTOS_OUTPUT_NAME="yral-web"
+ENV LEPTOS_SITE_ROOT="site"
+ENV LEPTOS_SITE_PKG_DIR="pkg"
+ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
+ENV LEPTOS_ENV="PROD"
+ENV LEPTOS_HASH_FILES="true"
+
+EXPOSE 8080
+
+ENTRYPOINT ["/app/yral-web"]
