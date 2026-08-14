@@ -244,6 +244,40 @@ pub async fn refresh_id_token_impl() -> Result<Option<String>, ServerFnError> {
     }
 }
 
+/// Get the user's identifier (IC Principal text) from the ID_TOKEN JWT.
+/// Decodes the `sub` claim without reconstructing any IC identity.
+/// Returns None for anonymous users.
+pub async fn get_user_identifier_impl() -> Result<Option<String>, ServerFnError> {
+    use base64::Engine;
+
+    // Use get_id_token_impl which handles cookie reading + refresh
+    let id_token = get_id_token_impl().await?;
+
+    let Some(id_token) = id_token else {
+        return Ok(None);
+    };
+
+    // Decode the JWT payload (no signature verification needed —
+    // the token was already verified when set by the OAuth callback)
+    let parts: Vec<&str> = id_token.split('.').collect();
+    if parts.len() < 2 {
+        return Ok(None);
+    }
+    let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(parts[1])
+        .or_else(|_| base64::engine::general_purpose::STANDARD_NO_PAD.decode(parts[1]))
+        .map_err(|e| ServerFnError::new(format!("Failed to decode JWT payload: {e}")))?;
+    let claims: serde_json::Value = serde_json::from_slice(&payload)
+        .map_err(|e| ServerFnError::new(format!("Failed to parse JWT claims: {e}")))?;
+
+    // The `sub` claim is the IC Principal text
+    let user_identifier = claims["sub"]
+        .as_str()
+        .map(|s| s.to_string());
+
+    Ok(user_identifier)
+}
+
 async fn extract_identity_legacy(
     jar: &SignedCookieJar,
     refresh_token: &Cookie<'static>,

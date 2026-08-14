@@ -96,6 +96,14 @@ pub async fn extract_identity() -> Result<Option<DelegatedIdentityWire>, ServerF
     server_impl::extract_identity_impl().await
 }
 
+/// Get the current user's identifier (IC Principal text) from the ID_TOKEN JWT.
+/// Decodes the `sub` claim — no IC identity reconstruction needed.
+/// Returns None for anonymous users (no ID_TOKEN cookie).
+#[server(endpoint = "get_user_identifier", input = Json, output = Json)]
+pub async fn get_user_identifier() -> Result<Option<String>, ServerFnError> {
+    server_impl::get_user_identifier_impl().await
+}
+
 /// Get the current id_token for SpacetimeDB authentication.
 /// Reads the ID_TOKEN cookie. If the token has < 1h remaining, transparently
 /// refreshes it using the httpOnly REFRESH_TOKEN cookie.
