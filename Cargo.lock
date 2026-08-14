@@ -10498,6 +10498,7 @@ dependencies = [
  "console_log",
  "enum_dispatch",
  "futures",
+ "getrandom 0.4.3",
  "hex",
  "jsonwebtoken",
  "leptos",
@@ -10527,7 +10528,6 @@ dependencies = [
  "uuid",
  "wasm-bindgen",
  "web-time",
- "yral-types",
 ]
 
 [[package]]
