@@ -112,7 +112,6 @@ openssl-sys = { workspace = true, features = ["vendored"], optional = true }
 p256 = { workspace = true, features = ["pkcs8"], optional = true }
 postcard = { workspace = true, features = ["use-std"] }
 rand = { workspace = true, optional = true }
-redb = { workspace = true, optional = true }
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["json", "rustls"] }
 rustls = {
@@ -182,7 +181,6 @@ ssr = [
   "dep:openssl-sys",
   "dep:p256",
   "dep:rand",
-  "dep:redb",
   "dep:rustls",
   "dep:sha2",
   "dep:simple_logger",

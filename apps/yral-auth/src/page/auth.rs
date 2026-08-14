@@ -14,7 +14,7 @@ use crate::{
     error::AuthErrorKind,
     oauth::{
         client_validation::{ClientIdValidator, ClientIdValidatorImpl},
-        AuthCodeError, AuthLoginHint, AuthQuery, AuthResponse as AuthResponseCode, CodeChallenge,
+        AuthCodeError, AuthQuery, AuthResponse as AuthResponseCode, CodeChallenge,
         CodeChallengeMethod, SupportedOAuthProviders,
     },
 };
@@ -45,7 +45,6 @@ pub struct AuthQueryMaybe {
     code_challenge: Option<CodeChallenge>,
     code_challenge_method: Option<CodeChallengeMethod>,
     nonce: Option<String>,
-    login_hint: Option<AuthLoginHint>,
     provider: Option<SupportedOAuthProviders>,
 }
 
@@ -79,7 +78,6 @@ impl AuthQueryMaybe {
             code_challenge_method: self
                 .code_challenge_method
                 .ok_or_else(|| AuthErrorKind::missing_param("code_challenge_method"))?,
-            login_hint: self.login_hint,
             nonce: self.nonce,
         })
     }

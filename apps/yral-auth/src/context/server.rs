@@ -314,7 +314,7 @@ impl ServerCtx {
 
         let cookie_key = Self::init_cookie_key();
 
-        //dragonfly redis kv store
+        //SpacetimeDB KV store
         let kv_store = Self::init_kv_store().await;
 
         #[cfg(feature = "phone-auth")]
@@ -334,7 +334,7 @@ impl ServerCtx {
                 oauth_providers,
                 cookie_key,
                 jwk_pairs: JwkPairs::default(),
-                kv_store, //dragonfly redis kv store
+                kv_store, //SpacetimeDB KV store
                 validator: ClientIdValidatorImpl::Const(Default::default()),
                 message_delivery_service,
             }

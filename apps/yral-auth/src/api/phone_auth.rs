@@ -1,18 +1,5 @@
-use std::{ops::Add, sync::Arc, time::Duration};
-
-use axum_extra::extract::{cookie::Cookie, PrivateCookieJar};
-use candid::Principal;
-use leptos::prelude::expect_context;
-use leptos_axum::{extract_with_state, ResponseOptions};
-use rand::Rng;
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-use url::Url;
-
 use crate::{
-    api::identity_provider::{
-        principal_from_login_hint_or_generate_and_save, try_extract_principal_from_oauth_sub,
-    },
+    api::identity_provider::user_id_from_oauth_or_create,
     context::{
         message_delivery_service::{MessageDeliveryError, MessageDeliveryService},
         server::ServerCtx,
@@ -22,6 +9,14 @@ use crate::{
     page::oauth_login::verify_phone_auth::VerifyPhoneOtpRequest,
     utils::{cookies::set_cookies, server_url::get_server_url_from_request, time::current_epoch},
 };
+use axum_extra::extract::{cookie::Cookie, PrivateCookieJar};
+use leptos::prelude::expect_context;
+use leptos_axum::{extract_with_state, ResponseOptions};
+use rand::Rng;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::{ops::Add, sync::Arc, time::Duration};
+use url::Url;
 
 pub const OTP_COOKIE_NAME: &str = "otp_token";
 pub const AUTH_CLIENT_QUERY_COOKIE_NAME: &str = "auth_client_query";
@@ -189,36 +184,21 @@ pub async fn verify_phone_one_time_passcode(
 
     let provider = SupportedOAuthProviders::Phone;
 
-    //TODO: add client code grant and clear the cookies.
-    let user_principal: Principal = if let Some(user_principal) =
-        try_extract_principal_from_oauth_sub(
-            provider,
-            &server_context.kv_store,
-            &verify_request.phone_number,
-            None,
-        )
-        .await?
-    {
-        Principal::from_text(user_principal)
-            .map_err(|_e| AuthErrorKind::Unexpected("Invalid principal from kv".to_owned()))?
-    } else {
-        let user_principal = principal_from_login_hint_or_generate_and_save(
-            provider,
-            &server_context.kv_store,
-            &verify_request.phone_number,
-            auth_client_query.login_hint.clone(),
-            None,
-        )
-        .await?;
-        user_principal
-    };
+    // For phone auth, the phone number itself is the "sub" — use it as the user ID
+    let user_id = user_id_from_oauth_or_create(
+        provider,
+        &server_context.kv_store,
+        &verify_request.phone_number,
+        None,
+    )
+    .await?;
 
     let mut redirect_uri = auth_client_query.redirect_uri.clone();
     let client_state = auth_client_query.state.clone();
 
     let token = generate_code_grant_jwt(
         &server_context.jwk_pairs.auth_tokens.encoding_key,
-        user_principal,
+        &user_id,
         &server_url,
         auth_client_query,
         None,

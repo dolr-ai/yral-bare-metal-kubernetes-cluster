@@ -2,7 +2,6 @@ use crate::{
     error::AuthErrorKind,
     kv::{KVStore, KVStoreImpl},
     oauth::SupportedOAuthProviders,
-    utils::user_id::generate_user_id,
 };
 
 /// KV key for OAuth provider → user ID mapping.

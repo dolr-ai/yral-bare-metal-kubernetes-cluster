@@ -1,8 +1,7 @@
 use crate::{
-    api::identity_provider::{try_extract_user_id_from_oauth_sub, user_id_from_oauth_or_create},
+    api::identity_provider::user_id_from_oauth_or_create,
     context::server::expect_server_ctx,
     error::AuthErrorKind,
-    kv::{KVStore, KVStoreImpl},
     oauth::{jwt::generate::generate_code_grant_jwt, AuthQuery, SupportedOAuthProviders},
     oauth_provider::OAuthProvider,
     utils::server_url::get_server_url_from_request,
@@ -21,7 +20,7 @@ use leptos::prelude::{expect_context, ServerFnError};
 use leptos_axum::{extract_with_state, ResponseOptions};
 use openidconnect::{
     core::CoreAuthenticationFlow, AuthorizationCode, CsrfToken, Nonce, PkceCodeChallenge,
-    PkceCodeVerifier, RedirectUrl,
+    PkceCodeVerifier, RedirectUrl, Scope,
 };
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;

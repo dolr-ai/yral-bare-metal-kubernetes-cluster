@@ -66,6 +66,11 @@ pub struct UserProfile {
     /// Backfilled from `UserMetadata.email`. `None` if not set.
     #[default(None::<String>)]
     pub email: Option<String>,
+    /// OAuth subject identifier (Google/Apple `sub` or UUID for phone auth).
+    /// Links this profile to the yral-auth identity. `None` for legacy users
+    /// not yet linked to an OAuth sub.
+    #[default(None::<String>)]
+    pub user_id: Option<String>,
 }
 
 /// A follow relationship. Primary key is a composite key
@@ -81,6 +86,19 @@ pub struct UserFollow {
     pub follower_text: String,
     #[index(btree)]
     pub followee_text: String,
+}
+
+/// FCM push notification device token. A user can have multiple devices.
+/// Replaces the `notification_key` field from the yral-metadata Redis store.
+#[spacetimedb::table(accessor = user_notification_tokens, public)]
+#[derive(Clone)]
+pub struct UserNotificationToken {
+    #[primary_key]
+    pub key: String, // "{user_id}::{token}"
+    #[index(btree)]
+    pub user_id: String,
+    /// FCM device registration token.
+    pub token: String,
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -327,6 +345,7 @@ pub fn register_new_user(ctx: &ReducerContext) -> Result<(), String> {
         account_type: UserAccountType::MainAccount { bots: Vec::new() },
         username: None,
         email: None,
+        user_id: None,
     });
 
     Ok(())
@@ -621,6 +640,7 @@ pub fn accept_new_user_registration_v2(
                 account_type: UserAccountType::BotAccount { owner: owner_text },
                 username: None,
                 email: None,
+                user_id: None,
             });
         }
         None => {
@@ -642,6 +662,7 @@ pub fn accept_new_user_registration_v2(
                 account_type: UserAccountType::MainAccount { bots: Vec::new() },
                 username: None,
                 email: None,
+                user_id: None,
             });
         }
     }
@@ -929,6 +950,73 @@ pub fn upsert_user_follow_batch(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// Notification token reducers
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Register a device notification token for the caller.
+/// Idempotent — if the token already exists, it's a no-op.
+#[spacetimedb::reducer]
+pub fn register_notification_token(
+    ctx: &ReducerContext,
+    token: String,
+) -> Result<(), String> {
+    let user_id = ctx.sender().to_hex().to_string();
+    let key = format!("{user_id}::{token}");
+
+    // Check if already exists
+    if ctx.db.user_notification_tokens().iter().any(|t| t.key == key) {
+        return Ok(());
+    }
+
+    ctx.db.user_notification_tokens().insert(UserNotificationToken {
+        key,
+        user_id,
+        token,
+    });
+
+    Ok(())
+}
+
+/// Unregister a device notification token for the caller.
+#[spacetimedb::reducer]
+pub fn unregister_notification_token(
+    ctx: &ReducerContext,
+    token: String,
+) -> Result<(), String> {
+    let user_id = ctx.sender().to_hex().to_string();
+    let key = format!("{user_id}::{token}");
+
+    if let Some(existing) = ctx.db.user_notification_tokens().iter().find(|t| t.key == key) {
+        ctx.db.user_notification_tokens().delete(existing);
+    }
+
+    Ok(())
+}
+
+/// Link a user profile to an OAuth user_id. Called by yral-auth after
+/// OAuth login to associate the SpacetimeDB identity with the user's
+/// OAuth sub. Admin-only.
+#[spacetimedb::reducer]
+pub fn link_user_id(
+    ctx: &ReducerContext,
+    principal_text: String,
+    user_id: String,
+) -> Result<(), String> {
+    if !crate::constants::ADMINS.contains(&ctx.sender()) {
+        return Err("Unauthorized".to_string());
+    }
+
+    if let Some(mut profile) = ctx.db.user_profiles().iter().find(|p| p.principal_text == principal_text) {
+        profile.user_id = Some(user_id);
+        let profile_clone = profile.clone();
+        ctx.db.user_profiles().delete(profile);
+        ctx.db.user_profiles().insert(profile_clone);
+    }
+
+    Ok(())
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // Procedures (reads — return typed data)
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -1205,5 +1293,61 @@ pub fn get_following(
             total_count,
             next_cursor,
         }
+    })
+}
+
+/// Get all notification tokens for a user (by user_id).
+/// Used by the push notification service to send FCM notifications.
+#[spacetimedb::procedure]
+pub fn get_notification_tokens(
+    ctx: &mut ProcedureContext,
+    user_id: String,
+) -> Vec<String> {
+    ctx.with_tx(|tx| {
+        tx.db
+            .user_notification_tokens()
+            .iter()
+            .filter(|t| t.user_id == user_id)
+            .map(|t| t.token)
+            .collect()
+    })
+}
+
+/// Look up a user profile by OAuth user_id (sub).
+/// Returns the profile details if found, `None` otherwise.
+/// Used by yral-auth and services that have the OAuth sub but need
+/// the full profile.
+#[spacetimedb::procedure]
+pub fn get_user_profile_by_user_id(
+    ctx: &mut ProcedureContext,
+    user_id: String,
+) -> Option<UserProfileDetailsV7> {
+    ctx.with_tx(|tx| {
+        let profile = tx
+            .db
+            .user_profiles()
+            .iter()
+            .find(|p| p.user_id.as_ref() == Some(&user_id))?;
+
+        let caller_text = tx.sender().to_hex().to_string();
+        let (caller_follows_user, user_follows_caller) =
+            follow_relationships(tx, &caller_text, &profile.principal_text);
+
+        let principal_text = profile.principal_text.clone();
+        let profile_picture = profile_picture_data(&profile);
+
+        Some(UserProfileDetailsV7 {
+            principal_text,
+            profile_picture,
+            bio: profile.bio,
+            website_url: profile.website_url,
+            followers_count: profile.followers_count,
+            following_count: profile.following_count,
+            caller_follows_user,
+            user_follows_caller,
+            subscription_plan: profile.subscription_plan,
+            is_ai_influencer: profile.is_ai_influencer,
+            account_type: profile.account_type,
+        })
     })
 }
