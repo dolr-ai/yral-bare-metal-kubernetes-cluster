@@ -5,12 +5,7 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use utoipa::ToSchema;
 
-use crate::{
-    app_state::AppState, types::DelegatedIdentityWire,
-    utils::delegated_identity::get_user_info_from_delegated_identity_wire,
-};
-
-use super::utils::get_agent_from_delegated_identity_wire;
+use crate::app_state::AppState;
 
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct DeleteUserRequest {

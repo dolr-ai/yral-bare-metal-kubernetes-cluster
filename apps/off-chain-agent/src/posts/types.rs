@@ -2,11 +2,9 @@ use crate::events::types::string_or_number;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::types::DelegatedIdentityWire;
-
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
 pub struct PostRequest<T> {
-    pub delegated_identity_wire: DelegatedIdentityWire,
+    pub post_id: String,
     #[serde(flatten)]
     pub request_body: T,
 }

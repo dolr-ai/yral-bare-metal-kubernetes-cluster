@@ -8,11 +8,7 @@ use types::PostRequest;
 use verify::VerifiedPostRequest;
 
 use crate::spacetime;
-use crate::kvrocks::{KvrocksClient, VideoDeleted};
-use crate::{
-    app_state::AppState,
-    user::utils::get_agent_from_delegated_identity_wire,
-};
+use crate::app_state::AppState;
 
 use super::{types, verify, DeletePostRequest, DeletePostRequestV2};
 

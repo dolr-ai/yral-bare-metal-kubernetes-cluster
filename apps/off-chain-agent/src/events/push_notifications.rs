@@ -1,4 +1,3 @@
-use candid::Principal;
 use serde_json::Value;
 use yral_metadata_types::SendNotificationReq;
 
@@ -16,12 +15,12 @@ impl NotificationClient {
         Self { api_key }
     }
 
-    pub async fn send_notification(&self, data: SendNotificationReq, user_id: Principal) {
+    pub async fn send_notification(&self, data: SendNotificationReq, user_id: String) {
         let client = reqwest::Client::new();
         let url = format!(
             "{}/notifications/{}/send",
             METADATA_SERVER_URL,
-            user_id.to_text()
+            user_id
         );
 
         let res = client

@@ -1,4 +1,3 @@
-use candid::Principal;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use serde_json::{json, Value};
 use utoipa::ToSchema;
@@ -12,7 +11,6 @@ use yral_metrics::metrics::{
 };
 
 use crate::app_state::AppState;
-use crate::rewards::config::RewardTokenType;
 
 pub fn string_or_number<'de, D>(deserializer: D) -> Result<String, D::Error>
 where

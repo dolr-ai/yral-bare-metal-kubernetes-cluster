@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
-use candid::Principal;
 use http::header;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -9,10 +8,10 @@ use utoipa::ToSchema;
 
 use crate::app_state::AppState;
 
-#[derive(Serialize, Deserialize, Copy, Clone, Eq, PartialEq, PartialOrd, Debug)]
+#[derive(Serialize, Deserialize, Clone, Eq, PartialEq, PartialOrd, Debug)]
 pub struct MigrateIndividualUserRequest {
-    pub user_canister: Principal,
-    pub user_principal: Principal,
+    pub user_canister: String,
+    pub user_principal: String,
 }
 
 #[derive(Serialize, Deserialize, ToSchema, Clone)]
@@ -24,8 +23,8 @@ pub struct MigrateIndividualUserRequestSchema {
 impl From<MigrateIndividualUserRequest> for MigrateIndividualUserRequestSchema {
     fn from(request: MigrateIndividualUserRequest) -> Self {
         Self {
-            user_canister: request.user_canister.to_text(),
-            user_principal: request.user_principal.to_text(),
+            user_canister: request.user_canister,
+            user_principal: request.user_principal,
         }
     }
 }

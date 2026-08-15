@@ -15,7 +15,6 @@ use yral_metrics::metrics::sealed_metric::SealedMetric;
 
 use crate::auth::check_auth_events;
 use crate::events::verify::verify_event_bulk_request_v3;
-use crate::types::DelegatedIdentityWire;
 use crate::AppState;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

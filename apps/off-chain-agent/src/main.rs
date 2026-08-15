@@ -1,14 +1,12 @@
 #![recursion_limit = "256"]
 
-use std::net::SocketAddr;
-use std::sync::Arc;
-
 use anyhow::Result;
 use axum::extract::DefaultBodyLimit;
 use axum::http::StatusCode;
 use axum::{routing::get, Router};
-use canister::canister_health_handler;
 use config::AppConfig;
+use std::net::SocketAddr;
+use std::sync::Arc;
 use tower::make::Shared;
 use tower_http::cors::CorsLayer;
 use tracing::instrument;
@@ -18,21 +16,16 @@ use utoipa_swagger_ui::SwaggerUi;
 
 mod app_state;
 mod auth;
-pub mod canister;
 mod config;
 mod consts;
 mod error;
 mod events;
-pub mod kvrocks;
-pub mod leaderboard;
 mod middleware;
 mod posts;
-mod rewards;
 mod spacetime;
 mod types;
 pub mod user;
 pub mod utils;
-pub mod yral_auth;
 
 use app_state::AppState;
 
@@ -57,14 +50,6 @@ async fn main_impl() -> Result<()> {
         )
         .nest("/api/v1/user", user::user_router(shared_state.clone()))
         .nest(
-            "/api/v1/leaderboard",
-            leaderboard::leaderboard_router(shared_state.clone()),
-        )
-        .nest(
-            "/api/v1/rewards",
-            rewards::api::rewards_router(shared_state.clone()),
-        )
-        .nest(
             "/api/v2/events",
             events::events_router_v2(shared_state.clone()),
         )
@@ -81,7 +66,6 @@ async fn main_impl() -> Result<()> {
     // build our application with a route
     let http = Router::new()
         .route("/healthz", get(health_handler))
-        .route("/canister-health", get(canister_health_handler))
         .fallback_service(router)
         .layer(DefaultBodyLimit::max(50 * 1024 * 1024)) // 50MB limit
         .layer(CorsLayer::permissive())

@@ -1,65 +1,29 @@
 use crate::config::AppConfig;
 use crate::consts::YRAL_METADATA_URL;
 use crate::events::push_notifications::NotificationClient;
-use crate::kvrocks::KvrocksClient;
-use crate::rewards::RewardsModule;
 use crate::spacetime::{self, SpacetimeConnection};
-use crate::types::RedisPool;
 use crate::utils::naitik_multi_service_client::NaitikMultiServiceClient;
-use crate::yral_auth::dragonfly::{
-    get_redis_store_ca_cert, get_redis_store_client_cert, get_redis_store_client_key,
-    init_dragonfly_redis_store, DragonflyPool,
-};
-use anyhow::{anyhow, Context, Result};
-use candid::Principal;
-use ic_agent::identity::Secp256k1Identity;
-use ic_agent::Agent;
+use anyhow::{Context, Result};
 use std::env;
 use std::sync::Arc;
 use yral_metadata_client::MetadataClient;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub admin_identity: Secp256k1Identity,
-    pub agent: ic_agent::Agent,
     pub yral_metadata_client: MetadataClient<true>,
     pub spacetime_conn: Option<Arc<SpacetimeConnection>>,
 
     pub notification_client: NotificationClient,
-    pub yral_auth_dragonfly: Arc<DragonflyPool>,
-    pub yral_redis_store_dragonfly: Arc<DragonflyPool>,
-    pub leaderboard_redis_pool: RedisPool,
-    pub rewards_module: RewardsModule,
-    pub service_cansister_migration_redis_pool: RedisPool,
     pub config: AppConfig,
     pub user_migration_api_key: String,
-    pub kvrocks_client: KvrocksClient,
 
     pub naitik_multi_service_client: NaitikMultiServiceClient,
 }
 
 impl AppState {
     pub async fn new(app_config: AppConfig) -> Self {
-        let leaderboard_redis_pool = init_leaderboard_redis_pool().await;
-        let agent = init_agent().await;
-
-        //Initialize central redis data store for auth, metadata and rewards/impressions.
-        let dragonfly_redis_store = init_dragonfly_redis_store_pool().await;
-
-        let mut rewards_module =
-            RewardsModule::new(dragonfly_redis_store.clone(), agent.clone()).await;
-
-        // Initialize the rewards module (loads Lua scripts)
-        if let Err(e) = rewards_module.initialize().await {
-            log::error!("Failed to initialize rewards module: {}", e);
-        }
-
-        let kvrocks_client = init_kvrocks_client().await;
-
         AppState {
-            admin_identity: init_identity(),
             yral_metadata_client: init_yral_metadata_client(&app_config),
-            agent,
             spacetime_conn: match spacetime::init_spacetimedb_connection().await {
                 Ok(conn) => Some(conn),
                 Err(e) => {
@@ -70,126 +34,24 @@ impl AppState {
             notification_client: NotificationClient::new(
                 env::var("YRAL_METADATA_NOTIFICATION_API_KEY").unwrap_or_default(),
             ),
-            yral_auth_dragonfly: dragonfly_redis_store.clone(),
-            yral_redis_store_dragonfly: dragonfly_redis_store,
-            leaderboard_redis_pool,
-            rewards_module,
             config: app_config,
-            service_cansister_migration_redis_pool: init_service_canister_migration_redis_pool()
-                .await,
             user_migration_api_key: env::var("YRAL_OFF_CHAIN_USER_MIGRATION_API_KEY")
                 .expect("YRAL_OFF_CHAIN_USER_MIGRATION_API_KEY is not set"),
-            kvrocks_client,
             naitik_multi_service_client: NaitikMultiServiceClient::new(),
         }
     }
 
     pub async fn get_individual_canister_by_user_principal(
         &self,
-        user_principal: Principal,
-    ) -> Result<Principal> {
-        let meta = self
-            .yral_metadata_client
-            .get_user_metadata_v2(user_principal.to_string())
-            .await
-            .context("Failed to get user_metadata from yral_metadata_client")?;
-
-        match meta {
-            Some(meta) => Ok(meta.user_canister_id),
-            None => Err(anyhow!(
-                "user metadata does not exist in yral_metadata_service"
-            )),
-        }
+        _user_principal: String,
+    ) -> Result<String> {
+        // IC canisters decommissioned — this method is kept for API compatibility
+        // but returns an error since canisters no longer exist.
+        Err(anyhow::anyhow!("IC canisters decommissioned"))
     }
 }
 
 pub fn init_yral_metadata_client(conf: &AppConfig) -> MetadataClient<true> {
     MetadataClient::with_base_url(YRAL_METADATA_URL.clone())
         .with_jwt_token(conf.yral_metadata_token.clone())
-}
-
-pub fn init_identity() -> ic_agent::identity::Secp256k1Identity {
-    let pk = env::var("BACKEND_ADMIN_IDENTITY").expect("$BACKEND_ADMIN_IDENTITY is not set");
-    match ic_agent::identity::Secp256k1Identity::from_pem(pk.as_str()) {
-        Ok(identity) => identity,
-        Err(err) => {
-            panic!("Unable to create identity, error: {err:?}");
-        }
-    }
-}
-
-pub async fn init_agent() -> Agent {
-    let pk = env::var("BACKEND_ADMIN_IDENTITY").expect("$BACKEND_ADMIN_IDENTITY is not set");
-
-    let identity = match ic_agent::identity::Secp256k1Identity::from_pem(pk.as_str()) {
-        Ok(identity) => identity,
-        Err(err) => {
-            panic!("Unable to create identity, error: {err:?}");
-        }
-    };
-
-    match Agent::builder()
-        .with_url("https://a4gq6-oaaaa-aaaab-qaa4q-cai.raw.ic0.app/")
-        .with_identity(identity)
-        .build()
-    {
-        Ok(agent) => agent,
-        Err(err) => {
-            panic!("Unable to create agent, error: {err:?}");
-        }
-    }
-}
-
-async fn init_leaderboard_redis_pool() -> RedisPool {
-    let redis_url =
-        std::env::var("LEADERBOARD_REDIS_URL").expect("Either LEADERBOARD_REDIS_URL must be set");
-
-    let manager = bb8_redis::RedisConnectionManager::new(redis_url.clone())
-        .expect("failed to open connection to redis");
-    RedisPool::builder().build(manager).await.unwrap()
-}
-
-async fn init_service_canister_migration_redis_pool() -> RedisPool {
-    let redis_url = std::env::var("SERVICE_CANISTER_MIGRATION_REDIS_URL")
-        .expect("SERVICE_CANISTER_MIGRATION_REDIS_URL is not set");
-
-    let manager = bb8_redis::RedisConnectionManager::new(redis_url.clone())
-        .expect("failed to open connection to redis");
-    RedisPool::builder().build(manager).await.unwrap()
-}
-
-async fn init_dragonfly_redis_store_pool() -> Arc<DragonflyPool> {
-    let ca_cert_bytes =
-        get_redis_store_ca_cert().expect("Failed to read DRAGONFLY_REDIS_STORE_CA_CERT");
-    let client_cert_bytes =
-        get_redis_store_client_cert().expect("Failed to read DRAGONFLY_REDIS_STORE_CLIENT_CERT");
-    let client_key_bytes =
-        get_redis_store_client_key().expect("Failed to read DRAGONFLY_REDIS_STORE_CLIENT_KEY");
-
-    let dragonfly_pool: Arc<DragonflyPool> =
-        init_dragonfly_redis_store(ca_cert_bytes, client_cert_bytes, client_key_bytes)
-            .await
-            .expect("failed to initalize DragonflyPool");
-    dragonfly_pool
-}
-
-const KVROCKS_MAX_RETRIES: u32 = 10;
-
-async fn init_kvrocks_client() -> KvrocksClient {
-    let mut attempt = 0u32;
-    loop {
-        match crate::kvrocks::init_kvrocks_client().await {
-            Ok(client) => return client,
-            Err(e) => {
-                attempt += 1;
-                if attempt >= KVROCKS_MAX_RETRIES {
-                    log::error!(
-                        "Failed to connect to kvrocks after {attempt} attempts: {e}. Retrying..."
-                    );
-                }
-                let delay = std::time::Duration::from_secs(2u64.pow(attempt.min(7)).min(120));
-                tokio::time::sleep(delay).await;
-            }
-        }
-    }
 }

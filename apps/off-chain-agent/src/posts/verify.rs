@@ -6,12 +6,9 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use candid::Principal;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    app_state::AppState, utils::delegated_identity::get_user_info_from_delegated_identity_wire,
-};
+use crate::app_state::AppState;
 
 use super::PostRequest;
 

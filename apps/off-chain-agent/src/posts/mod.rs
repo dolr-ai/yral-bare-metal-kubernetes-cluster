@@ -1,6 +1,5 @@
 use std::sync::Arc;
 use axum::middleware;
-use candid::Principal;
 use delete_post::{handle_delete_post, handle_delete_post_v2};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;

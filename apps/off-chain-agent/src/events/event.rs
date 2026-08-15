@@ -51,105 +51,20 @@ impl Event {
 
         let watch_count: u8 = 1;
 
-        // Try SpacetimeDB first; fall back to IC if not connected.
+        // Send to SpacetimeDB via SDK connection
         if let Some(ref conn) = app_state.spacetime_conn {
             if let Err(e) = spacetime::send_view_details(conn, post_id.clone(), percentage_watched, watch_count) {
                 error!("Failed to send view details to SpacetimeDB for post {post_id}: {e:?}");
             }
-        } else {
-            // Fallback: IC canister (deprecated — will be removed once SpacetimeDB is confirmed stable)
-            self.update_view_count_canister_ic(app_state, post_id, percentage_watched, watch_count);
         }
     }
 
-    /// IC canister fallback for view-count updates (deprecated).
-    fn update_view_count_canister_ic(
-        &self,
-        app_state: &AppState,
-        post_id: String,
-        percentage_watched: u8,
-        watch_count: u8,
-    ) {
-        use crate::consts::USER_POST_SERVICE_CANISTER_ID;
-        use canisters_client::user_post_service::{
-            PostViewDetailsFromFrontend as UserPostViewDetails, UserPostService,
-        };
-        use std::cmp::Ordering;
-
-        let app_state = app_state.clone();
-
-        tokio::spawn(async move {
-            let payload = match percentage_watched.cmp(&95) {
-                Ordering::Less => UserPostViewDetails::WatchedPartially { percentage_watched },
-                _ => UserPostViewDetails::WatchedMultipleTimes {
-                    percentage_watched,
-                    watch_count,
-                },
-            };
-
-            let user_post_service = UserPostService(*USER_POST_SERVICE_CANISTER_ID, &app_state.agent);
-
-            if let Err(e) = user_post_service
-                .update_post_add_view_details(post_id.clone(), payload)
-                .await
-            {
-                error!("Failed to update view details for post {post_id} in IC UserPostService canister (fallback): {e:?}");
-            }
-        });
+    pub async fn process_btc_rewards(&self, _app_state: &AppState) {
+        // BTC rewards processing removed — rewards module migrated to SpacetimeDB
+        // (view counts tracked via SpacetimeDB, reward distribution handled separately)
     }
 
-    pub async fn process_btc_rewards(&self, app_state: &AppState) {
-        if self.event.event != "video_duration_watched" {
-            return;
-        }
-
-        // Parse the event parameters
-        let params: Result<VideoDurationWatchedPayloadV2, _> =
-            serde_json::from_str(&self.event.params);
-
-        let params = match params {
-            Ok(p) => p,
-            Err(e) => {
-                log::error!("Failed to parse video_duration_watched params for rewards: {e:?}");
-                return;
-            }
-        };
-
-        // Initialize reward engine
-        let reward_engine = app_state.rewards_module.reward_engine.clone();
-
-        // Process the view for rewards
-        let app_state_arc = std::sync::Arc::new(app_state.clone());
-        if let Err(e) = reward_engine
-            .process_video_view(params, &app_state_arc)
-            .await
-        {
-            log::error!("Failed to process BTC rewards: {e:?}");
-        }
-    }
-
-    pub async fn process_video_started_event(&self, app_state: &AppState) {
-        if self.event.event != "video_started" {
-            return;
-        }
-
-        // Parse the event parameters
-        let params: Result<VideoStartedPayload, _> = serde_json::from_str(&self.event.params);
-
-        let params = match params {
-            Ok(p) => p,
-            Err(e) => {
-                log::error!("Failed to parse video_started params: {e:?}");
-                return;
-            }
-        };
-
-        // Initialize reward engine
-        let reward_engine = app_state.rewards_module.reward_engine.clone();
-
-        // Process the video started event
-        if let Err(e) = reward_engine.process_video_started(params).await {
-            log::error!("Failed to process video_started event: {e:?}");
-        }
+    pub async fn process_video_started_event(&self, _app_state: &AppState) {
+        // Video started rewards processing removed — rewards module migrated to SpacetimeDB
     }
 }

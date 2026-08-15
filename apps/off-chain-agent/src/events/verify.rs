@@ -6,7 +6,6 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use candid::Principal;
 use yral_metrics::metrics::sealed_metric::SealedMetric;
 
 use crate::{

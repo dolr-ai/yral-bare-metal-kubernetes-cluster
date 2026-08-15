@@ -1,11 +1,11 @@
 use std::time::UNIX_EPOCH;
 
-/// Local re-definition of the candid SystemTime struct previously imported
-/// from `individual_user_template`. Kept here so callers that still need to
-/// serialise timestamps to candid don't depend on the decommissioned canister
-/// client.
+/// Local re-definition of the candid SystemTime struct. Candid is no longer a
+/// direct dependency of off-chain-agent, so derive serde traits instead of
+/// `candid::CandidType`. Callers that previously serialised via candid can
+/// still rely on serde for JSON transport.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, candid::CandidType, serde::Serialize, serde::Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize,
 )]
 pub struct SystemTime {
     pub nanos_since_epoch: u32,

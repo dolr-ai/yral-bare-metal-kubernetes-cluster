@@ -1,18 +1,13 @@
 use std::sync::Arc;
 
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
-use candid::Principal;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use utoipa::ToSchema;
 
 use crate::{
     app_state::AppState,
-    consts::USER_INFO_SERVICE_CANISTER_ID,
     events::types::{EventPayload, FollowUserPayload},
-    types::DelegatedIdentityWire,
-    user::utils::get_agent_from_delegated_identity_wire,
-    utils::delegated_identity::get_user_info_from_delegated_identity_wire,
 };
 use canisters_client::user_info_service::UserInfoService;
 

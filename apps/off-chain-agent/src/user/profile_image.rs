@@ -7,12 +7,9 @@ use tracing::instrument;
 use utoipa::ToSchema;
 
 use crate::{
-    app_state::AppState, consts::USER_INFO_SERVICE_CANISTER_ID, types::DelegatedIdentityWire,
-    user::utils::get_agent_from_delegated_identity_wire,
-    utils::delegated_identity::get_user_info_from_delegated_identity_wire,
+    app_state::AppState,
     utils::s3::upload_profile_image_to_s3,
 };
-use canisters_client::user_info_service::{ProfileUpdateDetails, UserInfoService};
 
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct UploadProfileImageRequest {
