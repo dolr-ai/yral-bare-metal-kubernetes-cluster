@@ -18,13 +18,9 @@ use crate::{
         get_user_metadata_bulk_impl, get_user_metadata_impl, set_user_metadata_core,
         set_user_metadata_impl,
     },
-    dragonfly::YRAL_METADATA_KEY_PREFIX,
     services::error_wrappers::{ErrorWrapper, NullOk, OkWrapper},
-    state::{self, AppState},
-    utils::{
-        canister::CANISTER_TO_PRINCIPAL_KEY,
-        error::{Error, Result},
-    },
+    state::AppState,
+    utils::error::{Error, Result},
 };
 
 #[utoipa::path(
@@ -46,20 +42,12 @@ pub async fn set_user_metadata(
     Path(user_principal): Path<Principal>,
     Json(req): Json<SetUserMetadataReq>,
 ) -> Result<Json<ApiResult<SetUserMetadataRes>>> {
-    let principal = user_principal;
-
-    let result = set_user_metadata_impl(
-        &state.dragonfly_redis_store,
-        principal,
-        req,
-        CANISTER_TO_PRINCIPAL_KEY,
-        YRAL_METADATA_KEY_PREFIX,
-    )
-    .await
-    .map_err(|e| {
-        log::error!("API error: {e:?}");
-        e
-    })?;
+    let result = set_user_metadata_impl(&state.spacetime, user_principal, req)
+        .await
+        .map_err(|e| {
+            log::error!("API error: {e:?}");
+            e
+        })?;
 
     Ok(Json(Ok(result)))
 }
@@ -83,17 +71,7 @@ pub async fn admin_set_user_metadata(
     Path(user_principal): Path<Principal>,
     Json(req): Json<SetUserMetadataReq>,
 ) -> Result<Json<ApiResult<SetUserMetadataRes>>> {
-    // IC admin identity removed — admin metadata updates now use the same
-    // set_user_metadata_core path without IC signature verification.
-    // Admin authorization is handled by the API gateway / network policy.
-    let result = set_user_metadata_core(
-        &state.dragonfly_redis_store,
-        user_principal,
-        &req.metadata,
-        CANISTER_TO_PRINCIPAL_KEY,
-        YRAL_METADATA_KEY_PREFIX,
-    )
-    .await?;
+    let result = set_user_metadata_core(&state.spacetime, user_principal, &req.metadata).await?;
     Ok(Json(Ok(result)))
 }
 
@@ -113,16 +91,12 @@ pub async fn get_user_metadata(
     State(state): State<Arc<AppState>>,
     Path(identifier): Path<String>,
 ) -> Result<Json<ApiResult<GetUserMetadataV2Res>>> {
-    let result = get_user_metadata_impl(
-        &state.dragonfly_redis_store,
-        identifier.clone(),
-        YRAL_METADATA_KEY_PREFIX,
-    )
-    .await
-    .map_err(|e| {
-        log::error!("API error: {e:?}");
-        e
-    })?;
+    let result = get_user_metadata_impl(&state.spacetime, identifier)
+        .await
+        .map_err(|e| {
+            log::error!("API error: {e:?}");
+            e
+        })?;
 
     Ok(Json(Ok(result)))
 }
@@ -132,7 +106,7 @@ pub async fn get_user_metadata(
     path = "/metadata/bulk",
     request_body = BulkUsers,
     responses(
-        (status = 200, description = "Delete user metadata in bulk successfully", body = NullOk), // OkWrapper<()> panics for some reason
+        (status = 200, description = "Delete user metadata in bulk successfully", body = NullOk),
         (status = 400, description = "Invalid request", body = ErrorWrapper<crate::utils::error::Error>),
         (status = 401, description = "Unauthorized", body = ErrorWrapper<crate::utils::error::Error>),
         (status = 500, description = "Internal server error", body = ErrorWrapper<crate::utils::error::Error>)
@@ -153,16 +127,9 @@ pub async fn delete_metadata_bulk(
         .map_err(|_| Error::AuthTokenInvalid)?;
     let token = token.trim_start_matches("Bearer ");
 
-    // Verify JWT token
     crate::auth::verify_token(token, &state.jwt_details)?;
 
-    delete_metadata_bulk_impl(
-        &state.dragonfly_redis_store,
-        &req,
-        CANISTER_TO_PRINCIPAL_KEY,
-        YRAL_METADATA_KEY_PREFIX,
-    )
-    .await?;
+    delete_metadata_bulk_impl(&state.spacetime, &req).await?;
     Ok(Json(Ok(())))
 }
 
@@ -182,13 +149,12 @@ pub async fn get_user_metadata_bulk(
     let user_count = req.users.len();
     log::info!("Bulk fetch metadata for {} users", user_count);
 
-    let result =
-        get_user_metadata_bulk_impl(&state.dragonfly_redis_store, req, YRAL_METADATA_KEY_PREFIX)
-            .await
-            .map_err(|e| {
-                log::error!("API error: {e:?}");
-                e
-            })?;
+    let result = get_user_metadata_bulk_impl(&state.spacetime, req)
+        .await
+        .map_err(|e| {
+            log::error!("API error: {e:?}");
+            e
+        })?;
     Ok(Json(Ok(result)))
 }
 
@@ -205,13 +171,7 @@ pub async fn get_canister_to_principal_bulk(
     State(state): State<Arc<AppState>>,
     Json(req): Json<CanisterToPrincipalReq>,
 ) -> Result<Json<ApiResult<CanisterToPrincipalRes>>> {
-    let result = get_canister_to_principal_bulk_impl(
-        &state.dragonfly_redis_store,
-        req,
-        CANISTER_TO_PRINCIPAL_KEY,
-        YRAL_METADATA_KEY_PREFIX,
-    )
-    .await?;
+    let result = get_canister_to_principal_bulk_impl(&state.spacetime, req).await?;
     Ok(Json(Ok(result)))
 }
 

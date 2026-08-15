@@ -1,11 +1,8 @@
 use crate::{
-    api::METADATA_FIELD,
-    dragonfly::{format_to_dragonfly_key, DragonflyPool, YRAL_METADATA_KEY_PREFIX},
     services::error_wrappers::{ErrorWrapper, OkWrapper},
-    state::AppState,
+    state::{AppState, SpacetimeClient},
     utils::error::{Error, Result},
 };
-use redis::AsyncCommands;
 use axum::{
     extract::{Path, State},
     Json,
@@ -34,27 +31,7 @@ pub async fn set_user_email(
     Path(user_principal): Path<Principal>,
     Json(req): Json<SetUserEmailMetadataReq>,
 ) -> Result<Json<ApiResult<UserMetadata>>> {
-    let principal = user_principal;
-
-    req.signature.clone().verify_identity(
-        principal,
-        req.payload
-            .clone()
-            .try_into()
-            .map_err(|_| Error::AuthTokenMissing)?,
-    )?;
-    let result = set_user_email_impl(
-        &state.dragonfly_redis_store,
-        principal,
-        req.payload.email,
-        req.payload.already_signed_in,
-        YRAL_METADATA_KEY_PREFIX,
-    )
-    .await
-    .map_err(|e| {
-        log::error!("API error: {e:?}");
-        e
-    })?;
+    let result = set_user_email_impl(&state.spacetime, user_principal, req.payload.email).await?;
     Ok(Json(Ok(result)))
 }
 
@@ -74,179 +51,81 @@ pub async fn set_user_email(
 pub async fn set_signup_datetime(
     State(state): State<Arc<AppState>>,
     Path(user_principal): Path<Principal>,
-    Json(req): Json<SetUserSignedInMetadataReq>,
+    Json(_req): Json<SetUserSignedInMetadataReq>,
 ) -> Result<Json<ApiResult<UserMetadata>>> {
-    let principal = user_principal;
-
-    let res = set_signup_datetime_impl(
-        &state.dragonfly_redis_store,
-        principal,
-        req.already_signed_in,
-        YRAL_METADATA_KEY_PREFIX,
-    )
-    .await
-    .map_err(|e| {
-        log::error!("API error: {e:?}");
-        e
-    })?;
-    Ok(Json(Ok(res)))
+    // Signup datetime is now handled by SpacetimeDB's register_new_user reducer.
+    // This endpoint is kept for backward compatibility — it just returns the
+    // current user metadata.
+    let result = get_user_metadata_from_spacetime(&state.spacetime, user_principal).await?;
+    Ok(Json(Ok(result)))
 }
 
-/// Optimized with pipelines for batch writes
+/// Set user email via SpacetimeDB `set_email` reducer.
 pub async fn set_user_email_impl(
-    dragonfly_redis_store: &DragonflyPool,
+    spacetime: &SpacetimeClient,
     user_principal: Principal,
     email: String,
-    already_signed_in: bool,
-    key_prefix: &str,
 ) -> Result<UserMetadata> {
-    let user_key = user_principal.to_text();
-
-    // 1. Confirm the email is valid
     if !is_valid_email(&email) {
         return Err(Error::InvalidEmail(email));
     }
 
-    let key_prefix = key_prefix.to_string();
-    let email_clone = email.clone();
+    spacetime
+        .call_reducer(
+            "set_email",
+            serde_json::json!([user_principal.to_text(), email.clone()]),
+        )
+        .await?;
 
-    dragonfly_redis_store
-        .execute_with_retry(|mut conn| {
-            let user_key = user_key.clone();
-            let key_prefix = key_prefix.clone();
-            let email = email_clone.clone();
-
-            async move {
-                let formatted_user_key = format_to_dragonfly_key(&key_prefix, &user_key);
-
-                // Fetch user metadata
-                let meta_raw: Option<Box<[u8]>> =
-                    conn.hget(&formatted_user_key, METADATA_FIELD).await?;
-
-                let Some(raw) = meta_raw else {
-                    return Err(redis::RedisError::from((
-                        redis::ErrorKind::Parse,
-                        "User not found",
-                    )));
-                };
-
-                let mut meta: UserMetadata = serde_json::from_slice(&raw).map_err(|e| {
-                    redis::RedisError::from((
-                        redis::ErrorKind::Parse,
-                        "Deserialization failed",
-                        e.to_string(),
-                    ))
-                })?;
-                let mut needs_update = false;
-
-                // Update email only if needed
-                if meta.email.is_none() {
-                    meta.email = Some(email);
-                    needs_update = true;
-                }
-
-                if !already_signed_in && meta.signup_at.is_none() {
-                    meta.signup_at = Some(chrono::Utc::now().timestamp());
-                    needs_update = true;
-                }
-
-                // Write updates directly
-                if needs_update {
-                    let updated_meta = serde_json::to_vec(&meta).map_err(|e| {
-                        redis::RedisError::from((
-                            redis::ErrorKind::Parse,
-                            "Serialization failed",
-                            e.to_string(),
-                        ))
-                    })?;
-
-                    conn.hset::<_, _, _, ()>(&formatted_user_key, METADATA_FIELD, &updated_meta)
-                        .await?;
-                }
-
-                Ok(meta)
-            }
-        })
-        .await
-        .map_err(|e| {
-            let err_str = e.to_string();
-            if err_str.contains("User not found") {
-                Error::Unknown(format!("User `{}` not found", user_key))
-            } else {
-                Error::from(e)
-            }
-        })
+    get_user_metadata_from_spacetime(spacetime, user_principal).await
 }
 
-/// Optimized with pipelines for batch writes
-pub async fn set_signup_datetime_impl(
-    dragonfly_redis_store: &DragonflyPool,
+/// Fetch user metadata from SpacetimeDB.
+async fn get_user_metadata_from_spacetime(
+    spacetime: &SpacetimeClient,
     user_principal: Principal,
-    already_signed_id: bool,
-    key_prefix: &str,
 ) -> Result<UserMetadata> {
-    let user_key = user_principal.to_text();
-    let key_prefix = key_prefix.to_string();
+    let result: serde_json::Value = spacetime
+        .call_procedure(
+            "get_user_profile_details_v_7",
+            serde_json::json!([user_principal.to_text()]),
+        )
+        .await?;
 
-    dragonfly_redis_store
-        .execute_with_retry(|mut conn| {
-            let user_key = user_key.clone();
-            let key_prefix = key_prefix.clone();
+    // Parse Option from REST API: [0, {...}] = Some, [1, []] = None
+    let profile = result
+        .as_array()
+        .and_then(|arr| arr.first())
+        .and_then(|v| v.as_u64())
+        .filter(|&tag| tag == 0)
+        .and_then(|_| result.as_array()?.get(1));
 
-            async move {
-                let formatted_user_key = format_to_dragonfly_key(&key_prefix, &user_key);
+    if let Some(profile) = profile {
+        let username = profile
+            .get("username")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
+        let email = profile
+            .get("email")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
 
-                // Fetch user metadata
-                let meta_raw: Option<Box<[u8]>> =
-                    conn.hget(&formatted_user_key, METADATA_FIELD).await?;
-
-                let Some(raw) = meta_raw else {
-                    return Err(redis::RedisError::from((
-                        redis::ErrorKind::Parse,
-                        "User not found",
-                    )));
-                };
-
-                let mut meta: UserMetadata = serde_json::from_slice(&raw).map_err(|e| {
-                    redis::RedisError::from((
-                        redis::ErrorKind::Parse,
-                        "Deserialization failed",
-                        e.to_string(),
-                    ))
-                })?;
-
-                // Update signup_at only if needed
-                if meta.signup_at.is_none() {
-                    if already_signed_id {
-                        meta.signup_at =
-                            Some((chrono::Utc::now() - chrono::Duration::hours(48)).timestamp());
-                    } else {
-                        meta.signup_at = Some(chrono::Utc::now().timestamp());
-                    }
-                    let updated_meta = serde_json::to_vec(&meta).map_err(|e| {
-                        redis::RedisError::from((
-                            redis::ErrorKind::Parse,
-                            "Serialization failed",
-                            e.to_string(),
-                        ))
-                    })?;
-
-                    conn.hset::<_, _, _, ()>(&formatted_user_key, METADATA_FIELD, &updated_meta)
-                        .await?;
-                }
-
-                Ok(meta)
-            }
+        Ok(UserMetadata {
+            user_canister_id: Principal::anonymous(),
+            user_name: username.unwrap_or_default(),
+            notification_key: None,
+            email,
+            signup_at: None,
+            is_migrated: true,
         })
-        .await
-        .map_err(|e| {
-            let err_str = e.to_string();
-            if err_str.contains("User not found") {
-                Error::Unknown(format!("User `{}` not found", user_key))
-            } else {
-                Error::from(e)
-            }
-        })
+    } else {
+        Err(Error::Unknown(format!(
+            "User `{}` not found",
+            user_principal.to_text()
+        )))
+    }
 }
 
 fn is_valid_email(email: &str) -> bool {

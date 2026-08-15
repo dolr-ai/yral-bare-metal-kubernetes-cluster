@@ -32,6 +32,7 @@ pub mod get_posts_of_user_by_principal_procedure;
 pub mod get_posts_of_user_procedure;
 pub mod get_profile_details_v_4_procedure;
 pub mod get_user_profile_by_user_id_procedure;
+pub mod get_user_profile_by_username_procedure;
 pub mod get_user_profile_details_v_7_procedure;
 pub mod get_users_profile_details_procedure;
 pub mod kv_delete_reducer;
@@ -53,6 +54,8 @@ pub mod profile_picture_data_type;
 pub mod register_new_user_reducer;
 pub mod register_notification_token_reducer;
 pub mod remove_pro_plan_free_video_credits_reducer;
+pub mod set_email_reducer;
+pub mod set_username_reducer;
 pub mod subscription_plan_type;
 pub mod unfollow_user_reducer;
 pub mod unregister_notification_token_reducer;
@@ -107,6 +110,7 @@ pub use get_posts_of_user_by_principal_procedure::get_posts_of_user_by_principal
 pub use get_posts_of_user_procedure::get_posts_of_user;
 pub use get_profile_details_v_4_procedure::get_profile_details_v_4;
 pub use get_user_profile_by_user_id_procedure::get_user_profile_by_user_id;
+pub use get_user_profile_by_username_procedure::get_user_profile_by_username;
 pub use get_user_profile_details_v_7_procedure::get_user_profile_details_v_7;
 pub use get_users_profile_details_procedure::get_users_profile_details;
 pub use kv_delete_reducer::kv_delete;
@@ -128,6 +132,8 @@ pub use profile_picture_data_type::ProfilePictureData;
 pub use register_new_user_reducer::register_new_user;
 pub use register_notification_token_reducer::register_notification_token;
 pub use remove_pro_plan_free_video_credits_reducer::remove_pro_plan_free_video_credits;
+pub use set_email_reducer::set_email;
+pub use set_username_reducer::set_username;
 pub use subscription_plan_type::SubscriptionPlan;
 pub use unfollow_user_reducer::unfollow_user;
 pub use unregister_notification_token_reducer::unregister_notification_token;
@@ -217,6 +223,14 @@ pub enum Reducer {
         principal_text: String,
         credits: u32,
     },
+    SetEmail {
+        principal_text: String,
+        email: String,
+    },
+    SetUsername {
+        principal_text: String,
+        username: String,
+    },
     UnfollowUser {
         followee_text: String,
     },
@@ -287,6 +301,8 @@ impl __sdk::Reducer for Reducer {
             Reducer::RegisterNewUser => "register_new_user",
             Reducer::RegisterNotificationToken { .. } => "register_notification_token",
             Reducer::RemoveProPlanFreeVideoCredits { .. } => "remove_pro_plan_free_video_credits",
+            Reducer::SetEmail { .. } => "set_email",
+            Reducer::SetUsername { .. } => "set_username",
             Reducer::UnfollowUser { .. } => "unfollow_user",
             Reducer::UnregisterNotificationToken { .. } => "unregister_notification_token",
             Reducer::UpdatePostStatus { .. } => "update_post_status",
@@ -405,6 +421,20 @@ impl __sdk::Reducer for Reducer {
                     credits: credits.clone(),
                 },
             ),
+            Reducer::SetEmail {
+                principal_text,
+                email,
+            } => __sats::bsatn::to_vec(&set_email_reducer::SetEmailArgs {
+                principal_text: principal_text.clone(),
+                email: email.clone(),
+            }),
+            Reducer::SetUsername {
+                principal_text,
+                username,
+            } => __sats::bsatn::to_vec(&set_username_reducer::SetUsernameArgs {
+                principal_text: principal_text.clone(),
+                username: username.clone(),
+            }),
             Reducer::UnfollowUser { followee_text } => {
                 __sats::bsatn::to_vec(&unfollow_user_reducer::UnfollowUserArgs {
                     followee_text: followee_text.clone(),

@@ -1017,6 +1017,68 @@ pub fn link_user_id(
     Ok(())
 }
 
+/// Set username for a user profile. Admin-only (called by yral-metadata).
+/// Validates username format: 3-15 alphanumeric characters.
+#[spacetimedb::reducer]
+pub fn set_username(
+    ctx: &ReducerContext,
+    principal_text: String,
+    username: String,
+) -> Result<(), String> {
+    if !crate::constants::ADMINS.contains(&ctx.sender()) {
+        return Err("Unauthorized".to_string());
+    }
+
+    if username.is_empty() {
+        return Err("Username cannot be empty".to_string());
+    }
+
+    // Validate: 3-15 alphanumeric characters
+    if !username.chars().all(|c| c.is_ascii_alphanumeric()) || username.len() < 3 || username.len() > 15 {
+        return Err("Invalid username: must be 3-15 alphanumeric characters".to_string());
+    }
+
+    // Check for duplicate username
+    if ctx.db.user_profiles().iter().any(|p| p.username.as_deref() == Some(&username)) {
+        return Err("DuplicateUsername".to_string());
+    }
+
+    if let Some(mut profile) = ctx.db.user_profiles().iter().find(|p| p.principal_text == principal_text) {
+        // Remove old username association if any
+        profile.username = Some(username);
+        let profile_clone = profile.clone();
+        ctx.db.user_profiles().delete(profile);
+        ctx.db.user_profiles().insert(profile_clone);
+    } else {
+        return Err("User not found".to_string());
+    }
+
+    Ok(())
+}
+
+/// Set email for a user profile. Admin-only (called by yral-metadata).
+#[spacetimedb::reducer]
+pub fn set_email(
+    ctx: &ReducerContext,
+    principal_text: String,
+    email: String,
+) -> Result<(), String> {
+    if !crate::constants::ADMINS.contains(&ctx.sender()) {
+        return Err("Unauthorized".to_string());
+    }
+
+    if let Some(mut profile) = ctx.db.user_profiles().iter().find(|p| p.principal_text == principal_text) {
+        profile.email = Some(email);
+        let profile_clone = profile.clone();
+        ctx.db.user_profiles().delete(profile);
+        ctx.db.user_profiles().insert(profile_clone);
+    } else {
+        return Err("User not found".to_string());
+    }
+
+    Ok(())
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Procedures (reads — return typed data)
 // ─────────────────────────────────────────────────────────────────────────
@@ -1329,6 +1391,43 @@ pub fn get_user_profile_by_user_id(
             .user_profiles()
             .iter()
             .find(|p| p.user_id.as_ref() == Some(&user_id))?;
+
+        let caller_text = tx.sender().to_hex().to_string();
+        let (caller_follows_user, user_follows_caller) =
+            follow_relationships(tx, &caller_text, &profile.principal_text);
+
+        let principal_text = profile.principal_text.clone();
+        let profile_picture = profile_picture_data(&profile);
+
+        Some(UserProfileDetailsV7 {
+            principal_text,
+            profile_picture,
+            bio: profile.bio,
+            website_url: profile.website_url,
+            followers_count: profile.followers_count,
+            following_count: profile.following_count,
+            caller_follows_user,
+            user_follows_caller,
+            subscription_plan: profile.subscription_plan,
+            is_ai_influencer: profile.is_ai_influencer,
+            account_type: profile.account_type,
+        })
+    })
+}
+
+/// Look up a user profile by username.
+/// Returns the profile details if found, `None` otherwise.
+#[spacetimedb::procedure]
+pub fn get_user_profile_by_username(
+    ctx: &mut ProcedureContext,
+    username: String,
+) -> Option<UserProfileDetailsV7> {
+    ctx.with_tx(|tx| {
+        let profile = tx
+            .db
+            .user_profiles()
+            .iter()
+            .find(|p| p.username.as_deref() == Some(&username))?;
 
         let caller_text = tx.sender().to_hex().to_string();
         let (caller_follows_user, user_follows_caller) =
