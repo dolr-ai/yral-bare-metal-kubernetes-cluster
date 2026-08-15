@@ -41,9 +41,9 @@ impl From<MigrateIndividualUserRequest> for MigrateIndividualUserRequestSchema {
         (status = 500, description = "Internal server error"),
     )
 )]
-#[instrument(skip(state, request))]
+#[instrument(skip(_state, request))]
 pub async fn handle_user_migration(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     headers: axum::http::HeaderMap,
     Json(request): Json<MigrateIndividualUserRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
@@ -52,8 +52,16 @@ pub async fn handle_user_migration(
         .and_then(|value| value.to_str().ok())
         .map(|value| value.trim_start_matches("Bearer ").to_string());
 
+    let expected_api_key = std::env::var("YRAL_OFF_CHAIN_USER_MIGRATION_API_KEY")
+        .map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "YRAL_OFF_CHAIN_USER_MIGRATION_API_KEY is not set".to_string(),
+            )
+        })?;
+
     if let Some(token) = auth_token {
-        if token != state.user_migration_api_key {
+        if token != expected_api_key {
             return Err((StatusCode::UNAUTHORIZED, "Unauthorized".to_string()));
         }
     } else {

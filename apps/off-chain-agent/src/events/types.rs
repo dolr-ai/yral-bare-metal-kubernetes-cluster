@@ -1,12 +1,6 @@
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 use utoipa::ToSchema;
-use yral_metadata_types::{
-    AndroidConfig, AndroidNotification, ApnsConfig, ApnsFcmOptions, NotificationPayload,
-    SendNotificationReq, WebpushConfig, WebpushFcmOptions,
-};
-
-use crate::app_state::AppState;
 
 pub fn string_or_number<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
@@ -106,18 +100,9 @@ impl AnalyticsEvent {
     pub fn user_id(&self) -> Option<String> {
         match self {
             AnalyticsEvent::VideoWatched(e) => e.user_id.clone(),
-            AnalyticsEvent::VideoDurationWatched(e) => e.user_id.clone(),
+            AnalyticsEvent::VideoDurationWatched(e) => Some(e.user_id.clone()),
             AnalyticsEvent::VideoStarted(e) => e.payload.user_id.clone(),
-            AnalyticsEvent::LikeVideo(e) => e.user_id.clone(),
-        }
-    }
-
-    pub fn user_canister(&self) -> Option<Principal> {
-        match self {
-            AnalyticsEvent::VideoWatched(e) => Some(e.user_canister),
-            AnalyticsEvent::VideoDurationWatched(e) => Some(e.user_canister),
-            AnalyticsEvent::VideoStarted(_) => None,
-            AnalyticsEvent::LikeVideo(e) => Some(e.user_canister),
+            AnalyticsEvent::LikeVideo(e) => Some(e.user_id.clone()),
         }
     }
 
@@ -132,21 +117,50 @@ impl AnalyticsEvent {
 }
 
 // --------------------------------------------------
-// VideoWatched
+// VideoWatched (legacy V1)
 // --------------------------------------------------
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Wrapper for the VideoWatched analytics event.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct VideoWatched {
+    #[serde(rename = "user_id")]
+    pub user_id: Option<String>,
+    #[serde(rename = "canister_id")]
+    pub canister_id: Option<String>,
+    #[serde(rename = "video_id", skip_serializing_if = "Option::is_none")]
+    pub video_id: Option<String>,
+    #[serde(rename = "post_id", deserialize_with = "string_or_number")]
+    pub post_id: String,
+    #[serde(rename = "percentage_watched")]
+    pub percentage_watched: f64,
+    #[serde(rename = "absolute_watched")]
+    pub absolute_watched: f64,
+    #[serde(rename = "video_duration")]
+    pub video_duration: f64,
+}
+
+/// Wrapper for the VideoDurationWatched analytics event.
+pub type VideoDurationWatched = VideoDurationWatchedPayload;
+
+/// Wrapper for the LikeVideo analytics event.
+pub type LikeVideo = LikeVideoPayloadV2;
+
+// --------------------------------------------------
+// VideoDurationWatched
+// --------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct VideoDurationWatchedPayload {
     #[serde(rename = "publisher_user_id")]
-    pub publisher_user_id: Option<Principal>,
+    pub publisher_user_id: Option<String>,
     #[serde(rename = "user_id")]
-    pub user_id: Principal,
+    pub user_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_logged_in: Option<bool>,
     #[serde(rename = "display_name", skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[serde(rename = "canister_id")]
-    pub canister_id: Principal,
+    pub canister_id: String,
     #[serde(rename = "video_id", skip_serializing_if = "Option::is_none")]
     pub video_id: Option<String>,
     #[serde(rename = "video_category")]
@@ -179,17 +193,15 @@ pub struct VideoDurationWatchedPayload {
         rename = "publisher_canister_id",
         skip_serializing_if = "Option::is_none"
     )]
-    pub publisher_canister_id: Option<Principal>,
+    pub publisher_canister_id: Option<String>,
     #[serde(rename = "nsfw_probability", skip_serializing_if = "Option::is_none")]
     pub nsfw_probability: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct VideoDurationWatchedPayloadV2 {
-    #[schema(value_type = String)]
-    pub publisher_user_id: Option<Principal>,
-    #[schema(value_type = String)]
-    pub user_id: Principal,
+    pub publisher_user_id: Option<String>,
+    pub user_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_logged_in: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -241,20 +253,20 @@ pub struct VideoStartedPayload {
 // Wrapper type for VideoStarted
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct VideoStarted {
-    payload: VideoStartedPayload,
+    pub payload: VideoStartedPayload,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VideoViewedPayload {
     #[serde(rename = "publisher_user_id")]
-    pub publisher_user_id: Option<Principal>,
+    pub publisher_user_id: Option<String>,
     #[serde(rename = "user_id")]
-    pub user_id: Principal,
+    pub user_id: String,
     pub is_logged_in: bool,
     #[serde(rename = "display_name", skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[serde(rename = "canister_id")]
-    pub canister_id: Principal,
+    pub canister_id: String,
     #[serde(rename = "video_id", skip_serializing_if = "Option::is_none")]
     pub video_id: Option<String>,
     #[serde(rename = "video_category")]
@@ -281,7 +293,7 @@ pub struct VideoViewedPayload {
         rename = "publisher_canister_id",
         skip_serializing_if = "Option::is_none"
     )]
-    pub publisher_canister_id: Option<Principal>,
+    pub publisher_canister_id: Option<String>,
     #[serde(rename = "nsfw_probability", skip_serializing_if = "Option::is_none")]
     pub nsfw_probability: Option<f64>,
 }
@@ -292,10 +304,8 @@ pub struct VideoViewedPayload {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct LikeVideoPayloadV2 {
-    #[schema(value_type = String)]
-    pub publisher_user_id: Principal,
-    #[schema(value_type = String)]
-    pub user_id: Principal,
+    pub publisher_user_id: String,
+    pub user_id: String,
     pub is_logged_in: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
@@ -320,14 +330,14 @@ pub struct LikeVideoPayloadV2 {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShareVideoPayload {
     #[serde(rename = "publisher_user_id")]
-    pub publisher_user_id: Principal,
+    pub publisher_user_id: String,
     #[serde(rename = "user_id")]
-    pub user_id: Principal,
+    pub user_id: String,
     pub is_logged_in: bool,
     #[serde(rename = "display_name", skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[serde(rename = "canister_id")]
-    pub canister_id: Principal,
+    pub canister_id: String,
     #[serde(rename = "video_id")]
     pub video_id: String,
     #[serde(rename = "video_category")]
@@ -359,11 +369,11 @@ pub struct ShareVideoPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VideoUploadInitiatedPayload {
     #[serde(rename = "user_id")]
-    pub user_id: Principal,
+    pub user_id: String,
     #[serde(rename = "display_name", skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[serde(rename = "canister_id")]
-    pub canister_id: Principal,
+    pub canister_id: String,
     #[serde(rename = "creator_category")]
     pub creator_category: String,
 }
@@ -371,11 +381,11 @@ pub struct VideoUploadInitiatedPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VideoUploadUploadButtonClickedPayload {
     #[serde(rename = "user_id")]
-    pub user_id: Principal,
+    pub user_id: String,
     #[serde(rename = "display_name", skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[serde(rename = "canister_id")]
-    pub canister_id: Principal,
+    pub canister_id: String,
     #[serde(rename = "creator_category")]
     pub creator_category: String,
     #[serde(rename = "hashtag_count")]
@@ -389,11 +399,11 @@ pub struct VideoUploadUploadButtonClickedPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VideoUploadVideoSelectedPayload {
     #[serde(rename = "user_id")]
-    pub user_id: Principal,
+    pub user_id: String,
     #[serde(rename = "display_name", skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[serde(rename = "canister_id")]
-    pub canister_id: Principal,
+    pub canister_id: String,
     #[serde(rename = "creator_category")]
     pub creator_category: String,
 }
@@ -401,11 +411,11 @@ pub struct VideoUploadVideoSelectedPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VideoUploadUnsuccessfulPayload {
     #[serde(rename = "user_id")]
-    pub user_id: Principal,
+    pub user_id: String,
     #[serde(rename = "display_name", skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[serde(rename = "canister_id")]
-    pub canister_id: Principal,
+    pub canister_id: String,
     #[serde(rename = "creator_category")]
     pub creator_category: String,
     #[serde(rename = "hashtag_count")]
@@ -421,13 +431,13 @@ pub struct VideoUploadUnsuccessfulPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VideoUploadSuccessfulPayload {
     #[serde(rename = "user_id")]
-    pub user_id: Principal,
+    pub user_id: String,
     #[serde(rename = "publisher_user_id")]
-    pub publisher_user_id: Principal,
+    pub publisher_user_id: String,
     #[serde(rename = "display_name", skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[serde(rename = "canister_id")]
-    pub canister_id: Principal,
+    pub canister_id: String,
     #[serde(rename = "creator_category")]
     pub creator_category: String,
     #[serde(rename = "hashtag_count")]
@@ -455,12 +465,12 @@ pub struct VideoUploadSuccessfulPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReferPayload {
     #[serde(rename = "user_id")]
-    pub user_id: Principal,
+    pub user_id: String,
     pub is_logged_in: bool,
     #[serde(rename = "display_name", skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[serde(rename = "canister_id")]
-    pub canister_id: Principal,
+    pub canister_id: String,
     #[serde(rename = "refer_location", skip_serializing_if = "Option::is_none")]
     pub refer_location: Option<String>,
 }
@@ -495,7 +505,7 @@ pub struct LoginMethodSelectedPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoginJoinOverlayViewedPayload {
     #[serde(rename = "user_id_viewer")]
-    pub user_id_viewer: Principal,
+    pub user_id_viewer: String,
     #[serde(rename = "previous_event")]
     pub previous_event: String,
 }
@@ -515,11 +525,11 @@ pub struct LoginCtaPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogoutClickedPayload {
     #[serde(rename = "user_id_viewer")]
-    pub user_id_viewer: Principal,
+    pub user_id_viewer: String,
     #[serde(rename = "display_name", skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[serde(rename = "canister_id")]
-    pub canister_id: Principal,
+    pub canister_id: String,
 }
 
 #[allow(dead_code)]
@@ -528,9 +538,9 @@ pub type LogoutConfirmationPayload = LogoutClickedPayload;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ErrorEventPayload {
     #[serde(rename = "user_id")]
-    pub user_id: Principal,
+    pub user_id: String,
     #[serde(rename = "canister_id")]
-    pub canister_id: Principal,
+    pub canister_id: String,
     #[serde(rename = "description")]
     pub description: String,
     #[serde(rename = "previous_event")]
@@ -544,14 +554,14 @@ pub struct ErrorEventPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProfileViewVideoPayload {
     #[serde(rename = "publisher_user_id")]
-    pub publisher_user_id: Principal,
+    pub publisher_user_id: String,
     #[serde(rename = "user_id")]
-    pub user_id: Principal,
+    pub user_id: String,
     pub is_logged_in: bool,
     #[serde(rename = "display_name", skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[serde(rename = "canister_id")]
-    pub canister_id: Principal,
+    pub canister_id: String,
     #[serde(rename = "video_id")]
     pub video_id: String,
     #[serde(rename = "profile_feed")]
@@ -561,9 +571,9 @@ pub struct ProfileViewVideoPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenCreationStartedPayload {
     #[serde(rename = "user_id")]
-    pub user_id: Principal,
+    pub user_id: String,
     #[serde(rename = "canister_id")]
-    pub canister_id: Principal,
+    pub canister_id: String,
     #[serde(rename = "token_name")]
     pub token_name: String,
     #[serde(rename = "token_symbol")]
@@ -575,19 +585,19 @@ pub struct TokenCreationStartedPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokensTransferredPayload {
     #[serde(rename = "user_id")]
-    pub user_id: Principal,
+    pub user_id: String,
     #[serde(rename = "canister_id")]
-    pub canister_id: Principal,
+    pub canister_id: String,
     #[serde(rename = "amount")]
     pub amount: String,
     #[serde(rename = "to")]
-    pub to: Principal,
+    pub to: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PageVisitPayload {
     #[serde(rename = "user_id")]
-    pub user_id: Principal,
+    pub user_id: String,
     pub is_logged_in: bool,
     #[serde(rename = "pathname")]
     pub pathname: String,
@@ -600,9 +610,9 @@ pub struct PageVisitPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CentsAddedPayload {
     #[serde(rename = "user_id")]
-    pub user_id: Principal,
+    pub user_id: String,
     #[serde(rename = "canister_id")]
-    pub canister_id: Principal,
+    pub canister_id: String,
     #[serde(rename = "is_loggedin")]
     pub is_logged_in: bool,
     #[serde(rename = "amount_added")]
@@ -614,9 +624,9 @@ pub struct CentsAddedPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CentsWithdrawnPayload {
     #[serde(rename = "user_id")]
-    pub user_id: Principal,
+    pub user_id: String,
     #[serde(rename = "canister_id")]
-    pub canister_id: Principal,
+    pub canister_id: String,
     #[serde(rename = "is_loggedin")]
     pub is_logged_in: bool,
     #[serde(rename = "amount_withdrawn")]
@@ -626,9 +636,9 @@ pub struct CentsWithdrawnPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SatsWithdrawnPayload {
     #[serde(rename = "user_id")]
-    pub user_id: Principal,
+    pub user_id: String,
     #[serde(rename = "canister_id")]
-    pub canister_id: Principal,
+    pub canister_id: String,
     #[serde(rename = "is_loggedin")]
     pub is_logged_in: bool,
     #[serde(rename = "amount_withdrawn")]
@@ -658,7 +668,7 @@ pub struct TournamentStartedPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TournamentEndedWinnerPayload {
     #[serde(rename = "user_id")]
-    pub user_id: Principal,
+    pub user_id: String,
     #[serde(rename = "tournament_id")]
     pub tournament_id: String,
     #[serde(rename = "rank")]
@@ -674,7 +684,7 @@ pub struct TournamentEndedWinnerPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RewardEarnedPayload {
     #[serde(rename = "creator_id")]
-    pub creator_id: Principal,
+    pub creator_id: String,
     #[serde(rename = "video_id")]
     pub video_id: String,
     #[serde(rename = "milestone")]
@@ -689,7 +699,8 @@ pub struct RewardEarnedPayload {
     pub timestamp: i64,
     #[serde(rename = "rewards_received_bs")]
     pub rewards_received_bs: bool,
-    pub reward_token: RewardTokenType,
+    #[serde(rename = "reward_token")]
+    pub reward_token: String,
 }
 
 // ----------------------------------------------------------------------------------
@@ -699,11 +710,11 @@ pub struct RewardEarnedPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FollowUserPayload {
     #[serde(rename = "follower_principal_id")]
-    pub follower_principal_id: Principal,
+    pub follower_principal_id: String,
     #[serde(rename = "follower_username")]
     pub follower_username: Option<String>,
     #[serde(rename = "followee_principal_id")]
-    pub followee_principal_id: Principal,
+    pub followee_principal_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -711,7 +722,7 @@ pub struct VideoApprovalPayload {
     pub video_id: String,
     pub post_id: String,
     pub canister_id: Option<String>,
-    pub user_id: Principal,
+    pub user_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -762,14 +773,9 @@ where
     use serde::ser::SerializeStruct;
     let mut state = serializer.serialize_struct("RewardEarned", 1)?;
 
-    let token_str = match payload.reward_token {
-        RewardTokenType::Btc => "btc",
-        RewardTokenType::Dolr => "dolr",
-    };
-
     let url = format!(
         "rewardsReceived?token={}&reward_on=video_views&creator_id={}&video_id={}&milestone={}&reward_btc={}&reward_inr={}&view_count={}&timestamp={}&rewards_received_bs={}",
-        token_str,
+        payload.reward_token,
         payload.creator_id,
         payload.video_id,
         payload.milestone,
@@ -823,13 +829,13 @@ where
     #[derive(Serialize)]
     struct VideoUploadSuccessfulHelper {
         #[serde(rename = "user_id")]
-        user_id: Principal,
+        user_id: String,
         #[serde(rename = "publisher_user_id")]
-        publisher_user_id: Principal,
+        publisher_user_id: String,
         #[serde(rename = "display_name", skip_serializing_if = "Option::is_none")]
         display_name: Option<String>,
         #[serde(rename = "canister_id")]
-        canister_id: Principal,
+        canister_id: String,
         #[serde(rename = "creator_category")]
         creator_category: String,
         #[serde(rename = "hashtag_count")]
@@ -876,540 +882,6 @@ where
 /// # Errors
 /// * Returns `serde_json::Error` if the event name is unknown OR the payload cannot
 ///   be deserialized into the expected structure.
-impl EventPayload {
-    // TODO: canister_id is used
-
-    pub async fn send_notification(&self, app_state: &AppState) {
-        match self {
-            EventPayload::VideoUploadSuccessful(payload) => {
-                let title = "Video Uploaded";
-                let body = "Your video has been uploaded successfully";
-                let publisher_user_id = payload.publisher_user_id;
-                let canister_id = match app_state
-                    .get_individual_canister_by_user_principal(publisher_user_id)
-                    .await
-                {
-                    Ok(id) => id,
-                    Err(e) => {
-                        log::error!(
-                            "Failed to get canister for user {}: {}",
-                            publisher_user_id,
-                            e
-                        );
-                        return;
-                    }
-                };
-                let notif_payload = SendNotificationReq {
-                    notification: Some(NotificationPayload {
-                        title: Some(title.to_string()),
-                        body: Some(body.to_string()),
-                        image: Some(
-                            "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                        ),
-                    }),
-                    data: Some(json!({
-                        "payload": serde_json::to_string(self).unwrap()
-                    })),
-                    android: Some(AndroidConfig {
-                        notification: Some(AndroidNotification {
-                            icon: Some(
-                                "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                            ),
-                            image: Some(
-                                "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                            ),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    webpush: Some(WebpushConfig {
-                        fcm_options: Some(WebpushFcmOptions {
-                            link: Some(format!(
-                                "https://yral.com/hot-or-not/{}/{}",
-                                payload.canister_id.to_text(),
-                                payload.post_id
-                            )),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    apns: Some(ApnsConfig {
-                        headers: Some(json!({
-                            "apns-push-type": "alert",
-                            "apns-priority": "10",
-                        })),
-                        fcm_options: Some(ApnsFcmOptions {
-                            image: Some(
-                                "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                            ),
-                            ..Default::default()
-                        }),
-                        payload: Some(json!({
-                            "aps": {
-                                "alert": {
-                                    "title": title.to_string(),
-                                    "body": body.to_string(),
-                                },
-                                "sound": "default",
-                                "mutable-content": 1,
-                            },
-                            "url": format!("https://yral.com/hot-or-not/{}/{}", canister_id.to_text(), payload.post_id)
-                        })),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                };
-
-                app_state
-                    .notification_client
-                    .send_notification(notif_payload, payload.publisher_user_id)
-                    .await;
-            }
-            EventPayload::LikeVideo(payload) => {
-                let title = "Video Liked";
-                let body = format!("{} liked your video", payload.user_id.to_text());
-                let publisher_user_id = payload.publisher_user_id;
-                let canister_id = match app_state
-                    .get_individual_canister_by_user_principal(publisher_user_id)
-                    .await
-                {
-                    Ok(id) => id,
-                    Err(e) => {
-                        log::error!(
-                            "Failed to get canister for user {}: {}",
-                            publisher_user_id,
-                            e
-                        );
-                        return;
-                    }
-                };
-                let notif_payload = SendNotificationReq {
-                    notification: Some(NotificationPayload {
-                        title: Some(title.to_string()),
-                        body: Some(body.to_string()),
-                        image: Some(
-                            "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                        ),
-                    }),
-                    data: Some(json!({
-                        "payload": serde_json::to_string(self).unwrap()
-                    })),
-                    android: Some(AndroidConfig {
-                        notification: Some(AndroidNotification {
-                            icon: Some(
-                                "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                            ),
-                            image: Some(
-                                "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                            ),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    webpush: Some(WebpushConfig {
-                        fcm_options: Some(WebpushFcmOptions {
-                            link: Some(format!(
-                                "https://yral.com/hot-or-not/{}/{}",
-                                canister_id.to_text(),
-                                payload.post_id
-                            )),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    apns: Some(ApnsConfig {
-                        headers: Some(json!({
-                            "apns-push-type": "alert",
-                            "apns-priority": "10",
-                        })),
-                        fcm_options: Some(ApnsFcmOptions {
-                            image: Some(
-                                "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                            ),
-                            ..Default::default()
-                        }),
-                        payload: Some(json!({
-                            "aps": {
-                                "alert": {
-                                    "title": title.to_string(),
-                                    "body": body.to_string(),
-                                },
-                                "sound": "default",
-                                "mutable-content": 1,
-                            },
-                            "url": format!("https://yral.com/hot-or-not/{}/{}", canister_id.to_text(), payload.post_id)
-                        })),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                };
-
-                app_state
-                    .notification_client
-                    .send_notification(notif_payload, payload.publisher_user_id)
-                    .await;
-            }
-
-            EventPayload::TournamentStarted(payload) => {
-                // Tournament start notifications would be sent to all users
-                // This should be handled by a batch process, not individual notifications
-                // For now, log the event
-                log::info!(
-                    "Tournament started: {} with prize pool {} {}",
-                    payload.tournament_id,
-                    payload.prize_pool,
-                    payload.prize_token
-                );
-            }
-
-            EventPayload::TournamentEndedWinner(payload) => {
-                let title = format!("Congratulations! You won rank #{}!", payload.rank);
-                let body = format!(
-                    "You ranked #{}! You’ve won {} {} in the tournament. Check the leaderboard now!",
-                    payload.rank, payload.prize_amount, payload.prize_token
-                );
-
-                let notif_payload = SendNotificationReq {
-                    notification: Some(NotificationPayload {
-                        title: Some(title.to_string()),
-                        body: Some(body.to_string()),
-                        image: Some(
-                            "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                        ),
-                    }),
-                    data: Some(json!({
-                        "payload": serde_json::to_string(self).unwrap()
-                    })),
-                    android: None,
-                    webpush: Some(WebpushConfig {
-                        fcm_options: Some(WebpushFcmOptions {
-                            link: Some(format!(
-                                "https://yral.com/leaderboard/results/{}",
-                                payload.tournament_id
-                            )),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    apns: None,
-                    ..Default::default()
-                };
-
-                app_state
-                    .notification_client
-                    .send_notification(notif_payload, payload.user_id)
-                    .await;
-            }
-
-            EventPayload::RewardEarned(payload) => {
-                let (title, body) = match payload.reward_token {
-                    RewardTokenType::Dolr => (
-                        "DOLR Credited",
-                        "Congrats! Your video views have earned you DOLR. See your balance in the wallet."
-                    ),
-                    RewardTokenType::Btc => (
-                        "Bitcoin Credited",
-                        "Congrats! Your video views have earned you Bitcoin. See your balance in the wallet."
-                    ),
-                };
-
-                let notif_payload = SendNotificationReq {
-                    notification: Some(NotificationPayload {
-                        title: Some(title.to_string()),
-                        body: Some(body.to_string()),
-                        image: Some(
-                            "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                        ),
-                    }),
-                    data: Some(json!({
-                        "payload": serde_json::to_string(self).unwrap()
-                    })),
-                    android: Some(AndroidConfig {
-                        notification: Some(AndroidNotification {
-                            icon: Some(
-                                "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                            ),
-                            image: Some(
-                                "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                            ),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    webpush: Some(WebpushConfig {
-                        fcm_options: Some(WebpushFcmOptions {
-                            link: Some("https://link.yral.com/dJqgFEnM6Wb".to_string()),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    apns: Some(ApnsConfig {
-                        headers: Some(json!({
-                            "apns-push-type": "alert",
-                            "apns-priority": "10",
-                        })),
-                        fcm_options: Some(ApnsFcmOptions {
-                            image: Some(
-                                "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                            ),
-                            ..Default::default()
-                        }),
-                        payload: Some(json!({
-                            "aps": {
-                                "alert": {
-                                    "title": title.to_string(),
-                                    "body": body.to_string(),
-                                },
-                                "sound": "default",
-                                "mutable-content": 1,
-                            },
-                            "url": "https://link.yral.com/dJqgFEnM6Wb"
-                        })),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                };
-
-                app_state
-                    .notification_client
-                    .send_notification(notif_payload, payload.creator_id)
-                    .await;
-            }
-
-            EventPayload::FollowUser(payload) => {
-                let title = "New Follower";
-                let body = match &payload.follower_username {
-                    Some(username) => format!("{} started following you", username),
-                    None => "Someone started following you".to_string(),
-                };
-                let followee_principal_id = payload.followee_principal_id;
-
-                let profile_url = format!(
-                    "https://yral.com/profile/{}/posts",
-                    payload.follower_principal_id.to_text()
-                );
-
-                log::debug!(
-                    "Sending follow notification to user {} from {}",
-                    followee_principal_id,
-                    payload
-                        .follower_username
-                        .as_deref()
-                        .unwrap_or(&payload.follower_principal_id.to_text())
-                );
-
-                let notif_payload = SendNotificationReq {
-                    notification: Some(NotificationPayload {
-                        title: Some(title.to_string()),
-                        body: Some(body.clone()),
-                        image: Some(
-                            "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                        ),
-                    }),
-                    data: Some(json!({
-                        "payload": serde_json::to_string(self).unwrap()
-                    })),
-                    android: Some(AndroidConfig {
-                        notification: Some(AndroidNotification {
-                            icon: Some(
-                                "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                            ),
-                            image: Some(
-                                "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                            ),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    webpush: Some(WebpushConfig {
-                        fcm_options: Some(WebpushFcmOptions {
-                            link: Some(profile_url.clone()),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    apns: Some(ApnsConfig {
-                        headers: Some(json!({
-                            "apns-push-type": "alert",
-                            "apns-priority": "10",
-                        })),
-                        fcm_options: Some(ApnsFcmOptions {
-                            image: Some(
-                                "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                            ),
-                            ..Default::default()
-                        }),
-                        payload: Some(json!({
-                            "aps": {
-                                "alert": {
-                                    "title": title.to_string(),
-                                    "body": body,
-                                },
-                                "sound": "default",
-                                "mutable-content": 1,
-                            },
-                            "url": profile_url
-                        })),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                };
-
-                app_state
-                    .notification_client
-                    .send_notification(notif_payload, followee_principal_id)
-                    .await;
-            }
-
-            EventPayload::VideoApproved(payload) => {
-                let title = "Video Approved";
-                let body = "Your video has been approved and is now live!";
-
-                let video_url = payload
-                    .canister_id
-                    .as_ref()
-                    .map(|cid| format!("https://yral.com/hot-or-not/{}/{}", cid, payload.post_id))
-                    .unwrap_or_else(|| "https://yral.com".to_string());
-
-                let notif_payload = SendNotificationReq {
-                    notification: Some(NotificationPayload {
-                        title: Some(title.to_string()),
-                        body: Some(body.to_string()),
-                        image: Some(
-                            "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                        ),
-                    }),
-                    data: Some(json!({
-                        "type": "video_approved",
-                        "video_id": payload.video_id,
-                        "post_id": payload.post_id
-                    })),
-                    android: Some(AndroidConfig {
-                        notification: Some(AndroidNotification {
-                            icon: Some(
-                                "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                            ),
-                            image: Some(
-                                "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                            ),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    webpush: Some(WebpushConfig {
-                        fcm_options: Some(WebpushFcmOptions {
-                            link: Some(video_url.clone()),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    apns: Some(ApnsConfig {
-                        headers: Some(json!({
-                            "apns-push-type": "alert",
-                            "apns-priority": "10",
-                        })),
-                        fcm_options: Some(ApnsFcmOptions {
-                            image: Some(
-                                "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                            ),
-                            ..Default::default()
-                        }),
-                        payload: Some(json!({
-                            "aps": {
-                                "alert": {
-                                    "title": title.to_string(),
-                                    "body": body.to_string(),
-                                },
-                                "sound": "default",
-                                "mutable-content": 1,
-                            },
-                            "url": video_url
-                        })),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                };
-
-                app_state
-                    .notification_client
-                    .send_notification(notif_payload, payload.user_id)
-                    .await;
-            }
-
-            EventPayload::VideoDisapproved(payload) => {
-                let title = "Video Not Approved";
-                let body = "Your video was not approved for publication.";
-
-                let notif_payload = SendNotificationReq {
-                    notification: Some(NotificationPayload {
-                        title: Some(title.to_string()),
-                        body: Some(body.to_string()),
-                        image: Some(
-                            "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                        ),
-                    }),
-                    data: Some(json!({
-                        "type": "video_disapproved",
-                        "video_id": payload.video_id,
-                        "post_id": payload.post_id
-                    })),
-                    android: Some(AndroidConfig {
-                        notification: Some(AndroidNotification {
-                            icon: Some(
-                                "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                            ),
-                            image: Some(
-                                "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                            ),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    webpush: Some(WebpushConfig {
-                        fcm_options: Some(WebpushFcmOptions {
-                            link: Some("https://yral.com".to_string()),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    apns: Some(ApnsConfig {
-                        headers: Some(json!({
-                            "apns-push-type": "alert",
-                            "apns-priority": "10",
-                        })),
-                        fcm_options: Some(ApnsFcmOptions {
-                            image: Some(
-                                "https://yral.com/img/yral/android-chrome-384x384.png".to_string(),
-                            ),
-                            ..Default::default()
-                        }),
-                        payload: Some(json!({
-                            "aps": {
-                                "alert": {
-                                    "title": title.to_string(),
-                                    "body": body.to_string(),
-                                },
-                                "sound": "default",
-                                "mutable-content": 1,
-                            },
-                            "url": "https://yral.com"
-                        })),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                };
-
-                app_state
-                    .notification_client
-                    .send_notification(notif_payload, payload.user_id)
-                    .await;
-            }
-
-            _ => {}
-        }
-    }
-}
-
 pub fn deserialize_event_payload(
     event_name: &str,
     value: Value,
@@ -1480,87 +952,4 @@ pub fn deserialize_event_payload(
         )?)),
         _ => Err(serde_json::Error::unknown_field(event_name, &[])),
     }
-}
-
-#[test]
-fn test_data_payload_serialization() {
-    let payload = VideoUploadSuccessfulPayload {
-        canister_id: Principal::from_text("mlj75-eyaaa-aaaaa-qbn5q-cai").unwrap(),
-        post_id: "123".to_string(),
-        publisher_user_id: Principal::from_text("mlj75-eyaaa-aaaaa-qbn5q-cai").unwrap(),
-        user_id: Principal::from_text("mlj75-eyaaa-aaaaa-qbn5q-cai").unwrap(),
-        display_name: None,
-        creator_category: "test".to_string(),
-        hashtag_count: 0,
-        is_nsfw: false,
-        is_hot_or_not: false,
-        is_filter_used: false,
-        video_id: "test".to_string(),
-        country: None,
-        internal_url: None,
-    };
-
-    let data = EventPayload::VideoUploadSuccessful(payload.clone());
-
-    let notif_payload = SendNotificationReq {
-        notification: Some(NotificationPayload {
-            title: Some("test".to_string()),
-            body: Some("test".to_string()),
-            image: Some("https://yral.com/img/yral/android-chrome-384x384.png".to_string()),
-        }),
-        data: Some(json!({
-            "payload": serde_json::to_string(&data).unwrap()
-        })),
-        android: Some(AndroidConfig {
-            notification: Some(AndroidNotification {
-                icon: Some("https://yral.com/img/yral/android-chrome-384x384.png".to_string()),
-                image: Some("https://yral.com/img/yral/android-chrome-384x384.png".to_string()),
-                ..Default::default()
-            }),
-            ..Default::default()
-        }),
-        webpush: Some(WebpushConfig {
-            fcm_options: Some(WebpushFcmOptions {
-                link: Some(format!(
-                    "https://yral.com/hot-or-not/{}/{}",
-                    payload.canister_id.to_text(),
-                    payload.post_id
-                )),
-                ..Default::default()
-            }),
-            ..Default::default()
-        }),
-        apns: Some(ApnsConfig {
-            headers: Some(json!({
-                "apns-push-type": "alert",
-                "apns-priority": "10",
-            })),
-            fcm_options: Some(ApnsFcmOptions {
-                image: Some("https://yral.com/img/yral/android-chrome-384x384.png".to_string()),
-                ..Default::default()
-            }),
-            payload: Some(json!({
-                "aps": {
-                    "alert": {
-                        "title": "test".to_string(),
-                        "body": "test".to_string(),
-                    },
-                    "sound": "default",
-                    "mutable-content": 1,
-                },
-                "url": format!("https://yral.com/hot-or-not/{}/{}", payload.canister_id.to_text(), payload.post_id)
-            })),
-            ..Default::default()
-        }),
-        ..Default::default()
-    };
-
-    let stringed_payload = serde_json::to_string(&notif_payload).unwrap();
-
-    let deserialized_payload: SendNotificationReq =
-        serde_json::from_str(&stringed_payload).unwrap();
-
-    assert!(deserialized_payload.clone().data.unwrap()["payload"].is_string());
-
-    println!("{:?}", deserialized_payload.data.unwrap()["payload"]);
 }

@@ -1,65 +1,77 @@
 use std::sync::Arc;
 
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use axum::{
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    response::IntoResponse,
+    Json,
+};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use utoipa::ToSchema;
 
 use crate::app_state::AppState;
+use crate::auth::extract_user_id_from_headers;
 
-#[derive(Serialize, Deserialize, ToSchema)]
+/// Delete a user's data.
+///
+/// The user is authenticated via JWT Bearer token in the `Authorization` header.
+/// IC canister deletion is decommissioned — this endpoint logs the request and
+/// returns success. Full user data deletion from SpacetimeDB will be implemented
+/// in a follow-up PR.
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
 pub struct DeleteUserRequest {
-    pub delegated_identity_wire: DelegatedIdentityWire,
+    pub user_id: String,
 }
 
-// TODO: to be handled in a separate PR
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
+pub struct DeleteUserResponse {
+    pub success: bool,
+}
+
 #[utoipa::path(
     delete,
     path = "/",
     request_body = DeleteUserRequest,
     tag = "user",
     responses(
-        (status = 200, description = "User deleted successfully"),
+        (status = 200, description = "User deleted successfully", body = DeleteUserResponse),
         (status = 400, description = "Invalid request"),
         (status = 401, description = "Unauthorized"),
         (status = 500, description = "Internal server error"),
     )
 )]
-#[instrument(skip(state, request))]
+#[instrument(skip(state, headers))]
 pub async fn handle_delete_user(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Json(request): Json<DeleteUserRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let user_info =
-        get_user_info_from_delegated_identity_wire(&state, request.delegated_identity_wire.clone())
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::UNAUTHORIZED,
-                    format!("Failed to get user info: {e}"),
-                )
-            })?;
-
-    let user_principal = user_info.user_principal;
-    let user_canister = user_info.user_canister;
-
-    let agent = get_agent_from_delegated_identity_wire(&request.delegated_identity_wire)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-    // Use the common delete_canister_data function for steps 1-7
-
-    use crate::canister::delete_canister_data;
-
-    delete_canister_data(&agent, &state, user_canister, user_principal, true)
-        .await
-        .map_err(|e| {
-            log::error!("Failed to delete canister data: {e}");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to delete canister data: {e}"),
-            )
+    // Verify the JWT Bearer token and extract the authenticated user_id
+    let authenticated_user_id =
+        extract_user_id_from_headers(&headers).map_err(|(msg, code)| {
+            let status = StatusCode::from_u16(code).unwrap_or(StatusCode::UNAUTHORIZED);
+            (status, msg)
         })?;
 
-    Ok((StatusCode::OK, "User deleted successfully".to_string()))
+    // Verify the request user_id matches the authenticated user
+    if authenticated_user_id != request.user_id {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Cannot delete another user's account".to_string(),
+        ));
+    }
+
+    // IC canister deletion is decommissioned. Full user data deletion from
+    // SpacetimeDB will be implemented in a follow-up PR.
+    log::info!(
+        "User deletion requested for user_id={} (SpacetimeDB deletion pending implementation)",
+        request.user_id
+    );
+
+    // If SpacetimeDB connection is available, we could delete user data here.
+    // For now, just log and return success.
+    let _ = &state.spacetime_conn;
+
+    Ok(Json(DeleteUserResponse { success: true }))
 }

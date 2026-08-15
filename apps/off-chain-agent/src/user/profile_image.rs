@@ -1,27 +1,35 @@
 use std::sync::Arc;
 
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use axum::{
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    response::IntoResponse,
+    Json,
+};
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use utoipa::ToSchema;
 
-use crate::{
-    app_state::AppState,
-    utils::s3::upload_profile_image_to_s3,
-};
+use crate::app_state::AppState;
+use crate::auth::extract_user_id_from_headers;
+use crate::utils::s3::{delete_profile_image_from_s3, upload_profile_image_to_s3};
 
-#[derive(Serialize, Deserialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
 pub struct UploadProfileImageRequest {
-    pub delegated_identity_wire: DelegatedIdentityWire,
     pub image_data: String, // Base64 encoded image data
 }
 
-#[derive(Serialize, Deserialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
 pub struct UploadProfileImageResponse {
     pub profile_image_url: String,
 }
 
+/// Upload a profile image to S3.
+///
+/// The user is authenticated via JWT Bearer token in the `Authorization` header.
+/// IC canister profile updates are decommissioned — the image URL can be stored
+/// via SpacetimeDB in a follow-up PR.
 #[utoipa::path(
     post,
     path = "/profile-image",
@@ -34,23 +42,16 @@ pub struct UploadProfileImageResponse {
         (status = 500, description = "Internal server error"),
     )
 )]
-#[instrument(skip(state, request))]
+#[instrument(skip(state, headers))]
 pub async fn handle_upload_profile_image(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Json(request): Json<UploadProfileImageRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    // Verify the user identity and get user info
-    let user_info =
-        get_user_info_from_delegated_identity_wire(&state, request.delegated_identity_wire.clone())
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::UNAUTHORIZED,
-                    format!("Failed to get user info: {e}"),
-                )
-            })?;
-
-    let user_principal = user_info.user_principal;
+    let user_id = extract_user_id_from_headers(&headers).map_err(|(msg, code)| {
+        let status = StatusCode::from_u16(code).unwrap_or(StatusCode::UNAUTHORIZED);
+        (status, msg)
+    })?;
 
     // Remove data URL prefix if present
     let base64_data = if let Some(comma_pos) = request.image_data.find(',') {
@@ -89,7 +90,7 @@ pub async fn handle_upload_profile_image(
     }
 
     // Upload image to S3
-    let profile_image_url = upload_profile_image_to_s3(base64_data, &user_principal.to_text())
+    let profile_image_url = upload_profile_image_to_s3(base64_data, &user_id)
         .await
         .map_err(|e| {
             tracing::error!("Failed to upload profile image: {}", e);
@@ -99,66 +100,27 @@ pub async fn handle_upload_profile_image(
             )
         })?;
 
-    // Update the user's profile in the User Info Service canister
-    let user_agent = get_agent_from_delegated_identity_wire(&request.delegated_identity_wire)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to create user agent: {}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to create user agent: {e}"),
-            )
-        })?;
+    // IC canister profile update is decommissioned. The image URL can be
+    // stored via SpacetimeDB (set profile image reducer) in a follow-up PR.
+    log::info!(
+        "Profile image uploaded for user {} -> {} (SpacetimeDB profile update pending)",
+        user_id,
+        profile_image_url
+    );
 
-    let user_info_service = UserInfoService(*USER_INFO_SERVICE_CANISTER_ID, &user_agent);
-
-    let update_details = ProfileUpdateDetails {
-        profile_picture_url: Some(profile_image_url.clone()),
-        bio: None,
-        website_url: None,
-    };
-
-    match user_info_service
-        .update_profile_details(update_details)
-        .await
-    {
-        Ok(canisters_client::user_info_service::Result_::Ok) => {
-            tracing::info!(
-                "Successfully updated profile image for user {} in canister: {}",
-                user_principal,
-                profile_image_url
-            );
-        }
-        Ok(canisters_client::user_info_service::Result_::Err(e)) => {
-            tracing::error!("Failed to update profile in canister: {}", e);
-            if e.contains("not authorized") || e.contains("Not authorized") {
-                return Err((
-                    StatusCode::FORBIDDEN,
-                    "Not authorized to update profile".to_string(),
-                ));
-            }
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to update profile in canister: {e}"),
-            ));
-        }
-        Err(e) => {
-            tracing::error!("Failed to update profile in canister: {}", e);
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to update profile in canister: {e}"),
-            ));
-        }
-    }
+    let _ = &state.spacetime_conn;
 
     Ok(Json(UploadProfileImageResponse { profile_image_url }))
 }
 
-#[derive(Serialize, Deserialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
 pub struct DeleteProfileImageRequest {
-    pub delegated_identity_wire: DelegatedIdentityWire,
+    pub user_id: String,
 }
 
+/// Delete a profile image from S3.
+///
+/// The user is authenticated via JWT Bearer token in the `Authorization` header.
 #[utoipa::path(
     delete,
     path = "/profile-image",
@@ -171,26 +133,27 @@ pub struct DeleteProfileImageRequest {
         (status = 500, description = "Internal server error"),
     )
 )]
-#[instrument(skip(state, request))]
+#[instrument(skip(_state, headers))]
 pub async fn handle_delete_profile_image(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Json(request): Json<DeleteProfileImageRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    // Verify the user identity and get user info
-    let user_info =
-        get_user_info_from_delegated_identity_wire(&state, request.delegated_identity_wire.clone())
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::UNAUTHORIZED,
-                    format!("Failed to get user info: {e}"),
-                )
-            })?;
+    let user_id = extract_user_id_from_headers(&headers).map_err(|(msg, code)| {
+        let status = StatusCode::from_u16(code).unwrap_or(StatusCode::UNAUTHORIZED);
+        (status, msg)
+    })?;
 
-    let user_principal = user_info.user_principal;
+    // Verify the request user_id matches the authenticated user
+    if user_id != request.user_id {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Cannot delete another user's profile image".to_string(),
+        ));
+    }
 
     // Delete image from S3
-    crate::utils::s3::delete_profile_image_from_s3(&user_principal.to_text())
+    delete_profile_image_from_s3(&user_id)
         .await
         .map_err(|e| {
             tracing::error!("Failed to delete profile image: {}", e);
@@ -200,10 +163,7 @@ pub async fn handle_delete_profile_image(
             )
         })?;
 
-    tracing::info!(
-        "Successfully deleted profile image for user {}",
-        user_principal
-    );
+    log::info!("Successfully deleted profile image for user {}", user_id);
 
     Ok(StatusCode::OK)
 }

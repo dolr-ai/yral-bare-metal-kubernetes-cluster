@@ -2,8 +2,9 @@
 //!
 //! Establishes a persistent WebSocket connection to the SpacetimeDB database
 //! using the shared `SPACETIMEDB_ADMIN_TOKEN` (a yral-auth admin JWT). The
-//! connection is kept alive via `run_background_task()` and the handle is
-//! stored in `AppState` for fire-and-forget reducer calls.
+//! connection is kept alive via `run_async()` spawned as a background tokio
+//! task, and the handle is stored in `AppState` for fire-and-forget reducer
+//! calls.
 //!
 //! The off-chain-agent uses the generated `spacetimedb-sdk` bindings (not REST)
 //! per the AGENTS.md rule: "Rust services interact via generated `spacetimedb-sdk`
@@ -30,9 +31,8 @@ pub type SpacetimeConnection = DbConnection;
 /// Initialize a persistent SpacetimeDB connection.
 ///
 /// Reads `SPACETIMEDB_URL`, `SPACETIMEDB_DB_NAME`, and `SPACETIMEDB_ADMIN_TOKEN`
-/// from environment variables. The connection is kept alive via
-/// `run_background_task()` — a background tokio task handles the WebSocket
-/// message loop.
+/// from environment variables. The connection is kept alive via `run_async()`
+/// spawned as a background tokio task that pumps the WebSocket message loop.
 pub async fn init_spacetimedb_connection() -> Result<Arc<SpacetimeConnection>> {
     let url = env::var("SPACETIMEDB_URL")
         .context("SPACETIMEDB_URL is not set")?;
@@ -55,18 +55,27 @@ pub async fn init_spacetimedb_connection() -> Result<Arc<SpacetimeConnection>> {
         .with_uri(url)
         .with_database_name(db_name)
         .with_token(token)
+        .on_connect(move |_ctx, identity, _token| {
+            log::info!("SpacetimeDB connected. Admin identity: {}", identity.to_hex());
+        })
         .build()?;
 
-    // Keep the connection alive in a background thread (native; wasm uses
-    // run_background_task). The thread processes WebSocket messages as they
-    // are received.
-    conn.run_threaded();
+    let conn = Arc::new(conn);
 
-    // Log the derived identity for debugging and for adding to ADMINS.
-    let identity = conn.identity();
-    log::info!("SpacetimeDB connected. Admin identity: {}", identity.to_hex());
+    // Spawn a background tokio task to pump the WebSocket message loop.
+    // `run_async()` internally clones the connection handle, so we can pass
+    // a reference here while still returning the original `Arc` to the caller.
+    // The task runs concurrently with the axum server without blocking it.
+    tokio::spawn({
+        let conn = conn.clone();
+        async move {
+            if let Err(e) = conn.run_async().await {
+                log::error!("SpacetimeDB background task ended with error: {e:?}");
+            }
+        }
+    });
 
-    Ok(Arc::new(conn))
+    Ok(conn)
 }
 
 /// Send a fire-and-forget view-count update to SpacetimeDB.

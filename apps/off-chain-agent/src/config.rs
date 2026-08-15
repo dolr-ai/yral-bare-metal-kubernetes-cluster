@@ -1,5 +1,3 @@
-use std::env;
-
 use config::{Config, ConfigError, Environment, File};
 use serde::Deserialize;
 use serde_with::serde_as;
@@ -7,7 +5,6 @@ use serde_with::serde_as;
 #[serde_as]
 #[derive(Deserialize, Clone)]
 pub struct AppConfig {
-    pub yral_metadata_token: String,
     pub naitik_multi_service_api_jwt_token: String,
 }
 

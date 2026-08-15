@@ -3,7 +3,7 @@ use axum::middleware;
 use delete_post::{handle_delete_post, handle_delete_post_v2};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use types::PostRequest;
+use self::types::PostRequest;
 use utoipa::ToSchema;
 use utoipa_axum::{
     router::{OpenApiRouter, UtoipaMethodRouterExt},
@@ -48,16 +48,14 @@ pub fn posts_router_v2(state: Arc<AppState>) -> OpenApiRouter {
 
 #[derive(Serialize, Deserialize, Clone, ToSchema, Debug)]
 pub struct DeletePostRequest {
-    #[schema(value_type = String)]
-    canister_id: Principal,
-    post_id: u64,
-    video_id: String,
+    pub canister_id: String,
+    pub post_id: u64,
+    pub video_id: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, ToSchema, Debug)]
 pub struct DeletePostRequestV2 {
-    #[schema(value_type = String)]
-    publisher_user_id: Principal,
+    pub publisher_user_id: String,
     post_id: String, // Changed from u64 to String
     video_id: String,
 }

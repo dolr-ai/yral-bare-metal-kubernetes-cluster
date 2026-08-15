@@ -1,3 +1,7 @@
+use self::types::AnalyticsEvent;
+use crate::auth::check_auth_events;
+use crate::events::verify::verify_event_bulk_request_v3;
+use crate::AppState;
 use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::{middleware, Json};
@@ -6,15 +10,10 @@ use http::{header, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
-use types::AnalyticsEvent;
 use utoipa::ToSchema;
 use utoipa_axum::router::{OpenApiRouter, UtoipaMethodRouterExt};
 use utoipa_axum::routes;
 use verify::verify_event_bulk_request;
-
-use crate::auth::check_auth_events;
-use crate::events::verify::verify_event_bulk_request_v3;
-use crate::AppState;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WarehouseEvent {
@@ -116,21 +115,6 @@ async fn process_event_impl(
 ) -> Result<(), anyhow::Error> {
     event.update_view_count_canister(&shared_state.clone());
 
-    // #[cfg(not(feature = "local-bin"))]
-    // {
-    //     use crate::events::push_notifications::dispatch_notif;
-
-    //     let params: Value = serde_json::from_str(&event.event.params).map_err(|e| {
-    //         log::error!("Failed to parse params: {e}");
-    //         anyhow::anyhow!("Failed to parse params: {}", e)
-    //     })?;
-
-    //     let res = dispatch_notif(&event.event.event, params, &shared_state.clone()).await;
-    //     if let Err(e) = res {
-    //         log::error!("Failed to dispatch notification: {e:?}");
-    //     }
-    // }
-
     // Process BTC rewards for video views
     if event.event.event == "video_duration_watched" {
         event.process_btc_rewards(&shared_state.clone()).await;
@@ -152,21 +136,6 @@ async fn process_event_impl_v2(
 ) -> Result<(), anyhow::Error> {
     event.update_view_count_canister(&shared_state.clone());
 
-    // #[cfg(not(feature = "local-bin"))]
-    // {
-    //     use crate::events::push_notifications::dispatch_notif;
-
-    //     let params: Value = serde_json::from_str(&event.event.params).map_err(|e| {
-    //         log::error!("Failed to parse params: {e}");
-    //         anyhow::anyhow!("Failed to parse params: {}", e)
-    //     })?;
-
-    //     let res = dispatch_notif(&event.event.event, params, &shared_state.clone()).await;
-    //     if let Err(e) = res {
-    //         log::error!("Failed to dispatch notification: {e:?}");
-    //     }
-    // }
-
     // Process BTC rewards for video views
     if event.event.event == "video_duration_watched" {
         event.process_btc_rewards(&shared_state.clone()).await;
@@ -184,13 +153,13 @@ async fn process_event_impl_v2(
 
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
 pub struct EventBulkRequest {
-    pub delegated_identity_wire: DelegatedIdentityWire,
     pub events: Vec<AnalyticsEvent>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct VerifiedEventBulkRequest {
     pub events: Vec<AnalyticsEvent>,
+    pub user_id: String,
 }
 
 #[utoipa::path(
@@ -228,10 +197,11 @@ async fn handle_bulk_events(
     Ok((StatusCode::OK, "Events processed".to_string()))
 }
 
-/// V2 bulk event request with delegated identity auth and arbitrary payloads
+/// V2 bulk event request with JWT Bearer auth and arbitrary payloads.
+/// The user is authenticated via the `Authorization: Bearer <jwt>` header
+/// (verified by the middleware); the body contains only events.
 #[derive(Serialize, Deserialize, Clone, ToSchema)]
 pub struct EventBulkRequestV2 {
-    pub delegated_identity_wire: DelegatedIdentityWire,
     /// Array of event payloads - each must contain "event" field for the event name
     #[schema(value_type = Vec<Object>)]
     pub events: Vec<Value>,

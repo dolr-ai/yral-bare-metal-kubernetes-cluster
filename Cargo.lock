@@ -5754,9 +5754,7 @@ dependencies = [
  "utoipa-axum",
  "utoipa-swagger-ui",
  "uuid",
- "yral-canisters-common",
  "yral-database-spacetime-bindings",
- "yral-types",
  "yral-username-gen",
 ]
 

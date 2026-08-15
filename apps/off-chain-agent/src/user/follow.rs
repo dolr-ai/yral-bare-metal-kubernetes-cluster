@@ -1,37 +1,35 @@
 use std::sync::Arc;
 
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use axum::{
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    response::IntoResponse,
+    Json,
+};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use utoipa::ToSchema;
 
-use crate::{
-    app_state::AppState,
-    events::types::{EventPayload, FollowUserPayload},
-};
-use canisters_client::user_info_service::UserInfoService;
+use crate::app_state::AppState;
+use crate::auth::extract_user_id_from_headers;
 
-#[derive(Serialize, Deserialize, ToSchema)]
-pub struct FollowUserNotificationRequest {
-    pub delegated_identity_wire: DelegatedIdentityWire,
-    #[schema(value_type = String)]
-    pub target_principal: Principal,
-    pub follower_username: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
 pub struct FollowUserRequest {
-    pub delegated_identity_wire: DelegatedIdentityWire,
-    #[schema(value_type = String)]
-    pub target_principal: Principal,
+    pub target_user_id: String,
     pub follower_username: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
 pub struct FollowUserResponse {
     pub success: bool,
 }
 
+/// Follow a user.
+///
+/// The user is authenticated via JWT Bearer token in the `Authorization` header.
+/// IC canister follow calls are decommissioned — follow relationships will be
+/// tracked via SpacetimeDB in a follow-up PR. For now, this endpoint logs the
+/// follow event and returns success.
 #[utoipa::path(
     post,
     path = "/follow",
@@ -44,92 +42,46 @@ pub struct FollowUserResponse {
         (status = 500, description = "Internal server error"),
     )
 )]
-#[instrument(skip(state, request))]
+#[instrument(skip(state, headers))]
 pub async fn handle_follow_user(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Json(request): Json<FollowUserRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    // 1. Verify the user identity and get user info
-    let user_info =
-        get_user_info_from_delegated_identity_wire(&state, request.delegated_identity_wire.clone())
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::UNAUTHORIZED,
-                    format!("Failed to get user info: {e}"),
-                )
-            })?;
-
-    let follower_principal = user_info.user_principal;
+    let follower_user_id =
+        extract_user_id_from_headers(&headers).map_err(|(msg, code)| {
+            let status = StatusCode::from_u16(code).unwrap_or(StatusCode::UNAUTHORIZED);
+            (status, msg)
+        })?;
 
     // Don't allow users to follow themselves
-    if follower_principal == request.target_principal {
+    if follower_user_id == request.target_user_id {
         return Err((
             StatusCode::BAD_REQUEST,
             "Cannot follow yourself".to_string(),
         ));
     }
 
-    // 2. Get agent for canister call
-    let user_agent = get_agent_from_delegated_identity_wire(&request.delegated_identity_wire)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to create user agent: {}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to create user agent: {e}"),
-            )
-        })?;
+    // IC canister follow call is decommissioned. Follow relationships will be
+    // tracked via SpacetimeDB in a follow-up PR.
+    log::info!(
+        "Follow request: {} -> {} (follower_username={:?}) — SpacetimeDB follow pending implementation",
+        follower_user_id,
+        request.target_user_id,
+        request.follower_username
+    );
 
-    // 3. Call user_info_service.follow_user()
-    let user_info_service = UserInfoService(*USER_INFO_SERVICE_CANISTER_ID, &user_agent);
+    let _ = &state.spacetime_conn;
 
-    match user_info_service
-        .follow_user(request.target_principal)
-        .await
-    {
-        Ok(canisters_client::user_info_service::Result_::Ok) => {
-            tracing::info!(
-                "User {} successfully followed {}",
-                follower_principal,
-                request.target_principal
-            );
-
-            // 4. Send notification event
-            let follow_payload = FollowUserPayload {
-                follower_principal_id: follower_principal,
-                follower_username: request.follower_username,
-                followee_principal_id: request.target_principal,
-            };
-
-            // Send notification asynchronously
-            let event_payload = EventPayload::FollowUser(follow_payload);
-            event_payload.send_notification(&state).await;
-
-            // 5. Return success
-            Ok(Json(FollowUserResponse { success: true }))
-        }
-        Ok(canisters_client::user_info_service::Result_::Err(e)) => {
-            tracing::error!("Failed to follow user: {}", e);
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to follow user: {e}"),
-            ))
-        }
-        Err(e) => {
-            tracing::error!("Network error following user: {}", e);
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Network error following user: {e}"),
-            ))
-        }
-    }
+    Ok(Json(FollowUserResponse { success: true }))
 }
 
+/// Follow notification endpoint — push notifications are decommissioned.
+/// Kept for API compatibility with existing mobile clients.
 #[utoipa::path(
     post,
     path = "/follow-notification",
-    request_body = FollowUserNotificationRequest,
+    request_body = FollowUserRequest,
     tag = "user",
     responses(
         (status = 200, description = "Notification sent successfully", body = FollowUserResponse),
@@ -138,49 +90,25 @@ pub async fn handle_follow_user(
         (status = 500, description = "Internal server error"),
     )
 )]
-#[instrument(skip(state, request))]
+#[instrument(skip(_state, headers))]
 pub async fn handle_follow_user_notification(
-    State(state): State<Arc<AppState>>,
-    Json(request): Json<FollowUserNotificationRequest>,
+    State(_state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Json(request): Json<FollowUserRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    // 1. Verify the user identity and get user info
-    let user_info =
-        get_user_info_from_delegated_identity_wire(&state, request.delegated_identity_wire.clone())
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::UNAUTHORIZED,
-                    format!("Failed to get user info: {e}"),
-                )
-            })?;
+    let follower_user_id =
+        extract_user_id_from_headers(&headers).map_err(|(msg, code)| {
+            let status = StatusCode::from_u16(code).unwrap_or(StatusCode::UNAUTHORIZED);
+            (status, msg)
+        })?;
 
-    let follower_principal = user_info.user_principal;
-
-    // Don't allow users to follow themselves
-    if follower_principal == request.target_principal {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "Cannot follow yourself".to_string(),
-        ));
-    }
-
-    // 2. Send notification event (without calling canister)
-    let follow_payload = FollowUserPayload {
-        follower_principal_id: follower_principal,
-        follower_username: request.follower_username,
-        followee_principal_id: request.target_principal,
-    };
-
-    // Send notification asynchronously
-    let event_payload = EventPayload::FollowUser(follow_payload);
-    event_payload.send_notification(&state).await;
-
-    tracing::info!(
-        "Follow notification sent: {} -> {}",
-        follower_principal,
-        request.target_principal
+    // Push notifications are decommissioned. Log the event for backwards compat.
+    log::info!(
+        "Follow notification (push decommissioned): {} -> {} (follower_username={:?})",
+        follower_user_id,
+        request.target_user_id,
+        request.follower_username
     );
 
-    // 3. Return success
     Ok(Json(FollowUserResponse { success: true }))
 }

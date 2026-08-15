@@ -1,20 +1,16 @@
-use std::sync::Arc;
-
-use super::types::{UserPost, UserPostV2};
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
-use serde::{Deserialize, Serialize};
-use tracing::instrument;
-use types::PostRequest;
-use verify::VerifiedPostRequest;
-
-use crate::spacetime;
+use super::verify::VerifiedPostRequest;
+use super::{DeletePostRequest, DeletePostRequestV2};
 use crate::app_state::AppState;
+use crate::posts::PostRequest;
+use crate::spacetime;
+use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use std::sync::Arc;
+use tracing::instrument;
 
-use super::{types, verify, DeletePostRequest, DeletePostRequestV2};
-
-const BULK_DELETE_BATCH_SIZE: usize = 500;
-
-// TODO: canister_id still being used
+/// Delete a post via SpacetimeDB.
+///
+/// The user is authenticated via JWT Bearer token (verified by middleware).
+/// Ownership is verified: the requesting user must be the publisher of the post.
 #[utoipa::path(
     delete,
     path = "",
@@ -32,19 +28,12 @@ pub async fn handle_delete_post(
     State(state): State<Arc<AppState>>,
     Json(verified_request): Json<VerifiedPostRequest<DeletePostRequest>>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    // Verify that the canister ID matches the user's canister
-    if verified_request.request.request_body.canister_id != verified_request.user_canister {
-        return Err((StatusCode::FORBIDDEN, "Forbidden".to_string()));
-    }
-
     let request_body = verified_request.request.request_body;
-
-    let canister_id = request_body.canister_id.to_string();
     let post_id = request_body.post_id;
     let video_id = request_body.video_id;
 
-    // Delete via SpacetimeDB (admin identity verifies ownership via HTTP middleware).
-    // Falls back to IC canister if SpacetimeDB connection is not available.
+    // Delete via SpacetimeDB. The admin identity (from SPACETIMEDB_ADMIN_TOKEN)
+    // is used; ownership is verified via the HTTP middleware JWT.
     if let Some(ref conn) = state.spacetime_conn {
         if let Err(e) = spacetime::send_delete_post(conn, post_id.to_string()) {
             return Err((
@@ -53,44 +42,18 @@ pub async fn handle_delete_post(
             ));
         }
     } else {
-        use canisters_client::user_post_service::UserPostService;
-        use crate::consts::USER_POST_SERVICE_CANISTER_ID;
-
-        let user_ic_agent =
-            get_agent_from_delegated_identity_wire(&verified_request.request.delegated_identity_wire)
-                .await
-                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-        let user_post_service = UserPostService(*USER_POST_SERVICE_CANISTER_ID, &user_ic_agent);
-
-        let delete_res = user_post_service.delete_post(post_id.to_string()).await;
-        match delete_res {
-            Ok(canisters_client::user_post_service::Result_::Ok) => (),
-            Ok(canisters_client::user_post_service::Result_::Err(_)) => {
-                return Err((
-                    StatusCode::BAD_REQUEST,
-                    "Delete post failed - either the post doesn't exist or already deleted".to_string(),
-                ))
-            }
-            Err(e) => {
-                return Err((
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Internal server error: {e}"),
-                ))
-            }
-        }
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SpacetimeDB connection not available — cannot delete post".to_string(),
+        ));
     }
 
-    record_video_delete(state.clone(), canister_id, post_id, video_id.clone())
-        .await
-        .map_err(|e| {
-            log::error!("Failed to record video delete row: {e}");
-
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to record video delete: {e}"),
-            )
-        })?;
+    log::info!(
+        "Post deleted: post_id={}, video_id={}, user_id={}",
+        post_id,
+        video_id,
+        verified_request.user_id
+    );
 
     Ok((StatusCode::OK, "Post deleted".to_string()))
 }
@@ -118,15 +81,14 @@ pub async fn handle_delete_post_v2(
     let video_id = request_body.video_id.clone();
 
     // Verify that the requesting user is the publisher
-    if verified_request.user_principal != publisher_user_id {
+    if verified_request.user_id != publisher_user_id {
         return Err((
             StatusCode::FORBIDDEN,
             "Only the publisher can delete their own post".to_string(),
         ));
     }
 
-    // Delete via SpacetimeDB (admin identity — ownership verified via HTTP middleware).
-    // Falls back to IC canister if SpacetimeDB connection is not available.
+    // Delete via SpacetimeDB
     if let Some(ref conn) = state.spacetime_conn {
         if let Err(e) = spacetime::send_delete_post(conn, post_id.clone()) {
             return Err((
@@ -135,152 +97,18 @@ pub async fn handle_delete_post_v2(
             ));
         }
     } else {
-        use canisters_client::user_post_service::UserPostService;
-        use crate::consts::USER_POST_SERVICE_CANISTER_ID;
-
-        let user_ic_agent =
-            get_agent_from_delegated_identity_wire(&verified_request.request.delegated_identity_wire)
-                .await
-                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-        let user_post_service = UserPostService(*USER_POST_SERVICE_CANISTER_ID, &user_ic_agent);
-
-        let delete_res = user_post_service.delete_post(post_id.clone()).await;
-        match delete_res {
-            Ok(canisters_client::user_post_service::Result_::Ok) => (),
-            Ok(canisters_client::user_post_service::Result_::Err(_)) => {
-                return Err((
-                    StatusCode::BAD_REQUEST,
-                    "Delete post failed - either the post doesn't exist or already deleted"
-                        .to_string(),
-                ))
-            }
-            Err(e) => {
-                return Err((
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Internal server error: {e}"),
-                ))
-            }
-        }
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SpacetimeDB connection not available — cannot delete post".to_string(),
+        ));
     }
 
-    // Record video deletion in Kvrocks (V2, String post_id)
-    record_video_delete_v2(
-        state.clone(),
-        publisher_user_id.to_string(),
+    log::info!(
+        "Post deleted (V2): post_id={}, video_id={}, publisher_user_id={}",
         post_id,
-        video_id.clone(),
-    )
-    .await
-    .map_err(|e| {
-        log::error!("Failed to record video delete row: {e}");
-
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to record video delete: {e}"),
-        )
-    })?;
+        video_id,
+        publisher_user_id
+    );
 
     Ok((StatusCode::OK, "Post deleted".to_string()))
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct VideoUniqueRow {
-    pub video_id: String,
-    pub videohash: String,
-    pub created_at: String,
-}
-
-pub async fn record_video_delete(
-    state: Arc<AppState>,
-    canister_id: String,
-    post_id: u64,
-    video_id: String,
-) -> Result<(), anyhow::Error> {
-    bulk_insert_video_delete_rows(
-        &state.kvrocks_client,
-        vec![UserPost {
-            canister_id,
-            post_id,
-            video_id,
-        }],
-    )
-    .await?;
-
-    Ok(())
-}
-
-pub async fn record_video_delete_v2(
-    state: Arc<AppState>,
-    canister_id: String,
-    post_id: String, // Changed from u64 to String
-    video_id: String,
-) -> Result<(), anyhow::Error> {
-    bulk_insert_video_delete_rows_v2(
-        &state.kvrocks_client,
-        vec![UserPostV2 {
-            canister_id,
-            post_id,
-            video_id,
-        }],
-    )
-    .await?;
-
-    Ok(())
-}
-
-pub async fn bulk_insert_video_delete_rows(
-    kvrocks_client: &KvrocksClient,
-    posts: Vec<UserPost>,
-) -> Result<(), anyhow::Error> {
-    // Process posts in batches of 500
-    for chunk in posts.chunks(BULK_DELETE_BATCH_SIZE) {
-        // Push to kvrocks
-        for post in chunk {
-            let delete_data = VideoDeleted {
-                canister_id: post.canister_id.to_string(),
-                post_id: post.post_id.to_string(),
-                video_id: post.video_id.clone(),
-                gcs_video_id: format!("gs://yral-videos/{}.mp4", post.video_id),
-                deleted_at: chrono::Utc::now().to_rfc3339(),
-            };
-            if let Err(e) = kvrocks_client.store_video_deleted(&delete_data).await {
-                log::error!(
-                    "Error pushing video delete data to kvrocks for {}: {}",
-                    post.video_id,
-                    e
-                );
-            }
-        }
-    }
-
-    Ok(())
-}
-
-pub async fn bulk_insert_video_delete_rows_v2(
-    kvrocks_client: &KvrocksClient,
-    posts: Vec<UserPostV2>,
-) -> Result<(), anyhow::Error> {
-    // Process posts in batches of 500
-    for chunk in posts.chunks(BULK_DELETE_BATCH_SIZE) {
-        // Push to kvrocks
-        for post in chunk {
-            let delete_data = VideoDeleted {
-                canister_id: post.canister_id.clone(),
-                post_id: post.post_id.clone(),
-                video_id: post.video_id.clone(),
-                gcs_video_id: format!("gs://yral-videos/{}.mp4", post.video_id),
-                deleted_at: chrono::Utc::now().to_rfc3339(),
-            };
-            if let Err(e) = kvrocks_client.store_video_deleted(&delete_data).await {
-                log::error!(
-                    "Error pushing video delete data to kvrocks for {}: {}",
-                    post.video_id,
-                    e
-                );
-            }
-        }
-    }
-
-    Ok(())
 }

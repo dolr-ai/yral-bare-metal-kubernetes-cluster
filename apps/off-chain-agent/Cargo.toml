@@ -72,9 +72,7 @@ utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 uuid = { workspace = true, features = ["fast-rng", "v4"] }
-yral-canisters-common = { workspace = true }
 yral-database-spacetime-bindings = { workspace = true }
-types = { workspace = true }
 username-gen = { workspace = true }
 
 [features]

@@ -1,5 +1,5 @@
 use crate::events::types::{
-    VideoDurationWatchedPayload, VideoDurationWatchedPayloadV2, VideoStartedPayload,
+    VideoDurationWatchedPayload, VideoDurationWatchedPayloadV2,
 };
 use crate::{app_state::AppState, events::WarehouseEvent, spacetime};
 use log::{debug, error};
