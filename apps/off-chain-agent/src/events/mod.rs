@@ -23,7 +23,6 @@ pub struct WarehouseEvent {
 }
 
 pub mod event;
-pub mod push_notifications;
 pub mod queries;
 pub mod types;
 pub mod utils;
