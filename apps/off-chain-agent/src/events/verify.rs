@@ -6,7 +6,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use yral_metrics::metrics::sealed_metric::SealedMetric;
+
 
 use crate::{
     app_state::AppState,

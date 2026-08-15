@@ -5,10 +5,6 @@ use yral_metadata_types::{
     AndroidConfig, AndroidNotification, ApnsConfig, ApnsFcmOptions, NotificationPayload,
     SendNotificationReq, WebpushConfig, WebpushFcmOptions,
 };
-use yral_metrics::metrics::{
-    like_video::LikeVideo, sealed_metric::SealedMetric,
-    video_duration_watched::VideoDurationWatched, video_watched::VideoWatched,
-};
 
 use crate::app_state::AppState;
 
@@ -97,24 +93,41 @@ macro_rules! delegate_metric_method {
     };
 }
 
-impl SealedMetric for AnalyticsEvent {
-    fn tag(&self) -> String {
-        delegate_metric_method!(self, tag)
-    }
-
-    fn user_id(&self) -> Option<String> {
-        delegate_metric_method!(self, user_id)
-    }
-
-    fn user_canister(&self) -> Option<Principal> {
-        delegate_metric_method!(self, user_canister)
-    }
-}
-
 impl AnalyticsEvent {
+    pub fn tag(&self) -> String {
+        match self {
+            AnalyticsEvent::VideoWatched(_) => "video_watched".to_string(),
+            AnalyticsEvent::VideoDurationWatched(_) => "video_duration_watched".to_string(),
+            AnalyticsEvent::VideoStarted(_) => "video_started".to_string(),
+            AnalyticsEvent::LikeVideo(_) => "like_video".to_string(),
+        }
+    }
+
+    pub fn user_id(&self) -> Option<String> {
+        match self {
+            AnalyticsEvent::VideoWatched(e) => e.user_id.clone(),
+            AnalyticsEvent::VideoDurationWatched(e) => e.user_id.clone(),
+            AnalyticsEvent::VideoStarted(e) => e.payload.user_id.clone(),
+            AnalyticsEvent::LikeVideo(e) => e.user_id.clone(),
+        }
+    }
+
+    pub fn user_canister(&self) -> Option<Principal> {
+        match self {
+            AnalyticsEvent::VideoWatched(e) => Some(e.user_canister),
+            AnalyticsEvent::VideoDurationWatched(e) => Some(e.user_canister),
+            AnalyticsEvent::VideoStarted(_) => None,
+            AnalyticsEvent::LikeVideo(e) => Some(e.user_canister),
+        }
+    }
+
     pub fn params(&self) -> Value {
-        // Use the overloaded macro variant for to_value
-        delegate_metric_method!(self, params, to_value)
+        match self {
+            AnalyticsEvent::VideoWatched(e) => serde_json::to_value(e).unwrap(),
+            AnalyticsEvent::VideoDurationWatched(e) => serde_json::to_value(e).unwrap(),
+            AnalyticsEvent::VideoStarted(e) => serde_json::to_value(e).unwrap(),
+            AnalyticsEvent::LikeVideo(e) => serde_json::to_value(e).unwrap(),
+        }
     }
 }
 
@@ -225,24 +238,10 @@ pub struct VideoStartedPayload {
     pub user_id: Option<String>,
 }
 
-// Wrapper type for VideoStarted that implements SealedMetric
+// Wrapper type for VideoStarted
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct VideoStarted {
     payload: VideoStartedPayload,
-}
-
-impl SealedMetric for VideoStarted {
-    fn tag(&self) -> String {
-        "video_started".to_string()
-    }
-
-    fn user_id(&self) -> Option<String> {
-        None
-    }
-
-    fn user_canister(&self) -> Option<Principal> {
-        None
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

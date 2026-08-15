@@ -11,7 +11,6 @@ use utoipa::ToSchema;
 use utoipa_axum::router::{OpenApiRouter, UtoipaMethodRouterExt};
 use utoipa_axum::routes;
 use verify::verify_event_bulk_request;
-use yral_metrics::metrics::sealed_metric::SealedMetric;
 
 use crate::auth::check_auth_events;
 use crate::events::verify::verify_event_bulk_request_v3;

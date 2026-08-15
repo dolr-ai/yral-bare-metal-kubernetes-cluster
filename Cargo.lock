@@ -5756,9 +5756,6 @@ dependencies = [
  "uuid",
  "yral-canisters-common",
  "yral-database-spacetime-bindings",
- "yral-metadata-client",
- "yral-metadata-types",
- "yral-metrics",
  "yral-types",
  "yral-username-gen",
 ]
