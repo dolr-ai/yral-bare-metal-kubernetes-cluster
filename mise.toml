@@ -6,6 +6,7 @@ age = "latest"
 "aqua:WebAssembly/binaryen" = "latest"
 cargo-binstall = "latest"
 "cargo:topcoat-cli" = "latest"
+"cargo:trunk" = "latest"
 cocoapods = { version = "latest", os = ["macos"] }
 flux2 = "latest"
 fnox = "latest"
