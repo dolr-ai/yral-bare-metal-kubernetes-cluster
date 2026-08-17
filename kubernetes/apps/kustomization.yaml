@@ -5,7 +5,6 @@ resources:
   - dashboard
   - yral-auth
   - yral-web
-  - yral-legacy
   - yral-metadata
   - off-chain-agent
   - my-website
