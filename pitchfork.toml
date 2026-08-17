@@ -33,7 +33,7 @@ dir = "apps/hello-world"
 mise = true
 ready_http = "http://localhost:8080/"
 stop_signal = "SIGINT"
-auto = ["start", "stop"]
+# auto = ["start", "stop"]
 
 # ── my-website container (podman) ────────────────────────────────────────────
 
