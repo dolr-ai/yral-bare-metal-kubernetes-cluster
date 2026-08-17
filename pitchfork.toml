@@ -16,6 +16,12 @@
 #   pitchfork logs yral-auth --tail     # follow logs
 #   pitchfork start --all              # start everything
 #   pitchfork stop --all               # stop everything
+#
+
+[settings.web]
+auto_start = true  # Start web UI automatically with supervisor
+bind_port = 3120  # Default port (default: 3120)
+bind_address = "127.0.0.1"  # Default: localhost only
 
 # ── hello-world dev server (Trunk serve, CSR WASM) ──────────────────────────
 # Leptos CSR demo app served by Trunk with hot reload.
@@ -207,7 +213,7 @@ stop_signal = "SIGINT"
 # fnox exec loads secrets from fnox.toml (age-encrypted) + root fnox.toml (Dragonfly).
 
 [daemons.yral-web]
-run = "exec fnox exec -- ./target/x86_64-unknown-linux-musl/prod-release/yral-web"
+run = "exec fnox exec -- ../../target/x86_64-unknown-linux-musl/prod-release/yral-web"
 dir = "apps/yral-web"
 mise = true
 ready_http = "http://localhost:8080/healthz"
@@ -247,7 +253,7 @@ stop_signal = "SIGINT"
 # Build first with: mise run yral-web-build
 
 [daemons.yral-web-dev]
-run = "exec fnox exec -- ./target/x86_64-unknown-linux-musl/prod-release/yral-web"
+run = "exec fnox exec -- ../../target/x86_64-unknown-linux-musl/prod-release/yral-web"
 dir = "apps/yral-web"
 mise = true
 ready_http = "http://localhost:8081/healthz"
