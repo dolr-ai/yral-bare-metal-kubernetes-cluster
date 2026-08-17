@@ -1,4 +1,4 @@
-use leptos::html::*;
+use leptos::html;
 use leptos::prelude::*;
 use leptos::*;
 
@@ -10,7 +10,13 @@ fn main() {
 fn app() -> impl IntoView {
     let (count, set_count) = signal(0);
 
-    html::button()
-        .on(ev::click, move |_| set_count.update(|v| *v = *v + 1))
-        .child("Click me!")
+    (
+        html::button()
+            .on(ev::click, move |_| set_count.update(|v| *v = *v + 1))
+            .child("Click me: ")
+            .child(move || count.get()),
+        html::p()
+            .child("Double count: ")
+            .child(move || count.get() * 2),
+    )
 }
