@@ -24,7 +24,7 @@ spec:
         - name: harbor-pull-secret
       containers:
         - name: yral-metadata
-          image: harbor.yral.com/yral-metadata/yral-metadata:20260815080556-9afb722d # {"$imagepolicy": "flux-system:yral-metadata"}
+          image: harbor.yral.com/yral-metadata/yral-metadata:20260817121704-4855c09d # {"$imagepolicy": "flux-system:yral-metadata"}
           imagePullPolicy: Always
           ports:
             - containerPort: 7000
