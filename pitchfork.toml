@@ -33,8 +33,7 @@ dir = "apps/hello-world"
 mise = true
 ready_http = "http://localhost:8080/"
 stop_signal = "SIGINT"
-# No auto start/stop — port conflicts with yral-web (both use 8080).
-# Start manually with: mise run hello-world-run
+# auto = ["start", "stop"]
 
 # ── my-website container (podman) ────────────────────────────────────────────
 
@@ -220,7 +219,7 @@ mise = true
 ready_http = "http://localhost:8080/healthz"
 stop_signal = "SIGINT"
 auto = ["start", "stop"]
-env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
+env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080", LEPTOS_SITE_ROOT = "../../target/site" }
 
 # ── yral-web container (podman) ──────────────────────────────────────────
 # Build first with: mise run yral-web-image
@@ -261,7 +260,7 @@ ready_http = "http://localhost:8081/healthz"
 stop_signal = "SIGINT"
 depends = ["spacetimedb-dev", "yral-auth-dev"]
 auto = ["start", "stop"]
-env = { LEPTOS_SITE_ADDR = "0.0.0.0:8081", SPACETIMEDB_URL = "http://127.0.0.1:3000", SPACETIMEDB_DB_NAME = "yral-database-spacetime-4lbo7", GOOGLE_REDIRECT_URL = "http://127.0.0.1:8081/auth/google_redirect", YRAL_AUTH_REDIRECT_URL = "http://127.0.0.1:8081/auth/yral_redirect" }
+env = { LEPTOS_SITE_ADDR = "0.0.0.0:8081", LEPTOS_SITE_ROOT = "../../target/site", SPACETIMEDB_URL = "http://127.0.0.1:3000", SPACETIMEDB_DB_NAME = "yral-database-spacetime-4lbo7", GOOGLE_REDIRECT_URL = "http://127.0.0.1:8081/auth/google_redirect", YRAL_AUTH_REDIRECT_URL = "http://127.0.0.1:8081/auth/yral_redirect" }
 
 # ── yral-web watch (cargo leptos watch, hot reload, debug) ──────────────
 # Runs cargo leptos watch for hot-reload development. Rebuilds server + WASM
