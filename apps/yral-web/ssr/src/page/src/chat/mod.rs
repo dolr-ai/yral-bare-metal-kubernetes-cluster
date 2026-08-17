@@ -19,7 +19,7 @@ use leptos_router::params::Params;
 use serde::{Deserialize, Serialize};
 use utils::send_wrap;
 use wasm_bindgen::JsCast;
-use wasm_bindgen_futures::spawn_local;
+use wasm_bindgen_futures::{JsFuture, spawn_local};
 
 /// Rishi's agent backend base URL.
 const AGENT_BACKEND_URL: &str = "https://agent.rishi.yral.com";
@@ -281,9 +281,10 @@ async fn stream_message_via_sse(
     let request = web_sys::Request::new_with_str_and_init(&url, &request_options)
         .map_err(|error| format!("Request creation: {error:?}"))?;
 
-    let response = web_sys::window()
+    let fetch_promise = web_sys::window()
         .unwrap()
-        .fetch_with_request(&request)
+        .fetch_with_request(&request);
+    let response = JsFuture::from(fetch_promise)
         .await
         .map_err(|error| format!("Fetch failed: {error:?}"))?;
 
@@ -294,22 +295,29 @@ async fn stream_message_via_sse(
     }
 
     let readable_stream = http_response.body().ok_or("No response body")?;
-    let reader = readable_stream.get_reader();
+    let reader: web_sys::ReadableStreamDefaultReader =
+        readable_stream.get_reader().dyn_into().map_err(|_| "Reader cast failed")?;
 
     let mut full_response_text = String::new();
     let mut buffer = String::new();
 
     loop {
-        let chunk_result = reader
-            .read()
+        let read_promise = reader.read();
+        let chunk_result = JsFuture::from(read_promise)
             .await
             .map_err(|error| format!("Read error: {error:?}"))?;
 
-        if chunk_result.done() {
+        let done = js_sys::Reflect::get(&chunk_result, &"done".into())
+            .map_err(|error| format!("Read done: {error:?}"))?
+            .as_bool()
+            .unwrap_or(false);
+
+        if done {
             break;
         }
 
-        let chunk = chunk_result.value();
+        let chunk = js_sys::Reflect::get(&chunk_result, &"value".into())
+            .map_err(|error| format!("Read value: {error:?}"))?;
         let chunk_text = String::from(js_sys::JsString::from(chunk));
         buffer.push_str(&chunk_text);
 
