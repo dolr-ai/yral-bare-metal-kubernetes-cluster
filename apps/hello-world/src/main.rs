@@ -8,5 +8,9 @@ fn main() {
 }
 
 fn app() -> impl IntoView {
-    p().child("Hello, world!!!")
+    let (count, set_count) = signal(0);
+
+    html::button()
+        .on(ev::click, move |_| set_count.update(|v| *v = *v + 1))
+        .child("Click me!")
 }

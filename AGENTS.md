@@ -81,7 +81,7 @@ If a CLI tool is needed but not installed, do NOT use `sudo apt-get install` or 
 This keeps the environment fully declarative and reproducible from `mise.toml` alone.
 
 ### Edit Tooling Preference (Hard Rule)
-Never use terminal commands (`sed`, `awk`, `echo >`, `cat >`, `tee`, etc.) for text edits. Always use the VS Code edit tools (`replace_string_in_file`, `multi_replace_string_in_file`, `create_file`) so changes are visible in the diff editor for review. Terminal commands bypass the review workflow and can silently corrupt files.
+Never use terminal commands (`sed`, `awk`, `echo >`, `cat >`, `tee`, `tr`, `perl -i`, etc.) for text edits. **Always use the VS Code edit tools** (`replace_string_in_file`, `multi_replace_string_in_file`, `create_file`) so changes are visible in the diff editor for review. Terminal commands bypass the review workflow and can silently corrupt files — especially SOPS-encrypted files where a stray `sed` breaks the MAC integrity check. This applies to **all** file edits, including trivial one-line changes, namespace renames, and temp file processing. If you need to transform file contents (e.g., decrypt → modify → re-encrypt), use the edit tools for the modification step, not `sed`/`awk`.
 
 ### Default-First Configuration
 Prefer component defaults. Add explicit config only when a concrete problem requires deviation. Explicitly matching the default creates maintenance burden and obscures intent.

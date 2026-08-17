@@ -9,42 +9,42 @@ kind: Kustomization
 #   cert-manager-issuers  → dependsOn: cert-manager
 #   networking     → dependsOn: cilium, cert-manager-issuers
 resources:
-  - infrastructure-coredns.yaml
-  - infrastructure-cilium.yaml
-  - infrastructure-gateway-api-crds.yaml
-  - infrastructure-cert-manager.yaml
-  - infrastructure-cert-manager-issuers.yaml
-  - infrastructure-oauth2-proxy.yaml
-  - infrastructure-nginx.yaml
-  - infrastructure-velero.yaml
-  - infrastructure-flux-receiver.yaml
-  - infrastructure-metrics-server.yaml
-  - infrastructure-longhorn.yaml
-  - infrastructure-longhorn-backup.yaml
-  - infrastructure-cloudnative-pg.yaml
-  - infrastructure-reloader.yaml
-  - infrastructure-monitoring.yaml
-  - infrastructure-headlamp.yaml
-  - infrastructure-loki.yaml
+  - app-dashboard.yaml
+  - app-my-website.yaml
+  - app-off-chain-agent.yaml
+  - app-yral-auth.yaml
+  - app-yral-metadata.yaml
+  - app-yral-web.yaml
   - infrastructure-alloy.yaml
-  - infrastructure-strimzi.yaml
-  - infrastructure-kafka.yaml
+  - infrastructure-cert-manager-issuers.yaml
+  - infrastructure-cert-manager.yaml
+  - infrastructure-cilium.yaml
+  - infrastructure-ci-e2e-reader.yaml
+  - infrastructure-cloudnative-pg.yaml
+  - infrastructure-coredns.yaml
+  - infrastructure-dbx.yaml
+  - infrastructure-external-dns.yaml
+  - infrastructure-flux-receiver.yaml
+  - infrastructure-gateway-api-crds.yaml
+  - infrastructure-harbor.yaml
+  - infrastructure-headlamp.yaml
   - infrastructure-kafka-bridge.yaml
-  - infrastructure-snowplow.yaml
   - infrastructure-kafka-connect.yaml
   - infrastructure-kafka-console.yaml
-  - infrastructure-dbx.yaml
-  - infrastructure-ci-e2e-reader.yaml
-  - infrastructure-harbor.yaml
+  - infrastructure-kafka.yaml
+  - infrastructure-longhorn-backup.yaml
+  - infrastructure-longhorn.yaml
+  - infrastructure-loki.yaml
+  - infrastructure-metrics-server.yaml
+  - infrastructure-monitoring.yaml
+  - infrastructure-nginx.yaml
+  - infrastructure-oauth2-proxy.yaml
+  - infrastructure-reloader.yaml
+  - infrastructure-shipwright.yaml
+  - infrastructure-snowplow.yaml
+  - infrastructure-strimzi.yaml
   - infrastructure-tekton-pipelines.yaml
   - infrastructure-tekton-triggers.yaml
-  - infrastructure-shipwright.yaml
-  - infrastructure-external-dns.yaml
+  - infrastructure-velero.yaml
   - networking.yaml
-  - app-dashboard.yaml
-  - app-yral-auth.yaml
-  - app-yral-web.yaml
-  - app-yral-metadata.yaml
-  - app-off-chain-agent.yaml
-  - app-my-website.yaml
 
