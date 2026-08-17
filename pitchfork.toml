@@ -33,7 +33,8 @@ dir = "apps/hello-world"
 mise = true
 ready_http = "http://localhost:8080/"
 stop_signal = "SIGINT"
-# auto = ["start", "stop"]
+# No auto start/stop — port conflicts with yral-web (both use 8080).
+# Start manually with: mise run hello-world-run
 
 # ── my-website container (podman) ────────────────────────────────────────────
 
