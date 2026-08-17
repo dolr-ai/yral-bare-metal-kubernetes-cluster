@@ -43,6 +43,7 @@ mise.local.toml
 *.tmp
 /tmp/
 target/
+dist/
 
 spacetime.local.json
 *.pem

@@ -674,6 +674,10 @@ url = "https://cache.ruby-lang.org/pub/ruby/3.4/ruby-3.4.10.tar.gz"
 version = "nightly-2026-08-16"
 backend = "core:rust"
 
+[tools.rust.options]
+components = "clippy,rust-analyzer,rust-src,rustfmt"
+targets = "wasm32-unknown-unknown,x86_64-unknown-linux-musl"
+
 [[tools.sops]]
 version = "3.13.2"
 backend = "aqua:getsops/sops"

@@ -40,9 +40,6 @@ exclude = [
   "apps/yral-mobile/shared/rust/rust-agent/rust-agent-uniffi",
 ]
 
-# apps/website is a non-Cargo project.
-# (Shipwright/BuildKit docker builds).
-
 [workspace.dependencies]
 anyhow = "1.0.103"
 async-channel = "2.3.1"
@@ -62,7 +59,7 @@ ciborium = "0.2.2"
 circular-buffer = "0.1.7"
 codee = "0.3.0"
 config = "0.14.0"
-console_error_panic_hook = "0.1"
+console_error_panic_hook = "0.1.7"
 console_log = "0.1"
 crc32fast = "1.4.0"
 dotenv = "0.15.0"
@@ -96,7 +93,7 @@ indexmap = "2.8.0"
 js-sys = "0.3.69"
 jsonwebtoken = "9.3.1"
 k256 = { version = "0.13.4", default-features = false }
-leptos = "0.8.15"
+leptos = "0.8.20"
 leptos_axum = "0.8.7"
 leptos_icons = "0.6.1"
 leptos_meta = "0.8.5"
@@ -173,14 +170,9 @@ inherits = "release"
 debug = 1
 lto = true
 
-# TODO: leaving this here as a reminder to be used once cargo-leptos solves the profile issue
-# [profile.preview-release]
-# inherits = "release"
-
 # Defines a size-optimized profile for the WASM bundle in release mode
 [profile.wasm-release]
 inherits = "release"
 opt-level = "z"
 lto = true
 codegen-units = 1
-# panic = "abort"
