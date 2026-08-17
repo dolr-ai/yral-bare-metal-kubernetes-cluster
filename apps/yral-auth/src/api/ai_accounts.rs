@@ -1,13 +1,10 @@
-use crate::{
-    api::ai_accounts::server_fn::codec::Json,
-    kv::KVStore,
-};
+use crate::{api::ai_accounts::server_fn::codec::Json, kv::KVStore};
 #[cfg(feature = "ssr")]
 use crate::{context::server::ServerCtx, utils::user_id::generate_user_id};
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
-pub const MAX_AI_ACCOUNTS: u8 = 3;
+pub const MAX_AI_ACCOUNTS: u8 = 100;
 
 /// KV key for an AI account slot: `{owner_user_id}-ai-account-{slot}`.
 #[cfg(feature = "ssr")]
@@ -30,19 +27,12 @@ pub struct AIAccountResponse {
 }
 
 #[server(endpoint = "create_ai_account", input=Json, output=Json)]
-pub async fn create_ai_account(
-    user_id: String,
-) -> Result<AIAccountResponse, ServerFnError> {
+pub async fn create_ai_account(user_id: String) -> Result<AIAccountResponse, ServerFnError> {
     let ctx = expect_context::<std::sync::Arc<ServerCtx>>();
 
     // AI accounts cannot create other AI accounts
     let reverse_key = ai_account_reverse_lookup_key(&user_id);
-    if ctx
-        .kv_store
-        .has_key(reverse_key)
-        .await
-        .unwrap_or(false)
-    {
+    if ctx.kv_store.has_key(reverse_key).await.unwrap_or(false) {
         return Err(ServerFnError::new(
             "AI accounts cannot create other AI accounts",
         ));
@@ -85,21 +75,13 @@ pub async fn create_ai_account(
 
     // Store: reverse lookup → owner user_id
     let reverse_key = ai_account_reverse_lookup_key(&ai_account_id);
-    if let Err(e) = ctx
-        .kv_store
-        .write(reverse_key, user_id)
-        .await
-    {
+    if let Err(e) = ctx.kv_store.write(reverse_key, user_id).await {
         return Err(ServerFnError::new(format!("Storage error: {}", e)));
     }
 
     // Store: existence marker for the AI account (so token grant works)
     let existence_key = format!("user:{ai_account_id}");
-    if let Err(e) = ctx
-        .kv_store
-        .write(existence_key, "1".to_string())
-        .await
-    {
+    if let Err(e) = ctx.kv_store.write(existence_key, "1".to_string()).await {
         return Err(ServerFnError::new(format!("Storage error: {}", e)));
     }
 
