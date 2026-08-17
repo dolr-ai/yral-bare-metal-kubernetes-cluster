@@ -1,7 +1,6 @@
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 
-use candid::Principal;
 use leptos::prelude::RwSignal;
 use serde::{Deserialize, Serialize};
 use username_gen::random_username_from_principal;
@@ -12,7 +11,7 @@ const USERNAME_MAX_LEN: usize = 29;
 /// Post details for frontend display. Populated from SpacetimeDB.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct PostDetails {
-    pub canister_id: Principal,
+    pub canister_id: String,
     pub post_id: String,
     pub uid: String,
     pub description: String,
@@ -22,7 +21,7 @@ pub struct PostDetails {
     pub username: Option<String>,
     pub propic_url: String,
     pub liked_by_user: Option<bool>,
-    pub poster_principal: Principal,
+    pub poster_principal: String,
     pub creator_follows_user: Option<bool>,
     pub user_follows_creator: Option<bool>,
     pub creator_bio: Option<String>,
@@ -57,7 +56,7 @@ impl PostDetails {
     pub fn username_or_principal(&self) -> String {
         self.username
             .clone()
-            .unwrap_or_else(|| self.poster_principal.to_text())
+            .unwrap_or_else(|| self.poster_principal.clone())
     }
 
     /// Get the user's username
@@ -66,7 +65,7 @@ impl PostDetails {
     /// use `username_or_principal` instead
     pub fn username_or_fallback(&self) -> String {
         self.username.clone().unwrap_or_else(|| {
-            random_username_from_principal(self.poster_principal, USERNAME_MAX_LEN)
+            random_username_from_principal(&self.poster_principal, USERNAME_MAX_LEN)
         })
     }
 

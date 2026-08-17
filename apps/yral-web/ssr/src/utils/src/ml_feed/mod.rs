@@ -1,12 +1,11 @@
-use candid::Principal;
 use crate::posts::PostDetails;
 
 /// Piece of post details that should be available as quickly as possible to ensure fast loading of the infinite scroller
 #[derive(Clone)]
 pub struct QuickPostDetails {
     pub video_uid: String,
-    pub canister_id: Principal,
-    pub publisher_user_id: Principal,
+    pub canister_id: String,
+    pub publisher_user_id: String,
     pub nsfw_probability: f32,
     pub post_id: String,
 }

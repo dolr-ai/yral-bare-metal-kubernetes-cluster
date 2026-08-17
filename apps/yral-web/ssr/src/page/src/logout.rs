@@ -24,8 +24,16 @@ pub fn Logout() -> impl IntoView {
                 {move || Suspend::new(async move {
                     let res = auth_res.await;
                     match res {
-                        Ok(id) => {
-                            auth.set_new_identity(NewIdentity::new_without_username(id), false);
+                        Ok(_) => {
+                            // Logout: clear identity with empty user_id/tokens.
+                            auth.set_new_identity(
+                                NewIdentity::new_without_username(
+                                    String::new(),
+                                    String::new(),
+                                    String::new(),
+                                ),
+                                false,
+                            );
                             set_notifs_enabled.set(false);
                             #[cfg(feature = "hydrate")]
                             {

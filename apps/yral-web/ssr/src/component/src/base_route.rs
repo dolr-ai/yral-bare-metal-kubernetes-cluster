@@ -9,8 +9,6 @@ use consts::{ACCOUNT_CONNECTED_STORE, NOTIFICATIONS_ENABLED_STORE, NOTIFICATION_
 use leptos_use::storage::use_local_storage;
 use state::audio_state::AudioState;
 use state::canisters::AuthState;
-use utils::notifications::get_fcm_token;
-use yral_metadata_client::MetadataClient;
 
 #[derive(Clone)]
 pub struct Notification(pub RwSignal<Option<serde_json::Value>>);
@@ -81,17 +79,7 @@ fn CtxProvider(children: Children) -> impl IntoView {
         use_local_storage::<bool, FromToStringCodec>(NOTIFICATION_MIGRATED_STORE);
 
     let migrate_notification_proj = Action::new_local(move |_| async move {
-        let metaclient: MetadataClient<false> = MetadataClient::default();
-
-        let cans = auth.auth_cans().await.unwrap();
-        let token = get_fcm_token().await.unwrap();
-
-        metaclient
-            .register_device(cans.identity(), token)
-            .await
-            .inspect_err(|e| log::error!("Failed to migrate notification project: {e:?}"))
-            .unwrap();
-        log::info!("Migrated notification project");
+        // Push notifications decommissioned — no device registration needed.
         set_migrated.set(true);
     });
 

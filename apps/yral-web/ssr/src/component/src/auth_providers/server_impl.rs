@@ -1,8 +1,7 @@
-use candid::Principal;
 use leptos::prelude::*;
 
-pub async fn mark_user_registered(user_principal: Principal) -> Result<bool, ServerFnError> {
-    ensure_user_logged_in_with_oauth(user_principal).await?;
+pub async fn mark_user_registered(user_id: String) -> Result<bool, ServerFnError> {
+    ensure_user_logged_in_with_oauth(user_id.clone()).await?;
 
     // Check if user already exists in SpacetimeDB.
     #[cfg(feature = "ssr")]
@@ -14,7 +13,7 @@ pub async fn mark_user_registered(user_principal: Principal) -> Result<bool, Ser
         let conn = spacetime_conn();
         let (tx, rx) = oneshot::channel();
         conn.procedures.get_user_profile_details_v_7_then(
-            user_principal.to_text(),
+            user_id.clone(),
             move |_ctx, result| { let _ = tx.send(result.ok().flatten()); },
         );
         let existing = rx.await.unwrap_or(None);
@@ -25,7 +24,7 @@ pub async fn mark_user_registered(user_principal: Principal) -> Result<bool, Ser
         // New user — register via SpacetimeDB reducer.
         use yral_database_spacetime_bindings::accept_new_user_registration_v_2;
         conn.reducers.accept_new_user_registration_v_2(
-            user_principal.to_text(),
+            user_id,
             true,
             None,
         )?;
@@ -37,7 +36,7 @@ pub async fn mark_user_registered(user_principal: Principal) -> Result<bool, Ser
     }
 }
 
-async fn ensure_user_logged_in_with_oauth(user_principal: Principal) -> Result<(), ServerFnError> {
+async fn ensure_user_logged_in_with_oauth(user_id: String) -> Result<(), ServerFnError> {
     #[cfg(feature = "oauth-ssr")]
     {
         use std::env;
@@ -69,7 +68,7 @@ async fn ensure_user_logged_in_with_oauth(user_principal: Principal) -> Result<(
             &YRAL_AUTH_TRUSTED_KEY,
             &token_validation,
         )?;
-        if decoded.claims.ext_is_anonymous || decoded.claims.sub != user_principal {
+        if decoded.claims.ext_is_anonymous || decoded.claims.sub != user_id {
             Err(ServerFnError::new("not logged in"))
         } else {
             Ok(())
@@ -77,7 +76,7 @@ async fn ensure_user_logged_in_with_oauth(user_principal: Principal) -> Result<(
     }
     #[cfg(not(feature = "oauth-ssr"))]
     {
-        _ = user_principal;
+        _ = user_id;
         Err(ServerFnError::new("not logged in"))
     }
 }

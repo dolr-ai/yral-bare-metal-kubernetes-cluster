@@ -1,10 +1,10 @@
-use candid::Principal;
 use rand::{
     SeedableRng,
     distr::uniform::{UniformChar, UniformSampler},
     seq::IndexedRandom,
 };
 use rand_xoshiro::Xoshiro256StarStar;
+use sha2::{Digest, Sha256};
 
 use crate::data::{adjectives::ADJECTIVES, nouns::NOUNS};
 
@@ -12,11 +12,14 @@ mod data;
 
 const RAND_DIGIT_COUNT: usize = 3;
 
-pub fn random_username_from_principal(principal: Principal, max_len: usize) -> String {
-    let mut seed = [0u8; 32];
-    let princ_bytes = principal.as_slice();
-    seed[0..princ_bytes.len()].copy_from_slice(princ_bytes);
-    let mut rng = Xoshiro256StarStar::from_seed(seed);
+/// Generate a deterministic random username from a user identifier string.
+/// The user_id (JWT sub or UUID) is hashed with SHA-256 to produce a
+/// 32-byte seed for the RNG. This replaces the old IC Principal-based seeding.
+pub fn random_username_from_principal(user_id: &str, max_len: usize) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(user_id.as_bytes());
+    let seed = hasher.finalize();
+    let mut rng = Xoshiro256StarStar::from_seed(seed.into());
 
     let noun = *NOUNS.choose(&mut rng).unwrap();
     let adjective = *ADJECTIVES.choose(&mut rng).unwrap();

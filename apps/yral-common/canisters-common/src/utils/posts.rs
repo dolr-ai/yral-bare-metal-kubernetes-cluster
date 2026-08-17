@@ -115,7 +115,7 @@ impl PostDetails {
     /// use `username_or_principal` instead
     pub fn username_or_fallback(&self) -> String {
         self.username.clone().unwrap_or_else(|| {
-            random_username_from_principal(self.poster_principal, USERNAME_MAX_LEN)
+            random_username_from_principal(&self.poster_principal.to_text(), USERNAME_MAX_LEN)
         })
     }
 

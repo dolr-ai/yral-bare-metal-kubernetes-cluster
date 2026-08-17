@@ -18,8 +18,7 @@ use state::app_state::AppState;
 use state::canisters::auth_state;
 use utils::notifications::get_device_registeration_token;
 use utils::user_identity::UserIdentity;
-use utils::{send_wrap, UsernameOrPrincipal};
-use yral_metadata_client::MetadataClient;
+use utils::send_wrap;
 
 /// Controller for the login modal, passed through context
 /// under wallet
@@ -132,7 +131,7 @@ fn BalanceFallback() -> impl IntoView {
 
 #[derive(Params, PartialEq, Clone)]
 struct WalletParams {
-    id: Option<UsernameOrPrincipal>,
+    id: Option<String>,
 }
 #[component]
 pub fn Wallet() -> impl IntoView {
@@ -152,16 +151,18 @@ pub fn Wallet() -> impl IntoView {
                         view! {
                             <Suspense>
                                 {move || {
-                                    auth.user_principal
+                                    auth.user_id
                                         .get()
-                                        .map(|res| match res {
-                                            Ok(user_principal) => {
-                                                view! {
-                                                    <Redirect path=format!("/wallet/{user_principal}") />
+                                        .map(|res| {
+                                            match res {
+                                                Ok(user_id) => {
+                                                    view! {
+                                                        <Redirect path=format!("/wallet/{user_id}") />
+                                                    }
                                                 }
-                                            }
-                                            Err(e) => {
-                                                view! { <Redirect path=format!("/error?err={e}") /> }
+                                                Err(e) => {
+                                                    view! { <Redirect path=format!("/error?err={e}") /> }
+                                                }
                                             }
                                         })
                                 }}
@@ -177,7 +178,7 @@ pub fn Wallet() -> impl IntoView {
 }
 
 #[component]
-pub fn WalletImpl(id: UsernameOrPrincipal) -> impl IntoView {
+pub fn WalletImpl(id: String) -> impl IntoView {
     let show_login = RwSignal::new(false);
 
     provide_context(ShowLoginSignal(show_login));
@@ -187,77 +188,87 @@ pub fn WalletImpl(id: UsernameOrPrincipal) -> impl IntoView {
     let auth = auth_state();
 
     let query_user_metadata_result = OnceResource::new(send_wrap(async move {
-        let metadata_client: MetadataClient<false> = MetadataClient::default();
-        let user_meta = metadata_client
-            .get_user_metadata_v2(id.with_value(|id| id.to_string()))
-            .await?;
-        Ok::<_, ServerFnError>(user_meta)
-    }));
-
-    let user_info_res = OnceResource::new(send_wrap(async move {
-        // Resolve username/principal to principal via metadata, then fetch
-        // profile from SpacetimeDB.
-        let metadata_client: MetadataClient<false> = MetadataClient::default();
-        let meta = metadata_client
-            .get_user_metadata_v2(format!("{}", id.get_value()))
-            .await?;
-
+        // Fetch user metadata from SpacetimeDB.
         #[cfg(feature = "ssr")]
         {
             use yral_database_spacetime_bindings::get_user_profile_details_v_7;
             use tokio::sync::oneshot;
             use state::spacetime::spacetime_conn;
 
-            let Some(meta) = meta else {
-                return Ok::<_, ServerFnError>(None);
-            };
-            let user_principal = meta.user_principal;
-
+            let user_id = id.with_value(|id| id.clone());
             let conn = spacetime_conn();
             let (tx, rx) = oneshot::channel();
             conn.procedures.get_user_profile_details_v_7_then(
-                user_principal.to_text(),
+                user_id.clone(),
                 move |_ctx, result| { let _ = tx.send(result.ok().flatten()); },
             );
             let p = rx.await.unwrap_or(None);
             let profile = if let Some(p) = p {
-                utils::user_identity::ProfileDetails {
-                    username: Some(meta.user_name),
+                Some(utils::user_identity::ProfileDetails {
+                    username: None,
                     lifetime_earnings: 0,
                     followers_cnt: p.followers_count,
                     following_cnt: p.following_count,
                     profile_pic: p.profile_picture.as_ref().map(|pic| pic.url.clone()),
                     display_name: None,
-                    user_identifier: user_principal.to_text(),
+                    user_identifier: user_id,
                     hots: 0,
                     nots: 0,
                     bio: if p.bio.is_empty() { None } else { Some(p.bio.clone()) },
                     website_url: if p.website_url.is_empty() { None } else { Some(p.website_url.clone()) },
                     caller_follows_user: p.caller_follows_user,
                     user_follows_caller: p.user_follows_caller,
-                }
+                })
             } else {
-                utils::user_identity::ProfileDetails {
-                    username: Some(meta.user_name),
-                    lifetime_earnings: 0,
-                    followers_cnt: 0,
-                    following_cnt: 0,
-                    profile_pic: None,
-                    display_name: None,
-                    user_identifier: user_principal.to_text(),
-                    hots: 0,
-                    nots: 0,
-                    bio: None,
-                    website_url: None,
-                    caller_follows_user: None,
-                    user_follows_caller: None,
-                }
+                None
             };
-            Ok::<_, ServerFnError>(Some(profile))
+            Ok::<_, ServerFnError>(profile)
         }
         #[cfg(not(feature = "ssr"))]
         {
-            let _ = meta;
+            Ok::<Option<utils::user_identity::ProfileDetails>, ServerFnError>(None)
+        }
+    }));
+
+    let user_info_res = OnceResource::new(send_wrap(async move {
+        // Fetch user profile from SpacetimeDB by user_id.
+        #[cfg(feature = "ssr")]
+        {
+            use yral_database_spacetime_bindings::get_user_profile_details_v_7;
+            use tokio::sync::oneshot;
+            use state::spacetime::spacetime_conn;
+
+            let user_id = id.get_value();
+            let conn = spacetime_conn();
+            let (tx, rx) = oneshot::channel();
+            conn.procedures.get_user_profile_details_v_7_then(
+                user_id.clone(),
+                move |_ctx, result| { let _ = tx.send(result.ok().flatten()); },
+            );
+            let p = rx.await.unwrap_or(None);
+            let profile = if let Some(p) = p {
+                Some(utils::user_identity::ProfileDetails {
+                    username: None,
+                    lifetime_earnings: 0,
+                    followers_cnt: p.followers_count,
+                    following_cnt: p.following_count,
+                    profile_pic: p.profile_picture.as_ref().map(|pic| pic.url.clone()),
+                    display_name: None,
+                    user_identifier: user_id,
+                    hots: 0,
+                    nots: 0,
+                    bio: if p.bio.is_empty() { None } else { Some(p.bio.clone()) },
+                    website_url: if p.website_url.is_empty() { None } else { Some(p.website_url.clone()) },
+                    caller_follows_user: p.caller_follows_user,
+                    user_follows_caller: p.user_follows_caller,
+                })
+            } else {
+                None
+            };
+            Ok::<_, ServerFnError>(profile)
+        }
+        #[cfg(not(feature = "ssr"))]
+        {
             Ok::<Option<utils::user_identity::ProfileDetails>, ServerFnError>(None)
         }
     }));
@@ -265,19 +276,14 @@ pub fn WalletImpl(id: UsernameOrPrincipal) -> impl IntoView {
     // Edge Case: unauthenticated user navigates to wallet page
     let query_user_principal_and_canister_res = Callback::new(move |()| async move {
         if let Some(meta) = query_user_metadata_result.await? {
-            return Ok::<_, ServerFnError>((meta.user_principal, meta.user_canister_id));
+            return Ok::<_, ServerFnError>((meta.user_identifier.clone(), meta.user_identifier.clone()));
         }
         let logged_in_user = auth.auth_cans().await?;
-        let is_own_account = match id.get_value() {
-            UsernameOrPrincipal::Principal(p) => p == logged_in_user.user_principal(),
-            UsernameOrPrincipal::Username(u) => {
-                Some(u) == logged_in_user.user_identity().username
-            }
-        };
+        let is_own_account = id.get_value() == logged_in_user.user_id();
         if is_own_account {
             Ok((
-                logged_in_user.user_principal(),
-                logged_in_user.user_canister(),
+                logged_in_user.user_id(),
+                logged_in_user.user_id(),
             ))
         } else {
             Err(ServerFnError::new("User canister not found"))
@@ -287,14 +293,7 @@ pub fn WalletImpl(id: UsernameOrPrincipal) -> impl IntoView {
     // Edge Case: unauthenticated user navigates to wallet page
     let user_details_and_is_owner_result = Callback::new(move |()| async move {
         let authenticated_canister_resource = auth.auth_cans().await?;
-        let is_own_account = match id.get_value() {
-            UsernameOrPrincipal::Principal(p) => {
-                p == authenticated_canister_resource.user_principal()
-            }
-            UsernameOrPrincipal::Username(u) => {
-                Some(u) == authenticated_canister_resource.user_identity().username
-            }
-        };
+        let is_own_account = id.get_value() == authenticated_canister_resource.user_id();
         let user_details = if is_own_account {
             authenticated_canister_resource.user_identity()
         } else {
@@ -400,28 +399,10 @@ pub fn NotificationWalletImpl() -> impl IntoView {
     });
 
     let on_token_click: Action<(), ()> = Action::new_unsync(move |()| async move {
-        let metaclient: MetadataClient<false> = MetadataClient::default();
-
-        let cans = auth.auth_cans().await.unwrap();
-
-        let token = get_device_registeration_token().await.unwrap();
-
-        log::info!("Notif enabled:{}", notifs_enabled.get_untracked());
-        if notifs_enabled.get_untracked() {
-            metaclient
-                .unregister_device(cans.identity(), token)
-                .await
-                .unwrap();
-            log::info!("Device unregistered successfully");
-            set_notifs_enabled.set(false)
-        } else {
-            metaclient
-                .register_device(cans.identity(), token)
-                .await
-                .unwrap();
-            log::info!("Device registered sucessfully");
-            set_notifs_enabled.set(true)
-        }
+        // Push notifications decommissioned — just toggle local state.
+        let _ = auth.auth_cans_if_available();
+        let notifs_val = notifs_enabled.get_untracked();
+        set_notifs_enabled.set(!notifs_val);
     });
 
     _ = use_event_listener(toggle_ref, ev::change, move |_| {

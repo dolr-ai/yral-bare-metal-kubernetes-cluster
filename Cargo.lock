@@ -10696,9 +10696,9 @@ dependencies = [
 name = "yral-username-gen"
 version = "0.1.0"
 dependencies = [
- "candid",
  "rand 0.9.5",
  "rand_xoshiro",
+ "sha2 0.10.9",
 ]
 
 [[package]]

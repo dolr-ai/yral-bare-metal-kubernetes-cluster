@@ -61,11 +61,7 @@ impl ProfileDetails {
         self.username
             .clone()
             .unwrap_or_else(|| {
-                // username_gen expects a Principal — parse from text.
-                // This will be removed once username_gen is migrated to accept &str.
-                let principal = candid::Principal::from_text(&self.user_identifier)
-                    .unwrap_or(candid::Principal::anonymous());
-                random_username_from_principal(principal, USERNAME_MAX_LEN)
+                random_username_from_principal(&self.user_identifier, USERNAME_MAX_LEN)
             })
     }
 
@@ -125,9 +121,7 @@ impl UserIdentity {
         self.username
             .clone()
             .unwrap_or_else(|| {
-                let principal = candid::Principal::from_text(&self.user_identifier)
-                    .unwrap_or(candid::Principal::anonymous());
-                random_username_from_principal(principal, USERNAME_MAX_LEN)
+                random_username_from_principal(&self.user_identifier, USERNAME_MAX_LEN)
             })
     }
 

@@ -77,7 +77,7 @@ impl ProfileDetails {
     pub fn username_or_fallback(&self) -> String {
         self.username
             .clone()
-            .unwrap_or_else(|| random_username_from_principal(self.principal, USERNAME_MAX_LEN))
+            .unwrap_or_else(|| random_username_from_principal(&self.principal.to_text(), USERNAME_MAX_LEN))
     }
 
     pub fn principal(&self) -> String {

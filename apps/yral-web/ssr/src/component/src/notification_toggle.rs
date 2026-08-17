@@ -1,16 +1,11 @@
 use codee::string::FromToStringCodec;
 use consts::NOTIFICATIONS_ENABLED_STORE;
 use leptos::html::Input;
-use leptos::web_sys::{Notification, NotificationPermission};
 use leptos::{ev, prelude::*};
 use leptos_icons::*;
 use leptos_use::storage::use_local_storage;
 use leptos_use::use_event_listener;
 use state::canisters::auth_state;
-use utils::notifications::{
-    get_device_registeration_token, get_fcm_token, notification_permission_granted,
-};
-use yral_metadata_client::MetadataClient;
 
 use crate::toggle::Toggle;
 
@@ -34,7 +29,6 @@ pub fn NotificationToggle(
 
     let notifs_enabled_signal = Signal::derive(move || {
         notifs_enabled.get()
-            && matches!(Notification::permission(), NotificationPermission::Granted)
     });
 
     let toggle_ref = NodeRef::<Input>::new();
@@ -42,89 +36,10 @@ pub fn NotificationToggle(
 
     // Main notification toggle action
     let on_toggle_action: Action<(), ()> = Action::new_unsync(move |()| async move {
-        // Check if user is authenticated
-        let Ok(cans) = auth.auth_cans().await else {
-            log::error!("User must be authenticated to enable notifications");
-            return;
-        };
-
-        let metaclient: MetadataClient<false> = MetadataClient::default();
-        let browser_permission = Notification::permission();
+        // Push notifications decommissioned — just toggle local state.
+        let _ = auth.auth_cans_if_available();
         let notifs_enabled_val = notifs_enabled.get_untracked();
-
-        // Handle notification toggle logic
-        if notifs_enabled_val && matches!(browser_permission, NotificationPermission::Default) {
-            // Request permission if in default state
-            match notification_permission_granted().await {
-                Ok(true) => match get_fcm_token().await {
-                    Ok(token) => match metaclient.register_device(cans.identity(), token).await {
-                        Ok(_) => {
-                            log::info!("Device registered successfully");
-                            set_notifs_enabled.set(true);
-                        }
-                        Err(e) => {
-                            log::error!("Failed to register device: {e:?}");
-                            set_notifs_enabled.set(false);
-                        }
-                    },
-                    Err(e) => {
-                        log::error!("Failed to get FCM token: {e:?}");
-                        set_notifs_enabled.set(false);
-                    }
-                },
-                Ok(false) => {
-                    log::warn!("User did not grant notification permission");
-                    set_notifs_enabled.set(false);
-                }
-                Err(e) => {
-                    log::error!("Failed to check notification permission: {e:?}");
-                    set_notifs_enabled.set(false);
-                }
-            }
-        } else if notifs_enabled_val {
-            // Unregister device
-            match get_device_registeration_token().await {
-                Ok(token) => {
-                    match metaclient.unregister_device(cans.identity(), token).await {
-                        Ok(_) => {
-                            log::info!("Device unregistered successfully");
-                            set_notifs_enabled.set(false);
-                        }
-                        Err(e) => {
-                            // Check if it's a device not found error by examining the error message
-                            if format!("{e:?}").contains("DeviceNotFound") {
-                                log::info!("Device not found, skipping unregister");
-                                set_notifs_enabled.set(false);
-                            } else {
-                                log::error!("Failed to unregister device: {e:?}");
-                            }
-                        }
-                    }
-                }
-                Err(e) => {
-                    log::warn!("Failed to get device token for unregister: {e:?}");
-                    set_notifs_enabled.set(false);
-                }
-            }
-        } else {
-            // Register device
-            match get_device_registeration_token().await {
-                Ok(token) => match metaclient.register_device(cans.identity(), token).await {
-                    Ok(_) => {
-                        log::info!("Device registered successfully");
-                        set_notifs_enabled.set(true);
-                    }
-                    Err(e) => {
-                        log::error!("Failed to register device: {e:?}");
-                        set_notifs_enabled.set(false);
-                    }
-                },
-                Err(e) => {
-                    log::error!("Failed to get device token: {e:?}");
-                    set_notifs_enabled.set(false);
-                }
-            }
-        }
+        set_notifs_enabled.set(!notifs_enabled_val);
     });
 
     // Listen for toggle changes

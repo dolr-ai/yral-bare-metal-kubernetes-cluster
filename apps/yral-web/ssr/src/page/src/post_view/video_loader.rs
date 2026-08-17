@@ -50,8 +50,9 @@ where
         } = resolver.get_quick_post_details();
 
         let post_id_c = post_id.clone();
+        let canister_id_c = canister_id.clone();
         let cached_post_details = post_details_cache
-            .try_with_value(|m| m.get(&(canister_id, post_id_c)).cloned())
+            .try_with_value(|m| m.get(&(canister_id_c, post_id_c)).cloned())
             .flatten();
 
         // SAFETY: this send wrap is safe as we are guaranteed to run in a
@@ -61,7 +62,7 @@ where
             None => {
                 let details = send_wrap(resolver.get_post_details()).await?;
                 post_details_cache
-                    .try_update_value(|m| m.insert((canister_id, post_id), details.clone()));
+                    .try_update_value(|m| m.insert((canister_id.clone(), post_id.clone()), details.clone()));
                 details
             }
         };

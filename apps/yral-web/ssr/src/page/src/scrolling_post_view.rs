@@ -22,9 +22,9 @@ impl PostDetailResolver for PostDetails {
     fn get_quick_post_details(&self) -> QuickPostDetails {
         QuickPostDetails {
             video_uid: self.uid.clone(),
-            canister_id: self.canister_id,
+            canister_id: self.canister_id.clone(),
             post_id: self.post_id.clone(),
-            publisher_user_id: self.poster_principal,
+            publisher_user_id: self.poster_principal.clone(),
             nsfw_probability: self.nsfw_probability,
         }
     }

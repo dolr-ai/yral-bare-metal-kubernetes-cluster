@@ -1,4 +1,3 @@
-use candid::Principal;
 use futures::Future;
 use serde::{Deserialize, Serialize};
 
@@ -6,8 +5,8 @@ use serde::{Deserialize, Serialize};
 /// Implemented by `AuthSession` (state crate). This lets utils functions
 /// accept the auth type without a circular dependency on `state`.
 pub trait UserAuthInfo {
-    fn user_principal(&self) -> Principal;
-    fn user_canister(&self) -> Principal;
+    fn user_id(&self) -> String;
+    fn user_canister(&self) -> String;
     fn user_identity(&self) -> crate::user_identity::UserIdentity;
 }
 
@@ -108,28 +107,8 @@ pub fn send_wrap<Fut: Future>(t: Fut) -> impl Future<Output = <Fut as Future>::O
     send_wrapper::SendWrapper::new(t)
 }
 
-#[derive(PartialEq, Eq, Clone, Serialize, Deserialize, Debug)]
-pub enum UsernameOrPrincipal {
-    Username(String),
-    Principal(Principal),
-}
-
-impl FromStr for UsernameOrPrincipal {
-    type Err = Infallible;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Ok(p) = Principal::from_text(s) {
-            return Ok(Self::Principal(p));
-        }
-        Ok(Self::Username(s.to_string()))
-    }
-}
-
-impl Display for UsernameOrPrincipal {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Username(u) => u.fmt(f),
-            Self::Principal(p) => p.fmt(f),
-        }
-    }
-}
+/// A user identifier — either a username or a raw user_id string.
+/// In the IC era, this was `UsernameOrPrincipal` (username vs IC Principal).
+/// Now that all user IDs are strings (JWT sub or UUID), this is just a
+/// string alias — but kept as a type for backwards compatibility in routes.
+pub type UsernameOrPrincipal = String;

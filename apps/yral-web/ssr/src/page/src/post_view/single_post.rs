@@ -1,4 +1,3 @@
-use candid::Principal;
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +12,7 @@ use utils::{bg_url, send_wrap};
 use utils::posts::PostDetails;
 #[derive(Params, PartialEq, Clone)]
 struct PostParams {
-    canister_id: Option<Principal>,
+    canister_id: Option<String>,
     post_id: Option<String>,
 }
 
@@ -90,11 +89,10 @@ pub fn SinglePost() -> impl IntoView {
                 };
                 // Map SpacetimeDB PostDetailsForFrontend to the PostDetails struct
                 // expected by the rest of the page.
-                let poster_principal = candid::Principal::from_text(&post.creator_principal_text)
-                    .unwrap_or(candid::Principal::anonymous());
-                let poster_principal_text = poster_principal.to_text();
+                let poster_principal = post.creator_principal_text.clone();
+                let poster_principal_text = &poster_principal;
                 Ok(PostDetails {
-                    canister_id,
+                    canister_id: canister_id.clone(),
                     post_id: post.id,
                     uid: post.video_uid,
                     description: post.description,
@@ -102,7 +100,7 @@ pub fn SinglePost() -> impl IntoView {
                     likes: post.like_count,
                     display_name: None,
                     username: None,
-                    propic_url: propic_from_principal(&poster_principal_text),
+                    propic_url: propic_from_principal(poster_principal_text),
                     liked_by_user: Some(post.liked_by_me),
                     poster_principal,
                     creator_follows_user: None,

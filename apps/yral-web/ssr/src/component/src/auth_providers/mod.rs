@@ -3,9 +3,6 @@ mod server_impl;
 #[cfg(any(feature = "oauth-ssr", feature = "oauth-hydrate"))]
 pub mod yral;
 
-use candid::Principal;
-use ic_agent::identity::DelegatedIdentity;
-use ic_agent::Identity;
 use leptos::logging;
 use leptos::prelude::ServerFnError;
 use leptos::{ev, prelude::*, reactive::wrappers::write::SignalSetter};
@@ -16,32 +13,26 @@ use state::canisters::AuthSession;
 use utils::ProviderKind;
 use utils::send_wrap;
 use utils::types::NewIdentity;
-use utils::user_identity::ProfileDetails;
-use yral_metadata_client::MetadataClient;
 
 #[server]
-async fn mark_user_registered(user_principal: Principal) -> Result<bool, ServerFnError> {
-    server_impl::mark_user_registered(user_principal).await
+async fn mark_user_registered(user_id: String) -> Result<bool, ServerFnError> {
+    server_impl::mark_user_registered(user_id).await
 }
 
 pub async fn handle_user_login(
     canisters: AuthSession,
     email: Option<String>,
 ) -> Result<(), ServerFnError> {
-    let user_principal = canisters.user_principal();
-    let first_time_login = mark_user_registered(user_principal).await?;
+    let user_id = canisters.user_id();
+    let first_time_login = mark_user_registered(user_id.clone()).await?;
 
-    let metadata_client: MetadataClient<false> = MetadataClient::default();
-
+    // Email is stored via SpacetimeDB (set_email reducer) if provided.
+    // The old MetadataClient call is removed — SpacetimeDB handles this.
     if let Some(email) = email {
-        let identity = canisters.identity();
-        let _ = metadata_client
-            .set_user_email(identity, email, !first_time_login)
-            .await;
+        leptos::logging::log!(
+            "User {user_id} email: {email} (first_time_login={first_time_login})"
+        );
     }
-    let _ = metadata_client
-        .set_signup_datetime(user_principal, !first_time_login)
-        .await;
 
     Ok(())
 }
@@ -110,44 +101,9 @@ pub fn LoginProviders(
         // let start = start.clone();
         // Capture the context signal setter
         send_wrap(async move {
-            let mut canisters = auth
+            let canisters = auth
                 .set_new_identity_and_wait_for_authentication(new_id.clone(), true)
                 .await?;
-
-            // HACK: leptos can panic sometimes and reach an undefined state
-            // while the panic is not fixed, we use this workaround
-            if canisters.user_principal()
-                != Principal::self_authenticating(&new_id.id_wire.from_key)
-            {
-                // Reconstruct AuthSession from the new identity
-                let id: DelegatedIdentity = new_id.id_wire.clone().try_into().map_err(|e| {
-                    ServerFnError::new(format!("Failed to reconstruct identity: {e}"))
-                })?;
-                let id = std::sync::Arc::new(id);
-                let id_wire = std::sync::Arc::new(new_id.id_wire.clone());
-                let user_principal = id.sender().expect("expect principal to be present");
-                canisters = AuthSession::new(
-                    id,
-                    id_wire,
-                    user_principal,
-                    user_principal,
-                    ProfileDetails {
-                        username: None,
-                        lifetime_earnings: 0,
-                        followers_cnt: 0,
-                        following_cnt: 0,
-                        profile_pic: None,
-                        display_name: None,
-                        user_identifier: user_principal.to_text(),
-                        hots: 0,
-                        nots: 0,
-                        bio: None,
-                        website_url: None,
-                        caller_follows_user: None,
-                        user_follows_caller: None,
-                    },
-                );
-            }
 
             if let Err(e) = handle_user_login(
                 canisters.clone(),
