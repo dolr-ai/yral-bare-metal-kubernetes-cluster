@@ -251,13 +251,16 @@ exec podman run --rm \
 '''
 mise = true
 
-# ── Dev group ───────────────────────────────────────────────────────────────
-# Start all dev servers with: pitchfork start --group dev
-# Or rely on auto-start by cd'ing into the project directory (requires
-# `pitchfork activate bash` in ~/.bashrc).
-# Dependency order: spacetimedb-dev → (publish module via on_ready hook) →
-# yral-auth-dev → yral-web-dev
+# ── hello-world dev server (Trunk serve, CSR WASM) ──────────────────────────
+# Leptos CSR demo app served by Trunk with hot reload.
+# Port 8080 is hardcoded in Trunk's default config.
+
+[daemons.hello-world]
+run = "trunk serve --address 0.0.0.0 --port 8080"
+dir = "apps/hello-world"
+mise = true
 ready_http = "http://localhost:8080/"
+stop_signal = "SIGINT"
 
 # ── Dev group ───────────────────────────────────────────────────────────────
 # Start all dev servers with: pitchfork start --group dev

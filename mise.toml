@@ -575,6 +575,21 @@ FIRST_POD=$(kubectl -n yral-web get pods -l app=yral-web -o jsonpath='{.items[0]
 kubectl -n yral-web logs "$FIRST_POD" --tail=20
 '''
 
+# ── hello-world (Leptos CSR demo app) ─────────────────────────────────────
+
+[tasks.hello-world-build]
+description = "Build hello-world (Trunk release WASM + JS)"
+run = "trunk build --release"
+dir = "apps/hello-world"
+
+[tasks.hello-world-run]
+description = "Run hello-world dev server via pitchfork (Trunk serve, port 8080, hot reload)"
+run = "pitchfork start hello-world --force"
+
+[tasks.hello-world-stop]
+description = "Stop hello-world dev server via pitchfork"
+run = "pitchfork stop hello-world"
+
 # ── yral-metadata ───────────────────────────────────────────────────────────
 
 [tasks.yral-metadata-build]
