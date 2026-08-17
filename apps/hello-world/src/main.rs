@@ -4,5 +4,9 @@ use leptos::*;
 
 fn main() {
     console_error_panic_hook::set_once();
-    leptos::mount::mount_to_body(|| p().child("Hello, world!"));
+    leptos::mount::mount_to_body(app);
+}
+
+fn app() -> impl IntoView {
+    p().child("Hello, world!!!")
 }

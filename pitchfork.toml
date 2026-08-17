@@ -18,6 +18,9 @@
 #   pitchfork stop --all               # stop everything
 #
 
+[settings.general]
+mise = true
+
 [settings.web]
 auto_start = true  # Start web UI automatically with supervisor
 bind_port = 3120  # Default port (default: 3120)
@@ -28,12 +31,10 @@ bind_address = "127.0.0.1"  # Default: localhost only
 # Port 8080 is hardcoded in Trunk's default config.
 
 [daemons.hello-world]
-run = "trunk serve --address 0.0.0.0 --port 8080"
+run = "trunk serve --port 8082"
 dir = "apps/hello-world"
-mise = true
-ready_http = "http://localhost:8080/"
-stop_signal = "SIGINT"
-# auto = ["start", "stop"]
+ready_http = "http://localhost:8082/healthz"
+auto = ["start", "stop"]
 
 # ── my-website container (podman) ────────────────────────────────────────────
 
@@ -42,7 +43,6 @@ run = '''
 exec podman run --rm \
   -p 8080:80 test/my-website
 '''
-mise = true
 auto = ["start", "stop"]
 
 # ── off-chain-agent dev server (release binary) ─────────────────────────────
@@ -53,7 +53,6 @@ auto = ["start", "stop"]
 [daemons.off-chain-agent]
 run = "exec fnox exec -- ./target/x86_64-unknown-linux-musl/release/icp-off-chain-agent"
 dir = "apps/off-chain-agent"
-mise = true
 ready_http = "http://localhost:50051/healthz"
 stop_signal = "SIGINT"
 auto = ["start", "stop"]
@@ -75,7 +74,6 @@ exec fnox exec -- podman run --rm \
   -p 50051:50051 test/off-chain-agent
 '''
 dir = "apps/off-chain-agent"
-mise = true
 ready_http = "http://localhost:50051/healthz"
 stop_signal = "SIGINT"
 
@@ -86,7 +84,6 @@ stop_signal = "SIGINT"
 
 [daemons.spacetimedb]
 run = "exec spacetimedb-cli start --in-memory --listen-addr 127.0.0.1:3000"
-mise = true
 ready_http = "http://127.0.0.1:3000/v1/health"
 stop_signal = "SIGINT"
 retry = 3
@@ -113,7 +110,6 @@ printf '%s' "$JWT_PUB_EC_PEM" > "$JWT_PUB_FILE" && \
 fnox get JWT_EC_PEM --non-interactive > "$JWT_PRIV_FILE" && \
 exec spacetimedb-cli start --in-memory --listen-addr 127.0.0.1:3000 --non-interactive --jwt-pub-key-path "$JWT_PUB_FILE" --jwt-priv-key-path "$JWT_PRIV_FILE"
 '''
-mise = true
 ready_http = "http://127.0.0.1:3000/v1/health"
 stop_signal = "SIGINT"
 retry = 3
@@ -133,7 +129,6 @@ on_ready = "spacetimedb-cli build -p apps/yral-database-spacetime && spacetimedb
 [daemons.yral-auth]
 run = "exec fnox exec -- ./target/x86_64-unknown-linux-musl/release/yral-auth"
 dir = "apps/yral-auth"
-mise = true
 ready_http = "http://localhost:8080/healthz"
 stop_signal = "SIGINT"
 auto = ["start", "stop"]
@@ -157,7 +152,6 @@ exec fnox exec -- podman run --rm \
   -p 8080:8080 test/yral-auth
 '''
 dir = "apps/yral-auth"
-mise = true
 ready_http = "http://localhost:8080/healthz"
 stop_signal = "SIGINT"
 
@@ -169,7 +163,6 @@ stop_signal = "SIGINT"
 [daemons.yral-auth-dev]
 run = "exec fnox exec -- ./target/x86_64-unknown-linux-musl/release/yral-auth"
 dir = "apps/yral-auth"
-mise = true
 ready_http = "http://localhost:8080/healthz"
 stop_signal = "SIGINT"
 depends = ["spacetimedb-dev"]
@@ -183,7 +176,6 @@ env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080", SPACETIMEDB_URL = "http://127.0.0.1:3
 [daemons.yral-metadata]
 run = "exec fnox exec -- ./target/x86_64-unknown-linux-musl/release/yral-metadata-server"
 dir = "apps/yral-metadata"
-mise = true
 ready_http = "http://localhost:7000/healthz"
 stop_signal = "SIGINT"
 auto = ["start", "stop"]
@@ -202,7 +194,6 @@ exec fnox exec -- podman run --rm \
   -p 7000:7000 test/yral-metadata
 '''
 dir = "apps/yral-metadata"
-mise = true
 ready_http = "http://localhost:7000/healthz"
 stop_signal = "SIGINT"
 
@@ -215,7 +206,6 @@ stop_signal = "SIGINT"
 [daemons.yral-web]
 run = "exec fnox exec -- ../../target/x86_64-unknown-linux-musl/prod-release/yral-web"
 dir = "apps/yral-web"
-mise = true
 ready_http = "http://localhost:8080/healthz"
 stop_signal = "SIGINT"
 auto = ["start", "stop"]
@@ -243,7 +233,6 @@ exec fnox exec -- podman run --rm \
   -p 8080:8080 test/yral-web
 '''
 dir = "apps/yral-web"
-mise = true
 ready_http = "http://localhost:8080/healthz"
 stop_signal = "SIGINT"
 
@@ -255,7 +244,6 @@ stop_signal = "SIGINT"
 [daemons.yral-web-dev]
 run = "exec fnox exec -- ../../target/x86_64-unknown-linux-musl/prod-release/yral-web"
 dir = "apps/yral-web"
-mise = true
 ready_http = "http://localhost:8081/healthz"
 stop_signal = "SIGINT"
 depends = ["spacetimedb-dev", "yral-auth-dev"]
@@ -271,7 +259,6 @@ env = { LEPTOS_SITE_ADDR = "0.0.0.0:8081", LEPTOS_SITE_ROOT = "../../target/site
 [daemons.yral-web-watch]
 run = "exec fnox exec -- cargo leptos --manifest-path ssr/Cargo.toml watch --hot-reload --bin-features ssr,oauth-ssr"
 dir = "apps/yral-web"
-mise = true
 ready_output = "Serving at"
 stop_signal = "SIGINT"
 auto = ["start", "stop"]

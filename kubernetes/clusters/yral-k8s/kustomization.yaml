@@ -41,5 +41,10 @@ resources:
   - infrastructure-shipwright.yaml
   - infrastructure-external-dns.yaml
   - networking.yaml
-  - apps.yaml
+  - app-dashboard.yaml
+  - app-yral-auth.yaml
+  - app-yral-web.yaml
+  - app-yral-metadata.yaml
+  - app-off-chain-agent.yaml
+  - app-my-website.yaml
 
