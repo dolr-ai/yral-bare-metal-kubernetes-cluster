@@ -11,8 +11,14 @@ fn app() -> impl IntoView {
     let (count, set_count) = signal(0);
 
     html::button()
-        .on(ev::click, move |_| set_count.update(|c| *c += 1))
-        .child("Click me: ")
-        .child(move || count.get())
-        .class(("red", move || count.get() % 2 == 1))
+        .on(ev::click, move |_| set_count.update(|c| *c += 10))
+        .style("position: absolute")
+        .style(("left", move || format!("{}px", count.get() + 100)))
+        .style(("background-color", move || {
+            format!("rgb({}, {}, 100)", count.get(), 100)
+        }))
+        .style(("max-width", "400px"))
+        // Set a CSS variable for stylesheet use
+        .style(("--columns", move || count.get().to_string()))
+        .child("Click to Move")
 }
