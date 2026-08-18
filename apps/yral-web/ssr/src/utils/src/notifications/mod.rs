@@ -1,6 +1,5 @@
 use leptos::prelude::ServerFnError;
 use wasm_bindgen::prelude::*;
-use yral_metadata_types::DeviceRegistrationToken;
 
 #[wasm_bindgen(module = "/src/notifications/inline-js/setup-firebase-messaging-inline.js")]
 extern "C" {
@@ -32,16 +31,16 @@ pub async fn notification_permission_granted() -> Result<bool, ServerFnError> {
     Ok(permission)
 }
 
-pub async fn get_fcm_token() -> Result<DeviceRegistrationToken, ServerFnError> {
+pub async fn get_fcm_token() -> Result<String, ServerFnError> {
     let token = get_token()
         .await
         .map_err(|e| ServerFnError::new(format!("{e:?}")))?
         .as_string()
         .ok_or(ServerFnError::new("Failed to get token"))?;
-    Ok(DeviceRegistrationToken { token })
+    Ok(token)
 }
 
-pub async fn get_device_registeration_token() -> Result<DeviceRegistrationToken, ServerFnError> {
+pub async fn get_device_registeration_token() -> Result<String, ServerFnError> {
     let permission = notification_permission_granted().await?;
     if !permission {
         log::warn!("Notification permission not granted");

@@ -1,5 +1,4 @@
 use crate::nav_icons::*;
-use candid::Principal;
 use codee::string::FromToStringCodec;
 use consts::{
     AUTH_UTIL_COOKIES_MAX_AGE_MS,
@@ -28,7 +27,7 @@ enum NavItemRenderData {
 fn yral_nav_items() -> Vec<NavItem> {
     let cur_location = use_location();
     let path = cur_location.pathname;
-    let (user_principal, _) = use_cookie_with_options::<Principal, FromToStringCodec>(
+    let (user_id, _) = use_cookie_with_options::<String, FromToStringCodec>(
         USER_PRINCIPAL_STORE,
         UseCookieOptions::default()
             .path("/")
@@ -44,10 +43,10 @@ fn yral_nav_items() -> Vec<NavItem> {
             },
             cur_selected: Signal::derive(move || {
                 // is selected only if the user is viewing their own wallet
-                let Some(user_principal) = user_principal.get() else {
+                let Some(user_id) = user_id.get() else {
                     return false;
                 };
-                path.get().starts_with(&format!("/wallet/{user_principal}"))
+                path.get().starts_with(&format!("/wallet/{user_id}"))
             }),
         },
     ]

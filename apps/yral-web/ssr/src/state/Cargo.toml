@@ -8,6 +8,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 anyhow = { workspace = true }
+auth = { path = "../auth" }
 axum = { workspace = true, features = ["macros"], optional = true }
 axum-extra = {
   workspace = true,
@@ -22,11 +23,11 @@ axum-extra = {
 base64 = { workspace = true, optional = true }
 bb8 = { workspace = true, optional = true }
 bb8-redis = { workspace = true, optional = true }
-candid.workspace = true
-canisters-client = { workspace = true, features = ["full"] }
 codee = { workspace = true, features = ["json_serde"] }
 console_error_panic_hook = { workspace = true }
 console_log = { workspace = true }
+# workspace deps
+consts = { path = "../consts" }
 dotenv = { workspace = true, optional = true }
 enum_dispatch = { workspace = true, optional = true }
 futures = { workspace = true }
@@ -36,12 +37,10 @@ gloo = { workspace = true, features = ["futures", "net"] }
 gob-cloudflare = { workspace = true, optional = true }
 hex = { workspace = true }
 http = { workspace = true }
-ic-agent = { workspace = true, features = ["pem"] }
 icondata = { workspace = true }
 icondata_core = { workspace = true }
 js-sys = { workspace = true }
 jsonwebtoken = { workspace = true, optional = true }
-k256 = { workspace = true, features = ["jwk", "std"] }
 leptos = { workspace = true, features = ["nightly"] }
 leptos_axum = { workspace = true, optional = true }
 leptos_icons = { workspace = true }
@@ -83,6 +82,7 @@ tower-http = { workspace = true, features = ["cors", "fs"], optional = true }
 tracing = { workspace = true, optional = true }
 types = { workspace = true }
 urlencoding = { workspace = true }
+utils = { path = "../utils" }
 uts2ts = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
@@ -103,15 +103,7 @@ web-sys = {
   optional = true
 }
 web-time.workspace = true
-yral-canisters-common = { workspace = true }
 yral-database-spacetime-bindings = { workspace = true, optional = true }
-yral-metadata-client = { workspace = true }
-yral-metadata-types = { workspace = true }
-
-auth = { path = "../auth" }
-# workspace deps
-consts = { path = "../consts" }
-utils = { path = "../utils" }
 
 [build-dependencies]
 anyhow = { workspace = true }
@@ -119,7 +111,6 @@ anyhow = { workspace = true }
 [features]
 backend-admin = []
 cloudflare = ["dep:gob-cloudflare"]
-spacetimedb-browser = ["spacetimedb-sdk/browser"]
 hydrate = [
   "consts/hydrate",
   "dep:base64",
@@ -128,13 +119,11 @@ hydrate = [
   "dep:spacetimedb-sdk",
   "dep:web-sys",
   "dep:yral-database-spacetime-bindings",
-  "ic-agent/wasm-bindgen",
   "leptos/hydrate",
   "send_wrapper/futures",
   "spacetimedb-browser",
   "speedate",
   "utils/hydrate",
-  "yral-metadata-client/rustls-tls",
 ]
 oauth-hydrate = []
 oauth-ssr = ["dep:openidconnect"]
@@ -155,4 +144,5 @@ release-lib = [
   "oauth-hydrate",
   "redis-kv",
 ]
-ssr = ["auth/ssr", "axum-extra", "bb8", "bb8-redis", "consts/ssr", "dep:axum", "dep:dotenv", "dep:enum_dispatch", "dep:leptos_axum", "dep:openssl-sys", "dep:rand_chacha", "dep:redis", "dep:regex", "dep:spacetimedb-sdk", "dep:tokio", "dep:tower", "dep:tower-http", "dep:tracing", "dep:yral-database-spacetime-bindings", "leptos_meta/ssr", "leptos_router/ssr", "leptos-use/axum", "leptos-use/ssr", "leptos/ssr", "reqwest/rustls", "speedate", "utils/ssr", "yral-canisters-common/rustls-tls", "yral-metadata-client/rustls-tls"]
+spacetimedb-browser = ["spacetimedb-sdk/browser"]
+ssr = ["auth/ssr", "axum-extra", "bb8", "bb8-redis", "consts/ssr", "dep:axum", "dep:dotenv", "dep:enum_dispatch", "dep:leptos_axum", "dep:openssl-sys", "dep:rand_chacha", "dep:redis", "dep:regex", "dep:spacetimedb-sdk", "dep:tokio", "dep:tower", "dep:tower-http", "dep:tracing", "dep:yral-database-spacetime-bindings", "leptos_meta/ssr", "leptos_router/ssr", "leptos-use/axum", "leptos-use/ssr", "leptos/ssr", "reqwest/rustls", "speedate", "utils/ssr"]

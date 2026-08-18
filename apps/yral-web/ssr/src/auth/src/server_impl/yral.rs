@@ -4,7 +4,6 @@ use axum_extra::extract::{
     cookie::{Cookie, Key, SameSite},
     PrivateCookieJar, SignedCookieJar,
 };
-use candid::Principal;
 use consts::LoginProvider;
 use global_constants::USERNAME_MAX_LEN;
 use leptos::prelude::*;
@@ -24,7 +23,6 @@ use openidconnect::{
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use web_time::Duration;
-use types::delegated_identity::DelegatedIdentityWire;
 
 use super::{set_cookies, set_id_token_cookie, update_user_identity};
 
@@ -34,7 +32,6 @@ const CSRF_TOKEN_COOKIE: &str = "google-csrf-token";
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct YralAuthAdditionalTokenClaims {
     pub ext_is_anonymous: bool,
-    pub ext_delegated_identity: DelegatedIdentityWire,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -43,7 +40,7 @@ pub struct YralAuthRefreshTokenClaims {
     pub exp: usize,
     pub iat: usize,
     pub iss: String,
-    pub sub: Principal,
+    pub sub: String,
     pub ext_is_anonymous: bool,
 }
 
@@ -159,7 +156,7 @@ pub async fn perform_yral_auth_impl(
     provided_csrf: String,
     auth_code: String,
     oauth2: YralOAuthClient,
-) -> Result<(DelegatedIdentityWire, Option<String>, Option<String>), ServerFnError> {
+) -> Result<(String, String, String, Option<String>, Option<String>), ServerFnError> {
     let key: Key = expect_context();
     let mut jar: PrivateCookieJar = extract_with_state(&key).await?;
 
@@ -194,7 +191,7 @@ pub async fn perform_yral_auth_impl(
         .ok_or_else(|| ServerFnError::new("Google did not return an ID token"))?;
     // we don't use a nonce
     let claims = id_token.claims(&id_token_verifier, no_op_nonce_verifier)?;
-    let identity: DelegatedIdentityWire = claims.additional_claims().ext_delegated_identity.clone();
+    let user_id = claims.subject().to_string();
 
     static USERNAME_REGEX: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"^([a-zA-Z0-9]){3,15}$").unwrap());
@@ -223,8 +220,9 @@ pub async fn perform_yral_auth_impl(
     // Store the id_token JWT in a non-httpOnly cookie for client-side WASM
     // (SpacetimeDB authentication). The refresh_token goes in httpOnly.
     let id_token_str = id_token.to_string();
-    update_user_identity(&resp, jar.clone(), refresh_token.secret().clone())?;
-    set_id_token_cookie(&resp, jar, id_token_str)?;
+    let refresh_token_str = refresh_token.secret().clone();
+    update_user_identity(&resp, jar.clone(), refresh_token_str.clone())?;
+    set_id_token_cookie(&resp, jar, id_token_str.clone())?;
 
-    Ok((identity, username, email))
+    Ok((user_id, id_token_str, refresh_token_str, username, email))
 }

@@ -2,17 +2,24 @@ use consts::OFF_CHAIN_AGENT_URL;
 use leptos::prelude::ServerFnError;
 use reqwest::Client;
 use serde_json::json;
-use types::delegated_identity::DelegatedIdentityWire;
 
-pub async fn initiate_delete_user(identity: DelegatedIdentityWire) -> Result<(), ServerFnError> {
+pub async fn initiate_delete_user(
+    user_id: String,
+    id_token: String,
+) -> Result<(), ServerFnError> {
     let client = Client::new();
     let body = json!({
-        "delegated_identity_wire": identity
+        "user_id": user_id
     });
 
     let url = OFF_CHAIN_AGENT_URL.join("api/v1/user").unwrap();
 
-    let response = client.delete(url).json(&body).send().await?;
+    let response = client
+        .delete(url)
+        .bearer_auth(id_token)
+        .json(&body)
+        .send()
+        .await?;
 
     if response.status().is_success() {
         Ok(())

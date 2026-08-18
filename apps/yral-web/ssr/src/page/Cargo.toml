@@ -23,8 +23,6 @@ axum-extra = {
 base64 = { workspace = true }
 bb8 = { workspace = true, optional = true }
 bb8-redis = { workspace = true, optional = true }
-candid.workspace = true
-canisters-client = { workspace = true, features = ["full"] }
 chrono = "0.4"
 uuid = { workspace = true, features = ["v4", "js"] }
 codee = { workspace = true, features = ["json_serde"] }
@@ -39,13 +37,11 @@ gloo = { workspace = true, features = ["futures", "net"] }
 gob-cloudflare = { workspace = true, optional = true }
 hex = { workspace = true }
 http = { workspace = true }
-ic-agent = { workspace = true, features = ["pem"] }
 icondata = { workspace = true }
 icondata_core = { workspace = true }
 identity = { workspace = true, features = ["wasm-bindgen"] }
 indexmap.workspace = true
 js-sys = { workspace = true }
-k256 = { workspace = true, features = ["jwk", "std"] }
 leptos = { workspace = true, features = ["nightly"] }
 leptos_axum = { workspace = true, optional = true }
 leptos_icons = { workspace = true }
@@ -113,10 +109,7 @@ web-sys = {
   optional = true
 }
 web-time.workspace = true
-yral-canisters-common = { workspace = true }
 yral-database-spacetime-bindings = { workspace = true, optional = true }
-yral-metadata-client = { workspace = true }
-yral-metadata-types = { workspace = true }
 
 [features]
 hydrate = [
@@ -124,7 +117,6 @@ hydrate = [
   "consts/hydrate",
   "dep:rand_chacha",
   "dep:web-sys",
-  "ic-agent/wasm-bindgen",
   "leptos/hydrate",
   "send_wrapper/futures",
   "speedate",
@@ -157,7 +149,6 @@ ssr = [
   "speedate",
   "state/ssr",
   "utils/ssr",
-  "yral-canisters-common/rustls-tls",
 ]
 
 backend-admin = [

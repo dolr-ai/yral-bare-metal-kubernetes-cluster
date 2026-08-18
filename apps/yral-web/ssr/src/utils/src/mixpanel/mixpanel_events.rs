@@ -1,5 +1,4 @@
-use candid::Principal;
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::Utc;
 use codee::string::{FromToStringCodec, JsonSerdeCodec};
 use consts::AUTH_JOURNEY_PAGE;
 use consts::{AUTH_JOURNET, CUSTOM_DEVICE_ID, DEVICE_ID, NSFW_ENABLED_COOKIE};
@@ -13,10 +12,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
 use crate::UserAuthInfo;
-use yral_metadata_client::MetadataClient;
 
-use crate::event_streaming::events::EventCtx;
-use crate::event_streaming::events::HistoryCtx;
 use crate::mixpanel::state::MixpanelState;
 
 #[server]
@@ -51,40 +47,16 @@ async fn track_event_server_fn(props: Value) -> Result<(), ServerFnError> {
     props["ip_addr"] = ip.clone().into();
     props["user_agent"] = ua.clone().into();
 
-    // check if user_type is present or not, if not get principal and fetch from metadata client
+    // user_type enrichment via MetadataClient removed (IC decommissioned).
+    // SpacetimeDB-based enrichment will be added in a follow-up PR.
     if props.get("user_type").is_none() {
-        let principal = props
-            .get("principal")
-            .and_then(Value::as_str)
-            .and_then(|f| Principal::from_text(f).ok());
         let is_logged_in = props
             .get("is_logged_in")
             .and_then(Value::as_bool)
             .unwrap_or(false);
-        if let Some(user_principal) = principal {
-            let metadata_client: MetadataClient<false> = MetadataClient::default();
-            let metadata = metadata_client
-                .set_signup_datetime(user_principal, is_logged_in)
-                .await;
-            if let Ok(metadata) = metadata {
-                if let Some(signup_at) = metadata.signup_at {
-                    if let Some(signup_date) =
-                        DateTime::<Utc>::from_timestamp(signup_at, 0).map(|dt| dt.date_naive())
-                    {
-                        let today_date: NaiveDate = Utc::now().date_naive();
-
-                        props["user_type"] = if today_date > signup_date {
-                            "repeat".into()
-                        } else {
-                            "new".into()
-                        };
-                    }
-                }
-
-                if let Some(email) = metadata.email {
-                    props["email"] = email.into();
-                }
-            }
+        if is_logged_in {
+            // TODO: fetch signup_at from SpacetimeDB to classify new vs repeat
+            props["user_type"] = "repeat".into();
         }
     }
 
@@ -160,18 +132,11 @@ where
         props["current_url"] = url.clone().into();
         props["$current_url"] = url.into();
     }
-    let history = use_context::<HistoryCtx>();
-    if let Some(history) = history {
-        if history.utm.get_untracked().is_empty() {
-            if let Ok(utms) = parse_query_params_utm() {
-                history.push_utm(utms);
-            }
-        }
-        for (key, value) in history.utm.get_untracked() {
+    // HistoryCtx-based UTM enrichment removed (event_streaming module decommissioned).
+    if let Ok(utms) = parse_query_params_utm() {
+        for (key, value) in utms {
             props[key] = value.into();
         }
-    } else {
-        logging::error!("HistoryCtx not found. Gracefully continuing");
     }
     props
 }
@@ -189,25 +154,25 @@ pub struct MixpanelGlobalProps {
 
 impl MixpanelGlobalProps {
     pub fn new(
-        user_principal: Principal,
-        canister_id: Principal,
+        user_id: String,
+        canister_id: String,
         is_logged_in: bool,
         is_nsfw_enabled: bool,
         username: Option<String>,
     ) -> Self {
         Self {
             user_id: if is_logged_in {
-                Some(user_principal.to_text().clone())
+                Some(user_id.clone())
             } else {
                 None
             },
             visitor_id: if !is_logged_in {
-                Some(user_principal.to_text())
+                Some(user_id)
             } else {
                 None
             },
             is_logged_in,
-            canister_id: canister_id.to_text(),
+            canister_id,
             is_nsfw_enabled,
             username,
         }
@@ -226,17 +191,17 @@ impl MixpanelGlobalProps {
 
         Self {
             user_id: if is_logged_in {
-                Some(cans.user_principal().to_text())
+                Some(cans.user_id().clone())
             } else {
                 None
             },
             visitor_id: if !is_logged_in {
-                Some(cans.user_principal().to_text())
+                Some(cans.user_id().clone())
             } else {
                 None
             },
             is_logged_in,
-            canister_id: cans.user_canister().to_text(),
+            canister_id: cans.user_canister().clone(),
             is_nsfw_enabled,
             username: cans.user_identity().username,
         }
@@ -280,47 +245,6 @@ impl MixpanelGlobalProps {
         set_auth_journey.set(auth_journey);
     }
 
-    pub fn from_ev_ctx(ev_ctx: EventCtx) -> Option<Self> {
-        #[cfg(not(feature = "hydrate"))]
-        {
-            return None;
-        }
-        #[cfg(feature = "hydrate")]
-        {
-            let (is_nsfw_enabled, _) = use_cookie_with_options::<bool, FromToStringCodec>(
-                NSFW_ENABLED_COOKIE,
-                UseCookieOptions::default()
-                    .path("/")
-                    .max_age(consts::auth::REFRESH_MAX_AGE.as_secs() as i64)
-                    .same_site(leptos_use::SameSite::Lax),
-            );
-            let is_nsfw_enabled = is_nsfw_enabled.get_untracked().unwrap_or(false);
-
-            Self::from_ev_ctx_with_nsfw_info(ev_ctx, is_nsfw_enabled)
-        }
-    }
-
-    pub fn from_ev_ctx_with_nsfw_info(ev_ctx: EventCtx, is_nsfw_enabled: bool) -> Option<Self> {
-        #[cfg(not(feature = "hydrate"))]
-        {
-            return None;
-        }
-        #[cfg(feature = "hydrate")]
-        {
-            let user = ev_ctx.user_details()?;
-            let is_logged_in = ev_ctx.is_connected();
-
-            Some(Self {
-                user_id: is_logged_in.then(|| user.details.principal()),
-                visitor_id: (!is_logged_in).then(|| user.details.principal()),
-                is_logged_in,
-                canister_id: user.canister_id.to_text(),
-                is_nsfw_enabled,
-                username: user.details.username,
-            })
-        }
-    }
-
     pub fn try_get_with_nsfw_info(
         cans: &impl UserAuthInfo,
         is_logged_in: bool,
@@ -328,17 +252,17 @@ impl MixpanelGlobalProps {
     ) -> Self {
         Self {
             user_id: if is_logged_in {
-                Some(cans.user_principal().to_text())
+                Some(cans.user_id().clone())
             } else {
                 None
             },
             visitor_id: if !is_logged_in {
-                Some(cans.user_principal().to_text())
+                Some(cans.user_id().clone())
             } else {
                 None
             },
             is_logged_in,
-            canister_id: cans.user_canister().to_text(),
+            canister_id: cans.user_canister().clone(),
             is_nsfw_enabled,
             username: cans.user_identity().username,
         }

@@ -2,7 +2,6 @@ use codee::string::FromToStringCodec;
 use consts::{
     LoginProvider, NOTIFICATIONS_ENABLED_STORE,
 };
-use ic_agent::identity::DelegatedIdentity;
 use leptos::{ev, prelude::*};
 use leptos_use::{
     storage::use_local_storage, use_event_listener, use_interval_fn,
@@ -10,28 +9,6 @@ use leptos_use::{
 };
 use state::canisters::auth_state;
 use utils::types::NewIdentity;
-
-use serde::Serialize;
-
-/// Build a yral-auth login hint by signing a message with the IC identity.
-fn yral_auth_login_hint(identity: &impl ic_agent::Identity) -> identity::Result<String> {
-    let msg =
-        identity::msg_builder::Message::default().method_name("yral_auth_v2_login_hint".into());
-    let sig = identity::ic_agent::sign_message(identity, msg)?;
-
-    #[derive(Serialize)]
-    struct LoginHint {
-        pub user_principal: candid::Principal,
-        pub signature: identity::Signature,
-    }
-
-    let login_hint = LoginHint {
-        user_principal: identity.sender().unwrap(),
-        signature: sig,
-    };
-
-    Ok(serde_json::to_string(&login_hint).expect("login hint should serialize"))
-}
 
 pub type YralAuthMessage = Result<NewIdentity, String>;
 
@@ -72,11 +49,8 @@ pub fn YralAuthProvider() -> impl IntoView {
             let provider = *provider;
 
             let url_fut = async move {
-                let id = auth.user_identity.await?;
-                let id = DelegatedIdentity::try_from(id.id_wire)?;
-                let login_hint = yral_auth_login_hint(&id)?;
-
-                yral_auth_login_url(login_hint, provider).await
+                // No IC login hint needed in the JWT era — just get the authorize URL.
+                yral_auth_login_url(String::new(), provider).await
             };
 
             async move {

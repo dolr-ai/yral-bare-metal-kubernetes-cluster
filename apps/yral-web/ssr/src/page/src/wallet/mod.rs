@@ -16,7 +16,6 @@ use leptos_use::storage::use_local_storage;
 use leptos_use::use_event_listener;
 use state::app_state::AppState;
 use state::canisters::auth_state;
-use utils::notifications::get_device_registeration_token;
 use utils::user_identity::UserIdentity;
 use utils::send_wrap;
 

@@ -1,79 +1,18 @@
-// TEMP
 #![allow(dead_code)]
 
 #[cfg(feature = "ssr")]
 pub mod server_impl;
 
-use candid::Principal;
-use ic_agent::{
-    identity::{Delegation, Secp256k1Identity, SignedDelegation},
-    Identity,
-};
 use leptos::prelude::*;
 use leptos::{server, server_fn::codec::Json};
-use rand_chacha::rand_core::OsRng;
 use serde::{Deserialize, Serialize};
-use web_time::Duration;
 
-use consts::auth::DELEGATION_MAX_AGE;
-use types::delegated_identity::DelegatedIdentityWire;
-
-/// Current time since UNIX_EPOCH.
-fn current_epoch() -> Duration {
-    web_time::SystemTime::now()
-        .duration_since(web_time::SystemTime::UNIX_EPOCH)
-        .unwrap()
-}
-
+/// Anonymous identity for non-logged-in users.
+/// In the JWT era, this is just an empty placeholder — the client
+/// gets an anonymous session from yral-auth without IC identity delegation.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AnonymousIdentity {
-    pub identity: DelegatedIdentityWire,
     pub refresh_token: String,
-}
-
-fn delegate_identity_with_max_age(
-    from: &impl Identity,
-    max_age: Duration,
-) -> DelegatedIdentityWire {
-    let to_secret = k256::SecretKey::random(&mut OsRng);
-    let to_identity = Secp256k1Identity::from_private_key(to_secret.clone());
-    let expiry = current_epoch() + max_age;
-    let expiry_ns = expiry.as_nanos() as u64;
-    let delegation = Delegation {
-        pubkey: to_identity.public_key().unwrap(),
-        expiration: expiry_ns,
-        targets: None,
-        permissions: None,
-    };
-    let sig = from.sign_delegation(&delegation).unwrap();
-    let signed_delegation = SignedDelegation {
-        delegation,
-        signature: sig.signature.unwrap(),
-    };
-
-    let mut delegation_chain = from.delegation_chain();
-    delegation_chain.push(signed_delegation);
-
-    DelegatedIdentityWire {
-        from_key: sig.public_key.unwrap(),
-        to_secret: to_secret.to_jwk(),
-        delegation_chain,
-    }
-}
-
-pub fn delegate_identity(from: &impl Identity) -> DelegatedIdentityWire {
-    delegate_identity_with_max_age(from, DELEGATION_MAX_AGE)
-}
-
-pub fn delegate_short_lived_identity(from: &impl Identity) -> DelegatedIdentityWire {
-    let max_age = Duration::from_secs(24 * 60 * 60); // 1 day
-    delegate_identity_with_max_age(from, max_age)
-}
-
-#[derive(Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
-pub struct RefreshTokenLegacy {
-    principal: Principal,
-    expiry_epoch_ms: u128,
 }
 
 /// Generate an anonymous identity if refresh token is not set
@@ -89,40 +28,46 @@ pub async fn set_anonymous_identity_cookie(refresh_jwt: String) -> Result<(), Se
     server_impl::set_anonymous_identity_cookie_impl(refresh_jwt).await
 }
 
-/// Extract the identity from refresh token,
-/// returns None if refresh token doesn't exist
+/// Extract the user identity from the ID_TOKEN and REFRESH_TOKEN cookies.
+/// Returns None if not logged in.
+/// In the JWT era, this returns (user_id, id_token, refresh_token) instead
+/// of the old DelegatedIdentityWire.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ExtractedIdentity {
+    pub user_id: String,
+    pub id_token: String,
+    pub refresh_token: String,
+}
+
 #[server(endpoint = "extract_identity", input = Json, output = Json)]
-pub async fn extract_identity() -> Result<Option<DelegatedIdentityWire>, ServerFnError> {
+pub async fn extract_identity() -> Result<Option<ExtractedIdentity>, ServerFnError> {
     server_impl::extract_identity_impl().await
 }
 
-/// Get the current user's identifier (IC Principal text) from the ID_TOKEN JWT.
-/// Decodes the `sub` claim — no IC identity reconstruction needed.
-/// Returns None for anonymous users (no ID_TOKEN cookie).
+/// Get the current user's identifier (JWT sub claim) from the ID_TOKEN.
+/// Returns None for anonymous users.
 #[server(endpoint = "get_user_identifier", input = Json, output = Json)]
 pub async fn get_user_identifier() -> Result<Option<String>, ServerFnError> {
     server_impl::get_user_identifier_impl().await
 }
 
 /// Get the current id_token for SpacetimeDB authentication.
-/// Reads the ID_TOKEN cookie. If the token has < 1h remaining, transparently
-/// refreshes it using the httpOnly REFRESH_TOKEN cookie.
-/// Returns None for anonymous users (no cookies set).
+/// Reads the ID_TOKEN cookie. If < 1h remaining, refreshes via REFRESH_TOKEN.
+/// Returns None for anonymous users.
 #[server(endpoint = "get_id_token", input = Json, output = Json)]
 pub async fn get_id_token() -> Result<Option<String>, ServerFnError> {
     server_impl::get_id_token_impl().await
 }
 
 /// Force-refresh the id_token using the httpOnly refresh_token cookie.
-/// Exchanges the refresh_token at yral-auth's /oauth/token endpoint,
-/// updates both cookies, and returns the new id_token.
-/// Returns None if not logged in (no refresh_token cookie).
+/// Returns None if not logged in.
 #[server(endpoint = "refresh_id_token", input = Json, output = Json)]
 pub async fn refresh_id_token() -> Result<Option<String>, ServerFnError> {
     server_impl::refresh_id_token_impl().await
 }
 
+/// Logout — clears the identity. Returns Ok(()) on success.
 #[server]
-pub async fn logout_identity() -> Result<DelegatedIdentityWire, ServerFnError> {
+pub async fn logout_identity() -> Result<(), ServerFnError> {
     server_impl::logout_identity_impl().await
 }

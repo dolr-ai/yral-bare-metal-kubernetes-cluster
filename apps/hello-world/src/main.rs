@@ -14,4 +14,5 @@ fn app() -> impl IntoView {
         .on(ev::click, move |_| set_count.update(|c| *c += 1))
         .child("Click me: ")
         .child(move || count.get())
+        .class(("red", move || count.get() % 2 == 1))
 }
