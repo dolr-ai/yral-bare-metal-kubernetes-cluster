@@ -66,22 +66,6 @@ axum-extra = {
 }
 openidconnect = { workspace = true, optional = true }
 dotenv = { workspace = true, optional = true }
-redis = {
-  workspace = true,
-  features = [
-    "acl",
-    "ahash",
-    "aio",
-    "cluster",
-    "cluster-async",
-    "connection-manager",
-    "sentinel",
-    "tokio-rustls-comp",
-  ],
-  optional = true
-}
-bb8 = { workspace = true, optional = true }
-bb8-redis = { workspace = true, optional = true }
 gob-cloudflare = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true }
 js-sys = { workspace = true }
@@ -115,13 +99,10 @@ ssr = [
     "leptos-use/ssr",
     "leptos-use/axum",
     "reqwest/rustls",
-    "dep:redis",
     "dep:enum_dispatch",
     "axum-extra",
     "dep:rand_chacha",
     "dep:dotenv",
-    "bb8",
-    "bb8-redis",
     "speedate",
     "dep:regex",
 ]
@@ -134,14 +115,12 @@ release-bin = [
     "ssr",
     "cloudflare",
     "gob-cloudflare/rustls-tls",
-    "redis-kv",
     "backend-admin",
     "oauth-ssr",
 ]
 release-lib = [
     "hydrate",
     "cloudflare",
-    "redis-kv",
     "backend-admin",
     "dep:openidconnect",
     "oauth-hydrate",

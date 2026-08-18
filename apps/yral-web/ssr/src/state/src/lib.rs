@@ -10,7 +10,6 @@ pub mod spacetime_client;
 #[cfg(feature = "ssr")]
 pub mod server {
 
-    use auth::server_impl::store::KVStoreImpl;
     use axum::extract::FromRef;
     use axum_extra::extract::cookie::Key;
     use leptos::prelude::*;
@@ -21,7 +20,6 @@ pub mod server {
         pub leptos_options: LeptosOptions,
         #[cfg(feature = "cloudflare")]
         pub cloudflare: gob_cloudflare::CloudflareAuth,
-        pub kv: KVStoreImpl,
         pub routes: Vec<AxumRouteListing>,
         pub cookie_key: Key,
         #[cfg(feature = "oauth-ssr")]

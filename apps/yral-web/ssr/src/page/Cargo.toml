@@ -21,8 +21,6 @@ axum-extra = {
   optional = true
 }
 base64 = { workspace = true }
-bb8 = { workspace = true, optional = true }
-bb8-redis = { workspace = true, optional = true }
 chrono = "0.4"
 uuid = { workspace = true, features = ["v4", "js"] }
 codee = { workspace = true, features = ["json_serde"] }
@@ -55,20 +53,6 @@ once_cell = { workspace = true }
 openidconnect = { workspace = true, optional = true }
 rand = { workspace = true, default-features = false, features = ["small_rng"] }
 rand_chacha = { workspace = true, optional = true }
-redis = {
-  workspace = true,
-  features = [
-    "acl",
-    "ahash",
-    "aio",
-    "cluster",
-    "cluster-async",
-    "connection-manager",
-    "sentinel",
-    "tokio-rustls-comp",
-  ],
-  optional = true
-}
 regex = { workspace = true, optional = true }
 reqwest = { workspace = true, features = ["http2", "json", "multipart"] }
 send_wrapper = { workspace = true, features = ["futures"] }
@@ -126,15 +110,12 @@ hydrate = [
 ssr = [
   "auth/ssr",
   "axum-extra",
-  "bb8",
-  "bb8-redis",
   "component/ssr",
   "consts/ssr",
   "dep:axum",
   "dep:dotenv",
   "dep:leptos_axum",
   "dep:rand_chacha",
-  "dep:redis",
   "dep:regex",
   "dep:tokio",
   "dep:tower",
@@ -191,7 +172,6 @@ release-bin = [
   "consts/release-bin",
   "gob-cloudflare/rustls-tls",
   "oauth-ssr",
-  "redis-kv",
   "ssr",
   "state/release-bin",
   "utils/release-bin",
@@ -204,7 +184,6 @@ release-lib = [
   "dep:openidconnect",
   "hydrate",
   "oauth-hydrate",
-  "redis-kv",
   "state/release-lib",
   "utils/release-lib",
 ]

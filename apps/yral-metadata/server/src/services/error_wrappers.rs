@@ -1,11 +1,9 @@
 use std::{env::VarError, ops::Deref};
 
 use ic_agent::export::PrincipalError;
-use redis::RedisError;
 // Add necessary imports
 use serde::{Deserialize, Serialize};
 // Assuming these crates are available in the project
-use bb8;
 use config;
 use jsonwebtoken::errors as jwt_errors;
 use serde_json;
@@ -123,97 +121,6 @@ impl From<identity::Error> for IdentityErrorDetail {
 impl std::fmt::Display for IdentityErrorDetail {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.message)
-    }
-}
-
-#[derive(Debug, ToSchema, Serialize)]
-pub struct RedisErrorDetail {
-    #[schema(example = "ResponseError")]
-    pub kind: RedisErrorKind,
-    #[schema(example = "Connection refused")]
-    pub detail: String,
-}
-
-#[derive(Debug, ToSchema, Serialize)]
-pub enum RedisErrorKind {
-    ResponseError,
-    ParseError,
-    AuthenticationFailed,
-    TypeError,
-    ExecAbortError,
-    BusyLoadingError,
-    NoScriptError,
-    InvalidClientConfig,
-    Moved,
-    Ask,
-    TryAgain,
-    ClusterDown,
-    CrossSlot,
-    MasterDown,
-    IoError,
-    ClientError,
-    ExtensionError,
-    ReadOnly,
-    MasterNameNotFoundBySentinel,
-    NoValidReplicasFoundBySentinel,
-    EmptySentinelList,
-    NotBusy,
-    ClusterConnectionNotFound,
-    Unknown,
-}
-
-impl From<redis::ErrorKind> for RedisErrorKind {
-    fn from(e: redis::ErrorKind) -> Self {
-        match e {
-            redis::ErrorKind::AuthenticationFailed => RedisErrorKind::AuthenticationFailed,
-            redis::ErrorKind::InvalidClientConfig => RedisErrorKind::InvalidClientConfig,
-            redis::ErrorKind::MasterNameNotFoundBySentinel => {
-                RedisErrorKind::MasterNameNotFoundBySentinel
-            }
-            redis::ErrorKind::NoValidReplicasFoundBySentinel => {
-                RedisErrorKind::NoValidReplicasFoundBySentinel
-            }
-            redis::ErrorKind::EmptySentinelList => RedisErrorKind::EmptySentinelList,
-            redis::ErrorKind::ClusterConnectionNotFound => {
-                RedisErrorKind::ClusterConnectionNotFound
-            }
-            _ => RedisErrorKind::Unknown,
-        }
-    }
-}
-
-impl From<RedisError> for RedisErrorDetail {
-    fn from(e: RedisError) -> Self {
-        Self {
-            kind: RedisErrorKind::from(e.kind()),
-            detail: e.to_string(),
-        }
-    }
-}
-
-#[derive(Debug, ToSchema, Serialize)]
-pub struct Bb8RedisErrorDetail {
-    #[schema(example = "Timeout")]
-    pub kind: String,
-    #[schema(example = "Connection timed out")]
-    pub message: String,
-}
-
-impl From<bb8::RunError<RedisError>> for Bb8RedisErrorDetail {
-    fn from(e: bb8::RunError<RedisError>) -> Self {
-        match e {
-            bb8::RunError::TimedOut => Bb8RedisErrorDetail {
-                kind: "Timeout".to_string(),
-                message: "Connection pool timeout".to_string(),
-            },
-            bb8::RunError::User(redis_err) => {
-                let detail = RedisErrorDetail::from(redis_err);
-                Bb8RedisErrorDetail {
-                    kind: format!("UserError.{:?}", detail.kind),
-                    message: detail.detail,
-                }
-            }
-        }
     }
 }
 

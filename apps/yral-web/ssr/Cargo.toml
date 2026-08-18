@@ -109,8 +109,6 @@ axum-extra = {
   ],
   optional = true
 }
-bb8 = { workspace = true, optional = true }
-bb8-redis = { workspace = true, optional = true }
 codee = { workspace = true, features = ["json_serde"] }
 component = { path = "./src/component" }
 console_error_panic_hook = { workspace = true }
@@ -139,20 +137,6 @@ once_cell = { workspace = true }
 openidconnect = { workspace = true, optional = true }
 page = { path = "./src/page" }
 rand_chacha = { workspace = true, optional = true }
-redis = {
-  workspace = true,
-  features = [
-    "acl",
-    "ahash",
-    "aio",
-    "cluster",
-    "cluster-async",
-    "connection-manager",
-    "sentinel",
-    "tokio-rustls-comp",
-  ],
-  optional = true
-}
 regex = { workspace = true, optional = true }
 reqwest = { workspace = true, features = ["http2", "json", "multipart"] }
 send_wrapper = { workspace = true, features = ["futures"] }
@@ -212,15 +196,12 @@ hydrate = [
 ssr = [
   "auth/ssr",
   "axum-extra",
-  "bb8",
-  "bb8-redis",
   "component/ssr",
   "consts/ssr",
   "dep:axum",
   "dep:dotenv",
   "dep:enum_dispatch",
   "dep:leptos_axum",
-  "dep:redis",
   "dep:regex",
   "dep:tokio",
   "dep:tower",
@@ -275,11 +256,7 @@ oauth-ssr = [
   "utils/oauth-ssr",
 ]
 redis-kv = [
-  "component/redis-kv",
-  "consts/redis-kv",
-  "page/redis-kv",
-  "state/redis-kv",
-  "utils/redis-kv",
+  # Redis KV store removed — SpacetimeDB is used directly for all data.
 ]
 release-bin = [
   "backend-admin",
@@ -289,7 +266,6 @@ release-bin = [
   "gob-cloudflare/rustls-tls",
   "oauth-ssr",
   "page/release-bin",
-  "redis-kv",
   "ssr",
   "state/release-bin",
   "utils/release-bin",
@@ -303,7 +279,6 @@ release-lib = [
   "hydrate",
   "oauth-hydrate",
   "page/release-lib",
-  "redis-kv",
   "state/release-lib",
   "utils/release-lib",
 ]

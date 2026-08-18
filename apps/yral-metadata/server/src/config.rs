@@ -1,7 +1,6 @@
 use std::net::SocketAddr;
 
 use config::{Config, ConfigError, Environment, File};
-use redis::ConnectionInfo;
 use serde::Deserialize;
 use serde_with::{serde_as, DisplayFromStr};
 

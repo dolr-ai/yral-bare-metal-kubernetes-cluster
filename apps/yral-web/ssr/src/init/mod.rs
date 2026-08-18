@@ -1,6 +1,5 @@
 use std::env;
 
-use auth::server_impl::store::KVStoreImpl;
 use axum_extra::extract::cookie::Key;
 use leptos::prelude::*;
 use leptos_axum::AxumRouteListing;
@@ -70,26 +69,12 @@ impl AppStateBuilder {
         }
     }
 
-    async fn init_redis_kv(&mut self) -> KVStoreImpl {
-        use auth::server_impl::store::dragonfly_kv::DragonflyKV;
-
-        log::info!("initializing dragonfly redis instance");
-        KVStoreImpl::DragonflyKV(
-            DragonflyKV::new()
-                .await
-                .expect("failed to initialize dragonfly redis"),
-        )
-    }
-
-    pub async fn build(mut self) -> AppStateRes {
-        let kv = self.init_redis_kv().await;
-
+    pub async fn build(self) -> AppStateRes {
         let app_state = AppState {
             leptos_options: self.leptos_options,
             routes: self.routes,
             #[cfg(feature = "cloudflare")]
             cloudflare: init_cf(),
-            kv,
             cookie_key: init_cookie_key(),
             #[cfg(feature = "oauth-ssr")]
             yral_oauth_client: init_yral_oauth(),

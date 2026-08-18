@@ -8,8 +8,6 @@ edition = "2021"
 [dependencies]
 axum = { workspace = true, features = ["json", "macros"] }
 base64 = { workspace = true }
-bb8 = { workspace = true }
-bb8-redis = { workspace = true }
 canisters-client = {
   workspace = true,
   features = [
@@ -31,19 +29,6 @@ identity = { workspace = true, default-features = false, features = [
 jsonwebtoken = { workspace = true, features = ["use_pem"] }
 log = { workspace = true }
 once_cell = { workspace = true }
-redis = {
-  workspace = true,
-  features = [
-    "acl",
-    "ahash",
-    "aio",
-    "cluster",
-    "cluster-async",
-    "connection-manager",
-    "sentinel",
-    "tokio-rustls-comp",
-  ]
-}
 regex = { workspace = true }
 reqwest = {
   workspace = true,
@@ -75,4 +60,4 @@ rand = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [features]
-dragonfly-integration-tests = []
+default = []

@@ -20,8 +20,6 @@ axum-extra = {
   optional = true
 }
 base64 = { workspace = true, optional = true }
-bb8 = { workspace = true, optional = true }
-bb8-redis = { workspace = true, optional = true }
 consts = { path = "../consts" }
 enum_dispatch = { workspace = true, optional = true }
 futures = { workspace = true }
@@ -33,20 +31,6 @@ leptos = { workspace = true, features = ["nightly"] }
 leptos_axum = { workspace = true, optional = true }
 openidconnect = { workspace = true, optional = true }
 rand_chacha = { workspace = true }
-redis = {
-  workspace = true,
-  features = [
-    "acl",
-    "ahash",
-    "aio",
-    "cluster",
-    "cluster-async",
-    "connection-manager",
-    "sentinel",
-    "tokio-rustls-comp",
-  ],
-  optional = true
-}
 regex = { workspace = true, optional = true }
 reqwest = { workspace = true, features = ["json", "rustls"], optional = true }
 rustls = { workspace = true, features = ["ring"], optional = true }
@@ -62,8 +46,6 @@ web-time.workspace = true
 oauth-ssr = ["consts/oauth-ssr", "dep:jsonwebtoken", "dep:openidconnect"]
 ssr = [
   "axum-extra",
-  "bb8",
-  "bb8-redis",
   "consts/ssr",
   "dep:axum",
   "dep:base64",
@@ -71,7 +53,6 @@ ssr = [
   "dep:global-constants",
   "dep:hex",
   "dep:leptos_axum",
-  "dep:redis",
   "dep:regex",
   "dep:reqwest",
   "dep:rustls",

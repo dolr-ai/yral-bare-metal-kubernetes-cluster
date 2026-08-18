@@ -35,7 +35,10 @@ ruby = { version = "latest", os = ["macos"] }
 # declare targets/components here as tool options. `mise install` adds any
 # missing targets/components on every run. Do NOT add a rust-toolchain.toml —
 # it would be dead weight (RUSTUP_TOOLCHAIN env var takes precedence).
-rust = { version = "nightly", targets = ["wasm32-unknown-unknown", "x86_64-unknown-linux-musl"], components = ["rustfmt", "clippy", "rust-src", "rust-analyzer"] }
+rust = { version = "nightly", targets = [
+  "wasm32-unknown-unknown",
+  "x86_64-unknown-linux-musl"
+], components = ["rustfmt", "clippy", "rust-src", "rust-analyzer"] }
 sops = "latest"
 swiftlint = { version = "latest", os = ["macos"] }
 # redis = "latest"  # Commented out — was only needed for the KV migration (completed). Re-enable if needed for debugging.
@@ -520,7 +523,7 @@ cd apps/yral-web && npm install
 description = "Build yral-web (release, musl static binary + WASM client)"
 dir = "apps/yral-web"
 run = "cargo leptos --manifest-path ssr/Cargo.toml build --release"
-env = { LEPTOS_BIN_TARGET_TRIPLE = "x86_64-unknown-linux-musl", CC = "musl-gcc", CXX = "musl-g++" }
+env = { LEPTOS_BIN_TARGET_TRIPLE = "x86_64-unknown-linux-musl" }
 
 [tasks.yral-web-run]
 description = "Run yral-web locally via pitchfork (release binary, port 8080)"

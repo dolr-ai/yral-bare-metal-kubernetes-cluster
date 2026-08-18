@@ -61,7 +61,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a15f179cd60c4584b8a8c596927aadc462e27f2ca70c04e0071964a73ba7a75"
 dependencies = [
  "cfg-if",
- "getrandom 0.3.4",
  "once_cell",
  "version_check",
  "zerocopy",
@@ -413,8 +412,6 @@ dependencies = [
  "axum",
  "axum-extra",
  "base64 0.22.1",
- "bb8",
- "bb8-redis",
  "consts",
  "enum_dispatch",
  "futures",
@@ -426,7 +423,6 @@ dependencies = [
  "leptos_axum",
  "openidconnect",
  "rand_chacha 0.3.1",
- "redis 1.4.1",
  "regex",
  "reqwest 0.13.4",
  "rustls 0.23.42",
@@ -1113,28 +1109,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
-name = "bb8"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "457d7ed3f888dfd2c7af56d4975cade43c622f74bdcddfed6d4352f57acc6310"
-dependencies = [
- "futures-util",
- "parking_lot",
- "portable-atomic",
- "tokio",
-]
-
-[[package]]
-name = "bb8-redis"
-version = "0.26.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc1063effc7f6cf848bcbcc6e31b5962be75215835587d3109607c643d616f66"
-dependencies = [
- "bb8",
- "redis 1.4.1",
-]
-
-[[package]]
 name = "beef"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1694,11 +1668,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba5a308b75df32fe02788e748662718f03fde005016435c444eea572398219fd"
 dependencies = [
  "bytes",
- "futures-core",
  "memchr",
- "pin-project-lite",
- "tokio",
- "tokio-util",
 ]
 
 [[package]]
@@ -1709,8 +1679,6 @@ dependencies = [
  "auth",
  "axum",
  "axum-extra",
- "bb8",
- "bb8-redis",
  "chrono",
  "codee",
  "console_error_panic_hook",
@@ -1737,7 +1705,6 @@ dependencies = [
  "once_cell",
  "openidconnect",
  "rand_chacha 0.3.1",
- "redis 1.4.1",
  "regex",
  "reqwest 0.13.4",
  "send_wrapper",
@@ -1913,8 +1880,6 @@ dependencies = [
  "anyhow",
  "axum",
  "axum-extra",
- "bb8",
- "bb8-redis",
  "codee",
  "console_error_panic_hook",
  "console_log",
@@ -1939,7 +1904,6 @@ dependencies = [
  "once_cell",
  "openidconnect",
  "rand_chacha 0.3.1",
- "redis 1.4.1",
  "regex",
  "reqwest 0.13.4",
  "send_wrapper",
@@ -2064,12 +2028,6 @@ dependencies = [
  "digest 0.10.7",
  "spin 0.10.1",
 ]
-
-[[package]]
-name = "crc16"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "338089f42c427b86394a5ee60ff321da23a5c89c9d89514c829687b26359fcff"
 
 [[package]]
 name = "crc32fast"
@@ -5918,8 +5876,6 @@ dependencies = [
  "axum",
  "axum-extra",
  "base64 0.22.1",
- "bb8",
- "bb8-redis",
  "chrono",
  "codee",
  "component",
@@ -5950,7 +5906,6 @@ dependencies = [
  "openidconnect",
  "rand 0.8.7",
  "rand_chacha 0.3.1",
- "redis 1.4.1",
  "regex",
  "reqwest 0.13.4",
  "send_wrapper",
@@ -6924,31 +6879,14 @@ version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0b9503711b03773e43b31668c7b5bd279ee7cd9b7d18cff7c23a42cc1d08e5a"
 dependencies = [
- "ahash 0.8.12",
- "arc-swap",
  "arcstr",
- "async-lock",
- "backon",
- "bytes",
- "cfg-if",
  "combine",
- "crc16",
- "futures-channel",
- "futures-util",
  "itoa",
- "log",
  "num-bigint",
  "percent-encoding",
- "pin-project-lite",
- "rand 0.10.2",
- "rustls 0.23.42",
- "rustls-native-certs",
  "ryu",
  "sha1_smol",
  "socket2 0.6.5",
- "tokio",
- "tokio-rustls 0.26.4",
- "tokio-util",
  "url",
  "xxhash-rust",
 ]
@@ -8471,8 +8409,6 @@ dependencies = [
  "axum",
  "axum-extra",
  "base64 0.22.1",
- "bb8",
- "bb8-redis",
  "codee",
  "console_error_panic_hook",
  "console_log",
@@ -8502,7 +8438,6 @@ dependencies = [
  "openssl-sys",
  "rand 0.8.7",
  "rand_chacha 0.3.1",
- "redis 1.4.1",
  "regex",
  "reqwest 0.13.4",
  "send_wrapper",
@@ -9596,8 +9531,6 @@ dependencies = [
  "anyhow",
  "axum",
  "axum-extra",
- "bb8",
- "bb8-redis",
  "chrono",
  "codee",
  "console_error_panic_hook",
@@ -9627,7 +9560,6 @@ dependencies = [
  "openidconnect",
  "rand_chacha 0.3.1",
  "reactive_graph",
- "redis 1.4.1",
  "regex",
  "reqwest 0.13.4",
  "send_wrapper",
@@ -10553,8 +10485,6 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "base64 0.22.1",
- "bb8",
- "bb8-redis",
  "candid",
  "chrono",
  "config 0.14.1",
@@ -10568,7 +10498,6 @@ dependencies = [
  "log",
  "once_cell",
  "rand 0.8.7",
- "redis 1.4.1",
  "regex",
  "reqwest 0.13.4",
  "rustls 0.23.42",
@@ -10672,8 +10601,6 @@ dependencies = [
  "auth",
  "axum",
  "axum-extra",
- "bb8",
- "bb8-redis",
  "codee",
  "component",
  "console_error_panic_hook",
@@ -10702,7 +10629,6 @@ dependencies = [
  "openidconnect",
  "page",
  "rand_chacha 0.3.1",
- "redis 1.4.1",
  "regex",
  "reqwest 0.13.4",
  "send_wrapper",

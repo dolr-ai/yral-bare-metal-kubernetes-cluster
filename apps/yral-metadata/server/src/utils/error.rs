@@ -4,15 +4,14 @@ use axum::{
     Json,
 };
 use ic_agent::export::PrincipalError;
-use redis::RedisError;
 use std::env::VarError;
 use thiserror::Error;
 use types::{error::ApiError, ApiResult};
 use utoipa::ToSchema;
 
 use crate::services::error_wrappers::{
-    AgentErrorDetail, Bb8RedisErrorDetail, ConfigErrorDetail, IOErrorData, IdentityErrorDetail,
-    JwtErrorDetail, PrincipalErrorDetail, RedisErrorDetail, SerdeJsonErrorDetail, VarErrorDetail,
+    AgentErrorDetail, ConfigErrorDetail, IOErrorData, IdentityErrorDetail,
+    JwtErrorDetail, PrincipalErrorDetail, SerdeJsonErrorDetail, VarErrorDetail,
 };
 
 #[derive(Error, Debug, ToSchema)]
@@ -26,12 +25,6 @@ pub enum Error {
     #[error("{0}")]
     #[schema(value_type = IdentityErrorDetail)]
     Identity(#[from] identity::Error),
-    #[error("{0}")]
-    #[schema(value_type = RedisErrorDetail)]
-    Redis(#[from] RedisError),
-    #[error("connection pool error: {0}")]
-    #[schema(value_type = Bb8RedisErrorDetail)]
-    Bb8(#[from] bb8::RunError<RedisError>),
     #[error("failed to deserialize json {0}")]
     #[schema(value_type = SerdeJsonErrorDetail)]
     Deser(#[from] serde_json::Error),
@@ -80,14 +73,6 @@ impl From<&Error> for ApiResult<()> {
             }
             Error::Identity(_) => {
                 ApiError::InvalidSignature
-            }
-            Error::Redis(e) => {
-                log::warn!("redis error {e}");
-                ApiError::Redis
-            }
-            Error::Bb8(e) => {
-                log::warn!("bb8 error {e}");
-                ApiError::Redis
             }
             Error::Deser(e) => {
                 log::warn!("deserialization error {e}");
@@ -170,9 +155,7 @@ impl Error {
         match self {
             Error::IO(_)
             | Error::Config(_)
-            | Error::Redis(_)
             | Error::Deser(_)
-            | Error::Bb8(_)
             | Error::Unknown(_)
             | Error::BackendAdminIdentityInvalid(_)
             | Error::Agent(_)

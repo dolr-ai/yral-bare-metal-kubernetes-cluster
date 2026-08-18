@@ -1,31 +1,3 @@
-pub mod dragonfly_kv;
-pub mod redis_kv;
-
-use enum_dispatch::enum_dispatch;
-use redis::RedisError;
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum KVError {
-    #[error("deserialization err: {0}")]
-    Deser(#[from] serde_json::Error),
-    #[error("{0}")]
-    Redis(#[from] RedisError),
-    #[error("{0}")]
-    Bb8(#[from] bb8::RunError<RedisError>),
-    #[error("{0}")]
-    Other(#[from] anyhow::Error),
-}
-
-#[enum_dispatch]
-pub(crate) trait KVStore: Send {
-    async fn read(&self, key: String) -> Result<Option<String>, KVError>;
-    async fn write(&self, key: String, value: String) -> Result<(), KVError>;
-}
-
-#[derive(Clone)]
-#[enum_dispatch(KVStore)]
-pub enum KVStoreImpl {
-    Redis(redis_kv::RedisKV),
-    DragonflyKV(dragonfly_kv::DragonflyKV),
-}
+// KV store module — Redis/Dragonfly removed.
+// The KV store was initialized but never consumed by any feature.
+// SpacetimeDB is used directly for all data operations.
