@@ -35,10 +35,7 @@ ruby = { version = "latest", os = ["macos"] }
 # declare targets/components here as tool options. `mise install` adds any
 # missing targets/components on every run. Do NOT add a rust-toolchain.toml —
 # it would be dead weight (RUSTUP_TOOLCHAIN env var takes precedence).
-rust = { version = "nightly", targets = [
-  "wasm32-unknown-unknown",
-  "x86_64-unknown-linux-musl"
-], components = ["rustfmt", "clippy", "rust-src", "rust-analyzer"] }
+rust = { version = "nightly", targets = ["wasm32-unknown-unknown", "x86_64-unknown-linux-musl"], components = ["rustfmt", "clippy", "rust-src", "rust-analyzer"] }
 sops = "latest"
 swiftlint = { version = "latest", os = ["macos"] }
 # redis = "latest"  # Commented out — was only needed for the KV migration (completed). Re-enable if needed for debugging.
@@ -446,15 +443,6 @@ echo "Done."
 
 # ── yral-auth ────────────────────────────────────────────────────────────────
 
-[tasks.yral-auth-bootstrap]
-description = "Install yral-auth build prerequisites (cargo-leptos, musl+wasm targets, npm deps)"
-depends = ["bootstrap"]
-run = '''
-rustup install
-cargo binstall cargo-leptos --no-confirm
-cd apps/yral-auth && npm install
-'''
-
 [tasks.yral-auth-build]
 description = "Build yral-auth (release, musl static binary + WASM client)"
 dir = "apps/yral-auth"
@@ -467,9 +455,13 @@ depends = ["yral-auth-build"]
 run = "pitchfork start yral-auth --force"
 
 [tasks.yral-auth-test]
-description = "Run yral-auth tests (ssr feature required for bin targets)"
+description = "Run yral-auth tests (starts local SpacetimeDB dev server if needed, injects JWT_EC_PEM via fnox)"
 dir = "apps/yral-auth"
-run = "cargo test --features ssr --bins --lib"
+env = { SPACETIMEDB_URL = "http://127.0.0.1:3000" }
+run = '''
+pitchfork start spacetimedb-dev --force
+fnox exec -- cargo test --features ssr --bins --lib -- --test-threads=1
+'''
 
 [tasks.yral-auth-image]
 description = "Build the yral-auth container image locally (podman)"
@@ -803,12 +795,9 @@ description = "Show status of all dev daemons"
 run = "pitchfork list"
 
 [tasks.test-spacetime-jwt]
-description = "Run end-to-end JWT→SpacetimeDB identity integration tests (requires dev servers running)"
+description = "Run only the JWT→SpacetimeDB identity integration tests (starts local SpacetimeDB dev server if needed, injects JWT_EC_PEM via fnox)"
 dir = "apps/yral-auth"
 run = '''
-if ! curl -sf http://127.0.0.1:3000/v1/health >/dev/null 2>&1; then
-  echo "SpacetimeDB dev server is not running. Start it with: mise run dev-start"
-  exit 1
-fi
+pitchfork start spacetimedb-dev --force
 fnox exec -- cargo test -p yral-auth --features ssr spacetime::integration_tests -- --test-threads=1
 '''

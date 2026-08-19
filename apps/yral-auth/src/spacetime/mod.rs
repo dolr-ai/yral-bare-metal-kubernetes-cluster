@@ -55,5 +55,4 @@ pub fn spacetime_identity_for_user_id(issuer: &str, user_id: &str) -> Identity {
 mod tests;
 
 #[cfg(test)]
-#[cfg(feature = "ssr")]
 mod integration_tests;

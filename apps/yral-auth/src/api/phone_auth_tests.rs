@@ -188,9 +188,6 @@ async fn service_unavailable_surfaces_unexpected_error() {
 /// and then guesses codes one by one.  Each individual guess is correctly
 /// rejected with `InvalidOtp`, confirming that the pure verification logic
 /// always refuses wrong codes regardless of how many times it is called.
-///
-/// The corresponding HTTP-layer rate-limit test is
-/// `brute_force_verify_attempts_are_rate_limited` below.
 #[tokio::test]
 async fn repeated_wrong_otp_guesses_are_always_rejected() {
     let phone = "+15550007777";
@@ -217,82 +214,4 @@ async fn repeated_wrong_otp_guesses_are_always_rejected() {
     );
 }
 
-// ── HTTP-layer rate limiting (phone verification) ─────────────────────────────
 
-/// End-to-end test: a real OTP token is generated via the mock delivery
-/// service, then an attacker hammers the `/api/verify_phone_auth` route with
-/// wrong codes through an axum router that has `GovernorLayer` applied.
-/// After the burst allowance is exhausted the middleware must return 429 —
-/// proving that the HTTP rate-limiting layer protects the verify endpoint.
-#[tokio::test]
-async fn brute_force_verify_attempts_are_rate_limited() {
-    use axum::{
-        body::Body,
-        extract::State,
-        http::{Method, Request, StatusCode},
-        routing::post,
-        Router,
-    };
-    use tower::util::ServiceExt;
-    use tower_governor::{
-        governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor, GovernorLayer,
-    };
-
-    // Generate a real token via the mock so the handler has something to
-    // verify against.
-    let phone = "+15550008888";
-    let (token, _correct_otp) = generate_token_and_capture_otp(phone).await;
-
-    #[derive(Clone)]
-    struct AppState {
-        token: Arc<String>,
-    }
-
-    // Handler that mirrors what the real verify endpoint does: it tries to
-    // verify with a deliberately wrong code (000000), simulating an attacker
-    // guessing codes one by one.
-    async fn verify_handler(State(s): State<AppState>) -> StatusCode {
-        match verify_otp_token(&s.token, "+15550008888", "000000") {
-            Ok(_) => StatusCode::OK,
-            Err(_) => StatusCode::BAD_REQUEST,
-        }
-    }
-
-    let burst_size = 3u32;
-    let governor_conf = GovernorConfigBuilder::default()
-        .per_second(1)
-        .burst_size(burst_size)
-        .key_extractor(SmartIpKeyExtractor)
-        .finish()
-        .unwrap();
-
-    let app = Router::new()
-        .route("/api/{*fn_name}", post(verify_handler))
-        .layer(GovernorLayer::new(governor_conf))
-        .with_state(AppState {
-            token: Arc::new(token),
-        });
-
-    let attacker_ip = "203.0.113.60";
-    let mut got_429 = false;
-
-    for _ in 0..=(burst_size + 2) {
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri("/api/verify_phone_auth")
-            .header("X-Forwarded-For", attacker_ip)
-            .body(Body::empty())
-            .unwrap();
-
-        let status = app.clone().oneshot(req).await.unwrap().status();
-        if status == StatusCode::TOO_MANY_REQUESTS {
-            got_429 = true;
-            break;
-        }
-    }
-
-    assert!(
-        got_429,
-        "brute-force verify attempts should be rate-limited after the burst allowance"
-    );
-}

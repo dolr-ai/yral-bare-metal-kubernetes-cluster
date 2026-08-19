@@ -7,18 +7,17 @@
 //! 3. A JWT minted by yral-auth, when decoded, produces claims that yield
 //!    the same identity when passed to `Identity::from_claims`
 
-use candid::Principal;
 use spacetimedb_sdk::Identity;
 
-use crate::spacetime::spacetime_identity_for_principal;
+use crate::spacetime::spacetime_identity_for_user_id;
 
 #[test]
 fn test_identity_derivation_is_deterministic() {
     let issuer = "https://auth.yral.com";
-    let principal = Principal::anonymous();
+    let user_id = "test-user-1";
 
-    let id1 = Identity::from_claims(issuer, &principal.to_text());
-    let id2 = Identity::from_claims(issuer, &principal.to_text());
+    let id1 = Identity::from_claims(issuer, user_id);
+    let id2 = Identity::from_claims(issuer, user_id);
 
     assert_eq!(
         id1, id2,
@@ -27,45 +26,42 @@ fn test_identity_derivation_is_deterministic() {
 }
 
 #[test]
-fn test_spacetime_identity_for_principal_matches_from_claims() {
+fn test_spacetime_identity_for_user_id_matches_from_claims() {
     let issuer = "https://auth.yral.com";
-    let principal = Principal::anonymous();
+    let user_id = "test-user-1";
 
-    let expected = Identity::from_claims(issuer, &principal.to_text());
-    let actual = spacetime_identity_for_principal(issuer, &principal);
+    let expected = Identity::from_claims(issuer, user_id);
+    let actual = spacetime_identity_for_user_id(issuer, user_id);
 
     assert_eq!(
         expected, actual,
-        "spacetime_identity_for_principal should match Identity::from_claims"
+        "spacetime_identity_for_user_id should match Identity::from_claims"
     );
 }
 
 #[test]
-fn test_different_principals_produce_different_identities() {
+fn test_different_user_ids_produce_different_identities() {
     let issuer = "https://auth.yral.com";
-    // Use self_authenticating principals — anonymous + "2vxsx-fae" resolve
-    // to the same thing (anonymous). Self-authenticating principals have
-    // a derivable public key prefix that makes them distinct.
-    let principal_a = Principal::self_authenticating(&[1, 2, 3]);
-    let principal_b = Principal::self_authenticating(&[4, 5, 6]);
+    let user_id_a = "test-user-1";
+    let user_id_b = "test-user-2";
 
-    let id_a = spacetime_identity_for_principal(issuer, &principal_a);
-    let id_b = spacetime_identity_for_principal(issuer, &principal_b);
+    let id_a = spacetime_identity_for_user_id(issuer, user_id_a);
+    let id_b = spacetime_identity_for_user_id(issuer, user_id_b);
 
     assert_ne!(
         id_a, id_b,
-        "Different principals should produce different SpacetimeDB identities"
+        "Different user IDs should produce different SpacetimeDB identities"
     );
 }
 
 #[test]
 fn test_different_issuers_produce_different_identities() {
-    let principal = Principal::anonymous();
+    let user_id = "test-user-1";
     let issuer_a = "https://auth.yral.com";
     let issuer_b = "http://localhost:8080";
 
-    let id_a = spacetime_identity_for_principal(issuer_a, &principal);
-    let id_b = spacetime_identity_for_principal(issuer_b, &principal);
+    let id_a = spacetime_identity_for_user_id(issuer_a, user_id);
+    let id_b = spacetime_identity_for_user_id(issuer_b, user_id);
 
     assert_ne!(
         id_a, id_b,
@@ -88,8 +84,7 @@ fn test_jwt_minted_by_yral_auth_produces_correct_identity() {
     use jsonwebtoken::{encode, EncodingKey, Header, Algorithm, decode, DecodingKey, Validation};
 
     let issuer = "http://localhost:8080";
-    let principal = Principal::self_authenticating(&[1, 2, 3]);
-    let principal_text = principal.to_text();
+    let user_id = "test-user-jwt-1";
 
     // Generate a test ES256 (P-256/secp256r1) key pair.
     // jsonwebtoken's ES256 requires P-256, NOT secp256k1 (k256).
@@ -102,7 +97,7 @@ fn test_jwt_minted_by_yral_auth_produces_correct_identity() {
 
     let claims = serde_json::json!({
         "iss": issuer,
-        "sub": principal_text,
+        "sub": user_id,
         "aud": "test-client",
         "iat": 1700000000,
         "exp": 1800000000,
@@ -125,14 +120,14 @@ fn test_jwt_minted_by_yral_auth_produces_correct_identity() {
     let decoded_sub = token_data.claims["sub"].as_str().expect("missing sub");
 
     assert_eq!(decoded_iss, issuer);
-    assert_eq!(decoded_sub, principal_text);
+    assert_eq!(decoded_sub, user_id);
 
     // Verify the identity matches
-    let expected_identity = spacetime_identity_for_principal(issuer, &principal);
+    let expected_identity = spacetime_identity_for_user_id(issuer, user_id);
     let actual_identity = Identity::from_claims(decoded_iss, decoded_sub);
 
     assert_eq!(
         expected_identity, actual_identity,
-        "Identity derived from decoded JWT claims should match spacetime_identity_for_principal"
+        "Identity derived from decoded JWT claims should match spacetime_identity_for_user_id"
     );
 }

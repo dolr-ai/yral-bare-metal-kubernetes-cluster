@@ -114,7 +114,7 @@ simple_logger = { workspace = true, optional = true }
 spacetimedb-sdk = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread"], optional = true }
-tower_governor = { workspace = true, features = ["axum"], optional = true }
+
 tracing = { workspace = true, optional = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"], optional = true }
 url = { workspace = true, features = ["serde"] }
@@ -128,6 +128,7 @@ jsonwebtoken = { workspace = true }
 p256 = { workspace = true, features = ["pkcs8"] }
 rand = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }
+yral-database-spacetime-bindings = { path = "../yral-database-spacetime/bindings" }
 
 # getrandom v0.4 is pulled transitively by leptos_macro's uuid dep.
 # On wasm32-unknown-unknown, it needs the wasm_js feature enabled.
@@ -161,7 +162,6 @@ ssr = [
   "dep:simple_logger",
   "dep:spacetimedb-sdk",
   "dep:tokio",
-  "dep:tower_governor",
   "dep:tracing",
   "dep:tracing-subscriber",
   "leptos_meta/ssr",

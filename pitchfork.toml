@@ -43,7 +43,6 @@ run = '''
 exec podman run --rm \
   -p 8080:80 test/my-website
 '''
-auto = ["start", "stop"]
 
 # ── off-chain-agent dev server (release binary) ─────────────────────────────
 # Runs the pre-built musl binary with env vars from mise + secrets from fnox.

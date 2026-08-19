@@ -10,9 +10,6 @@ use axum::{
 };
 use leptos::{config::get_configuration, logging::log, prelude::provide_context};
 use leptos_axum::{generate_route_list, handle_server_fns_with_context, LeptosRoutes};
-use tower_governor::{
-    governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor, GovernorLayer,
-};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use yral_auth::{
@@ -92,20 +89,12 @@ async fn main() {
         ctx: ctx.clone(),
     };
 
-    let governor_conf = GovernorConfigBuilder::default()
-        .per_second(5)
-        .burst_size(10)
-        .key_extractor(SmartIpKeyExtractor)
-        .finish()
-        .unwrap();
-
     let app = Router::new()
         .route(
             "/api/{*fn_name}",
             get(server_fn_handler).post(server_fn_handler),
         )
         .leptos_routes_with_handler(routes, get(leptos_routes_handler))
-        .layer(GovernorLayer::new(governor_conf))
         .fallback(leptos_axum::file_and_error_handler::<ServerState, _>(shell))
         .with_state(app_state)
         .merge(server_routes(ctx))

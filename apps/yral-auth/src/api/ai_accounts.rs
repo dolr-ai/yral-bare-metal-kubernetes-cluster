@@ -4,12 +4,10 @@ use crate::{context::server::ServerCtx, utils::user_id::generate_user_id};
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
-pub const MAX_AI_ACCOUNTS: u8 = 100;
-
-/// KV key for an AI account slot: `{owner_user_id}-ai-account-{slot}`.
+/// KV key for a user's AI account list: `{owner_user_id}-ai-accounts` → JSON array of AI account IDs.
 #[cfg(feature = "ssr")]
-fn ai_account_slot_key(owner_user_id: &str, slot: u8) -> String {
-    format!("{owner_user_id}-ai-account-{slot}")
+fn ai_account_list_key(owner_user_id: &str) -> String {
+    format!("{owner_user_id}-ai-accounts")
 }
 
 /// KV key for reverse lookup: `ai-account:{ai_account_id}` → owner user ID.
@@ -38,38 +36,23 @@ pub async fn create_ai_account(user_id: String) -> Result<AIAccountResponse, Ser
         ));
     }
 
-    // Find the next available slot
-    let mut next_slot: Option<u8> = None;
-    for slot in 1..=MAX_AI_ACCOUNTS {
-        let key = ai_account_slot_key(&user_id, slot);
-        match ctx.kv_store.has_key(key).await {
-            Ok(exists) => {
-                if !exists && next_slot.is_none() {
-                    next_slot = Some(slot);
-                }
-            }
-            Err(e) => {
-                return Err(ServerFnError::new(format!("Storage error: {}", e)));
-            }
-        }
-    }
-
-    let slot = match next_slot {
-        Some(s) => s,
-        None => {
-            return Err(ServerFnError::new(format!(
-                "Maximum of {} AI accounts already created",
-                MAX_AI_ACCOUNTS
-            )));
-        }
+    // Read the existing AI account list (empty if first account)
+    let list_key = ai_account_list_key(&user_id);
+    let mut ai_account_ids: Vec<String> = match ctx.kv_store.read(list_key.clone()).await {
+        Ok(Some(json)) => serde_json::from_str(&json)
+            .map_err(|e| ServerFnError::new(format!("Storage error: {}", e)))?,
+        Ok(None) => Vec::new(),
+        Err(e) => return Err(ServerFnError::new(format!("Storage error: {}", e))),
     };
 
     // Generate a new AI account ID (UUID)
     let ai_account_id = generate_user_id();
 
-    // Store: slot key → ai_account_id
-    let slot_key = ai_account_slot_key(&user_id, slot);
-    if let Err(e) = ctx.kv_store.write(slot_key, ai_account_id.clone()).await {
+    // Append the new AI account to the list and persist
+    ai_account_ids.push(ai_account_id.clone());
+    let updated_json = serde_json::to_string(&ai_account_ids)
+        .map_err(|e| ServerFnError::new(format!("Storage error: {}", e)))?;
+    if let Err(e) = ctx.kv_store.write(list_key, updated_json).await {
         return Err(ServerFnError::new(format!("Storage error: {}", e)));
     }
 
@@ -95,18 +78,10 @@ pub async fn get_ai_account_ids_for_user(
     ctx: &ServerCtx,
     user_id: &str,
 ) -> Result<Vec<String>, String> {
-    let mut ai_account_ids = Vec::new();
-
-    for slot in 1..=MAX_AI_ACCOUNTS {
-        let key = ai_account_slot_key(user_id, slot);
-        match ctx.kv_store.read(key).await {
-            Ok(Some(ai_account_id)) => {
-                ai_account_ids.push(ai_account_id);
-            }
-            Ok(None) => continue,
-            Err(e) => return Err(e.to_string()),
-        }
+    let list_key = ai_account_list_key(user_id);
+    match ctx.kv_store.read(list_key).await {
+        Ok(Some(json)) => serde_json::from_str(&json).map_err(|e| e.to_string()),
+        Ok(None) => Ok(Vec::new()),
+        Err(e) => Err(e.to_string()),
     }
-
-    Ok(ai_account_ids)
 }
