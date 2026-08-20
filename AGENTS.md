@@ -285,7 +285,13 @@ This ensures `mise bootstrap --yes && mise run setup` is the only command needed
 6. **Validate**: confirm counts match, spot-check rows, verify all clients work.
 7. **Clean up**: remove the old table from the schema and publish. The old table must be empty first (clear via a reducer — never `--delete-data`). Drop the old table only after a confirmed production period.
 
-Type names should be `<Type>V2` and table names should be `<table_name>_v2` (use the `name` attribute in `#[spacetimedb::table(name = "posts_v2", ...)]` to override SpacetimeDB's automatic snake_case number splitting, which would produce `posts_v_2`). **Reducer names are also affected** — `upsert_posts_v2_batch` becomes `upsert_posts_v_2_batch` in the REST API. There is no `name` attribute for reducers, so either accept the generated name or avoid numbers in reducer function names.
+**Naming convention — use numeric suffixes, not `v` (Hard Rule).** SpacetimeDB's automatic snake_case conversion splits `v2` into `v_2` (e.g. `posts_v2` → `posts_v_2`, `accept_new_user_registration_v2` → `accept_new_user_registration_v_2` in the REST API). This causes confusion for external consumers (other bots, mobile clients) who see the mangled name. To avoid this:
+
+- **Type names:** Use `<Type>2` instead of `<Type>V2` (e.g. `UserProfileDetails7` not `UserProfileDetailsV7`). SpacetimeDB's snake_case conversion produces `user_profile_details_7` — clean, no underscore-split ambiguity.
+- **Table names:** Use `<table_name>_2` (e.g. `posts_2` not `posts_v2`). Use the `name` attribute in `#[spacetimedb::table(name = "posts_2", ...)]` to override automatic splitting.
+- **Reducer/procedure names:** Use `<name>_2` (e.g. `accept_new_user_registration_2` not `accept_new_user_registration_v2`). There is no `name` attribute for reducers, so the function name is the REST API name — numeric suffixes avoid the `v_2` split.
+
+Existing `v`-prefixed names (`posts_v2`, `UserProfileDetailsV7`, etc.) are left as-is to avoid breaking schema migrations; the convention applies to **new** types/tables/reducers/procedures going forward.
 
 **Cursor-based pagination (Hard Rule).** All paginated APIs (procedures, REST endpoints) must use cursor-based pagination, not offset/limit. The cursor is the ID (or timestamp) of the last record from the previous page — pass it as an optional `cursor` argument alongside a `limit`/`size` parameter. `None` cursor starts from the beginning. Return `next_cursor` (`None` when no more results). Offset/limit pagination is rejected — it's inefficient for large datasets and unstable under concurrent inserts.
 
