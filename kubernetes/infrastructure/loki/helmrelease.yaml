@@ -15,8 +15,17 @@ spec:
         namespace: loki
   timeout: 10m
   upgrade:
-    remediation:
-      retries: 3
+    # RetryOnFailure retries failed upgrades without rollback/uninstall remediation.
+    # This is the recommended strategy for StatefulSets (per Flux docs):
+    # "RetryOnFailure is suitable for statefulsets and other workloads that cannot
+    # tolerate rollbacks and have a high rollout duration susceptible to health
+    # check timeouts and transient capacity errors."
+    # The default RemediateOnFailure strategy uses rollback, which fails with
+    # MissingRollbackTarget when there's no previous successful release (e.g.
+    # after a prune + recreate).
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 30s
   values:
     deploymentMode: SingleBinary
 
