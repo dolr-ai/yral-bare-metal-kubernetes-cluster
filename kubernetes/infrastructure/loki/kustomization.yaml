@@ -3,5 +3,10 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - helmrepository.yaml
-  - helmrelease.yaml
+  # helmrelease.yaml temporarily removed to let Flux prune the old StatefulSet.
+  # The old StatefulSet has an immutable volumeClaimTemplate (600Gi, longhorn)
+  # that can't be updated to the new spec (50Gi, longhorn-1replica). Removing
+  # the HelmRelease triggers helm uninstall, which deletes the StatefulSet and
+  # pod, releasing the stuck PVC/PV and clearing the Longhorn volume deadlock.
+  # The HelmRelease will be re-added in the next push to recreate everything fresh.
   - loki-s3-credentials.sops.yaml
