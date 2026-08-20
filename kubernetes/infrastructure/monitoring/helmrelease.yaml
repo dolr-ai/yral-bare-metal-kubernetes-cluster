@@ -130,6 +130,8 @@ spec:
 
     alertmanager:
       alertmanagerSpec:
+        useExistingSecret: true
+        configSecret: alertmanager-config
         resources:
           requests:
             cpu: 50m

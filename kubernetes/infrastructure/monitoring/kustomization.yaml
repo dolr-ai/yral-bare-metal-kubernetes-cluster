@@ -16,3 +16,4 @@ resources:
   - alerting-contact-point.yaml
   - alerting-notification-policy.yaml
   - alerting-rules-resource-saturation.yaml
+  - alertmanager-config.sops.yaml

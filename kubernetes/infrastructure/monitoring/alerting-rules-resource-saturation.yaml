@@ -298,6 +298,9 @@ data:
             isPaused: false
 
           # ─── PVC Storage ─────────────────────────────────────────────────────────
+          # PVC-level alerts use kubelet volume stats (not node_exporter filesystem
+          # stats). These catch workloads filling their PVCs before the volume fills
+          # and causes pod crashes or disk pressure on the node.
           - uid: pvc-space-near-full
             title: PVC Space Nearly Full (>80%)
             condition: C
