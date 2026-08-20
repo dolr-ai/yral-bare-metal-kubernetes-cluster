@@ -246,7 +246,7 @@ run = "spacetimedb-cli build -p apps/yral-database-spacetime"
 
 [tasks.spacetime-generate]
 description = "Regenerate Rust client bindings from the live Maincloud database schema (reads spacetime.json). Must be run after spacetime-publish to reflect schema changes."
-run = "spacetimedb-cli generate && mv apps/yral-database-spacetime/bindings/src/mod.rs apps/yral-database-spacetime/bindings/src/lib.rs"
+run = "spacetimedb-cli generate"
 
 [tasks.spacetime-test]
 description = "Run yral-database-spacetime tests"

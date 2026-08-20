@@ -610,10 +610,12 @@ pub fn accept_new_user_registration_v2(
                 None => return Err("Owner not found".to_string()),
             };
             match &owner_profile.account_type {
-                UserAccountType::MainAccount { bots } => {
-                    let mut bots = bots.clone();
-                    bots.push(new_principal_text.clone());
-                    owner_profile.account_type = UserAccountType::MainAccount { bots };
+                UserAccountType::MainAccount { .. } => {
+                    owner_profile.account_type = validate_owner_for_bot_creation(
+                        &owner_profile.account_type,
+                        &new_principal_text,
+                    )
+                    .expect("validated above");
                     ctx.db.user_profiles().delete(owner_profile.clone());
                     ctx.db.user_profiles().insert(owner_profile);
                 }
@@ -623,47 +625,18 @@ pub fn accept_new_user_registration_v2(
             }
 
             // Create the bot account
-            ctx.db.user_profiles().insert(UserProfile {
-                principal_text: new_principal_text,
-                bio: String::new(),
-                website_url: String::new(),
-                profile_picture_url: String::new(),
-                followers_count: 0,
-                following_count: 0,
-                subscription_plan: SubscriptionPlan::Free,
-                is_ai_influencer: false,
-                is_nsfw: false,
-                nsfw_ec: String::new(),
-                nsfw_gore: String::new(),
-                csam_detected: false,
-                last_access_time: ctx.timestamp,
-                account_type: UserAccountType::BotAccount { owner: owner_text },
-                username: None,
-                email: None,
-                user_id: None,
-            });
+            ctx.db.user_profiles().insert(build_bot_profile(
+                new_principal_text,
+                owner_text,
+                ctx.timestamp,
+            ));
         }
         None => {
             // Normal account registration
-            ctx.db.user_profiles().insert(UserProfile {
-                principal_text: new_principal_text,
-                bio: String::new(),
-                website_url: String::new(),
-                profile_picture_url: String::new(),
-                followers_count: 0,
-                following_count: 0,
-                subscription_plan: SubscriptionPlan::Free,
-                is_ai_influencer: false,
-                is_nsfw: false,
-                nsfw_ec: String::new(),
-                nsfw_gore: String::new(),
-                csam_detected: false,
-                last_access_time: ctx.timestamp,
-                account_type: UserAccountType::MainAccount { bots: Vec::new() },
-                username: None,
-                email: None,
-                user_id: None,
-            });
+            ctx.db.user_profiles().insert(build_main_account_profile(
+                new_principal_text,
+                ctx.timestamp,
+            ));
         }
     }
 
@@ -747,7 +720,10 @@ pub fn delete_user_info(
         .db
         .user_follows()
         .iter()
-        .filter(|f| f.follower_text == principal_to_delete_text || f.followee_text == principal_to_delete_text)
+        .filter(|f| {
+            f.follower_text == principal_to_delete_text
+                || f.followee_text == principal_to_delete_text
+        })
         .collect();
     for f in follows_to_delete {
         ctx.db.user_follows().delete(f);
@@ -957,37 +933,43 @@ pub fn upsert_user_follow_batch(
 /// Register a device notification token for the caller.
 /// Idempotent — if the token already exists, it's a no-op.
 #[spacetimedb::reducer]
-pub fn register_notification_token(
-    ctx: &ReducerContext,
-    token: String,
-) -> Result<(), String> {
+pub fn register_notification_token(ctx: &ReducerContext, token: String) -> Result<(), String> {
     let user_id = ctx.sender().to_hex().to_string();
     let key = format!("{user_id}::{token}");
 
     // Check if already exists
-    if ctx.db.user_notification_tokens().iter().any(|t| t.key == key) {
+    if ctx
+        .db
+        .user_notification_tokens()
+        .iter()
+        .any(|t| t.key == key)
+    {
         return Ok(());
     }
 
-    ctx.db.user_notification_tokens().insert(UserNotificationToken {
-        key,
-        user_id,
-        token,
-    });
+    ctx.db
+        .user_notification_tokens()
+        .insert(UserNotificationToken {
+            key,
+            user_id,
+            token,
+        });
 
     Ok(())
 }
 
 /// Unregister a device notification token for the caller.
 #[spacetimedb::reducer]
-pub fn unregister_notification_token(
-    ctx: &ReducerContext,
-    token: String,
-) -> Result<(), String> {
+pub fn unregister_notification_token(ctx: &ReducerContext, token: String) -> Result<(), String> {
     let user_id = ctx.sender().to_hex().to_string();
     let key = format!("{user_id}::{token}");
 
-    if let Some(existing) = ctx.db.user_notification_tokens().iter().find(|t| t.key == key) {
+    if let Some(existing) = ctx
+        .db
+        .user_notification_tokens()
+        .iter()
+        .find(|t| t.key == key)
+    {
         ctx.db.user_notification_tokens().delete(existing);
     }
 
@@ -1007,7 +989,12 @@ pub fn link_user_id(
         return Err("Unauthorized".to_string());
     }
 
-    if let Some(mut profile) = ctx.db.user_profiles().iter().find(|p| p.principal_text == principal_text) {
+    if let Some(mut profile) = ctx
+        .db
+        .user_profiles()
+        .iter()
+        .find(|p| p.principal_text == principal_text)
+    {
         profile.user_id = Some(user_id);
         let profile_clone = profile.clone();
         ctx.db.user_profiles().delete(profile);
@@ -1034,16 +1021,29 @@ pub fn set_username(
     }
 
     // Validate: 3-15 alphanumeric characters
-    if !username.chars().all(|c| c.is_ascii_alphanumeric()) || username.len() < 3 || username.len() > 15 {
+    if !username.chars().all(|c| c.is_ascii_alphanumeric())
+        || username.len() < 3
+        || username.len() > 15
+    {
         return Err("Invalid username: must be 3-15 alphanumeric characters".to_string());
     }
 
     // Check for duplicate username
-    if ctx.db.user_profiles().iter().any(|p| p.username.as_deref() == Some(&username)) {
+    if ctx
+        .db
+        .user_profiles()
+        .iter()
+        .any(|p| p.username.as_deref() == Some(&username))
+    {
         return Err("DuplicateUsername".to_string());
     }
 
-    if let Some(mut profile) = ctx.db.user_profiles().iter().find(|p| p.principal_text == principal_text) {
+    if let Some(mut profile) = ctx
+        .db
+        .user_profiles()
+        .iter()
+        .find(|p| p.principal_text == principal_text)
+    {
         // Remove old username association if any
         profile.username = Some(username);
         let profile_clone = profile.clone();
@@ -1067,7 +1067,12 @@ pub fn set_email(
         return Err("Unauthorized".to_string());
     }
 
-    if let Some(mut profile) = ctx.db.user_profiles().iter().find(|p| p.principal_text == principal_text) {
+    if let Some(mut profile) = ctx
+        .db
+        .user_profiles()
+        .iter()
+        .find(|p| p.principal_text == principal_text)
+    {
         profile.email = Some(email);
         let profile_clone = profile.clone();
         ctx.db.user_profiles().delete(profile);
@@ -1261,9 +1266,7 @@ pub fn get_followers(
                     .user_profiles()
                     .iter()
                     .find(|p| p.principal_text == f.follower_text);
-                let pic = profile
-                    .map(|p| p.profile_picture_url)
-                    .unwrap_or_default();
+                let pic = profile.map(|p| p.profile_picture_url).unwrap_or_default();
                 let caller_follows = tx
                     .db
                     .user_follows()
@@ -1335,9 +1338,7 @@ pub fn get_following(
                     .user_profiles()
                     .iter()
                     .find(|p| p.principal_text == f.followee_text);
-                let pic = profile
-                    .map(|p| p.profile_picture_url)
-                    .unwrap_or_default();
+                let pic = profile.map(|p| p.profile_picture_url).unwrap_or_default();
                 let caller_follows = tx
                     .db
                     .user_follows()
@@ -1362,10 +1363,7 @@ pub fn get_following(
 /// Get all notification tokens for a user (by user_id).
 /// Used by the push notification service to send FCM notifications.
 #[spacetimedb::procedure]
-pub fn get_notification_tokens(
-    ctx: &mut ProcedureContext,
-    user_id: String,
-) -> Vec<String> {
+pub fn get_notification_tokens(ctx: &mut ProcedureContext, user_id: String) -> Vec<String> {
     ctx.with_tx(|tx| {
         tx.db
             .user_notification_tokens()
@@ -1450,4 +1448,269 @@ pub fn get_user_profile_by_username(
             account_type: profile.account_type,
         })
     })
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Pure helpers for bot registration logic (extracted from the reducer so
+// they can be unit-tested without a ReducerContext).
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Validate the owner for a bot-account creation. Returns the updated
+/// `UserAccountType` with the new bot appended to the `bots` list, or
+/// an error if the owner is a `BotAccount` (bots cannot own bots).
+fn validate_owner_for_bot_creation(
+    owner_account_type: &UserAccountType,
+    new_bot_principal: &str,
+) -> Result<UserAccountType, String> {
+    match owner_account_type {
+        UserAccountType::MainAccount { bots } => {
+            let mut updated_bots = bots.clone();
+            updated_bots.push(new_bot_principal.to_string());
+            Ok(UserAccountType::MainAccount { bots: updated_bots })
+        }
+        UserAccountType::BotAccount { .. } => Err("Bots cannot own other bots".to_string()),
+    }
+}
+
+/// Build a new bot `UserProfile` with default values, owned by `owner_principal`.
+fn build_bot_profile(
+    bot_principal: String,
+    owner_principal: String,
+    timestamp: Timestamp,
+) -> UserProfile {
+    UserProfile {
+        principal_text: bot_principal,
+        bio: String::new(),
+        website_url: String::new(),
+        profile_picture_url: String::new(),
+        followers_count: 0,
+        following_count: 0,
+        subscription_plan: SubscriptionPlan::Free,
+        is_ai_influencer: false,
+        is_nsfw: false,
+        nsfw_ec: String::new(),
+        nsfw_gore: String::new(),
+        csam_detected: false,
+        last_access_time: timestamp,
+        account_type: UserAccountType::BotAccount {
+            owner: owner_principal,
+        },
+        username: None,
+        email: None,
+        user_id: None,
+    }
+}
+
+/// Build a new main-account `UserProfile` with default values.
+fn build_main_account_profile(principal: String, timestamp: Timestamp) -> UserProfile {
+    UserProfile {
+        principal_text: principal,
+        bio: String::new(),
+        website_url: String::new(),
+        profile_picture_url: String::new(),
+        followers_count: 0,
+        following_count: 0,
+        subscription_plan: SubscriptionPlan::Free,
+        is_ai_influencer: false,
+        is_nsfw: false,
+        nsfw_ec: String::new(),
+        nsfw_gore: String::new(),
+        csam_detected: false,
+        last_access_time: timestamp,
+        account_type: UserAccountType::MainAccount { bots: Vec::new() },
+        username: None,
+        email: None,
+        user_id: None,
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Tests
+// ─────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TEST_TIMESTAMP: Timestamp = Timestamp::UNIX_EPOCH;
+
+    // ── validate_owner_for_bot_creation ──
+
+    #[test]
+    fn test_validate_owner_main_account_with_no_bots() {
+        let owner_type = UserAccountType::MainAccount { bots: Vec::new() };
+        let result = validate_owner_for_bot_creation(&owner_type, "bot-1");
+        assert!(result.is_ok());
+        let updated = result.unwrap();
+        match updated {
+            UserAccountType::MainAccount { bots } => {
+                assert_eq!(bots, vec!["bot-1"]);
+            }
+            UserAccountType::BotAccount { .. } => panic!("Expected MainAccount"),
+        }
+    }
+
+    #[test]
+    fn test_validate_owner_main_account_with_existing_bots() {
+        let owner_type = UserAccountType::MainAccount {
+            bots: vec!["existing-bot-1".to_string(), "existing-bot-2".to_string()],
+        };
+        let result = validate_owner_for_bot_creation(&owner_type, "new-bot");
+        assert!(result.is_ok());
+        let updated = result.unwrap();
+        match updated {
+            UserAccountType::MainAccount { bots } => {
+                assert_eq!(bots, vec!["existing-bot-1", "existing-bot-2", "new-bot"]);
+            }
+            UserAccountType::BotAccount { .. } => panic!("Expected MainAccount"),
+        }
+    }
+
+    #[test]
+    fn test_validate_owner_bot_account_rejected() {
+        let owner_type = UserAccountType::BotAccount {
+            owner: "someone-else".to_string(),
+        };
+        let result = validate_owner_for_bot_creation(&owner_type, "new-bot");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Bots cannot own other bots");
+    }
+
+    #[test]
+    fn test_validate_owner_does_not_mutate_original() {
+        let owner_type = UserAccountType::MainAccount {
+            bots: vec!["bot-a".to_string()],
+        };
+        let _ = validate_owner_for_bot_creation(&owner_type, "bot-b");
+        match owner_type {
+            UserAccountType::MainAccount { bots } => {
+                assert_eq!(bots, vec!["bot-a"]);
+            }
+            _ => panic!("Expected MainAccount"),
+        }
+    }
+
+    // ── build_bot_profile ──
+
+    #[test]
+    fn test_build_bot_profile_defaults() {
+        let profile = build_bot_profile(
+            "bot-principal".to_string(),
+            "owner-principal".to_string(),
+            TEST_TIMESTAMP,
+        );
+        assert_eq!(profile.principal_text, "bot-principal");
+        assert_eq!(profile.bio, "");
+        assert_eq!(profile.website_url, "");
+        assert_eq!(profile.profile_picture_url, "");
+        assert_eq!(profile.followers_count, 0);
+        assert_eq!(profile.following_count, 0);
+        assert_eq!(profile.subscription_plan, SubscriptionPlan::Free);
+        assert!(!profile.is_ai_influencer);
+        assert!(!profile.is_nsfw);
+        assert_eq!(profile.nsfw_ec, "");
+        assert_eq!(profile.nsfw_gore, "");
+        assert!(!profile.csam_detected);
+        assert_eq!(profile.last_access_time, TEST_TIMESTAMP);
+        assert_eq!(profile.username, None);
+        assert_eq!(profile.email, None);
+        assert_eq!(profile.user_id, None);
+    }
+
+    #[test]
+    fn test_build_bot_profile_account_type() {
+        let profile = build_bot_profile(
+            "bot-123".to_string(),
+            "owner-456".to_string(),
+            TEST_TIMESTAMP,
+        );
+        match &profile.account_type {
+            UserAccountType::BotAccount { owner } => {
+                assert_eq!(owner, "owner-456");
+            }
+            UserAccountType::MainAccount { .. } => {
+                panic!("Expected BotAccount, got MainAccount")
+            }
+        }
+    }
+
+    // ── build_main_account_profile ──
+
+    #[test]
+    fn test_build_main_account_profile_defaults() {
+        let profile = build_main_account_profile("main-principal".to_string(), TEST_TIMESTAMP);
+        assert_eq!(profile.principal_text, "main-principal");
+        assert_eq!(profile.followers_count, 0);
+        assert_eq!(profile.following_count, 0);
+        assert_eq!(profile.subscription_plan, SubscriptionPlan::Free);
+        assert!(!profile.is_ai_influencer);
+        assert_eq!(profile.username, None);
+        assert_eq!(profile.email, None);
+        assert_eq!(profile.user_id, None);
+    }
+
+    #[test]
+    fn test_build_main_account_profile_account_type() {
+        let profile = build_main_account_profile("main-user".to_string(), TEST_TIMESTAMP);
+        match &profile.account_type {
+            UserAccountType::MainAccount { bots } => {
+                assert!(bots.is_empty());
+            }
+            UserAccountType::BotAccount { .. } => {
+                panic!("Expected MainAccount, got BotAccount")
+            }
+        }
+    }
+
+    // ── profile_picture_data ──
+
+    #[test]
+    fn test_profile_picture_data_empty_url() {
+        let profile = build_main_account_profile("test".to_string(), TEST_TIMESTAMP);
+        assert!(profile_picture_data(&profile).is_none());
+    }
+
+    #[test]
+    fn test_profile_picture_data_with_url() {
+        let profile = UserProfile {
+            principal_text: "test".to_string(),
+            bio: String::new(),
+            website_url: String::new(),
+            profile_picture_url: "https://example.com/pic.jpg".to_string(),
+            followers_count: 0,
+            following_count: 0,
+            subscription_plan: SubscriptionPlan::Free,
+            is_ai_influencer: false,
+            is_nsfw: true,
+            nsfw_ec: "ec-value".to_string(),
+            nsfw_gore: "gore-value".to_string(),
+            csam_detected: false,
+            last_access_time: TEST_TIMESTAMP,
+            account_type: UserAccountType::MainAccount { bots: Vec::new() },
+            username: None,
+            email: None,
+            user_id: None,
+        };
+        let pic_data = profile_picture_data(&profile).unwrap();
+        assert_eq!(pic_data.url, "https://example.com/pic.jpg");
+        assert!(pic_data.nsfw_info.is_nsfw);
+        assert_eq!(pic_data.nsfw_info.nsfw_ec, "ec-value");
+        assert_eq!(pic_data.nsfw_info.nsfw_gore, "gore-value");
+        assert!(!pic_data.nsfw_info.csam_detected);
+    }
+
+    // ── UserAccountType Default ──
+
+    #[test]
+    fn test_user_account_type_default_is_main_account() {
+        let default = UserAccountType::default();
+        match default {
+            UserAccountType::MainAccount { bots } => {
+                assert!(bots.is_empty());
+            }
+            UserAccountType::BotAccount { .. } => {
+                panic!("Default should be MainAccount")
+            }
+        }
+    }
 }
