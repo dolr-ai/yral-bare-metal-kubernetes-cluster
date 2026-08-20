@@ -60,6 +60,8 @@ spec:
           # We use env-var expansion so credentials never appear in the config file:
           # https://grafana.com/docs/loki/latest/configure/#use-environment-variables-in-the-configuration
           s3: "s3://${AWS_ACCESS_KEY_ID}:${AWS_SECRET_ACCESS_KEY}@fsn1.your-objectstorage.com/saikat-kubernetes-loki-storage"
+          accessKeyId: ${AWS_ACCESS_KEY_ID}
+          secretAccessKey: ${AWS_SECRET_ACCESS_KEY}
       schemaConfig:
         # New schema period starting from the S3 migration date. Existing
         # filesystem-era data (from 2024-01-01 schema) is not migrated — this
@@ -76,6 +78,15 @@ spec:
 
     singleBinary:
       replicas: 1
+      # Inject S3 credentials from the SOPS-encrypted Secret as environment
+      # variables. -config.expand-env=true enables ${VAR} substitution in the
+      # Loki config YAML so credentials never appear in the config file:
+      # https://grafana.com/docs/loki/latest/configure/#use-environment-variables-in-the-configuration
+      extraEnvFrom:
+        - secretRef:
+            name: loki-s3-credentials
+      extraArgs:
+        - -config.expand-env=true
       persistence:
         # Longhorn volume for WAL, active index, and compactor working directory.
         # Chunks and the bulk of index data now live in S3 — this PVC only needs
@@ -93,17 +104,6 @@ spec:
           # VPA upper: 4095m / 5.28Gi — previous 4Gi limit was below upper and caused OOM
           cpu: 4000m
           memory: 6Gi
-
-    # Inject S3 credentials from the SOPS-encrypted Secret as environment
-    # variables. Loki uses -config.expand-env=true (set via extraArgs below) to
-    # resolve ${AWS_ACCESS_KEY_ID} and ${AWS_SECRET_ACCESS_KEY} in the s3.url.
-    global:
-      extraEnvFrom:
-        - secretRef:
-            name: loki-s3-credentials
-      # -config.expand-env=true enables ${VAR} substitution in the Loki config YAML.
-      extraArgs:
-        - -config.expand-env=true
 
     # Disable scale-out components — not needed in SingleBinary mode
     read:
