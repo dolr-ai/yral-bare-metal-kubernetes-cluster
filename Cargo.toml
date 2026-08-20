@@ -91,7 +91,7 @@ identity = { package = "yral-identity", path = "apps/yral-common/identity", defa
 image = "0.25"
 indexmap = "2.8.0"
 js-sys = "0.3.69"
-jsonwebtoken = "9.3.1"
+jsonwebtoken = "10.3.0"
 k256 = { version = "0.13.4", default-features = false }
 leptos = "0.8.20"
 leptos_axum = "0.8.7"
