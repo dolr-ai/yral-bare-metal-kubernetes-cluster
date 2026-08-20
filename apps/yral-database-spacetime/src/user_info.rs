@@ -380,8 +380,7 @@ pub fn follow_user(ctx: &ReducerContext, followee_text: String) -> Result<(), St
         .find(|p| p.principal_text == follower_text)
     {
         p.following_count += 1;
-        ctx.db.user_profiles().delete(p.clone());
-        ctx.db.user_profiles().insert(p);
+        ctx.db.user_profiles().principal_text().update(p);
     }
 
     // Update followee's followers count
@@ -392,8 +391,7 @@ pub fn follow_user(ctx: &ReducerContext, followee_text: String) -> Result<(), St
         .find(|p| p.principal_text == followee_text)
     {
         p.followers_count += 1;
-        ctx.db.user_profiles().delete(p.clone());
-        ctx.db.user_profiles().insert(p);
+        ctx.db.user_profiles().principal_text().update(p);
     }
 
     Ok(())
@@ -419,8 +417,7 @@ pub fn unfollow_user(ctx: &ReducerContext, followee_text: String) -> Result<(), 
         .find(|p| p.principal_text == follower_text)
     {
         p.following_count = p.following_count.saturating_sub(1);
-        ctx.db.user_profiles().delete(p.clone());
-        ctx.db.user_profiles().insert(p);
+        ctx.db.user_profiles().principal_text().update(p);
     }
 
     // Update followee's followers count
@@ -431,8 +428,7 @@ pub fn unfollow_user(ctx: &ReducerContext, followee_text: String) -> Result<(), 
         .find(|p| p.principal_text == followee_text)
     {
         p.followers_count = p.followers_count.saturating_sub(1);
-        ctx.db.user_profiles().delete(p.clone());
-        ctx.db.user_profiles().insert(p);
+        ctx.db.user_profiles().principal_text().update(p);
     }
 
     Ok(())
@@ -462,8 +458,7 @@ pub fn update_profile_details(
     profile.bio = bio;
     profile.website_url = website_url;
     profile.profile_picture_url = profile_pic_url;
-    ctx.db.user_profiles().delete(profile.clone());
-    ctx.db.user_profiles().insert(profile);
+    ctx.db.user_profiles().principal_text().update(profile);
 
     Ok(())
 }
@@ -490,8 +485,7 @@ pub fn update_profile_ai_influencer_status(
     };
 
     profile.is_ai_influencer = is_ai_influencer;
-    ctx.db.user_profiles().delete(profile.clone());
-    ctx.db.user_profiles().insert(profile);
+    ctx.db.user_profiles().principal_text().update(profile);
 
     Ok(())
 }
@@ -531,8 +525,7 @@ pub fn update_profile_details_v2(
         profile.nsfw_gore = pic.nsfw_info.nsfw_gore;
         profile.csam_detected = pic.nsfw_info.csam_detected;
     }
-    ctx.db.user_profiles().delete(profile.clone());
-    ctx.db.user_profiles().insert(profile);
+    ctx.db.user_profiles().principal_text().update(profile);
 
     Ok(())
 }
@@ -563,8 +556,7 @@ pub fn update_profile_picture_nsfw_info(
     profile.nsfw_ec = nsfw_info.nsfw_ec;
     profile.nsfw_gore = nsfw_info.nsfw_gore;
     profile.csam_detected = nsfw_info.csam_detected;
-    ctx.db.user_profiles().delete(profile.clone());
-    ctx.db.user_profiles().insert(profile);
+    ctx.db.user_profiles().principal_text().update(profile);
 
     Ok(())
 }
@@ -616,8 +608,7 @@ pub fn accept_new_user_registration_v2(
                         &new_principal_text,
                     )
                     .expect("validated above");
-                    ctx.db.user_profiles().delete(owner_profile.clone());
-                    ctx.db.user_profiles().insert(owner_profile);
+                    ctx.db.user_profiles().principal_text().update(owner_profile);
                 }
                 UserAccountType::BotAccount { .. } => {
                     return Err("Bots cannot own other bots".to_string());
@@ -706,8 +697,7 @@ pub fn delete_user_info(
                         .cloned()
                         .collect();
                     owner_profile.account_type = UserAccountType::MainAccount { bots: new_bots };
-                    ctx.db.user_profiles().delete(owner_profile.clone());
-                    ctx.db.user_profiles().insert(owner_profile);
+                    ctx.db.user_profiles().principal_text().update(owner_profile);
                 }
             }
             // Delete the bot
@@ -748,8 +738,7 @@ pub fn update_user_last_access_time(ctx: &ReducerContext) -> Result<(), String> 
     };
 
     profile.last_access_time = ctx.timestamp;
-    ctx.db.user_profiles().delete(profile.clone());
-    ctx.db.user_profiles().insert(profile);
+    ctx.db.user_profiles().principal_text().update(profile);
 
     Ok(())
 }
@@ -776,8 +765,7 @@ pub fn change_subscription_plan(
     };
 
     profile.subscription_plan = plan;
-    ctx.db.user_profiles().delete(profile.clone());
-    ctx.db.user_profiles().insert(profile);
+    ctx.db.user_profiles().principal_text().update(profile);
 
     Ok(())
 }
@@ -811,8 +799,7 @@ pub fn add_pro_plan_free_video_credits(
             return Err("User is on Free plan".to_string());
         }
     }
-    ctx.db.user_profiles().delete(profile.clone());
-    ctx.db.user_profiles().insert(profile);
+    ctx.db.user_profiles().principal_text().update(profile);
 
     Ok(())
 }
@@ -846,8 +833,7 @@ pub fn remove_pro_plan_free_video_credits(
             return Err("User is on Free plan".to_string());
         }
     }
-    ctx.db.user_profiles().delete(profile.clone());
-    ctx.db.user_profiles().insert(profile);
+    ctx.db.user_profiles().principal_text().update(profile);
 
     Ok(())
 }
