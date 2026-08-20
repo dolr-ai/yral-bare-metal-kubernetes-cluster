@@ -123,3 +123,27 @@ spec:
       # renders {"v1":"true"} instead. Only boolean false or the explicit JSON form
       # '{"v1":"false"}' produces the correct ConfigMap entry.
       disableRevisionCounter: '{"v1":"false"}'
+
+    # Longhorn Manager must survive disk pressure to be able to clean up replica
+    # data on the affected node. Without it running, the volume deletion stalls
+    # (the manager is the process that deletes replica data from disk), creating
+    # a deadlock: disk pressure evicts the manager → manager can't clean up →
+    # disk stays full → pressure persists.
+    #
+    # Two changes:
+    # 1. Add resource requests so the pod is Burstable QoS (not BestEffort, which
+    #    is the first to be evicted by the kubelet during disk pressure).
+    # 2. Add a NoExecute toleration for node.kubernetes.io/disk-pressure so the
+    #    kubelet does not evict the pod when the taint is applied. The default
+    #    chart tolerations only have NoSchedule for disk-pressure, which prevents
+    #    new pods from scheduling but does not protect already-running pods from
+    #    eviction.
+    longhornManager:
+      resources:
+        requests:
+          cpu: 250m
+          memory: 256Mi
+      tolerations:
+        - key: node.kubernetes.io/disk-pressure
+          operator: Exists
+          effect: NoExecute
