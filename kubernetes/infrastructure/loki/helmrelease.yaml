@@ -15,7 +15,6 @@ spec:
         namespace: loki
   timeout: 10m
   upgrade:
-    force: true  # StatefulSet volumeClaimTemplates is immutable; force-recreates the StatefulSet while reusing the existing PVC
     remediation:
       retries: 3
   values:
@@ -56,10 +55,8 @@ spec:
           endpoint: https://fsn1.your-objectstorage.com
           region: fsn1
           s3ForcePathStyle: true
-          # s3.url encodes access key and secret as s3://<key>:<secret>@host/<bucket>.
-          # We use env-var expansion so credentials never appear in the config file:
+          # Credentials use env-var expansion so they never appear in the config file:
           # https://grafana.com/docs/loki/latest/configure/#use-environment-variables-in-the-configuration
-          s3: "s3://${AWS_ACCESS_KEY_ID}:${AWS_SECRET_ACCESS_KEY}@fsn1.your-objectstorage.com/saikat-kubernetes-loki-storage"
           accessKeyId: ${AWS_ACCESS_KEY_ID}
           secretAccessKey: ${AWS_SECRET_ACCESS_KEY}
       schemaConfig:
