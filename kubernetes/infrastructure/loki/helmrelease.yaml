@@ -42,12 +42,33 @@ spec:
         reject_old_samples: true
         reject_old_samples_max_age: 168h
       storage:
-        type: filesystem
+        # Hetzner Object Storage (S3-compatible). Chunks and index stored in S3;
+        # the Longhorn PVC is only for WAL, active index, and compactor working
+        # directory, so it can be much smaller than the old 600Gi filesystem volume.
+        type: s3
+        bucketNames:
+          chunks: saikat-kubernetes-loki-storage
+          ruler: saikat-kubernetes-loki-storage
+        s3:
+          # Endpoint, region, and bucket are plaintext (not secrets). Credentials
+          # are injected via the AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY env vars
+          # from the loki-s3-credentials SOPS Secret, using -config.expand-env=true.
+          endpoint: https://fsn1.your-objectstorage.com
+          region: fsn1
+          s3ForcePathStyle: true
+          # s3.url encodes access key and secret as s3://<key>:<secret>@host/<bucket>.
+          # We use env-var expansion so credentials never appear in the config file:
+          # https://grafana.com/docs/loki/latest/configure/#use-environment-variables-in-the-configuration
+          s3: "s3://${AWS_ACCESS_KEY_ID}:${AWS_SECRET_ACCESS_KEY}@fsn1.your-objectstorage.com/saikat-kubernetes-loki-storage"
       schemaConfig:
+        # New schema period starting from the S3 migration date. Existing
+        # filesystem-era data (from 2024-01-01 schema) is not migrated — this
+        # starts fresh in S3. Old data is lost (it was the source of the disk
+        # pressure that took down worker-11/13/26).
         configs:
-          - from: "2024-01-01"
+          - from: "2026-08-20"
             store: tsdb
-            object_store: filesystem
+            object_store: s3
             schema: v13
             index:
               prefix: loki_index_
@@ -56,10 +77,13 @@ spec:
     singleBinary:
       replicas: 1
       persistence:
-        # Longhorn volume. StorageClass is longhorn (default, 2-replica, encrypted).
-        # PVC uses Longhorn storage (2-replica, LUKS2 encryption).
-        storageClass: longhorn
-        size: 600Gi
+        # Longhorn volume for WAL, active index, and compactor working directory.
+        # Chunks and the bulk of index data now live in S3 — this PVC only needs
+        # enough for the WAL (typically a few GB) and cached index files.
+        # Using the 1-replica Longhorn SC: Loki is a single instance with no
+        # app-layer replication, so storage-level HA is unnecessary overhead.
+        storageClass: longhorn-1replica
+        size: 50Gi
       resources:
         requests:
           # VPA target: 1737m CPU / 2.36Gi — raised from 200m/1Gi
@@ -70,6 +94,17 @@ spec:
           cpu: 4000m
           memory: 6Gi
 
+    # Inject S3 credentials from the SOPS-encrypted Secret as environment
+    # variables. Loki uses -config.expand-env=true (set via extraArgs below) to
+    # resolve ${AWS_ACCESS_KEY_ID} and ${AWS_SECRET_ACCESS_KEY} in the s3.url.
+    global:
+      extraEnvFrom:
+        - secretRef:
+            name: loki-s3-credentials
+      # -config.expand-env=true enables ${VAR} substitution in the Loki config YAML.
+      extraArgs:
+        - -config.expand-env=true
+
     # Disable scale-out components — not needed in SingleBinary mode
     read:
       replicas: 0
@@ -78,7 +113,7 @@ spec:
     backend:
       replicas: 0
 
-    # Disable bundled MinIO — using filesystem storage via Longhorn PVC
+    # Disable bundled MinIO — using external S3 (Hetzner Object Storage)
     minio:
       enabled: false
 
