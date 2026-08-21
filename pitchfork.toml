@@ -159,9 +159,6 @@ exec fnox exec -- podman run --rm \
   -e JWT_EC_PEM -e JWT_PUB_EC_PEM \
   -e CLIENT_JWT_ED_PEM -e CLIENT_JWT_PUB_ED_PEM \
   -e COOKIE_KEY -e WHATSAPP_API_KEY \
-  -e DRAGONFLY_REDIS_STORE_PASSWORD -e DRAGONFLY_REDIS_STORE_HOSTS \
-  -e DRAGONFLY_REDIS_STORE_CA_CERT -e DRAGONFLY_REDIS_STORE_CLIENT_CERT \
-  -e DRAGONFLY_REDIS_STORE_CLIENT_KEY \
   -p 8080:8080 test/yral-auth
 '''
 dir = "apps/yral-auth"
@@ -201,9 +198,6 @@ run = '''
 exec fnox exec -- podman run --rm \
   -e APP_ENV -e RUST_LOG -e BIND_ADDRESS \
   -e JWT_PUBLIC_KEY -e YRAL_AUTH_PUBLIC_KEY -e BACKEND_ADMIN_IDENTITY \
-  -e DRAGONFLY_REDIS_STORE_PASSWORD -e DRAGONFLY_REDIS_STORE_HOSTS \
-  -e DRAGONFLY_REDIS_STORE_CA_CERT -e DRAGONFLY_REDIS_STORE_CLIENT_CERT \
-  -e DRAGONFLY_REDIS_STORE_CLIENT_KEY \
   -p 7000:7000 test/yral-metadata
 '''
 dir = "apps/yral-metadata"
@@ -214,7 +208,7 @@ stop_signal = "SIGINT"
 # Runs the pre-built musl binary with env vars from mise + secrets from fnox.
 # Build first with: mise run yral-web-build
 # dir ensures mise x -- loads the per-app mise.toml [env] (plaintext values).
-# fnox exec loads secrets from fnox.toml (age-encrypted) + root fnox.toml (Dragonfly).
+# fnox exec loads secrets from fnox.toml (age-encrypted).
 
 [daemons.yral-web]
 run = "exec fnox exec -- ../../target/x86_64-unknown-linux-musl/prod-release/yral-web"
@@ -240,9 +234,6 @@ exec fnox exec -- podman run --rm \
   -e CF_TOKEN -e CF_ACCOUNT_ID \
   -e HETZNER_S3_ACCESS_KEY -e HETZNER_S3_SECRET_KEY \
   -e GRPC_AUTH_TOKEN -e YRAL_AUTH_CLIENT_SECRET -e YRAL_AUTH_MIGRATION_ES256_PEM \
-  -e DRAGONFLY_REDIS_STORE_PASSWORD -e DRAGONFLY_REDIS_STORE_HOSTS \
-  -e DRAGONFLY_REDIS_STORE_CA_CERT -e DRAGONFLY_REDIS_STORE_CLIENT_CERT \
-  -e DRAGONFLY_REDIS_STORE_CLIENT_KEY \
   -p 8080:8080 test/yral-web
 '''
 dir = "apps/yral-web"
@@ -267,7 +258,7 @@ env = { LEPTOS_SITE_ADDR = "0.0.0.0:8081", LEPTOS_SITE_ROOT = "../../target/site
 # Runs cargo leptos watch for hot-reload development. Rebuilds server + WASM
 # on file change, live-reloads the browser. Uses debug profiles (fast rebuilds).
 # No pre-build needed — cargo leptos watch handles building + serving.
-# fnox exec loads secrets from fnox.toml (age-encrypted) + root fnox.toml (Dragonfly).
+# fnox exec loads secrets from fnox.toml (age-encrypted).
 
 [daemons.yral-web-watch]
 run = "exec fnox exec -- cargo leptos --manifest-path ssr/Cargo.toml watch --hot-reload --bin-features ssr,oauth-ssr"

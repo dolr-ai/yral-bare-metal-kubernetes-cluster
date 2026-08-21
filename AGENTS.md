@@ -109,7 +109,7 @@ When making changes to a codebase (fixing bugs, migrating APIs, adding features)
 ### Sweeping Changes — Per-Component Verification (Hard Rule)
 When making sweeping changes (removing a feature, restructuring workspaces, bumping shared deps, etc.) that touch multiple components, **verify each affected component individually** before pushing:
 1. **Compile** — `cargo check` / `cargo build` / `mise run <app>-build` for each affected component.
-2. **Test** — `cargo test` / `mise run <app>-test`. Tests requiring external services (Redis, IC canisters) that fail with "Connection refused" are expected locally; verify no *new* test failures from the change.
+2. **Test** — `cargo test` / `mise run <app>-test`. Tests requiring external services (IC canisters) that fail with "Connection refused" are expected locally; verify no *new* test failures from the change.
 3. **Run locally** — `mise run <app>-run` (via pitchfork) to verify the app starts and the health endpoint responds.
 4. **Push** — once all components pass, push to git and let CI/CD handle deployment.
 5. **Validate on prod** — after deployment, verify the service is healthy in production (read-only `kubectl get/describe/logs`, health endpoint, smoke test).
@@ -293,7 +293,7 @@ This ensures `mise bootstrap --yes && mise run setup` is the only command needed
 - **Tasks and plaintext env vars** → root `mise.toml` (app-specific env vars grouped by `# ── <app> ──` comment headers in `[env]`; tasks use `<app>-` prefix)
 - **Secrets** → root `fnox.toml` (age-encrypted, committed to git; app-specific secrets grouped by `# <app>` comment headers; same-named secrets prefixed with app name to disambiguate)
 - **Long-running dev servers** → root `pitchfork.toml` (with ready checks, restart policies, automatic cleanup)
-- Reuse shared secrets (Dragonfly TLS certs, Harbor credentials, etc.) across services — don't duplicate values, reference the same fnox secret definitions
+- Reuse shared secrets (Harbor credentials, etc.) across services — don't duplicate values, reference the same fnox secret definitions
 - For each new service onboarded, add env vars to root `mise.toml [env]`, create mise tasks (`<app>-build`, `<app>-run`, `<app>-image`), add secrets to root `fnox.toml`, and add a pitchfork daemon entry to root `pitchfork.toml`
 
 ### SpacetimeDB Usage Rules
