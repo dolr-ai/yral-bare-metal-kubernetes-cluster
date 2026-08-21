@@ -2,65 +2,67 @@
 #
 # Multi-stage build:
 #   Stage 1: Rust builder — cargo leptos build (musl binary + WASM client)
-#   Stage 2: Serve with a minimal runtime image containing the binary + static assets
+#   Stage 2: scratch runtime — just the binary + static assets + CA certs
 #
-# Build context: repo root (needed for monorepo structure + workspace dependencies).
-# BuildKit strategy: rootless BuildKit via Shipwright ClusterBuildStrategy.
+# Build context: repo root (set by Shipwright spec.source — no contextDir).
+# .dockerignore excludes target/, node_modules/, .git/, ansible/, kubernetes/.
+# cargo-leptos manages Tailwind CSS internally via the tailwind CLI — no Node.js needed.
 
-# --- Stage 1: Build Rust binary + WASM client ---
+# ── Stage 1: Build ──────────────────────────────────────────────────────────
 FROM docker.io/rust:1.90-bookworm AS builder
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    cmake \
+# Install build dependencies (musl-tools for musl cross-compilation)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    musl-tools \
     pkg-config \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Rust targets and cargo-binstall, then cargo-leptos
-# cargo-leptos automatically downloads and manages the Tailwind CLI — no Node.js needed
-RUN rustup target add x86_64-unknown-linux-musl wasm32-unknown-unknown
-RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
-RUN cargo binstall cargo-leptos --no-confirm
+# Install cargo-binstall + cargo-leptos
+RUN curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-musl.tgz -o /tmp/cargo-binstall.tgz && \
+    tar -xzf /tmp/cargo-binstall.tgz -C /usr/local/bin && \
+    chmod +x /usr/local/bin/cargo-binstall && \
+    rm /tmp/cargo-binstall.tgz && \
+    cargo binstall cargo-leptos --no-confirm
 
 WORKDIR /app
 
-# Copy workspace manifest first for layer caching
-COPY Cargo.toml Cargo.lock ./
-COPY apps/my-website/Cargo.toml apps/my-website/Cargo.toml
+# Copy the entire monorepo workspace (root Cargo.toml + all apps/).
+# .dockerignore excludes target/, node_modules/, .git/, ansible/, kubernetes/.
+COPY . .
 
-# Create a dummy src so cargo can resolve the workspace
-RUN mkdir -p apps/my-website/src && echo 'fn main() {}' > apps/my-website/src/main.rs
+# Set Leptos environment variables for the build
+ENV LEPTOS_OUTPUT_NAME="my-website"
+ENV LEPTOS_SITE_ROOT="target/site"
+ENV LEPTOS_SITE_PKG_DIR="pkg"
+ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
+ENV LEPTOS_ENV="PROD"
+ENV LEPTOS_BIN_TARGET_TRIPLE="x86_64-unknown-linux-musl"
 
-# Pre-build dependencies (layer cache)
-RUN cargo build --release -p my-website 2>/dev/null || true
+# Build the app (cargo-leptos runs from apps/my-website/ — same as the mise task)
+RUN cd apps/my-website && cargo leptos build --release
 
-# Copy the full source
-COPY apps/my-website/ apps/my-website/
-
-# Build the Leptos app (release musl binary + WASM client)
-# cargo-leptos compiles Tailwind CSS via the tailwind CLI (no npm install needed)
-RUN cd apps/my-website && \
-    LEPTOS_BIN_TARGET_TRIPLE=x86_64-unknown-linux-musl \
-    cargo leptos build --release
-
-# --- Stage 2: Serve ---
-FROM docker.io/alpine:latest
-
-# Install ca-certificates for HTTPS and libgcc for the musl binary
-RUN apk add --no-cache ca-certificates libgcc
+# ── Stage 2: Runtime (scratch) ─────────────────────────────────────────────
+FROM scratch
 
 WORKDIR /app
 
-# Copy the built binary
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/my-website /app/my-website
+# Copy the built binary (cargo-leptos uses the workspace root target dir)
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/my-website .
 
-# Copy the site assets (static files, WASM, CSS)
-COPY --from=builder /app/apps/my-website/target/site /app/site
+# Copy the Leptos site assets (WASM, JS, CSS)
+COPY --from=builder /app/target/site ./site
 
-ENV LEPTOS_SITE_ROOT=/app/site
-ENV LEPTOS_SITE_ADDR=0.0.0.0:8080
+# Copy CA certificates
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
+# Set Leptos environment variables (runtime config baked into image)
+ENV LEPTOS_OUTPUT_NAME="my-website"
+ENV LEPTOS_SITE_ROOT="site"
+ENV LEPTOS_SITE_PKG_DIR="pkg"
+ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
+ENV LEPTOS_ENV="PROD"
 
 EXPOSE 8080
 
-CMD ["/app/my-website"]
+ENTRYPOINT ["/app/my-website"]
