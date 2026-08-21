@@ -5,9 +5,8 @@ use super::{KVError, KVStore};
 /// SpacetimeDB-backed KV store implementation.
 ///
 /// Talks to the SpacetimeDB module via its REST API, calling `kv_get`, `kv_set`,
-/// and `kv_delete` procedures/reducers. Unlike the Redis/Dragonfly backends, the
-/// SpacetimeDB KV table uses the raw logical key as the primary key — no
-/// `yral-auth:` prefix is applied.
+/// and `kv_delete` procedures/reducers. The SpacetimeDB KV table uses the
+/// raw logical key as the primary key — no `yral-auth:` prefix is applied.
 #[derive(Clone)]
 pub struct SpacetimeKV {
     client: reqwest::Client,

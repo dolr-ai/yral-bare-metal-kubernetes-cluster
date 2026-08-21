@@ -7,7 +7,6 @@ use reqwest::Client;
 use std::sync::Arc;
 
 /// SpacetimeDB REST client for metadata reads/writes.
-/// Replaces the Redis/Dragonfly connection pool.
 #[derive(Clone)]
 pub struct SpacetimeClient {
     http: Client,

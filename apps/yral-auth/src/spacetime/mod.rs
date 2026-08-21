@@ -13,9 +13,9 @@
 //! - `sub` = the user's OAuth `sub` (a string, e.g. Google account ID)
 //!
 //! Therefore, the existing yral-auth `id_token` IS the SpacetimeDB token.
-//! No separate token minting, no KV storage, no Dragonfly/Redis needed.
-//! The client passes the yral-auth `id_token` to `with_token()` and
-//! SpacetimeDB derives a stable identity from the claims.
+//! No separate token minting, no KV storage needed. The client passes the
+//! yral-auth `id_token` to `with_token()` and SpacetimeDB derives a stable
+//! identity from the claims.
 //!
 //! ## No vendor lock-in
 //!
