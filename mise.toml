@@ -352,21 +352,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-for canister in \
-  user_post_service \
-  user_info_service
-  do
-  dfx canister create --no-wallet "$canister"
-done
-
-for canister in \
-  user_post_service \
-  user_info_service
-  do
-  dfx build "$canister"
-  gzip -f -1 "./target/wasm32-unknown-unknown/release/${canister}.wasm"
-done
-
 cargo test
 '''
 
@@ -415,8 +400,7 @@ run = '''
 set -euo pipefail
 
 ALL_CANISTERS=(
-  user_post_service
-  user_info_service
+  canister_to_harvest
 )
 
 if [ $# -gt 0 ]; then
