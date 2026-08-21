@@ -127,7 +127,7 @@ GRADLE_OPTS = "-Dorg.gradle.daemon=true -Dorg.gradle.caching=true"
 [tasks.bootstrap]
 description = "Create .venv, install Python tooling, and extract infra SSH key from vault"
 run = '''
-python -m venv .venv && ./.venv/bin/pip install --upgrade pip && ./.venv/bin/pip install ansible-core ansible-lint yamllint vastai && ./.venv/bin/ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections
+python -m venv .venv && ./.venv/bin/pip install --upgrade pip && ./.venv/bin/pip install ansible-core ansible-lint yamllint && ./.venv/bin/ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections
 
 # Initialize git submodules (app source repos)
 git submodule update --init --recursive

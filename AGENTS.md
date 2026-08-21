@@ -340,9 +340,6 @@ For any external service the repo calls (SpacetimeDB Maincloud, third-party APIs
 - **In-cluster:** plaintext → k8s `ConfigMap`; secrets → SOPS-encrypted `*.sops.yaml`. **Only provision cluster config if a service in our cluster actually calls the external service.** External clients (mobile apps, out-of-workspace backends) carry their own config and do not consume our cluster ConfigMaps/SOPS.
 - Wire config into the consuming app via its existing config mechanism (e.g. mobile `BuildConfig`/config module; Rust service `mise.toml [env]` + `fnox exec`).
 
-### GPU (Vast.ai)
-See `ansible/roles/vastai-provision/defaults/main.yml` for provisioning rules and constraints.
-
 ### Inventory
 `control_plane` / `worker_nodes` / `k8s_cluster`. Target via `-e target_host=...`.
 

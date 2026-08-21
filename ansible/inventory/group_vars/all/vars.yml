@@ -23,7 +23,7 @@ github_flux_token: "{{ vault_github_flux_token }}"  # Indirection to vault
 # To generate: age-keygen -o /tmp/age.key  (then store contents as vault_age_private_key)
 age_private_key: "{{ vault_age_private_key }}"  # Indirection to vault
 
-# Infrastructure SSH keypair — used for all node access (Hetzner, Vast.ai)
+# Infrastructure SSH keypair — used for all node access (Hetzner)
 # AND for git operations against GitHub (single key for everything).
 # Private key is secret (vault); public key is plaintext (safe to commit).
 # scripts/setup-local-env.sh extracts the private key to ~/.ssh/id_ed25519
@@ -60,6 +60,3 @@ namecheap_api_key: "{{ vault_namecheap_api_key }}"      # Indirection to vault �
 # 11 nameservers = Namecheap API max (ICANN allows 13, but Namecheap's setCustom API limits to 11).
 # These IPs must match the externalIPs in the powerdns-dns Service
 # (kubernetes/infrastructure/external-dns/pdns-service-dns.yaml).
-
-# Vast.ai API key for GPU instance provisioning
-vastai_api_key: "{{ vault_vastai_api_key }}"  # Indirection to vault

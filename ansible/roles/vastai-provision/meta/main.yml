@@ -1,4 +1,0 @@
----
-# This role runs on remote nodes and requires root (apt, systemd, file ops).
-# The global ansible.cfg sets become = False; this role opts in.
-become: true

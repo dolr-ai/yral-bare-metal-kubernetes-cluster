@@ -53,3 +53,4 @@ Migrate the other useful bits
 - off-chain - remove anything to do with backfilling videos
 - propic_from_principal to hash the principal bytes for the GobGob NFT index. Let me add it back to the utils Cargo.toml - We can remove everything related to GobGob NFTs
 - Use Mise for docker builds as well
+- Fix my-website
