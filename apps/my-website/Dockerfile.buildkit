@@ -17,9 +17,10 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Rust targets and cargo-leptos
+# Install Rust targets and cargo-binstall, then cargo-leptos
 # cargo-leptos automatically downloads and manages the Tailwind CLI — no Node.js needed
 RUN rustup target add x86_64-unknown-linux-musl wasm32-unknown-unknown
+RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
 RUN cargo binstall cargo-leptos --no-confirm
 
 WORKDIR /app
