@@ -18,38 +18,31 @@ spec:
       labels:
         app: my-website
     spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: node-role.kubernetes.io/control-plane
-                    operator: DoesNotExist
       imagePullSecrets:
         - name: harbor-pull-secret
       containers:
-        - name: nginx
+        - name: my-website
           image: harbor.yral.com/my-website/my-website:20260817141108-6fcff30c # {"$imagepolicy": "flux-system:my-website"}
           imagePullPolicy: Always
           ports:
-            - containerPort: 80
+            - containerPort: 8080
               name: http
           readinessProbe:
             httpGet:
               path: /
-              port: 80
-            initialDelaySeconds: 3
+              port: 8080
+            initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /
-              port: 80
-            initialDelaySeconds: 5
+              port: 8080
+            initialDelaySeconds: 10
             periodSeconds: 30
           resources:
             requests:
-              cpu: 10m
-              memory: 16Mi
-            limits:
               cpu: 100m
-              memory: 64Mi
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

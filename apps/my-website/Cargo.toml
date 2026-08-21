@@ -1,0 +1,79 @@
+[package]
+name = "my-website"
+version = "0.1.0"
+edition = "2024"
+
+[package.metadata.leptos]
+output-name = "my-website"
+site-root = "target/site"
+site-pkg-dir = "pkg"
+tailwind-input-file = "style/tailwind.css"
+assets-dir = "public"
+site-addr = "127.0.0.1:3000"
+reload-port = 3001
+browserquery = "defaults"
+env = "DEV"
+bin-features = ["ssr"]
+bin-default-features = false
+lib-features = ["hydrate"]
+lib-default-features = false
+lib-profile-release = "wasm-release"
+hash-files = false
+bin-target = "my-website"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "my-website"
+path = "src/main.rs"
+required-features = ["ssr"]
+
+[dependencies]
+anyhow = { workspace = true }
+axum = { workspace = true, features = ["json", "macros"], optional = true }
+chrono = { workspace = true, features = ["serde"] }
+comrak = { workspace = true, default-features = false }
+console_error_panic_hook = { workspace = true, optional = true }
+console_log = { workspace = true, optional = true }
+leptos = { workspace = true, features = ["islands"] }
+leptos_axum = { workspace = true, optional = true }
+leptos_meta = { workspace = true }
+leptos_router = { workspace = true }
+log = { workspace = true }
+noyalib = { workspace = true, optional = true, features = ["compat-serde-yaml"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread"], optional = true }
+tracing = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"], optional = true }
+wasm-bindgen = { workspace = true, optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom_0_4 = { package = "getrandom", version = "0.4", default-features = false, features = ["wasm_js"] }
+
+[features]
+hydrate = [
+  "dep:console_error_panic_hook",
+  "dep:console_log",
+  "dep:wasm-bindgen",
+  "leptos/hydrate",
+]
+ssr = [
+  "dep:axum",
+  "dep:leptos_axum",
+  "dep:noyalib",
+  "dep:tokio",
+  "dep:tracing",
+  "dep:tracing-subscriber",
+  "leptos_meta/ssr",
+  "leptos_router/ssr",
+  "leptos/ssr",
+]
+
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+lto = true
+panic = "abort"
+codegen-units = 1

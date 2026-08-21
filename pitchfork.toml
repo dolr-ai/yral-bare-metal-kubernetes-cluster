@@ -36,12 +36,25 @@ dir = "apps/hello-world"
 ready_http = "http://localhost:8082/healthz"
 auto = ["start", "stop"]
 
-# ── my-website container (podman) ────────────────────────────────────────────
+# ── my-website dev server (Leptos release binary) ─────────────────────────────
+# Build first with: mise run my-website-build
+# Runs the pre-built musl binary. Port 8080.
+
+[daemons.my-website]
+run = "exec ./../../target/x86_64-unknown-linux-musl/release/my-website"
+dir = "apps/my-website"
+ready_http = "http://localhost:8081/"
+stop_signal = "SIGINT"
+auto = ["start", "stop"]
+env = { LEPTOS_SITE_ADDR = "0.0.0.0:8081" }
+
+# ── my-website container (podman) ─────────────────────────────────────────────
+# Build first with: mise run my-website-image
 
 [daemons.my-website-container]
 run = '''
 exec podman run --rm \
-  -p 8080:80 test/my-website
+  -p 8080:8080 test/my-website
 '''
 
 # ── off-chain-agent dev server (release binary) ─────────────────────────────

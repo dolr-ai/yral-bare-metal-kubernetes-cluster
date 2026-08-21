@@ -736,12 +736,29 @@ description = "Clean all Gradle build outputs"
 dir = "apps/yral-mobile"
 run = "./gradlew clean"
 
-# ─── my-website (SvelteKit static site → nginx) ───────────────────────────────
+# ─── my-website (Leptos SSR app, islands architecture) ────────────────────────
 
 [tasks.my-website-build]
-description = "Build my-website (SvelteKit static site)"
+description = "Build my-website (Leptos islands, release musl binary + WASM client)"
 dir = "apps/my-website"
-run = "npm ci && npm run build"
+run = "cargo leptos build --release"
+env = { LEPTOS_BIN_TARGET_TRIPLE = "x86_64-unknown-linux-musl" }
+
+[tasks.my-website-run]
+description = "Run my-website locally via pitchfork (release binary, port 8080)"
+depends = ["my-website-build"]
+run = "pitchfork start my-website --force"
+
+[tasks.my-website-watch]
+description = "Run my-website with hot reload via cargo leptos watch (debug, port 8080)"
+dir = "apps/my-website"
+run = "cargo leptos watch --hot-reload"
+env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
+
+[tasks.my-website-test]
+description = "Run my-website tests"
+dir = "apps/my-website"
+run = "cargo test --features ssr --bins --lib"
 
 [tasks.my-website-image]
 description = "Build the my-website container image locally (podman)"
@@ -753,8 +770,8 @@ depends = ["my-website-image"]
 run = "pitchfork start my-website-container --force"
 
 [tasks.my-website-stop]
-description = "Stop my-website container via pitchfork"
-run = "pitchfork stop my-website-container"
+description = "Stop my-website dev server or container via pitchfork"
+run = "pitchfork stop my-website my-website-container"
 
 [tasks.my-website-validate]
 description = "Validate my-website on prod (read-only kubectl checks)"

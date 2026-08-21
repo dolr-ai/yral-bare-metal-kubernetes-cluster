@@ -121,8 +121,28 @@ In all `Cargo.toml` (and other manifest) files, list dependencies **alphabetical
 ### Mise Tasks for All Build/Test/Check Operations (Hard Rule)
 **Always use mise tasks (`mise run <task>`) for all compile, check, test, build, run, and validate operations — never run `cargo check`, `cargo test`, `cargo build`, `podman build`, `npm install`, or similar ad hoc commands directly in the terminal.** mise tasks ensure env vars from `[env]` and fnox secrets are loaded, `depends` chains run, and the workflow is fully reproducible. Running raw commands bypasses secret injection (e.g. `JWT_EC_PEM`, `CLIENT_JWT_ED_PEM`) and env var setup, causing tests to fail with "NotPresent" or "Connection refused" errors that are false negatives — not real failures. If a needed workflow doesn't exist as a mise task, create one rather than running the raw command. This applies to both human operators and AI agents.
 
-### Leptos Builder Syntax (Hard Rule)
-All Leptos-rs UI code must use the **builder syntax** (`leptos::view` with `.child()`, `.attr()`, `.prop()`, etc.), never the `view!` macro. This gives maximal benefit from compile-time static checking and rust-analyzer feedback (type inference, autocomplete, refactoring, error messages). See https://book.leptos.dev/view/builder.html for the canonical reference. Apply this to all Leptos components, pages, and views across the repo — both new code and existing code. When touching any file that uses `view!`, convert it to builder syntax in the same change (gradual migration, no big-bang rewrite). This avoids the macro's poor interaction with rust tooling.
+### Leptos Macro-Free & Builder Syntax (Hard Rule)
+All Leptos-rs UI code must avoid macros wherever a macro-free alternative exists. This is a hard preference against macros in all Rust code we write, not just Leptos — macros bypass rust-analyzer's type inference, autocomplete, refactoring, and error messages. Apply the following rules to all Leptos components, pages, and views across the repo — both new code and existing code. When touching any file that violates these rules, convert it in the same change (gradual migration, no big-bang rewrite):
+
+**1. No `view!` macro — use builder syntax:**
+Construct all HTML views with `leptos::html` builder functions and method chaining: `html::div().child(...)`, `.attr(...)`, `.on(...)`, `.class(...)`, `.style(...)`. See https://book.leptos.dev/view/builder.html for the canonical reference.
+
+**2. No `#[component]` macro — use plain functions:**
+A Leptos component is just a function that returns `impl IntoView`. Define components as plain functions with regular function arguments instead of `#[prop]` destructuring:
+```rust
+// YES — plain function, no macro
+pub fn blog_post_card(title: String, slug: String, tags: Vec<String>) -> impl IntoView {
+    html::a().attr("href", slug).child(html::h2().child(title))
+}
+
+// NO — #[component] macro
+#[component]
+fn BlogPostCard(title: String, slug: String, tags: Vec<String>) -> impl IntoView { ... }
+```
+When using component macros from Leptos itself (e.g. `Router`, `Routes`, `Route`, `Title`, `Show`, `For`), invoke them via their props builder structs (e.g. `Router(RouterProps::builder().build())`, `Route(RouteProps::builder().path(...).view(...).build())`) rather than via `view! { <Router>...</Router> }`.
+
+**3. `#[island]` macro — necessary exception:**
+The `#[island]` macro (for islands architecture) is the one Leptos macro that has no macro-free equivalent. It generates a `#[wasm_bindgen]` export with a unique hash-based name, wires up `Island::new()`, handles prop serialization for `data-props`, and wraps `children` in `IslandChildren`. The JS hydration script (`island_script.js`) looks up islands by matching `data-component` against WASM module exports — this requires the macro's code generation. Do NOT attempt to replace `#[island]` with manual code. The body of an `#[island]` function must still use builder syntax (no `view!`), same as all other views.
 
 ### Descriptive Naming (Hard Rule)
 Always use well-named, descriptive variable and type names. Never use shortened or abbreviated names. For code we are touching, rename abbreviated identifiers to their elongated, descriptive forms in the same change. This applies to **all code and configuration** — Rust, Kotlin, TypeScript, YAML, Ansible, TOML, etc.:

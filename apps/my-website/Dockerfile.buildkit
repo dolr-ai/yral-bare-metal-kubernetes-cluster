@@ -1,70 +1,65 @@
-# Dockerfile for my-website (SvelteKit static site → nginx).
+# Dockerfile for my-website (Leptos SSR app → native Rust binary).
 #
 # Multi-stage build:
-#   Stage 1: Node.js build — npm ci + npm run build → static files in build/
-#   Stage 2: nginx:alpine — serve the static build output
+#   Stage 1: Rust builder — cargo leptos build (musl binary + WASM client)
+#   Stage 2: Serve with a minimal runtime image containing the binary + static assets
 #
-# Build context: repo root (needed for monorepo structure, though my-website
-# is self-contained). The .dockerignore at repo root excludes target/, node_modules/, etc.
-#
+# Build context: repo root (needed for monorepo structure + workspace dependencies).
 # BuildKit strategy: rootless BuildKit via Shipwright ClusterBuildStrategy.
-# No contextDir needed — the full repo root is the context (per AGENTS.md convention).
 
-# --- Stage 1: Build static site ---
-FROM docker.io/node:22-alpine AS builder
+# --- Stage 1: Build Rust binary + WASM client ---
+FROM docker.io/rust:1.90-bookworm AS builder
 
-WORKDIR /app/apps/my-website
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    cmake \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy package files first for layer caching
-COPY apps/my-website/package.json apps/my-website/package-lock.json ./
+# Install Rust targets and cargo-leptos
+# cargo-leptos automatically downloads and manages the Tailwind CLI — no Node.js needed
+RUN rustup target add x86_64-unknown-linux-musl wasm32-unknown-unknown
+RUN cargo binstall cargo-leptos --no-confirm
 
-# Install dependencies
-RUN npm ci
+WORKDIR /app
 
-# Copy the rest of the my-website source
-COPY apps/my-website/ ./
+# Copy workspace manifest first for layer caching
+COPY Cargo.toml Cargo.lock ./
+COPY apps/my-website/Cargo.toml apps/my-website/Cargo.toml
 
-# Build the static site
-RUN npm run build
+# Create a dummy src so cargo can resolve the workspace
+RUN mkdir -p apps/my-website/src && echo 'fn main() {}' > apps/my-website/src/main.rs
 
-# --- Stage 2: Serve with nginx ---
-FROM docker.io/nginx:alpine
+# Pre-build dependencies (layer cache)
+RUN cargo build --release -p my-website 2>/dev/null || true
 
-# Copy the static build output
-COPY --from=builder /app/apps/my-website/build /usr/share/nginx/html
+# Copy the full source
+COPY apps/my-website/ apps/my-website/
 
-# nginx config: SPA fallback + gzip + proper content types
-RUN cat > /etc/nginx/conf.d/default.conf <<'EOF'
-server {
-    listen 80;
-    server_name _;
-    root /usr/share/nginx/html;
-    index index.html;
+# Build the Leptos app (release musl binary + WASM client)
+# cargo-leptos compiles Tailwind CSS via the tailwind CLI (no npm install needed)
+RUN cd apps/my-website && \
+    LEPTOS_BIN_TARGET_TRIPLE=x86_64-unknown-linux-musl \
+    cargo leptos build --release
 
-    # gzip
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
-    gzip_min_length 256;
+# --- Stage 2: Serve ---
+FROM docker.io/alpine:latest
 
-    # SPA fallback — serve static files, fall back to index.html
-    location / {
-        try_files $uri $uri/ $uri.html /index.html;
-    }
+# Install ca-certificates for HTTPS and libgcc for the musl binary
+RUN apk add --no-cache ca-certificates libgcc
 
-    # Cache static assets aggressively
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
+WORKDIR /app
 
-    # Don't cache HTML
-    location ~* \.html$ {
-        expires -1;
-        add_header Cache-Control "no-cache, no-store, must-revalidate";
-    }
-}
-EOF
+# Copy the built binary
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/my-website /app/my-website
 
-EXPOSE 80
+# Copy the site assets (static files, WASM, CSS)
+COPY --from=builder /app/apps/my-website/target/site /app/site
 
-CMD ["nginx", "-g", "daemon off;"]
+ENV LEPTOS_SITE_ROOT=/app/site
+ENV LEPTOS_SITE_ADDR=0.0.0.0:8080
+
+EXPOSE 8080
+
+CMD ["/app/my-website"]

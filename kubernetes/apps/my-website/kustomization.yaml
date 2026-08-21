@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# my-website — SvelteKit static site served by nginx.
-# Harbor project created — build should succeed now.
+# my-website — Leptos SSR app with islands architecture.
+# Rust binary serving HTTP on port 8080.
 resources:
   - namespace.yaml
   - deployment.yaml
