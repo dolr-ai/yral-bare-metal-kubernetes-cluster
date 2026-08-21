@@ -82,7 +82,8 @@ This keeps the environment fully declarative and reproducible from `mise.toml` a
 
 ### Edit Tooling Preference (Hard Rule)
 Never use terminal commands (`sed`, `awk`, `echo >`, `cat >`, `tee`, `tr`, `perl -i`, etc.) for text edits. **Always use the VS Code edit tools** (`replace_string_in_file`, `multi_replace_string_in_file`, `create_file`) so changes are visible in the diff editor for review. Terminal commands bypass the review workflow and can silently corrupt files — especially SOPS-encrypted files where a stray `sed` breaks the MAC integrity check. This applies to **all** file edits, including trivial one-line changes, namespace renames, and temp file processing. If you need to transform file contents (e.g., decrypt → modify → re-encrypt), use the edit tools for the modification step, not `sed`/`awk`.
-
+### No Truncating Terminal Output (Hard Rule)
+**Never use `tail`, `head`, `grep`, or any pipe that cuts off output when running commands.** Always run commands directly and let the full output stream so we can follow along together. This applies to **all** terminal commands — `cargo check`/`build`/`test`, `docker build`, `kubectl logs`, `ansible-playbook`, `mise run`, and every other long-running or multi-line command. If a command produces a lot of output, let it scroll — do not filter it. `tail`/`head` are acceptable **only** for post-hoc analysis **after** a run has fully completed (e.g. re-reading a completed build's output to extract a specific line), never to limit output during the run itself.
 ### Default-First Configuration
 Prefer component defaults. Add explicit config only when a concrete problem requires deviation. Explicitly matching the default creates maintenance burden and obscures intent.
 
@@ -330,7 +331,7 @@ See `ansible/roles/vastai-provision/defaults/main.yml` for provisioning rules an
   - `mise run ansible-vault-view -- <yaml key>` — extract a single vault key (e.g. `mise run ansible-vault-view -- vault_age_private_key`)
   - `mise run sops-decrypt -- <file>.sops.yaml` / `sops-encrypt -- <file>.sops.yaml` / `sops-edit -- <file>.sops.yaml` — SOPS file operations (extracts age key from vault automatically)
   This ensures the `.venv` Python environment is used, the vault password file is found via `ansible.cfg`, and all operations are reproducible. Raw `ansible-vault view ... | grep ...` pipes in scripts bypass this and should be replaced with `mise run ansible-vault-view`.
-- **Never truncate or filter terminal output during runs** — do not use `tail`, `head`, `grep`, pipes, or similar tools that cut off output. Run commands directly and let the full output stream so we can follow along together. `tail`/`head` only for post-hoc analysis after a run completes. This applies to `docker build`, `kubectl logs`, and all other long-running commands — stream full output, don't pipe through filters.
+- **No truncating terminal output** — see the top-level "No Truncating Terminal Output" policy. Applies to `ansible-playbook`, `mise run`, and all other commands.
 - Short poll loops (≤10s sleep) when waiting. Never use long sleeps (e.g. 120s) — instead poll with short intervals and re-check, or stop and let the user reinitiate.
 - Lint before PRs.
 
