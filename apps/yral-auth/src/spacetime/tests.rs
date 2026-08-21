@@ -81,7 +81,7 @@ fn test_jwt_minted_by_yral_auth_produces_correct_identity() {
     // adds ext_delegated_identity, email, etc. — but SpacetimeDB only
     // reads iss + sub for identity derivation.
 
-    use jsonwebtoken::{encode, EncodingKey, Header, Algorithm, decode, DecodingKey, Validation};
+    use jsonwebtoken::{encode, decode, EncodingKey, DecodingKey, Header, Algorithm, Validation};
 
     let issuer = "http://localhost:8080";
     let user_id = "test-user-jwt-1";
@@ -107,13 +107,27 @@ fn test_jwt_minted_by_yral_auth_produces_correct_identity() {
     let header = Header::new(Algorithm::ES256);
     let token = encode(&header, &claims, &encoding_key).expect("failed to encode JWT");
 
-    // Decode the JWT (without verifying signature — we only care about claims)
-    let mut validation = Validation::new(Algorithm::ES256);
-    validation.validate_exp = false;
-    validation.validate_aud = false;
-    validation.insecure_disable_signature_validation();
+    // Decode the JWT with full signature verification — the prescribed mechanism.
+    // We own the key pair, so there is no reason to skip verification.
+    // DecodingKey::from_ec_pem expects a *public* key PEM; derive the decoding
+    // key from the secret's public key coordinates (base64 x, y) instead —
+    // the same approach used in production (context/server.rs).
+    use base64::Engine;
+    let public_key = secret.public_key();
+    let affine = public_key.to_sec1_bytes();
+    // SEC1 point = 0x04 || x[32] || y[32] for uncompressed P-256
+    let x = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .encode(&affine[1..33]);
+    let y = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .encode(&affine[33..65]);
+    let decoding_key = DecodingKey::from_ec_components(&x, &y)
+        .expect("failed to create decoding key from test EC public components");
 
-    let token_data = decode::<serde_json::Value>(&token, &DecodingKey::from_secret(&[]), &validation)
+    let mut validation = Validation::new(Algorithm::ES256);
+    validation.validate_aud = false; // test token has no configured audience to check against
+    validation.validate_exp = false; // fixed exp timestamp; avoids clock-skew flakes in CI
+
+    let token_data = decode::<serde_json::Value>(&token, &decoding_key, &validation)
         .expect("failed to decode JWT");
 
     let decoded_iss = token_data.claims["iss"].as_str().expect("missing iss");

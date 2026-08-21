@@ -42,21 +42,20 @@ pub fn random_username_from_principal(user_id: &str, max_len: usize) -> String {
 #[cfg(test)]
 mod test {
     use super::random_username_from_principal;
-    use candid::Principal;
 
     #[test]
     fn test_rng_len() {
-        let princ = Principal::anonymous();
-        let res = random_username_from_principal(princ, 15);
+        let user_id = "test-anonymous-user";
+        let res = random_username_from_principal(user_id, 15);
         println!("{res}");
         assert!(res.len() <= 15);
     }
 
     #[test]
     fn test_rng_reproducible() {
-        let princ = Principal::anonymous();
-        let res1 = random_username_from_principal(princ, 15);
-        let res2 = random_username_from_principal(princ, 15);
+        let user_id = "test-anonymous-user";
+        let res1 = random_username_from_principal(user_id, 15);
+        let res2 = random_username_from_principal(user_id, 15);
         assert_eq!(res1, res2);
     }
 }

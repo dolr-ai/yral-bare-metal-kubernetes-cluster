@@ -197,7 +197,13 @@ impl From<jwt_errors::Error> for JwtErrorDetail {
                 format!("Json: {}", SerdeJsonErrorDetail::from(json_err.deref()))
             }
             jwt_errors::ErrorKind::Utf8(err) => format!("Utf8: {}", err),
-            jwt_errors::ErrorKind::Crypto(err) => format!("Crypto: {}", err),
+            jwt_errors::ErrorKind::InvalidEddsaKey => "InvalidEddsaKey".to_string(),
+            jwt_errors::ErrorKind::Signing(err) => format!("Signing: {}", err),
+            jwt_errors::ErrorKind::UnsupportedAlgorithm => "UnsupportedAlgorithm".to_string(),
+            jwt_errors::ErrorKind::InvalidClaimFormat(claim) => {
+                format!("InvalidClaimFormat: {}", claim)
+            }
+            jwt_errors::ErrorKind::Provider(err) => format!("Provider: {}", err),
             _ => "Unknown".to_string(),
         };
         Self {

@@ -118,6 +118,9 @@ Never push sweeping changes without first verifying every affected component com
 ### Alphabetical Dependency Ordering
 In all `Cargo.toml` (and other manifest) files, list dependencies **alphabetically by key** within each `[dependencies]` section. Merge third-party and local/path deps into a single list (no separator comments). This makes it easier for human reviewers to find and parse dependency lists, and avoids duplicate entries. Apply this to `[workspace.dependencies]`, `[dependencies]`, `[dev-dependencies]`, and `[build-dependencies]` sections alike.
 
+### Mise Tasks for All Build/Test/Check Operations (Hard Rule)
+**Always use mise tasks (`mise run <task>`) for all compile, check, test, build, run, and validate operations — never run `cargo check`, `cargo test`, `cargo build`, `podman build`, `npm install`, or similar ad hoc commands directly in the terminal.** mise tasks ensure env vars from `[env]` and fnox secrets are loaded, `depends` chains run, and the workflow is fully reproducible. Running raw commands bypasses secret injection (e.g. `JWT_EC_PEM`, `CLIENT_JWT_ED_PEM`) and env var setup, causing tests to fail with "NotPresent" or "Connection refused" errors that are false negatives — not real failures. If a needed workflow doesn't exist as a mise task, create one rather than running the raw command. This applies to both human operators and AI agents.
+
 ### Leptos Builder Syntax (Hard Rule)
 All Leptos-rs UI code must use the **builder syntax** (`leptos::view` with `.child()`, `.attr()`, `.prop()`, etc.), never the `view!` macro. This gives maximal benefit from compile-time static checking and rust-analyzer feedback (type inference, autocomplete, refactoring, error messages). See https://book.leptos.dev/view/builder.html for the canonical reference. Apply this to all Leptos components, pages, and views across the repo — both new code and existing code. When touching any file that uses `view!`, convert it to builder syntax in the same change (gradual migration, no big-bang rewrite). This avoids the macro's poor interaction with rust tooling.
 
@@ -153,6 +156,8 @@ pub async fn generate_token(ctx: &ServerCtx, user_id: &str) -> Result<String, Er
 
 ### Workspace Dependency Versioning (Hard Rule)
 All dependency **versions** must be declared once in the root `Cargo.toml` `[workspace.dependencies]` section — never specify versions in individual member `Cargo.toml` files. Member crates use `{ workspace = true }` (optionally adding `features = [...]` if needed). This keeps all members in sync and avoids version drift. If a new dependency is needed, add it to `[workspace.dependencies]` first, then reference it with `workspace = true` in the member.
+
+**Features belong on the consumer, not the root (Hard Rule):** The root `[workspace.dependencies]` entry declares only the **version** (and any `default-features = false` or `path = ...`/`git = ...` source specification). **Never** put `features = [...]` in the workspace root entry — specify features on each member crate's `{ workspace = true, features = [...] }` line instead. Different consumers need different feature subsets (e.g. `jsonwebtoken` `aws_lc_rs` + `use_pem` for crates that mint/verify JWTs, none for crates that don't use crypto); forcing a single feature set from the root pulls unwanted deps into crates that don't need them and makes feature intent invisible at the consumer site.
 
 ### Shared vs Module-Local Constants
 Maintain a top-level `constants.rs` beside `lib.rs` for constants shared between multiple modules within a crate. Module-specific constants stay at the top of the module file that uses them. Only promote a constant to `constants.rs` when at least two modules reference it.

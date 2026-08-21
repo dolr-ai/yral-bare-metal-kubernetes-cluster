@@ -26,7 +26,7 @@ ic-agent = { workspace = true, features = ["pem"] }
 identity = { workspace = true, default-features = false, features = [
   "verify",
 ] }
-jsonwebtoken = { workspace = true, features = ["use_pem"] }
+jsonwebtoken = { workspace = true, features = ["aws_lc_rs", "use_pem"] }
 log = { workspace = true }
 once_cell = { workspace = true }
 regex = { workspace = true }

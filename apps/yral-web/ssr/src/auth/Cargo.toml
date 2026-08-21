@@ -26,7 +26,7 @@ futures = { workspace = true }
 global-constants = { workspace = true, optional = true }
 hex = { workspace = true, optional = true }
 http = { workspace = true }
-jsonwebtoken = { workspace = true, optional = true }
+jsonwebtoken = { workspace = true, optional = true, features = ["aws_lc_rs", "use_pem"] }
 leptos = { workspace = true, features = ["nightly"] }
 leptos_axum = { workspace = true, optional = true }
 openidconnect = { workspace = true, optional = true }

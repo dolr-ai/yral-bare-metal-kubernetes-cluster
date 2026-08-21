@@ -529,9 +529,13 @@ run = "fnox exec -- cargo leptos --manifest-path ssr/Cargo.toml watch --hot-relo
 env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
 
 [tasks.yral-web-test]
-description = "Run yral-web tests (ssr feature + fnox secrets for DragonflyDB integration tests)"
+description = "Run yral-web tests (ssr feature + fnox secrets for DragonflyDB integration tests; starts local SpacetimeDB dev server for yral-auth integration tests)"
 dir = "apps/yral-web"
-run = "fnox exec -- cargo test --features ssr --bins --lib"
+env = { SPACETIMEDB_URL = "http://127.0.0.1:3000" }
+run = '''
+pitchfork start spacetimedb-dev --force
+fnox exec -- cargo test --features ssr --bins --lib -- --test-threads=1
+'''
 
 [tasks.yral-web-image]
 description = "Build the yral-web container image locally (podman)"

@@ -93,7 +93,7 @@ console_log = { workspace = true, optional = true }
 enum_dispatch = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true, optional = true }
-jsonwebtoken = { workspace = true, optional = true }
+jsonwebtoken = { workspace = true, optional = true, features = ["aws_lc_rs", "use_pem"] }
 leptos = { workspace = true }
 leptos_axum = { workspace = true, optional = true }
 leptos_meta = { workspace = true }
@@ -124,7 +124,7 @@ web-time = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-jsonwebtoken = { workspace = true }
+jsonwebtoken = { workspace = true, features = ["aws_lc_rs", "use_pem"] }
 p256 = { workspace = true, features = ["pkcs8"] }
 rand = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }

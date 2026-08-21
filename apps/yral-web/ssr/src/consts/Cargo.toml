@@ -75,7 +75,7 @@ types = { workspace = true }
 regex = { workspace = true, optional = true }
 anyhow = { workspace = true }
 send_wrapper = { workspace = true, features = ["futures"] }
-jsonwebtoken = { workspace = true, optional = true }
+jsonwebtoken = { workspace = true, optional = true, features = ["aws_lc_rs", "use_pem"] }
 
 
 [features]

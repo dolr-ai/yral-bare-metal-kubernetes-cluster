@@ -38,7 +38,7 @@ http = { workspace = true }
 icondata = { workspace = true }
 icondata_core = { workspace = true }
 js-sys = { workspace = true }
-jsonwebtoken = { workspace = true, optional = true }
+jsonwebtoken = { workspace = true, optional = true, features = ["aws_lc_rs", "use_pem"] }
 leptos = { workspace = true, features = ["nightly"] }
 leptos_axum = { workspace = true, optional = true }
 leptos_icons = { workspace = true }
