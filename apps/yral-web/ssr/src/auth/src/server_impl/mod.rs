@@ -1,4 +1,3 @@
-pub mod store;
 #[cfg(feature = "oauth-ssr")]
 pub mod yral;
 

@@ -111,7 +111,6 @@ hydrate = [
 ]
 oauth-hydrate = []
 oauth-ssr = ["dep:openidconnect"]
-redis-kv = []
 release-bin = [
   "backend-admin",
   "cloudflare",

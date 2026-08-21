@@ -108,7 +108,6 @@ ssr = [
 ]
 oauth-ssr = ["dep:openidconnect", "dep:jsonwebtoken"]
 oauth-hydrate = []
-redis-kv = []
 cloudflare = ["dep:gob-cloudflare"]
 backend-admin = []
 release-bin = [

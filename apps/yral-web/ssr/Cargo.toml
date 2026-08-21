@@ -255,9 +255,6 @@ oauth-ssr = [
   "state/oauth-ssr",
   "utils/oauth-ssr",
 ]
-redis-kv = [
-  # Redis KV store removed — SpacetimeDB is used directly for all data.
-]
 release-bin = [
   "backend-admin",
   "cloudflare",

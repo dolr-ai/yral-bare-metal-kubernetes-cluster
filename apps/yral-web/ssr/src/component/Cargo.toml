@@ -122,7 +122,6 @@ oauth-ssr = [
   "state/oauth-ssr",
   "utils/oauth-ssr",
 ]
-redis-kv = ["consts/redis-kv", "state/redis-kv", "utils/redis-kv"]
 release-bin = [
   "backend-admin",
   "cloudflare",

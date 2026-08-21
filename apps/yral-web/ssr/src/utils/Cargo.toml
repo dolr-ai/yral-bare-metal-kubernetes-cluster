@@ -121,7 +121,6 @@ ssr = [
 ]
 oauth-ssr = ["dep:openidconnect", "consts/oauth-ssr"]
 oauth-hydrate = ["consts/oauth-hydrate"]
-redis-kv = ["consts/redis-kv"]
 cloudflare = ["dep:gob-cloudflare", "consts/cloudflare"]
 backend-admin = ["consts/backend-admin"]
 release-bin = [
