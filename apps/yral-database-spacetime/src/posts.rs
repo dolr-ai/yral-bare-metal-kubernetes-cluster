@@ -21,9 +21,15 @@
 //!
 //! ## Admin model
 //! Admin identities are hardcoded as a `const ADMINS` array in
-//! `constants.rs`. Admin reducers (`add_post`, `add_post_v1`,
-//! `update_post_status`, `admin_delete_post`, `upsert_post`) check
-//! `is_admin(ctx)` which compares `ctx.sender()` against this list.
+//! `constants.rs`. Admin-only reducers (the `upsert_*` family) compare
+//! `ctx.sender()` against that list.
+//!
+//! `add_post`, `update_post_status` and `delete_post` are admin **or** the
+//! post's own creator. That lets a backend register and publish a post while
+//! acting as the user — by forwarding the user's yral-auth `id_token`, which
+//! already carries `ext_spacetimedb_token` — rather than holding the shared
+//! admin token and its far wider blast radius.
+//!
 //! To add/remove an admin, edit the `ADMINS` constant and republish.
 
 use spacetimedb::{
@@ -268,10 +274,16 @@ fn apply_view_details(post: &mut Post, details: &PostViewDetailsFromFrontend) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Post reducers — admin (called by external Prakash/Naitik service)
+// Post reducers — admin or the post's creator (called by backend services)
 // ─────────────────────────────────────────────────────────────────────────
 
-/// Add a new post. Admin-only. Rejects duplicate post IDs.
+/// Add a new post. Admin, or the creator adding their own post. Rejects
+/// duplicate post IDs.
+///
+/// Allowing `creator == sender` lets a service register a post while acting as
+/// the user — by forwarding the user's own yral-auth `id_token`, which already
+/// carries `ext_spacetimedb_token` — instead of holding the shared admin token.
+/// Same gate shape as `delete_post`.
 #[spacetimedb::reducer]
 pub fn add_post(
     ctx: &ReducerContext,
@@ -282,7 +294,7 @@ pub fn add_post(
     creator: Identity,
     status: PostStatus,
 ) -> Result<(), String> {
-    if !crate::constants::ADMINS.contains(&ctx.sender()) {
+    if !crate::constants::ADMINS.contains(&ctx.sender()) && creator != ctx.sender() {
         return Err("Unauthorized".to_string());
     }
     if ctx.db.posts().id().find(id.clone()).is_some() {
@@ -304,23 +316,27 @@ pub fn add_post(
     Ok(())
 }
 
-/// Update a post's status. Admin-only.
+/// Update a post's status. Admin, or the post's creator.
 /// Mirrors the IC canister's `update_post_status(text, PostStatus)`.
 /// Special case: `Draft → Uploaded` resets `created_at` to now (publishing
 /// a draft timestamps it), matching the IC canister's behavior.
+///
+/// The post is looked up before the authorization check so ownership can be
+/// compared, exactly as `delete_post` does. A non-admin caller therefore sees
+/// `PostNotFound` rather than `Unauthorized` for a post that does not exist.
 #[spacetimedb::reducer]
 pub fn update_post_status(
     ctx: &ReducerContext,
     post_id: String,
     status: PostStatus,
 ) -> Result<(), String> {
-    if !crate::constants::ADMINS.contains(&ctx.sender()) {
-        return Err("Unauthorized".to_string());
-    }
     let mut post = match ctx.db.posts().id().find(post_id) {
         Some(p) => p,
         None => return Err("PostNotFound".to_string()),
     };
+    if !crate::constants::ADMINS.contains(&ctx.sender()) && post.creator != ctx.sender() {
+        return Err("Unauthorized".to_string());
+    }
     // Draft → Uploaded resets created_at (publishing a draft).
     if status == PostStatus::Uploaded && post.status == PostStatus::Draft {
         post.created_at = ctx.timestamp;
