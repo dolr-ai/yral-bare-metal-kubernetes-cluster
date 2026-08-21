@@ -122,5 +122,6 @@ pub fn app() -> impl IntoView {
                 }))
                 .build(),
         )),
+        crate::islands::navigation_menu::NavigationMenu(),
     )
 }
