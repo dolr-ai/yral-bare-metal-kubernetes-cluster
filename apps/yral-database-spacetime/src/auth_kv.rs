@@ -1,8 +1,8 @@
-//! Auth key-value store — migrated from Redis/Dragonfly.
+//! Auth key-value store.
 //!
 //! yral-auth stores 5 families of key-value data (user identity keys,
 //! OAuth mappings, AI account keys, AI account reverse lookups, backend
-//! service identities). Previously in Dragonfly/Redis; now in SpacetimeDB.
+//! service identities) in SpacetimeDB.
 //!
 //! This is a simple String→String KV store. The table is private (not public)
 //! — only yral-auth (via the admin identity) reads and writes it. All

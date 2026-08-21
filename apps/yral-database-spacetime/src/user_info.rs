@@ -58,11 +58,11 @@ pub struct UserProfile {
     pub csam_detected: bool,
     pub last_access_time: Timestamp,
     pub account_type: UserAccountType,
-    /// Display name from the yral-metadata service (Redis/Dragonfly).
+    /// Display name from the yral-metadata service.
     /// Backfilled from `UserMetadata.user_name`. `None` if not yet backfilled.
     #[default(None::<String>)]
     pub username: Option<String>,
-    /// Email from the yral-metadata service (Redis/Dragonfly).
+    /// Email from the yral-metadata service.
     /// Backfilled from `UserMetadata.email`. `None` if not set.
     #[default(None::<String>)]
     pub email: Option<String>,
@@ -89,7 +89,7 @@ pub struct UserFollow {
 }
 
 /// FCM push notification device token. A user can have multiple devices.
-/// Replaces the `notification_key` field from the yral-metadata Redis store.
+/// Replaces the `notification_key` field from the yral-metadata store.
 #[spacetimedb::table(accessor = user_notification_tokens, public)]
 #[derive(Clone)]
 pub struct UserNotificationToken {
@@ -243,9 +243,9 @@ pub struct UserProfileBatchEntry {
     pub nsfw_gore: String,
     pub csam_detected: bool,
     pub last_access_time: Timestamp,
-    /// Display name from the yral-metadata service (Redis/Dragonfly).
+    /// Display name from the yral-metadata service.
     pub username: Option<String>,
-    /// Email from the yral-metadata service (Redis/Dragonfly).
+    /// Email from the yral-metadata service.
     pub email: Option<String>,
 }
 

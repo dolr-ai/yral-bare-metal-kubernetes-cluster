@@ -22,8 +22,7 @@
 //! principal updates the row instead of duplicating.
 //!
 //! **Username/email:** Set to `None` — the metadata backfill
-//! (`backfill_metadata_from_redis.rs`) fills those from the yral-metadata
-//! service (Redis/Dragonfly).
+//! fills those from the yral-metadata service.
 //!
 //! **Delete this file once the mobile update has shipped and the IC canister
 //! is decommissioned (Phase J cleanup).**
