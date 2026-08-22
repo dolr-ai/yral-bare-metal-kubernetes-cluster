@@ -23,3 +23,13 @@ pub const ADMINS: &[Identity] = &[
     ]),
     // TODO: add the off-chain-agent's SpacetimeDB identity here.
 ];
+
+/// The yral-auth issuer, as it appears in the `iss` claim of every id_token.
+///
+/// SpacetimeDB derives a caller's `Identity` from `iss` + `sub`, and
+/// `user_profiles.principal_text` holds that same `sub` for accounts created
+/// through `accept_new_user_registration_v2` (mobile passes the token's `sub`
+/// as the principal). So `Identity::from_claims(AUTH_ISSUER, principal_text)`
+/// reproduces the identity of the account's owner, which is what lets a reducer
+/// verify ownership without trusting anything the caller sent.
+pub const AUTH_ISSUER: &str = "https://auth.yral.com";

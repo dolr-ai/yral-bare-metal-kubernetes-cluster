@@ -36,6 +36,10 @@ use spacetimedb::{
     Identity, ProcedureContext, ReducerContext, SpacetimeType, Table, Timestamp,
 };
 
+// Ownership checks read the caller's profile row; the generated table accessor
+// trait has to be in scope to reach it from this module.
+use crate::user_info::user_profiles;
+
 // ─────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────
@@ -420,6 +424,110 @@ pub fn upsert_posts_batch(ctx: &ReducerContext, posts: Vec<Post>) -> Result<(), 
         ctx.db.posts().id().delete(post.id.clone());
         ctx.db.posts().insert(post);
     }
+    Ok(())
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// V2 post reducers — creator-callable
+// ─────────────────────────────────────────────────────────────────────────
+
+/// The `principal_text` of the account this caller owns, or `None`.
+///
+/// SpacetimeDB derives a caller's `Identity` from the token's `iss` + `sub`,
+/// and `accept_new_user_registration_v2` keys the profile row by that same
+/// `sub` (mobile passes the token's `sub` as the principal — see
+/// `TokenClaims.principal`). So re-deriving the identity from a stored
+/// `principal_text` and comparing it against `ctx.sender()` proves ownership
+/// using only what the caller's signed token already committed to.
+///
+/// Nothing the caller sends is trusted: a `principal_text` they do not own
+/// derives to an identity that is not theirs, so the comparison fails.
+fn caller_principal_text(ctx: &ReducerContext) -> Option<String> {
+    ctx.db
+        .user_profiles()
+        .iter()
+        .find(|p| {
+            Identity::from_claims(crate::constants::AUTH_ISSUER, &p.principal_text) == ctx.sender()
+        })
+        .map(|p| p.principal_text)
+}
+
+/// Add a post to the V2 table as the caller. Admin, or any registered user
+/// creating their own post.
+///
+/// Deliberately takes **no creator argument**. The creator is derived from the
+/// caller's token, so there is nothing to spoof and nothing for a client to get
+/// wrong. `creator_principal_text` is what every V2 read path filters on
+/// (`get_draft_posts_of_user_by_principal`, `get_posts_of_user_by_principal`),
+/// so it has to be the account's own principal rather than a rendering of the
+/// caller's `Identity`.
+///
+/// Exists because `add_post` writes the V1 `posts` table, which no V2 read path
+/// consults — a post created there is invisible to the app.
+#[spacetimedb::reducer]
+pub fn add_post_v2(
+    ctx: &ReducerContext,
+    id: String,
+    description: String,
+    hashtags: Vec<String>,
+    video_uid: String,
+    status: PostStatus,
+) -> Result<(), String> {
+    let creator_principal_text = match caller_principal_text(ctx) {
+        Some(text) => text,
+        None => return Err("User not found".to_string()),
+    };
+    if ctx.db.posts_v2().id().find(id.clone()).is_some() {
+        return Err("DuplicatePostId".to_string());
+    }
+    ctx.db.posts_v2().insert(PostV2 {
+        id,
+        creator: ctx.sender(),
+        creator_principal_text,
+        video_uid,
+        description,
+        hashtags,
+        status,
+        created_at: ctx.timestamp,
+        share_count: 0,
+        view_total_count: 0,
+        view_threshold_count: 0,
+        view_average_watch_percentage: 0,
+    });
+    Ok(())
+}
+
+/// Update a V2 post's status. Admin, or the post's creator.
+///
+/// Mirrors `update_post_status` (which operates on the V1 table) including the
+/// `Draft -> Uploaded` timestamp reset, so publishing a draft still stamps it
+/// with the moment it went public rather than the moment it was generated.
+///
+/// The post is looked up before the authorization check so ownership can be
+/// compared, as `delete_post` also does; a non-admin therefore sees
+/// `PostNotFound` rather than `Unauthorized` for a post that does not exist.
+#[spacetimedb::reducer]
+pub fn update_post_status_v2(
+    ctx: &ReducerContext,
+    post_id: String,
+    status: PostStatus,
+) -> Result<(), String> {
+    let mut post = match ctx.db.posts_v2().id().find(post_id) {
+        Some(p) => p,
+        None => return Err("PostNotFound".to_string()),
+    };
+    let is_creator = caller_principal_text(ctx)
+        .is_some_and(|text| text == post.creator_principal_text)
+        || post.creator == ctx.sender();
+    if !crate::constants::ADMINS.contains(&ctx.sender()) && !is_creator {
+        return Err("Unauthorized".to_string());
+    }
+    // Draft → Uploaded resets created_at (publishing a draft).
+    if status == PostStatus::Uploaded && post.status == PostStatus::Draft {
+        post.created_at = ctx.timestamp;
+    }
+    post.status = status;
+    ctx.db.posts_v2().id().update(post);
     Ok(())
 }
 
