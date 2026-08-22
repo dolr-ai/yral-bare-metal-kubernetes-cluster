@@ -34,7 +34,6 @@ hex = { workspace = true }
 http = { workspace = true }
 icondata = { workspace = true }
 icondata_core = { workspace = true }
-identity = { workspace = true, features = ["wasm-bindgen"] }
 js-sys = { workspace = true }
 jsonwebtoken = { workspace = true, optional = true, features = ["aws_lc_rs", "use_pem"] }
 leptos = { workspace = true, features = ["nightly"] }
@@ -64,7 +63,6 @@ tokio = {
 tower = { workspace = true, features = ["full"], optional = true }
 tower-http = { workspace = true, features = ["cors", "fs"], optional = true }
 tracing = { workspace = true, optional = true }
-types = { workspace = true }
 urlencoding = { workspace = true }
 utils = { path = "../utils" }
 uts2ts = { workspace = true }

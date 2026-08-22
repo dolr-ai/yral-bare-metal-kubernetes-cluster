@@ -15,7 +15,7 @@ use candid::Principal;
 use ic_agent::agent::EnvelopeContent;
 use ic_agent::identity::Delegation as AgentDelegation;
 
-use crate::{
+use super::{
     Error, Result, Signature, SignedDelegation, msg_builder::Message,
     current_epoch,
 };

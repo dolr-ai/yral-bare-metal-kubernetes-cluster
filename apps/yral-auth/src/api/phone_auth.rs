@@ -81,7 +81,7 @@ pub(crate) async fn send_authorization_code_for_phone_number(
     delivery_service: &dyn MessageDeliveryService,
     phone_number: String,
 ) -> Result<String, AuthErrorKind> {
-    let one_time_passcode: u32 = rand::thread_rng().gen_range(100000..999999);
+    let one_time_passcode: u32 = rand::rng().random_range(100000..999999);
 
     println!("Sending OTP {one_time_passcode} to phone number {phone_number}");
 

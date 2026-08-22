@@ -24,7 +24,7 @@ pub enum Error {
     Config(#[from] config::ConfigError),
     #[error("{0}")]
     #[schema(value_type = IdentityErrorDetail)]
-    Identity(#[from] identity::Error),
+    Identity(#[from] types::identity::Error),
     #[error("failed to deserialize json {0}")]
     #[schema(value_type = SerdeJsonErrorDetail)]
     Deser(#[from] serde_json::Error),

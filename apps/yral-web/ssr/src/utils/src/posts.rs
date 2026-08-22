@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 
 use leptos::prelude::RwSignal;
 use serde::{Deserialize, Serialize};
-use username_gen::random_username_from_principal;
+use crate::username_generator::random_username_from_identifier;
 use web_time::Duration;
 
 const USERNAME_MAX_LEN: usize = 29;
@@ -65,7 +65,7 @@ impl PostDetails {
     /// use `username_or_principal` instead
     pub fn username_or_fallback(&self) -> String {
         self.username.clone().unwrap_or_else(|| {
-            random_username_from_principal(&self.poster_principal, USERNAME_MAX_LEN)
+            random_username_from_identifier(&self.poster_principal, USERNAME_MAX_LEN)
         })
     }
 

@@ -16,9 +16,6 @@ email_address = { workspace = true }
 env_logger = { workspace = true }
 futures = { workspace = true }
 ic-agent = { workspace = true, features = ["pem"] }
-identity = { workspace = true, default-features = false, features = [
-  "verify",
-] }
 jsonwebtoken = { workspace = true, features = ["aws_lc_rs", "use_pem"] }
 log = { workspace = true }
 once_cell = { workspace = true }
@@ -43,7 +40,7 @@ tower = { workspace = true }
 tower-http = { workspace = true, features = ["cors", "trace"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
-types = { package = "yral-metadata-types", path = "../types" }
+types = { package = "yral-metadata-types", path = "../types", features = ["verify"] }
 utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true, features = ["axum", "reqwest"] }
 

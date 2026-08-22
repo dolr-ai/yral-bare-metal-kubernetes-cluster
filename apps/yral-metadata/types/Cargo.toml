@@ -8,9 +8,16 @@ edition = "2021"
 [dependencies]
 candid = { workspace = true }
 chrono = { workspace = true }
-identity = { workspace = true, default-features = false }
+ic-agent = { workspace = true, default-features = false, optional = true }
+k256 = { workspace = true, default-features = false, features = ["ecdsa", "pkcs8"], optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
+web-time = { workspace = true }
+
+[features]
+default = ["ic-agent", "verify"]
+ic-agent = ["dep:ic-agent"]
+verify = ["dep:k256", "ic-agent"]

@@ -2,7 +2,7 @@ use web_time::Duration;
 
 use candid::{Principal, encode_args, utils::ArgumentEncoder};
 
-use crate::{Result, current_epoch};
+use super::{Result, current_epoch};
 
 /// Signable Message
 #[derive(Clone, Debug)]

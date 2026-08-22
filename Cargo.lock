@@ -344,14 +344,13 @@ dependencies = [
  "consts",
  "enum_dispatch",
  "futures",
- "global-constants",
  "hex",
  "http 1.5.0",
  "jsonwebtoken",
  "leptos",
  "leptos_axum",
  "openidconnect",
- "rand_chacha 0.3.1",
+ "rand_chacha 0.9.0",
  "regex",
  "reqwest 0.13.4",
  "rustls",
@@ -361,7 +360,6 @@ dependencies = [
  "tokio",
  "tracing",
  "web-time",
- "yral-types",
 ]
 
 [[package]]
@@ -910,7 +908,7 @@ dependencies = [
  "log",
  "once_cell",
  "openidconnect",
- "rand_chacha 0.3.1",
+ "rand_chacha 0.9.0",
  "regex",
  "reqwest 0.13.4",
  "send_wrapper",
@@ -932,8 +930,6 @@ dependencies = [
  "web-sys",
  "web-time",
  "yral-database-spacetime-bindings",
- "yral-identity",
- "yral-types",
 ]
 
 [[package]]
@@ -1126,7 +1122,7 @@ dependencies = [
  "log",
  "once_cell",
  "openidconnect",
- "rand_chacha 0.3.1",
+ "rand_chacha 0.9.0",
  "regex",
  "reqwest 0.13.4",
  "send_wrapper",
@@ -1145,7 +1141,6 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "web-time",
- "yral-types",
 ]
 
 [[package]]
@@ -1718,7 +1713,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5e6043086bf7973472e0c7dff2142ea0b680d30e18d9cc40f267efbf222bd47"
 dependencies = [
  "base16ct",
- "base64ct",
  "crypto-bigint",
  "digest 0.10.7",
  "ff",
@@ -1729,8 +1723,6 @@ dependencies = [
  "pkcs8",
  "rand_core 0.6.4",
  "sec1",
- "serde_json",
- "serdect",
  "subtle",
  "zeroize",
 ]
@@ -2151,17 +2143,6 @@ checksum = "f0d8a4362ccb29cb0b265253fb0a2728f592895ee6854fd9bc13f2ffda266ff1"
 dependencies = [
  "opaque-debug",
  "polyval",
-]
-
-[[package]]
-name = "global-constants"
-version = "0.1.0"
-dependencies = [
- "candid",
- "num-bigint",
- "serde",
- "serde_with",
- "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -2796,8 +2777,6 @@ dependencies = [
  "ed25519-consensus",
  "elliptic-curve",
  "futures-util",
- "getrandom 0.2.17",
- "getrandom 0.4.3",
  "hex",
  "http 1.5.0",
  "http-body",
@@ -2807,7 +2786,6 @@ dependencies = [
  "ic-transport-types",
  "ic-verify-bls-signature",
  "ic_principal",
- "js-sys",
  "k256",
  "leb128",
  "p256",
@@ -2828,9 +2806,6 @@ dependencies = [
  "tokio",
  "tower-service",
  "url",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
 ]
 
 [[package]]
@@ -4200,7 +4175,7 @@ dependencies = [
  "num-traits",
  "once_cell",
  "openssl-sys",
- "rand 0.8.7",
+ "rand 0.9.5",
  "regex",
  "reqwest 0.13.4",
  "rustls",
@@ -4228,7 +4203,6 @@ dependencies = [
  "utoipa-swagger-ui",
  "uuid",
  "yral-database-spacetime-bindings",
- "yral-username-gen",
 ]
 
 [[package]]
@@ -4425,8 +4399,8 @@ dependencies = [
  "num-traits",
  "once_cell",
  "openidconnect",
- "rand 0.8.7",
- "rand_chacha 0.3.1",
+ "rand 0.9.5",
+ "rand_chacha 0.9.0",
  "regex",
  "reqwest 0.13.4",
  "send_wrapper",
@@ -4449,9 +4423,6 @@ dependencies = [
  "web-sys",
  "web-time",
  "yral-database-spacetime-bindings",
- "yral-identity",
- "yral-types",
- "yral-username-gen",
 ]
 
 [[package]]
@@ -5620,7 +5591,6 @@ dependencies = [
  "der",
  "generic-array",
  "pkcs8",
- "serdect",
  "subtle",
  "zeroize",
 ]
@@ -5879,16 +5849,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
-]
-
-[[package]]
-name = "serdect"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a84f14a19e9a014bb9f4512488d9829a68e04ecabffb0f9904cd1ace94598177"
-dependencies = [
- "base16ct",
- "serde",
 ]
 
 [[package]]
@@ -6481,7 +6441,6 @@ dependencies = [
  "enum_dispatch",
  "futures",
  "getrandom 0.3.4",
- "global-constants",
  "gloo",
  "gob-cloudflare",
  "hex",
@@ -6500,8 +6459,8 @@ dependencies = [
  "once_cell",
  "openidconnect",
  "openssl-sys",
- "rand 0.8.7",
- "rand_chacha 0.3.1",
+ "rand 0.9.5",
+ "rand_chacha 0.9.0",
  "regex",
  "reqwest 0.13.4",
  "send_wrapper",
@@ -6523,7 +6482,6 @@ dependencies = [
  "web-sys",
  "web-time",
  "yral-database-spacetime-bindings",
- "yral-types",
 ]
 
 [[package]]
@@ -6791,7 +6749,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb87b95ec50ddfa440816d227a17b2ccbdda963a316a727fda0fc4334f7d134"
 dependencies = [
  "deranged",
- "js-sys",
  "libc",
  "num-conv",
  "num_threads",
@@ -7453,12 +7410,15 @@ dependencies = [
  "num-bigint",
  "once_cell",
  "openidconnect",
- "rand_chacha 0.3.1",
+ "rand 0.9.5",
+ "rand_chacha 0.9.0",
+ "rand_xoshiro",
  "reactive_graph",
  "reqwest 0.13.4",
  "send_wrapper",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "simple_logger",
  "speedate",
  "thiserror 2.0.20",
@@ -7473,9 +7433,6 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "web-time",
- "yral-identity",
- "yral-types",
- "yral-username-gen",
 ]
 
 [[package]]
@@ -8079,7 +8036,7 @@ dependencies = [
  "openssl-sys",
  "p256",
  "postcard",
- "rand 0.8.7",
+ "rand 0.9.5",
  "regex",
  "reqwest 0.13.4",
  "rustls",
@@ -8107,27 +8064,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "yral-identity"
-version = "0.1.0"
-dependencies = [
- "candid",
- "getrandom 0.2.17",
- "ic-agent",
- "k256",
- "rand 0.8.7",
- "serde",
- "thiserror 2.0.20",
- "web-time",
-]
-
-[[package]]
 name = "yral-metadata-client"
 version = "0.1.0"
 dependencies = [
  "ic-agent",
  "reqwest 0.13.4",
  "thiserror 2.0.20",
- "yral-identity",
  "yral-metadata-types",
 ]
 
@@ -8149,7 +8091,7 @@ dependencies = [
  "k256",
  "log",
  "once_cell",
- "rand 0.8.7",
+ "rand 0.9.5",
  "regex",
  "reqwest 0.13.4",
  "rustls",
@@ -8165,7 +8107,6 @@ dependencies = [
  "tracing-subscriber",
  "utoipa",
  "utoipa-swagger-ui",
- "yral-identity",
  "yral-metadata-types",
 ]
 
@@ -8175,33 +8116,14 @@ version = "0.1.0"
 dependencies = [
  "candid",
  "chrono",
+ "ic-agent",
+ "k256",
  "serde",
  "serde_json",
  "thiserror 2.0.20",
  "utoipa",
  "utoipa-swagger-ui",
- "yral-identity",
-]
-
-[[package]]
-name = "yral-types"
-version = "0.1.0"
-dependencies = [
- "ic-agent",
- "k256",
- "serde",
- "serde_json",
- "utoipa",
- "utoipa-swagger-ui",
-]
-
-[[package]]
-name = "yral-username-gen"
-version = "0.1.0"
-dependencies = [
- "rand 0.9.5",
- "rand_xoshiro",
- "sha2 0.10.9",
+ "web-time",
 ]
 
 [[package]]
@@ -8239,7 +8161,7 @@ dependencies = [
  "once_cell",
  "openidconnect",
  "page",
- "rand_chacha 0.3.1",
+ "rand_chacha 0.9.0",
  "regex",
  "reqwest 0.13.4",
  "send_wrapper",
@@ -8263,7 +8185,6 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "web-time",
- "yral-types",
 ]
 
 [[package]]

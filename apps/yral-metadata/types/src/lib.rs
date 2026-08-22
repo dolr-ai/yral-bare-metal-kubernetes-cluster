@@ -1,4 +1,5 @@
 pub mod error;
+pub mod identity;
 
 use candid::Principal;
 use error::ApiError;
@@ -6,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use utoipa::ToSchema;
-pub use identity::{msg_builder::Message, Error, Signature};
+pub use identity::{Message, Error, Signature};
 
 pub type ApiResult<T> = Result<T, ApiError>;
 

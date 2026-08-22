@@ -153,7 +153,6 @@ tracing = { workspace = true, optional = true }
 tracing-futures = { workspace = true, optional = true }
 tracing-log = { workspace = true, optional = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "std"], optional = true }
-types = { workspace = true }
 urlencoding = { workspace = true }
 utils = { path = "./src/utils" }
 uts2ts = { workspace = true }

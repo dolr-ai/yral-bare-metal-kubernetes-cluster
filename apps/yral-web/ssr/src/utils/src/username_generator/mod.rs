@@ -1,23 +1,23 @@
-use rand::{
-    SeedableRng,
-    distr::uniform::{UniformChar, UniformSampler},
-    seq::IndexedRandom,
-};
+mod adjectives;
+mod nouns;
+
+use rand::distr::uniform::{UniformChar, UniformSampler};
+use rand::seq::IndexedRandom;
+use rand::SeedableRng;
 use rand_xoshiro::Xoshiro256StarStar;
 use sha2::{Digest, Sha256};
 
-use crate::data::{adjectives::ADJECTIVES, nouns::NOUNS};
-
-mod data;
+use self::adjectives::ADJECTIVES;
+use self::nouns::NOUNS;
 
 const RAND_DIGIT_COUNT: usize = 3;
 
 /// Generate a deterministic random username from a user identifier string.
 /// The user_id (JWT sub or UUID) is hashed with SHA-256 to produce a
 /// 32-byte seed for the RNG. This replaces the old IC Principal-based seeding.
-pub fn random_username_from_principal(user_id: &str, max_len: usize) -> String {
+pub fn random_username_from_identifier(user_identifier: &str, max_len: usize) -> String {
     let mut hasher = Sha256::new();
-    hasher.update(user_id.as_bytes());
+    hasher.update(user_identifier.as_bytes());
     let seed = hasher.finalize();
     let mut rng = Xoshiro256StarStar::from_seed(seed.into());
 
@@ -41,21 +41,21 @@ pub fn random_username_from_principal(user_id: &str, max_len: usize) -> String {
 
 #[cfg(test)]
 mod test {
-    use super::random_username_from_principal;
+    use super::random_username_from_identifier;
 
     #[test]
     fn test_rng_len() {
-        let user_id = "test-anonymous-user";
-        let res = random_username_from_principal(user_id, 15);
+        let user_identifier = "test-anonymous-user";
+        let res = random_username_from_identifier(user_identifier, 15);
         println!("{res}");
         assert!(res.len() <= 15);
     }
 
     #[test]
     fn test_rng_reproducible() {
-        let user_id = "test-anonymous-user";
-        let res1 = random_username_from_principal(user_id, 15);
-        let res2 = random_username_from_principal(user_id, 15);
+        let user_identifier = "test-anonymous-user";
+        let res1 = random_username_from_identifier(user_identifier, 15);
+        let res2 = random_username_from_identifier(user_identifier, 15);
         assert_eq!(res1, res2);
     }
 }

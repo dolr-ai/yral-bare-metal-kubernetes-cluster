@@ -23,6 +23,7 @@ pub mod route;
 pub mod time;
 pub mod types;
 pub mod user_identity;
+pub mod username_generator;
 pub mod web;
 
 /// Navigation category for bottom nav tracking and cookie logic.

@@ -71,7 +71,6 @@ wasm-bindgen-futures = { workspace = true }
 js-sys = { workspace = true }
 speedate = { workspace = true, optional = true }
 urlencoding = { workspace = true }
-types = { workspace = true }
 regex = { workspace = true, optional = true }
 anyhow = { workspace = true }
 send_wrapper = { workspace = true, features = ["futures"] }

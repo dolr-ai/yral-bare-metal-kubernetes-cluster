@@ -74,14 +74,14 @@ js-sys = { workspace = true }
 speedate = { workspace = true, optional = true }
 urlencoding = { workspace = true }
 uuid = { workspace = true, features = ["v4", "js"] }
-types = { workspace = true }
-username-gen = { workspace = true }
+rand = { workspace = true, default-features = false }
+rand_xoshiro = { workspace = true, default-features = false }
+sha2 = { workspace = true }
 anyhow = { workspace = true }
 send_wrapper = { workspace = true, features = ["futures"] }
 indexmap = { workspace = true }
 chrono = "0.4"
 num-bigint = { workspace = true }
-identity = { workspace = true, features = ["wasm-bindgen"] }
 
 # workspace specific deps
 consts = { path = "../consts" }

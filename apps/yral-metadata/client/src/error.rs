@@ -8,7 +8,7 @@ pub enum Error {
     #[error("{0}")]
     Api(#[from] ApiError),
     #[error("failed to sign: {0}")]
-    Identity(#[from] identity::Error),
+    Identity(#[from] types::identity::Error),
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

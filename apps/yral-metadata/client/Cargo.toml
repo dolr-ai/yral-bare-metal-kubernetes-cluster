@@ -7,13 +7,6 @@ edition = "2021"
 
 [dependencies]
 ic-agent = { workspace = true }
-identity = {
-  workspace = true,
-  default-features = false,
-  features = [
-    "ic-agent",
-  ]
-}
 reqwest = {
   workspace = true,
   default-features = false,
@@ -23,7 +16,7 @@ reqwest = {
   ]
 }
 thiserror = { workspace = true }
-types = { package = "yral-metadata-types", path = "../types" }
+types = { package = "yral-metadata-types", path = "../types", features = ["ic-agent"] }
 
 [features]
 default = []

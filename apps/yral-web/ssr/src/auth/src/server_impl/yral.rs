@@ -5,7 +5,6 @@ use axum_extra::extract::{
     PrivateCookieJar, SignedCookieJar,
 };
 use consts::LoginProvider;
-use global_constants::USERNAME_MAX_LEN;
 use leptos::prelude::*;
 use leptos_axum::{extract_with_state, ResponseOptions};
 use openidconnect::{
@@ -28,6 +27,7 @@ use super::{set_cookies, set_id_token_cookie, update_user_identity};
 
 const PKCE_VERIFIER_COOKIE: &str = "google-pkce-verifier";
 const CSRF_TOKEN_COOKIE: &str = "google-csrf-token";
+const USERNAME_MAX_LEN: usize = 15;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct YralAuthAdditionalTokenClaims {

@@ -9,7 +9,7 @@
 //! for `candid::Principal` since we don't make IC canister calls anymore.
 
 use serde::{Deserialize, Serialize};
-use username_gen::random_username_from_principal;
+use crate::username_generator::random_username_from_identifier;
 
 /// Display-name length cap.
 const USERNAME_MAX_LEN: usize = 29;
@@ -61,7 +61,7 @@ impl ProfileDetails {
         self.username
             .clone()
             .unwrap_or_else(|| {
-                random_username_from_principal(&self.user_identifier, USERNAME_MAX_LEN)
+                random_username_from_identifier(&self.user_identifier, USERNAME_MAX_LEN)
             })
     }
 
@@ -121,7 +121,7 @@ impl UserIdentity {
         self.username
             .clone()
             .unwrap_or_else(|| {
-                random_username_from_principal(&self.user_identifier, USERNAME_MAX_LEN)
+                random_username_from_identifier(&self.user_identifier, USERNAME_MAX_LEN)
             })
     }
 
