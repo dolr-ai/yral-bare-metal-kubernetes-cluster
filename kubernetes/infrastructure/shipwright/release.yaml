@@ -240,7 +240,7 @@ spec:
       serviceAccountName: shipwright-build-webhook
       containers:
         - name: shipwright-build-webhook
-          image: ghcr.io/shipwright-io/build/shipwright-build-webhook:v0.20.7
+          image: ghcr.io/shipwright-io/build/shipwright-build-webhook:v0.20.13
           volumeMounts:
             - name: webhook-certs
               mountPath: /etc/webhook/certs
