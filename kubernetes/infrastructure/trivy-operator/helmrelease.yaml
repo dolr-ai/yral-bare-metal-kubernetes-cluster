@@ -67,6 +67,22 @@ spec:
       severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
       # Slower but less resource-intensive
       slow: true
+    trivyOperator:
+      # Tolerate the control-plane taint so scan jobs can run on CP nodes.
+      # The node-collector auto-selects a CP node (useNodeSelector: true) for
+      # CIS benchmark scanning but doesn't add the toleration by default.
+      scanJobTolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+    nodeCollector:
+      # Tolerate the control-plane taint so the node-collector can scan CP nodes.
+      # Without this, the node-collector pod stays Pending on CP nodes (which
+      # have the NoSchedule taint from kubeadm).
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
     compliance:
       # Run compliance scans every 6 hours (default)
       cron: "0 */6 * * *"
