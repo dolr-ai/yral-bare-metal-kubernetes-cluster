@@ -1526,7 +1526,7 @@ spec:
       serviceAccountName: tekton-triggers-controller
       containers:
         - name: tekton-triggers-controller
-          image: "ghcr.io/tektoncd/triggers/controller-f656ca31de179ab913fa76abc255c315:v0.36.0"
+          image: "ghcr.io/tektoncd/triggers/controller-f656ca31de179ab913fa76abc255c315:v0.37.0"
           args: ["-logtostderr", "-stderrthreshold", "INFO", "-el-image", "ghcr.io/tektoncd/triggers/eventlistenersink-7ad1faa98cddbcb0c24990303b220bb8:v0.36.0", "-el-port", "8080", "-el-security-context=true", "-el-read-only-root-filesystem=true", "-el-events", "disable", "-el-readtimeout", "5", "-el-writetimeout", "40", "-el-idletimeout", "120", "-el-timeouthandler", "30", "-el-httpclient-readtimeout", "30", "-el-httpclient-keep-alive", "30", "-el-httpclient-tlshandshaketimeout", "10", "-el-httpclient-responseheadertimeout", "10", "-el-httpclient-expectcontinuetimeout", "1", "-period-seconds", "10", "-failure-threshold", "3"]
           env:
             - name: SYSTEM_NAMESPACE
