@@ -49,7 +49,7 @@ spec:
         - name: enrich
           # Pin to a specific digest tag in production.
           # Check https://hub.docker.com/r/snowplow/snowplow-enrich-kafka/tags
-          image: snowplow/snowplow-enrich-kafka:6.12.0
+          image: snowplow/snowplow-enrich-kafka:6.13.1
           args:
             - --config
             - /snowplow/config/application.conf
