@@ -4,9 +4,14 @@
 # Exposed at https://headlamp.yral.com via oauth2-proxy (Google Workspace SSO).
 #
 # Plugins installed:
-#   - Flux: ghcr.io/headlamp-k8s/headlamp-plugin-flux:v0.6.0
+#   - Flux: ghcr.io/headlamp-k8s/headlamp-plugin-flux:v0.7.0
 #     Releases: https://github.com/headlamp-k8s/plugins/releases
 #     Loaded via initContainer copying from OCI image into emptyDir at /build/plugins
+#   - Trivy: ghcr.io/kubebeam/trivy-headlamp-plugin:v0.3.2
+#     Source: https://github.com/kubebeam/trivy-headlamp-plugin
+#     Visualizes Trivy Operator CRs (ClusterComplianceReport, VulnerabilityReport,
+#     ConfigAuditReport, ExposedSecretReport, InfraAssessmentReport, etc.)
+#     Requires the trivy-operator HelmRelease in kubernetes/infrastructure/trivy-operator/
 #
 # Chart: https://kubernetes-sigs.github.io/headlamp/
 # Version: check latest at https://github.com/kubernetes-sigs/headlamp/releases
@@ -81,8 +86,9 @@ spec:
       limits:
         cpu: 200m
         memory: 128Mi
-    # Flux plugin: copy plugin files from the OCI image into the shared emptyDir
-    # before the main Headlamp container starts.
+    # Plugins: copy plugin files from OCI images into the shared emptyDir
+    # before the main Headlamp container starts. Both initContainers share the
+    # same headlamp-plugins volume and run sequentially.
     initContainers:
       - name: headlamp-flux-plugin
         image: ghcr.io/headlamp-k8s/headlamp-plugin-flux:v0.7.0
@@ -90,6 +96,20 @@ spec:
           - /bin/sh
           - -c
           - mkdir -p /build/plugins && cp -r /plugins/* /build/plugins/ && chown -R 100:101 /build
+        securityContext:
+          runAsNonRoot: false
+          privileged: false
+          runAsUser: 0
+          runAsGroup: 0
+        volumeMounts:
+          - name: headlamp-plugins
+            mountPath: /build/plugins
+      - name: headlamp-trivy-plugin
+        image: ghcr.io/kubebeam/trivy-headlamp-plugin:v0.3.2
+        command:
+          - /bin/sh
+          - -c
+          - cp -r /plugins/* /build/plugins/ && chown -R 100:101 /build
         securityContext:
           runAsNonRoot: false
           privileged: false

@@ -32,7 +32,6 @@ resources:
   - infrastructure-kafka-bridge.yaml
   - infrastructure-kafka-connect.yaml
   - infrastructure-kafka-console.yaml
-  - infrastructure-kube-bench.yaml
   - infrastructure-longhorn-backup.yaml
   - infrastructure-longhorn.yaml
   - infrastructure-loki.yaml
@@ -46,6 +45,7 @@ resources:
   - infrastructure-strimzi.yaml
   - infrastructure-tekton-pipelines.yaml
   - infrastructure-tekton-triggers.yaml
+  - infrastructure-trivy-operator.yaml
   - infrastructure-velero.yaml
   - networking.yaml
 

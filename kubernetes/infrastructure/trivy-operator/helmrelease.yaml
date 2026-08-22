@@ -1,0 +1,94 @@
+# Trivy Operator — continuous security scanning (CIS Benchmark, vulnerabilities,
+# config audits, exposed secrets, RBAC assessment, infra assessment).
+#
+# Replaces kube-bench with a CRD-native operator that stores results as
+# Kubernetes resources (ClusterComplianceReport, VulnerabilityReport, etc.)
+# queryable via kubectl and visualized in Headlamp via the Trivy plugin.
+#
+# Chart: https://artifacthub.io/packages/helm/trivy-operator/trivy-operator
+# Source: https://github.com/aquasecurity/trivy-operator
+#
+# CIS Kubernetes Benchmark scanning is enabled by default via
+# operator.clusterComplianceEnabled: true. The operator generates a
+# ClusterComplianceReport CR every 6 hours with pass/fail/warn per control.
+#
+# The Headlamp Trivy plugin (added to the Headlamp HelmRelease) reads these CRs
+# and renders them as visual dashboards.
+#
+# Standalone mode (default): each scan job downloads the Trivy DB independently
+# to an emptyDir. No PVC needed. Simpler than ClientServer mode.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: trivy-operator
+  namespace: trivy-system
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: trivy-operator
+      version: "0.35.0"
+      sourceRef:
+        kind: HelmRepository
+        name: aqua
+        namespace: trivy-system
+  timeout: 5m
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    operator:
+      replicas: 1
+      # CIS Kubernetes Benchmark — enabled by default, generates
+      # ClusterComplianceReport CRs every 6 hours
+      clusterComplianceEnabled: true
+      # Vulnerability scanning — scans container images for CVEs
+      vulnerabilityScannerEnabled: true
+      # Config audit — checks workloads against security best practices
+      configAuditScannerEnabled: true
+      # Exposed secret scanning — detects secrets in container images
+      exposedSecretScannerEnabled: true
+      # RBAC assessment — checks RBAC for over-permissive bindings
+      rbacAssessmentScannerEnabled: true
+      # Infrastructure assessment — checks cluster infra (nodes, control plane)
+      infraAssessmentScannerEnabled: true
+      # SBOM generation — Software Bill of Materials for each image
+      sbomGenerationEnabled: false
+      # Limit concurrent scan jobs to avoid overwhelming the cluster
+      scanJobsConcurrentLimit: 10
+      # TTL for scan report CRs — old reports are garbage-collected
+      scannerReportTTL: 24h
+      # Scan jobs timeout
+      scanJobTimeout: 5m
+    trivy:
+      # Standalone mode — each scan pod downloads the DB to emptyDir
+      mode: Standalone
+      # Scan for all severity levels
+      severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+      # Slower but less resource-intensive
+      slow: true
+    compliance:
+      # Run compliance scans every 6 hours (default)
+      cron: "0 */6 * * *"
+      # Summary report (pass/fail counts per control)
+      reportType: summary
+      # Max fail entries per control check
+      failEntriesLimit: 10
+      # Built-in compliance specs to generate
+      specs:
+        - "k8s-cis-1.23"
+        - "k8s-nsa-1.0"
+        - "k8s-pss-baseline-0.1"
+        - "k8s-pss-restricted-0.1"
+    # Prometheus metrics — enable ServiceMonitor for our monitoring stack
+    serviceMonitor:
+      enabled: true
+      namespace: trivy-system
+    # Resource limits for the operator pod
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
