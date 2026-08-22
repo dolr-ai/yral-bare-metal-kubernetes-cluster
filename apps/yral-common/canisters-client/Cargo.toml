@@ -13,7 +13,7 @@ log = "0.4"
 
 [build-dependencies]
 serde = { workspace = true, features = ["derive"] }
-candid_parser = "0.1.4"
+candid_parser = "0.4.0"
 serde_json.workspace = true
 convert_case = "0.11.0"
 anyhow = "1.0.86"
