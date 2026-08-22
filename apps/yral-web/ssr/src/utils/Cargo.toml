@@ -76,7 +76,6 @@ urlencoding = { workspace = true }
 uuid = { workspace = true, features = ["v4", "js"] }
 types = { workspace = true }
 username-gen = { workspace = true }
-regex = { workspace = true, optional = true }
 anyhow = { workspace = true }
 send_wrapper = { workspace = true, features = ["futures"] }
 indexmap = { workspace = true }
@@ -116,7 +115,6 @@ ssr = [
     "dep:rand_chacha",
     "dep:dotenv",
     "speedate",
-    "dep:regex",
     "consts/ssr",
 ]
 oauth-ssr = ["dep:openidconnect", "consts/oauth-ssr"]

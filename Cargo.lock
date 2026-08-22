@@ -8265,7 +8265,6 @@ dependencies = [
  "openidconnect",
  "rand_chacha 0.3.1",
  "reactive_graph",
- "regex",
  "reqwest 0.13.4",
  "send_wrapper",
  "serde",

@@ -1,5 +1,3 @@
-use std::sync::LazyLock;
-
 pub fn get_host() -> String {
     #[cfg(feature = "hydrate")]
     {
@@ -36,49 +34,7 @@ pub fn get_host() -> String {
     }
 }
 
-#[cfg(feature = "ssr")]
-pub fn is_host_or_origin_from_preview_domain(uri: &str) -> bool {
-    use regex::Regex;
-
-    static PR_PREVIEW_PATTERN: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"^(https:\/\/)?pr-\d*-legacy\.yral\.com$").unwrap());
-
-    PR_PREVIEW_PATTERN.is_match_at(uri, 0)
-}
-
-pub fn show_preview_component() -> bool {
-    let host = get_host();
-    host.contains("legacy.yral.com") || host.contains("localhost")
-}
-
 // TODO: migrate to AppType
 pub fn show_nsfw_content() -> bool {
     false
-}
-
-pub fn show_nsfw_condition(_host: String) -> bool {
-    false
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::host::is_host_or_origin_from_preview_domain;
-
-    #[test]
-    fn preview_origin_regex_matches() {
-        let preview_link_url = "https://pr-636-legacy.yral.com";
-        assert!(is_host_or_origin_from_preview_domain(preview_link_url))
-    }
-
-    #[test]
-    fn preview_host_regex_matches() {
-        let preview_link_url = "pr-636-legacy.yral.com";
-        assert!(is_host_or_origin_from_preview_domain(preview_link_url))
-    }
-
-    #[test]
-    fn preview_localhost_fails() {
-        let preview_link_url = "https://ramdom.com/pr-636-legacy.yral.com";
-        assert!(!is_host_or_origin_from_preview_domain(preview_link_url))
-    }
 }
