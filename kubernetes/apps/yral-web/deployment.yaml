@@ -24,7 +24,7 @@ spec:
         - name: harbor-pull-secret
       containers:
         - name: yral-web
-          image: harbor.yral.com/yral-web/yral-web:20260821213839-fa373ba0 # {"$imagepolicy": "flux-system:yral-web"}
+          image: harbor.yral.com/yral-web/yral-web:20260822084404-a24627b2 # {"$imagepolicy": "flux-system:yral-web"}
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
