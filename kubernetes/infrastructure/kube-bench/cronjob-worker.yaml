@@ -39,7 +39,9 @@ spec:
               image: docker.io/aquasec/kube-bench:v0.16.0
               imagePullPolicy: IfNotPresent
               # On a worker, only the "node" (kubelet) section is relevant.
-              command: ["kube-bench", "--benchmark", "cis-2.0", "--targets", "node"]
+              # kube-bench auto-detects the K8s version and selects the matching
+              # CIS benchmark — no --benchmark flag needed.
+              command: ["kube-bench", "--targets", "node"]
               volumeMounts:
                 - name: var-lib-cni
                   mountPath: /var/lib/cni

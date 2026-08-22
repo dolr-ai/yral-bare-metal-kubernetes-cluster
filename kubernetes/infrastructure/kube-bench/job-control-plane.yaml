@@ -32,7 +32,7 @@ spec:
         - name: kube-bench
           image: docker.io/aquasec/kube-bench:v0.16.0
           imagePullPolicy: IfNotPresent
-          command: ["kube-bench", "--benchmark", "cis-2.0"]
+          command: ["kube-bench"]
           volumeMounts:
             - name: var-lib-cni
               mountPath: /var/lib/cni
