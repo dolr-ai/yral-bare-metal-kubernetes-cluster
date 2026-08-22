@@ -29,7 +29,7 @@ consts = { path = "../consts" }
 dotenv = { workspace = true, optional = true }
 enum_dispatch = { workspace = true, optional = true }
 futures = { workspace = true }
-getrandom = { version = "0.3", default-features = false, features = ["wasm_js"], optional = true }
+getrandom = { workspace = true, default-features = false, features = ["wasm_js"], optional = true }
 gloo = { workspace = true, features = ["futures", "net"] }
 gob-cloudflare = { workspace = true, optional = true }
 hex = { workspace = true }
@@ -37,7 +37,7 @@ http = { workspace = true }
 icondata = { workspace = true }
 icondata_core = { workspace = true }
 js-sys = { workspace = true }
-jsonwebtoken = { workspace = true, optional = true, features = ["aws_lc_rs", "use_pem"] }
+jsonwebtoken = { workspace = true, features = ["aws_lc_rs", "use_pem"], optional = true }
 leptos = { workspace = true, features = ["nightly"] }
 leptos_axum = { workspace = true, optional = true }
 leptos_icons = { workspace = true }

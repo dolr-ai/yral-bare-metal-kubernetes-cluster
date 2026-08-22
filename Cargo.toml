@@ -56,7 +56,7 @@ enum_dispatch = "0.3"
 env_logger = "0.11.3"
 futures = "0.3.30"
 futures-util = "0.3.31"
-getrandom = { version = "0.3.3", default-features = false }
+getrandom = { version = "0.4.3" }
 gloo = "0.11.0"
 gloo-utils = "0.2.0"
 gob-cloudflare = { git = "https://github.com/yral-dapp/gob-cloudflare", rev = "c847ba87ecc73a33520b24bd62503420d7e23e3e", default-features = false }
