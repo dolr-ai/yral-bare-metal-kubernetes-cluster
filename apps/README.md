@@ -42,8 +42,6 @@ git submodule update --init --recursive
 | ---------------------------------- | ----------------------------------------------------- |
 | `apps/yral/`                       | git@github.com:dolr-ai/yral.git                       |
 | `apps/yral-mobile/`                | git@github.com:dolr-ai/yral-mobile.git                |
-| `apps/yral-backend-canister/`      | git@github.com:dolr-ai/yral-backend-canister.git      |
-
 | `apps/website/`                    | git@github.com:dolr-ai/website.git                    |
 
 ## In-repo applications (not submodules)

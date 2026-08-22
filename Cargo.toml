@@ -21,8 +21,6 @@ members = [
 ]
 
 exclude = [
-  # Independent Cargo workspace (IC canister, WASM target, resolver = "2")
-  "apps/yral-backend-canister",
   # Gradle project with a Rust submodule — not part of this workspace because
   # git submodules are not present in shallow clones (Shipwright/BuildKit).
   "apps/yral-mobile/shared/rust/rust-agent/rust-agent-uniffi",
