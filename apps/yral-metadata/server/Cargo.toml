@@ -8,13 +8,6 @@ edition = "2021"
 [dependencies]
 axum = { workspace = true, features = ["json", "macros"] }
 base64 = { workspace = true }
-canisters-client = {
-  workspace = true,
-  features = [
-    "user-info-service",
-    "user-post-service",
-  ]
-}
 candid = { workspace = true }
 chrono = { workspace = true }
 config = { workspace = true, features = ["toml"] }

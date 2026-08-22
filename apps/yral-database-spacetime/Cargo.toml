@@ -17,18 +17,3 @@ log = { workspace = true }
 # `#[spacetimedb::http::handler]` (unstable-gated in spacetimedb 2.6.1).
 # Required by the `posts` feature (procedures + HTTP handler).
 spacetimedb = { workspace = true, features = ["unstable"] }
-
-[dev-dependencies]
-anyhow = { workspace = true }
-candid = { workspace = true }
-canisters-client = {
-  workspace = true,
-  features = ["user-info-service", "user-post-service"]
-}
-ic-agent = { workspace = true }
-reqwest = { workspace = true, features = ["json", "rustls"] }
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
-spacetimedb-sdk = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt"] }
-yral-database-spacetime-bindings = { workspace = true }

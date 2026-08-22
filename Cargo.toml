@@ -6,17 +6,7 @@ members = [
   "apps/off-chain-agent",
   "apps/task-runner",
   "apps/yral-auth",
-  "apps/yral-common/alloydb-client",
-  "apps/yral-common/canisters-client",
-  "apps/yral-common/canisters-common",
-  "apps/yral-common/config-cf-kv",
-  "apps/yral-common/config-cf-kv-worker",
-  "apps/yral-common/config-keys",
   "apps/yral-common/identity",
-  "apps/yral-common/metrics",
-  "apps/yral-common/pump-n-dump-common",
-  "apps/yral-common/qstash-types",
-  "apps/yral-common/sns-validation",
   "apps/yral-common/types",
   "apps/yral-common/username-gen",
   "apps/yral-database-spacetime",
@@ -52,7 +42,6 @@ axum-extra = "0.12.5"
 base64 = "0.22.1"
 bb8 = "0.9.1"
 candid = "0.10.32"
-canisters-client = { package = "yral-canisters-client", path = "apps/yral-common/canisters-client" }
 chrono = "0.4"
 chrono-tz = "0.10"
 ciborium = "0.2.2"
@@ -77,10 +66,6 @@ gloo-utils = "0.2.0"
 gob-cloudflare = { git = "https://github.com/yral-dapp/gob-cloudflare", rev = "c847ba87ecc73a33520b24bd62503420d7e23e3e", default-features = false }
 hex = "0.4.3"
 hmac = "0.12.1"
-hon-worker-common = {
-  package = "hon-worker-common",
-  path = "apps/yral-common/hon-worker-common",
-}
 http = "1.1.0"
 http-body-util = "0.1.2"
 ic-agent = { version = "0.49.0", default-features = false }
@@ -110,7 +95,6 @@ openssl-sys = "0.9.117"
 p256 = "0.13.2"
 postcard = "1.1.1"
 priority-queue = "2.1.0"
-pump-n-dump-common = { package = "yral-pump-n-dump-common", path = "apps/yral-common/pump-n-dump-common" }
 rand = { version = "0.8.5", default-features = false }
 rand_chacha = "0.3.1"
 reactive_graph = "0.2.5"
@@ -127,7 +111,6 @@ serde_with = "3.12.0"
 sha1 = "0.10"
 sha2 = "0.10.8"
 simple_logger = "4.0"
-sns-validation = { path = "apps/yral-common/sns-validation" }
 spacetimedb = "2.6.1"
 spacetimedb-sdk = "2.6.1"
 speedate = "0.14.4"
@@ -158,11 +141,9 @@ wasm-bindgen = "=0.2.108"
 wasm-bindgen-futures = "0.4.42"
 web-sys = "0.3"
 web-time = "1.0.0"
-yral-canisters-common = { package = "yral-canisters-common", path = "apps/yral-common/canisters-common" }
 yral-database-spacetime-bindings = { package = "yral-database-spacetime-bindings", path = "apps/yral-database-spacetime/bindings" }
 yral-metadata-client = { path = "apps/yral-metadata/client", default-features = false }
 yral-metadata-types = { path = "apps/yral-metadata/types" }
-yral-metrics = { package = "yral-metrics", path = "apps/yral-common/metrics" }
 
 # Profile for yral-web release binary (from apps/yral-web/Cargo.toml)
 [profile.prod-release]

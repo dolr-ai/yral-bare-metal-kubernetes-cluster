@@ -35,8 +35,6 @@ pub fn default_oauth_clients() -> HashMap<String, OAuthClient> {
         {
             "6a0101eb-8496-4afb-ba48-425187c3a30d",
             [
-                "https://pumpdump.wtf/api/oauth/callback",
-                "https://pd.dev/api/oauth/callback",
                 "http://localhost:5190/api/oauth/callback"
             ],
             OAuthClientType::Web
