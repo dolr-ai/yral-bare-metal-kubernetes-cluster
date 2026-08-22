@@ -1,0 +1,128 @@
+# kube-bench on control-plane nodes.
+#
+# Runs the CIS Kubernetes Benchmark against a control-plane node. kube-bench
+# detects the Kubernetes version automatically and selects the matching CIS
+# benchmark. Landing on a CP node lets it scan the master, etcd, controlplane,
+# and node (kubelet) sections in one pass.
+#
+# Requires hostPID + read-only hostPath mounts of the directories kube-bench
+# inspects (kubeadm static pod manifests, etcd data dir, kubelet config,
+# CNI config, systemd units). Read-only — the pod cannot mutate host state.
+#
+# Tolerates the kubeadm-applied node-role.kubernetes.io/control-plane:NoSchedule
+# taint and pins to a control-plane node via nodeSelector.
+#
+# Image is pinned to v0.16.0 (adds CIS-2.0 support). Pulled directly from
+# Docker Hub like other off-the-shelf third-party tooling (not built in Harbor).
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: kube-bench-control-plane
+  namespace: kube-bench
+spec:
+  # Weekly, 03:00 UTC on Sunday — off-peak for the control plane.
+  schedule: "0 3 * * 0"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        metadata:
+          labels:
+            app: kube-bench
+        spec:
+          restartPolicy: Never
+          hostPID: true
+          nodeSelector:
+            node-role.kubernetes.io/control-plane: ""
+          tolerations:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+              effect: NoSchedule
+          containers:
+            - name: kube-bench
+              image: docker.io/aquasec/kube-bench:v0.16.0
+              imagePullPolicy: IfNotPresent
+              command: ["kube-bench", "--benchmark", "cis-2.0"]
+              volumeMounts:
+                - name: var-lib-cni
+                  mountPath: /var/lib/cni
+                  readOnly: true
+                - name: var-lib-etcd
+                  mountPath: /var/lib/etcd
+                  readOnly: true
+                - name: var-lib-kubelet
+                  mountPath: /var/lib/kubelet
+                  readOnly: true
+                - name: var-lib-kube-scheduler
+                  mountPath: /var/lib/kube-scheduler
+                  readOnly: true
+                - name: var-lib-kube-controller-manager
+                  mountPath: /var/lib/kube-controller-manager
+                  readOnly: true
+                - name: etc-systemd
+                  mountPath: /etc/systemd
+                  readOnly: true
+                - name: lib-systemd
+                  mountPath: /lib/systemd
+                  readOnly: true
+                - name: etc-kubernetes
+                  mountPath: /etc/kubernetes
+                  readOnly: true
+                - name: usr-bin
+                  mountPath: /usr/local/mount-from-host/bin
+                  readOnly: true
+                - name: etc-cni-netd
+                  mountPath: /etc/cni/net.d
+                  readOnly: true
+                - name: opt-cni-bin
+                  mountPath: /opt/cni/bin
+                  readOnly: true
+          volumes:
+            - name: var-lib-cni
+              hostPath:
+                path: /var/lib/cni
+                type: DirectoryOrCreate
+            - name: var-lib-etcd
+              hostPath:
+                path: /var/lib/etcd
+                type: DirectoryOrCreate
+            - name: var-lib-kubelet
+              hostPath:
+                path: /var/lib/kubelet
+                type: DirectoryOrCreate
+            - name: var-lib-kube-scheduler
+              hostPath:
+                path: /var/lib/kube-scheduler
+                type: DirectoryOrCreate
+            - name: var-lib-kube-controller-manager
+              hostPath:
+                path: /var/lib/kube-controller-manager
+                type: DirectoryOrCreate
+            - name: etc-systemd
+              hostPath:
+                path: /etc/systemd
+                type: DirectoryOrCreate
+            - name: lib-systemd
+              hostPath:
+                path: /lib/systemd
+                type: DirectoryOrCreate
+            - name: etc-kubernetes
+              hostPath:
+                path: /etc/kubernetes
+                type: DirectoryOrCreate
+            - name: usr-bin
+              hostPath:
+                path: /usr/bin
+                type: DirectoryOrCreate
+            - name: etc-cni-netd
+              hostPath:
+                path: /etc/cni/net.d
+                type: DirectoryOrCreate
+            - name: opt-cni-bin
+              hostPath:
+                path: /opt/cni/bin
+                type: DirectoryOrCreate

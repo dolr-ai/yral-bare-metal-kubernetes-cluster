@@ -28,10 +28,11 @@ resources:
   - infrastructure-gateway-api-crds.yaml
   - infrastructure-harbor.yaml
   - infrastructure-headlamp.yaml
+  - infrastructure-kafka.yaml
   - infrastructure-kafka-bridge.yaml
   - infrastructure-kafka-connect.yaml
   - infrastructure-kafka-console.yaml
-  - infrastructure-kafka.yaml
+  - infrastructure-kube-bench.yaml
   - infrastructure-longhorn-backup.yaml
   - infrastructure-longhorn.yaml
   - infrastructure-loki.yaml
