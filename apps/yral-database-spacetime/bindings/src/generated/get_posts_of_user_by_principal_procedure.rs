@@ -9,7 +9,7 @@ use super::post_list_offset_type::PostListOffset;
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 struct GetPostsOfUserByPrincipalArgs {
-    pub creator_principal_text: String,
+    pub creator_oauth_subject: String,
     pub offset: u64,
     pub limit: u64,
 }
@@ -25,16 +25,16 @@ impl __sdk::InModule for GetPostsOfUserByPrincipalArgs {
 pub trait get_posts_of_user_by_principal {
     fn get_posts_of_user_by_principal(
         &self,
-        creator_principal_text: String,
+        creator_oauth_subject: String,
         offset: u64,
         limit: u64,
     ) {
-        self.get_posts_of_user_by_principal_then(creator_principal_text, offset, limit, |_, _| {});
+        self.get_posts_of_user_by_principal_then(creator_oauth_subject, offset, limit, |_, _| {});
     }
 
     fn get_posts_of_user_by_principal_then(
         &self,
-        creator_principal_text: String,
+        creator_oauth_subject: String,
         offset: u64,
         limit: u64,
 
@@ -47,7 +47,7 @@ pub trait get_posts_of_user_by_principal {
 impl get_posts_of_user_by_principal for super::RemoteProcedures {
     fn get_posts_of_user_by_principal_then(
         &self,
-        creator_principal_text: String,
+        creator_oauth_subject: String,
         offset: u64,
         limit: u64,
 
@@ -59,7 +59,7 @@ impl get_posts_of_user_by_principal for super::RemoteProcedures {
             .invoke_procedure_with_callback::<_, PostListOffset>(
                 "get_posts_of_user_by_principal",
                 GetPostsOfUserByPrincipalArgs {
-                    creator_principal_text,
+                    creator_oauth_subject,
                     offset,
                     limit,
                 },

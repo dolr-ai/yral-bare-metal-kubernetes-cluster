@@ -41,8 +41,10 @@ pub mod kv_get_procedure;
 pub mod kv_get_result_type;
 pub mod kv_set_reducer;
 pub mod link_user_id_reducer;
+pub mod migrate_posts_to_3_reducer;
 pub mod migrate_user_profiles_to_2_reducer;
 pub mod nsfw_info_type;
+pub mod post_3_type;
 pub mod post_details_for_frontend_type;
 pub mod post_list_offset_type;
 pub mod post_page_type;
@@ -50,6 +52,7 @@ pub mod post_status_type;
 pub mod post_type;
 pub mod post_v_2_type;
 pub mod post_view_details_from_frontend_type;
+pub mod posts_3_table;
 pub mod posts_table;
 pub mod posts_v_2_table;
 pub mod profile_picture_data_type;
@@ -125,8 +128,10 @@ pub use kv_get_procedure::kv_get;
 pub use kv_get_result_type::KvGetResult;
 pub use kv_set_reducer::kv_set;
 pub use link_user_id_reducer::link_user_id;
+pub use migrate_posts_to_3_reducer::migrate_posts_to_3;
 pub use migrate_user_profiles_to_2_reducer::migrate_user_profiles_to_2;
 pub use nsfw_info_type::NsfwInfo;
+pub use post_3_type::Post3;
 pub use post_details_for_frontend_type::PostDetailsForFrontend;
 pub use post_list_offset_type::PostListOffset;
 pub use post_page_type::PostPage;
@@ -134,6 +139,7 @@ pub use post_status_type::PostStatus;
 pub use post_type::Post;
 pub use post_v_2_type::PostV2;
 pub use post_view_details_from_frontend_type::PostViewDetailsFromFrontend;
+pub use posts_3_table::*;
 pub use posts_table::*;
 pub use posts_v_2_table::*;
 pub use profile_picture_data_type::ProfilePictureData;
@@ -234,6 +240,9 @@ pub enum Reducer {
         oauth_subject: String,
         user_id: String,
     },
+    MigratePostsTo3 {
+        batch_limit: u32,
+    },
     MigrateUserProfilesTo2 {
         batch_limit: u32,
     },
@@ -324,6 +333,7 @@ impl __sdk::Reducer for Reducer {
             Reducer::KvDelete { .. } => "kv_delete",
             Reducer::KvSet { .. } => "kv_set",
             Reducer::LinkUserId { .. } => "link_user_id",
+            Reducer::MigratePostsTo3 { .. } => "migrate_posts_to_3",
             Reducer::MigrateUserProfilesTo2 { .. } => "migrate_user_profiles_to_2",
             Reducer::RegisterNotificationToken { .. } => "register_notification_token",
             Reducer::RemoveProPlanFreeVideoCredits { .. } => "remove_pro_plan_free_video_credits",
@@ -444,6 +454,11 @@ impl __sdk::Reducer for Reducer {
                 oauth_subject: oauth_subject.clone(),
                 user_id: user_id.clone(),
             }),
+            Reducer::MigratePostsTo3 { batch_limit } => {
+                __sats::bsatn::to_vec(&migrate_posts_to_3_reducer::MigratePostsTo3Args {
+                    batch_limit: batch_limit.clone(),
+                })
+            }
             Reducer::MigrateUserProfilesTo2 { batch_limit } => __sats::bsatn::to_vec(
                 &migrate_user_profiles_to_2_reducer::MigrateUserProfilesTo2Args {
                     batch_limit: batch_limit.clone(),
@@ -578,6 +593,7 @@ impl __sdk::Reducer for Reducer {
 #[doc(hidden)]
 pub struct DbUpdate {
     posts: __sdk::TableUpdate<Post>,
+    posts_3: __sdk::TableUpdate<Post3>,
     posts_v_2: __sdk::TableUpdate<PostV2>,
     user_follows: __sdk::TableUpdate<UserFollow>,
     user_follows_2: __sdk::TableUpdate<UserFollow2>,
@@ -595,6 +611,9 @@ impl TryFrom<__ws::v2::TransactionUpdate> for DbUpdate {
                 "posts" => db_update
                     .posts
                     .append(posts_table::parse_table_update(table_update)?),
+                "posts_3" => db_update
+                    .posts_3
+                    .append(posts_3_table::parse_table_update(table_update)?),
                 "posts_v2" => db_update
                     .posts_v_2
                     .append(posts_v_2_table::parse_table_update(table_update)?),
@@ -642,6 +661,9 @@ impl __sdk::DbUpdate for DbUpdate {
         diff.posts = cache
             .apply_diff_to_table::<Post>("posts", &self.posts)
             .with_updates_by_pk(|row| &row.id);
+        diff.posts_3 = cache
+            .apply_diff_to_table::<Post3>("posts_3", &self.posts_3)
+            .with_updates_by_pk(|row| &row.id);
         diff.posts_v_2 = cache
             .apply_diff_to_table::<PostV2>("posts_v2", &self.posts_v_2)
             .with_updates_by_pk(|row| &row.id);
@@ -672,6 +694,9 @@ impl __sdk::DbUpdate for DbUpdate {
             match &table_rows.table[..] {
                 "posts" => db_update
                     .posts
+                    .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
+                "posts_3" => db_update
+                    .posts_3
                     .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
                 "posts_v2" => db_update
                     .posts_v_2
@@ -707,6 +732,9 @@ impl __sdk::DbUpdate for DbUpdate {
                 "posts" => db_update
                     .posts
                     .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
+                "posts_3" => db_update
+                    .posts_3
+                    .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
                 "posts_v2" => db_update
                     .posts_v_2
                     .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
@@ -741,6 +769,7 @@ impl __sdk::DbUpdate for DbUpdate {
 #[doc(hidden)]
 pub struct AppliedDiff<'r> {
     posts: __sdk::TableAppliedDiff<'r, Post>,
+    posts_3: __sdk::TableAppliedDiff<'r, Post3>,
     posts_v_2: __sdk::TableAppliedDiff<'r, PostV2>,
     user_follows: __sdk::TableAppliedDiff<'r, UserFollow>,
     user_follows_2: __sdk::TableAppliedDiff<'r, UserFollow2>,
@@ -761,6 +790,7 @@ impl<'r> __sdk::AppliedDiff<'r> for AppliedDiff<'r> {
         callbacks: &mut __sdk::DbCallbacks<RemoteModule>,
     ) {
         callbacks.invoke_table_row_callbacks::<Post>("posts", &self.posts, event);
+        callbacks.invoke_table_row_callbacks::<Post3>("posts_3", &self.posts_3, event);
         callbacks.invoke_table_row_callbacks::<PostV2>("posts_v2", &self.posts_v_2, event);
         callbacks.invoke_table_row_callbacks::<UserFollow>(
             "user_follows",
@@ -1448,6 +1478,7 @@ impl __sdk::SpacetimeModule for RemoteModule {
 
     fn register_tables(client_cache: &mut __sdk::ClientCache<Self>) {
         posts_table::register_table(client_cache);
+        posts_3_table::register_table(client_cache);
         posts_v_2_table::register_table(client_cache);
         user_follows_table::register_table(client_cache);
         user_follows_2_table::register_table(client_cache);
@@ -1457,6 +1488,7 @@ impl __sdk::SpacetimeModule for RemoteModule {
     }
     const ALL_TABLE_NAMES: &'static [&'static str] = &[
         "posts",
+        "posts_3",
         "posts_v2",
         "user_follows",
         "user_follows_2",

@@ -9,7 +9,7 @@ use super::post_list_offset_type::PostListOffset;
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 struct GetDraftPostsOfUserByPrincipalArgs {
-    pub creator_principal_text: String,
+    pub creator_oauth_subject: String,
     pub offset: u64,
     pub limit: u64,
 }
@@ -25,12 +25,12 @@ impl __sdk::InModule for GetDraftPostsOfUserByPrincipalArgs {
 pub trait get_draft_posts_of_user_by_principal {
     fn get_draft_posts_of_user_by_principal(
         &self,
-        creator_principal_text: String,
+        creator_oauth_subject: String,
         offset: u64,
         limit: u64,
     ) {
         self.get_draft_posts_of_user_by_principal_then(
-            creator_principal_text,
+            creator_oauth_subject,
             offset,
             limit,
             |_, _| {},
@@ -39,7 +39,7 @@ pub trait get_draft_posts_of_user_by_principal {
 
     fn get_draft_posts_of_user_by_principal_then(
         &self,
-        creator_principal_text: String,
+        creator_oauth_subject: String,
         offset: u64,
         limit: u64,
 
@@ -52,7 +52,7 @@ pub trait get_draft_posts_of_user_by_principal {
 impl get_draft_posts_of_user_by_principal for super::RemoteProcedures {
     fn get_draft_posts_of_user_by_principal_then(
         &self,
-        creator_principal_text: String,
+        creator_oauth_subject: String,
         offset: u64,
         limit: u64,
 
@@ -64,7 +64,7 @@ impl get_draft_posts_of_user_by_principal for super::RemoteProcedures {
             .invoke_procedure_with_callback::<_, PostListOffset>(
                 "get_draft_posts_of_user_by_principal",
                 GetDraftPostsOfUserByPrincipalArgs {
-                    creator_principal_text,
+                    creator_oauth_subject,
                     offset,
                     limit,
                 },

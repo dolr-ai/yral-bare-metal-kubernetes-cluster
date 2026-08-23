@@ -14,7 +14,7 @@ pub struct PostDetailsForFrontend {
     pub hashtags: Vec<String>,
     pub video_uid: String,
     pub creator: __sdk::Identity,
-    pub creator_principal_text: String,
+    pub creator_oauth_subject: String,
     pub created_at: __sdk::Timestamp,
     pub total_view_count: u64,
     pub like_count: u64,
