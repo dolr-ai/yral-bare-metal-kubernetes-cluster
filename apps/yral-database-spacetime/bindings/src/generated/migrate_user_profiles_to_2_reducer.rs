@@ -6,11 +6,15 @@ use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
-pub(super) struct MigrateUserProfilesTo2Args {}
+pub(super) struct MigrateUserProfilesTo2Args {
+    pub batch_limit: u32,
+}
 
 impl From<MigrateUserProfilesTo2Args> for super::Reducer {
     fn from(args: MigrateUserProfilesTo2Args) -> Self {
-        Self::MigrateUserProfilesTo2
+        Self::MigrateUserProfilesTo2 {
+            batch_limit: args.batch_limit,
+        }
     }
 }
 
@@ -29,8 +33,8 @@ pub trait migrate_user_profiles_to_2 {
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
     /// /// Use [`migrate_user_profiles_to_2:migrate_user_profiles_to_2_then`] to run a callback after the reducer completes.
-    fn migrate_user_profiles_to_2(&self) -> __sdk::Result<()> {
-        self.migrate_user_profiles_to_2_then(|_, _| {})
+    fn migrate_user_profiles_to_2(&self, batch_limit: u32) -> __sdk::Result<()> {
+        self.migrate_user_profiles_to_2_then(batch_limit, |_, _| {})
     }
 
     /// Request that the remote module invoke the reducer `migrate_user_profiles_to_2` to run as soon as possible,
@@ -41,6 +45,7 @@ pub trait migrate_user_profiles_to_2 {
     ///  and its status can be observed with the `callback`.
     fn migrate_user_profiles_to_2_then(
         &self,
+        batch_limit: u32,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -51,12 +56,13 @@ pub trait migrate_user_profiles_to_2 {
 impl migrate_user_profiles_to_2 for super::RemoteReducers {
     fn migrate_user_profiles_to_2_then(
         &self,
+        batch_limit: u32,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
             + 'static,
     ) -> __sdk::Result<()> {
         self.imp
-            .invoke_reducer_with_callback(MigrateUserProfilesTo2Args {}, callback)
+            .invoke_reducer_with_callback(MigrateUserProfilesTo2Args { batch_limit }, callback)
     }
 }

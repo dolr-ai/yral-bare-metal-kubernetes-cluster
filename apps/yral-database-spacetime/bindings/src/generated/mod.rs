@@ -234,7 +234,9 @@ pub enum Reducer {
         oauth_subject: String,
         user_id: String,
     },
-    MigrateUserProfilesTo2,
+    MigrateUserProfilesTo2 {
+        batch_limit: u32,
+    },
     RegisterNotificationToken {
         token: String,
     },
@@ -322,7 +324,7 @@ impl __sdk::Reducer for Reducer {
             Reducer::KvDelete { .. } => "kv_delete",
             Reducer::KvSet { .. } => "kv_set",
             Reducer::LinkUserId { .. } => "link_user_id",
-            Reducer::MigrateUserProfilesTo2 => "migrate_user_profiles_to_2",
+            Reducer::MigrateUserProfilesTo2 { .. } => "migrate_user_profiles_to_2",
             Reducer::RegisterNotificationToken { .. } => "register_notification_token",
             Reducer::RemoveProPlanFreeVideoCredits { .. } => "remove_pro_plan_free_video_credits",
             Reducer::SetEmail { .. } => "set_email",
@@ -442,8 +444,10 @@ impl __sdk::Reducer for Reducer {
                 oauth_subject: oauth_subject.clone(),
                 user_id: user_id.clone(),
             }),
-            Reducer::MigrateUserProfilesTo2 => __sats::bsatn::to_vec(
-                &migrate_user_profiles_to_2_reducer::MigrateUserProfilesTo2Args {},
+            Reducer::MigrateUserProfilesTo2 { batch_limit } => __sats::bsatn::to_vec(
+                &migrate_user_profiles_to_2_reducer::MigrateUserProfilesTo2Args {
+                    batch_limit: batch_limit.clone(),
+                },
             ),
             Reducer::RegisterNotificationToken { token } => __sats::bsatn::to_vec(
                 &register_notification_token_reducer::RegisterNotificationTokenArgs {
