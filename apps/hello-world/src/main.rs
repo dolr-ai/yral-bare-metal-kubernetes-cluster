@@ -1,4 +1,4 @@
-// use leptos::html;
+use leptos::html;
 use leptos::prelude::*;
 // use leptos::*;
 
@@ -10,5 +10,15 @@ fn main() {
 }
 
 fn app() -> impl IntoView {
-    dynamic_attributes::dynamic_attributes();
+    (
+        dynamic_attributes::dynamic_attributes(),
+        separator(),
+        html::p().child("Some text"),
+    )
+}
+
+fn separator() -> impl IntoView {
+    html::hr()
+        .style(("margin", "2rem 0"))
+        .style(("border", "0.5rem solid black"))
 }
