@@ -21,7 +21,7 @@ helm = "latest"
 # (Kotlin 2.0.21) cannot parse JDK 26's version string ("26.0.2") and throws
 # IllegalArgumentException during script compilation. Bump only after upgrading
 # the Gradle wrapper to a version whose embedded Kotlin supports the new JDK.
-java = { version = "21", os = ["macos"] }
+java = { version = "21.0.12+101.0.LTS", os = ["macos"] }
 kubectl = "latest"
 maestro = { version = "latest", os = ["macos"] }
 node = "latest"
