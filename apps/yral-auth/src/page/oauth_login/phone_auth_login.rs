@@ -1,7 +1,5 @@
 use crate::components::spinner::Spinner;
 use crate::error::AuthError;
-use crate::error::AuthErrorKind;
-use crate::oauth::client_validation::ClientIdValidator;
 use crate::oauth::AuthQuery;
 use leptos::prelude::*;
 use leptos::server;
@@ -11,7 +9,13 @@ use leptos_router::hooks::{use_navigate, use_query};
 use leptos_router::params::Params;
 use leptos_router::NavigateOptions;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+
+#[cfg(feature = "ssr")]
+use {
+    crate::error::AuthErrorKind,
+    crate::oauth::client_validation::ClientIdValidator,
+    std::sync::Arc,
+};
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize, Params)]
 struct AuthClientQuery {

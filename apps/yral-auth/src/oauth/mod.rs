@@ -35,7 +35,7 @@ impl Display for SupportedOAuthProviders {
             #[cfg(feature = "phone-auth")]
             Self::Phone => write!(f, "phone"),
             #[allow(unreachable_patterns)]
-            _ => Err(fmt::Error),
+            _ => write!(f, "unsupported OAuth provider"),
         }
     }
 }

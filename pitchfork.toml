@@ -45,7 +45,7 @@ run = "exec ./../../target/x86_64-unknown-linux-musl/release/my-website"
 dir = "apps/my-website"
 ready_http = "http://localhost:8081/"
 stop_signal = "SIGINT"
-auto = ["start", "stop"]
+# auto = ["start", "stop"]
 env = { LEPTOS_SITE_ADDR = "0.0.0.0:8081" }
 
 # ── my-website container (podman) ─────────────────────────────────────────────
@@ -69,7 +69,7 @@ run = "exec fnox exec -- ../../target/x86_64-unknown-linux-musl/release/icp-off-
 dir = "apps/off-chain-agent"
 ready_http = "http://localhost:50051/healthz"
 stop_signal = "SIGINT"
-auto = ["start", "stop"]
+# auto = ["start", "stop"]
 
 # ── off-chain-agent container (podman) ──────────────────────────────────────
 # Build first with: mise run off-chain-agent-image
@@ -100,7 +100,7 @@ run = "exec spacetimedb-cli start --in-memory --listen-addr 127.0.0.1:3000"
 ready_http = "http://127.0.0.1:3000/v1/health"
 stop_signal = "SIGINT"
 retry = 3
-auto = ["start", "stop"]
+# auto = ["start", "stop"]
 
 # ── SpacetimeDB local dev (in-memory, auto-publishes module) ────────────────
 # Used by the `dev` group. Starts the local server, publishes the module,
@@ -126,7 +126,7 @@ exec spacetimedb-cli start --in-memory --listen-addr 127.0.0.1:3000 --non-intera
 ready_http = "http://127.0.0.1:3000/v1/health"
 stop_signal = "SIGINT"
 retry = 3
-auto = ["start", "stop"]
+# auto = ["start", "stop"]
 
 [daemons.spacetimedb-dev.hooks]
 # Publish the module to the local server once it's ready.
@@ -144,7 +144,7 @@ run = "exec fnox exec -- ./target/x86_64-unknown-linux-musl/release/yral-auth"
 dir = "apps/yral-auth"
 ready_http = "http://localhost:8080/healthz"
 stop_signal = "SIGINT"
-auto = ["start", "stop"]
+# auto = ["start", "stop"]
 env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
 
 # ── yral-auth container (podman) ───────────────────────────────────────────
@@ -176,7 +176,7 @@ dir = "apps/yral-auth"
 ready_http = "http://localhost:8080/healthz"
 stop_signal = "SIGINT"
 depends = ["spacetimedb-dev"]
-auto = ["start", "stop"]
+# auto = ["start", "stop"]
 env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080", SPACETIMEDB_URL = "http://127.0.0.1:3000", SPACETIMEDB_DB_NAME = "yral-database-spacetime-4lbo7" }
 
 # ── yral-metadata dev server (release binary) ──────────────────────────────
@@ -188,7 +188,7 @@ run = "exec fnox exec -- ./target/x86_64-unknown-linux-musl/release/yral-metadat
 dir = "apps/yral-metadata"
 ready_http = "http://localhost:7000/healthz"
 stop_signal = "SIGINT"
-auto = ["start", "stop"]
+# auto = ["start", "stop"]
 
 # ── yral-metadata container (podman) ────────────────────────────────────────
 # Build first with: mise run yral-metadata-image
@@ -215,7 +215,7 @@ run = "exec fnox exec -- ../../target/x86_64-unknown-linux-musl/prod-release/yra
 dir = "apps/yral-web"
 ready_http = "http://localhost:8080/healthz"
 stop_signal = "SIGINT"
-auto = ["start", "stop"]
+# auto = ["start", "stop"]
 env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080", LEPTOS_SITE_ROOT = "../../target/site" }
 
 # ── yral-web container (podman) ──────────────────────────────────────────
@@ -250,7 +250,7 @@ dir = "apps/yral-web"
 ready_http = "http://localhost:8081/healthz"
 stop_signal = "SIGINT"
 depends = ["spacetimedb-dev", "yral-auth-dev"]
-auto = ["start", "stop"]
+# auto = ["start", "stop"]
 env = { LEPTOS_SITE_ADDR = "0.0.0.0:8081", LEPTOS_SITE_ROOT = "../../target/site", SPACETIMEDB_URL = "http://127.0.0.1:3000", SPACETIMEDB_DB_NAME = "yral-database-spacetime-4lbo7", GOOGLE_REDIRECT_URL = "http://127.0.0.1:8081/auth/google_redirect", YRAL_AUTH_REDIRECT_URL = "http://127.0.0.1:8081/auth/yral_redirect" }
 
 # ── yral-web watch (cargo leptos watch, hot reload, debug) ──────────────
@@ -264,7 +264,7 @@ run = "exec fnox exec -- cargo leptos --manifest-path ssr/Cargo.toml watch --hot
 dir = "apps/yral-web"
 ready_output = "Serving at"
 stop_signal = "SIGINT"
-auto = ["start", "stop"]
+# auto = ["start", "stop"]
 env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
 
 # ── Dev group ───────────────────────────────────────────────────────────────

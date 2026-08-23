@@ -143,7 +143,13 @@ impl KVStore for SpacetimeKV {
             .ok_or_else(|| anyhow::anyhow!("kv_get returned empty array"))?;
         Ok(match result {
             KvGetRestResponse::Some((_, value)) => Some(value),
-            KvGetRestResponse::None(_) => None,
+            KvGetRestResponse::None((variant_index, _payload)) => {
+                debug_assert_eq!(
+                    variant_index, 1,
+                    "None variant should use index 1"
+                );
+                None
+            }
         })
     }
 
@@ -161,7 +167,13 @@ impl KVStore for SpacetimeKV {
             .ok_or_else(|| anyhow::anyhow!("kv_get returned empty array"))?;
         Ok(match result {
             KvGetRestResponse::Some(_) => true,
-            KvGetRestResponse::None(_) => false,
+            KvGetRestResponse::None((variant_index, _payload)) => {
+                debug_assert_eq!(
+                    variant_index, 1,
+                    "None variant should use index 1"
+                );
+                false
+            }
         })
     }
 }

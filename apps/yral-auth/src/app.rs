@@ -9,7 +9,7 @@ use crate::{
     context::provide_client_id_validator,
     page::{
         account::{oauth_callback::OauthCallbackPage, page::AccountPage},
-        auth::AuthPage,
+        auth::auth_page,
         error_page::ErrorPage,
         oauth_login::{oauth_callback::OAuthCallbackPage, oauth_redirector::OAuthRedirectorPage},
     },
@@ -58,7 +58,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/") view=|| view! { <Redirect path="/account" /> } />
                     <Route path=path!("/account") view=AccountPage />
                     <Route path=path!("/account/callback") view=OauthCallbackPage />
-                    <Route path=path!("/oauth/auth") view=AuthPage />
+                    <Route path=path!("/oauth/auth") view=auth_page />
                     <Route path=path!("/oauth_redirector") view=OAuthRedirectorPage />
                     <Route path=path!("/oauth_callback") view=OAuthCallbackPage />
                     <Route

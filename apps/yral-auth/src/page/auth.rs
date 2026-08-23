@@ -1,16 +1,29 @@
 use base64::{prelude::BASE64_URL_SAFE, Engine};
-use leptos::{either::Either, prelude::*};
+#[cfg(any(feature = "phone-auth", feature = "google-oauth", feature = "apple-oauth"))]
+use leptos::ev;
+use leptos::{
+    children::ToChildren,
+    either::Either,
+    html,
+    prelude::*,
+};
+#[cfg(any(feature = "phone-auth", feature = "google-oauth", feature = "apple-oauth"))]
 use leptos_router::{
-    components::Redirect,
+    components::{Redirect, RedirectProps},
     hooks::{use_navigate, use_query},
     params::{Params, ParamsError},
     NavigateOptions,
 };
+#[cfg(not(any(feature = "phone-auth", feature = "google-oauth", feature = "apple-oauth")))]
+use leptos_router::{
+    components::{Redirect, RedirectProps},
+    hooks::use_query,
+    params::{Params, ParamsError},
+};
 use serde::{Deserialize, Serialize};
 use url::Url;
-
 use crate::{
-    components::{spinner::Spinner, yral_symbol::YralSymbol},
+    components::spinner::Spinner,
     error::AuthErrorKind,
     oauth::{
         client_validation::{ClientIdValidator, ClientIdValidatorImpl},
@@ -18,15 +31,14 @@ use crate::{
         CodeChallengeMethod, SupportedOAuthProviders,
     },
 };
-
+#[cfg(any(feature = "phone-auth", feature = "google-oauth", feature = "apple-oauth"))]
+use crate::components::yral_symbol::{YralSymbol, YralSymbolProps};
 #[cfg(feature = "phone-auth")]
-use crate::components::whatsapp_symbol::WhatsAppSymbol;
-
+use crate::components::whatsapp_symbol::{WhatsAppSymbol, WhatsAppSymbolProps};
 #[cfg(feature = "google-oauth")]
-use crate::components::google_symbol::GoogleSymbol;
-
+use crate::components::google_symbol::{GoogleSymbol, GoogleSymbolProps};
 #[cfg(feature = "apple-oauth")]
-use crate::components::apple_symbol::AppleSymbol;
+use crate::components::apple_symbol::{AppleSymbol, AppleSymbolProps};
 
 #[derive(Debug, Clone, Params, PartialEq)]
 pub struct RedirectUriQuery {
@@ -89,8 +101,7 @@ enum AuthKind {
     Redirect(String),
 }
 
-#[component]
-pub fn AuthPage() -> impl IntoView {
+pub fn auth_page() -> impl IntoView {
     let redirect_query = use_query::<RedirectUriQuery>();
     let state_query = use_query::<StateQuery>();
     let auth_query_maybe = use_query::<AuthQueryMaybe>();
@@ -160,88 +171,131 @@ pub fn AuthPage() -> impl IntoView {
         },
     );
 
-    view! {
-        <div class="w-dvw h-dvh flex justify-center items-center bg-neutral-900">
-            <Suspense fallback=Spinner>
-                {move || Suspend::new(async move {
-                    let auth = auth_query.await;
-                    match auth {
-                        Ok(AuthKind::Default(auth)) => Either::Left(view! { <LoginContent auth /> }),
-                        Ok(AuthKind::Redirect(path)) => Either::Right(view! { <Redirect path /> }),
-                        Err(e) => Either::Right(view! { <Redirect path=e.to_redirect() /> }),
+    html::div()
+        .attr("class", "w-dvw h-dvh flex justify-center items-center bg-neutral-900")
+        .child(Suspense(SuspenseProps::builder().fallback(|| Spinner()).children(ToChildren::to_children(move || {
+            Suspend::new(async move {
+                let auth = auth_query.await;
+                match auth {
+                    Ok(AuthKind::Default(auth)) => {
+                        #[cfg(any(feature = "phone-auth", feature = "google-oauth", feature = "apple-oauth"))]
+                        { Either::Left(login_content(auth)) }
+                        #[cfg(not(any(feature = "phone-auth", feature = "google-oauth", feature = "apple-oauth")))]
+                        {
+                            let _ = auth;
+                            Either::Left(html::div().child("No OAuth providers configured"))
+                        }
                     }
-                })}
-            </Suspense>
-        </div>
-    }
+                    Ok(AuthKind::Redirect(path)) => Either::Right(Redirect(RedirectProps::builder().path(path).build())),
+                    Err(e) => Either::Right(Redirect(RedirectProps::builder().path(e.to_redirect()).build())),
+                }
+            })
+        })).build()))
 }
 
-#[component]
-pub fn LoginContent(auth: Box<AuthQuery>) -> impl IntoView {
+#[cfg(any(feature = "phone-auth", feature = "google-oauth", feature = "apple-oauth"))]
+pub fn login_content(auth: Box<AuthQuery>) -> impl IntoView {
     let auth_store = StoredValue::new(auth);
+    let login_buttons = build_login_buttons(auth_store);
 
-    view! {
-        <div class="flex flex-col items-center text-white cursor-auto">
-            <YralSymbol class="rounded-full mb-6 text-8xl" />
-            <span class="text-2xl mb-4">Login to Yral</span>
-            <div class="flex flex-col w-full gap-4 items-center">
-
-                {#[cfg(feature = "phone-auth")]
-                {
-                    view! {
-                        <LoginButton
-                            auth=auth_store
-                            attr:class="flex flex-row justify-center cursor-pointer items-center justify-between gap-1 rounded-full bg-white pr-4 hover:bg-neutral-200"
-                            provider=SupportedOAuthProviders::Phone
-                        >
-                            <div class="grid grid-cols-1 place-items-center pl-2 py-2 rounded-full">
-                                <WhatsAppSymbol class="text-xl rounded-full" />
-                            </div>
-                            <span class="text-neutral-900">{"Continue with Whatsapp"}</span>
-                        </LoginButton>
-                    }
-                }} {#[cfg(feature = "google-oauth")]
-                {
-                    view! {
-                        <LoginButton
-                            auth=auth_store
-                            attr:class="flex flex-row justify-center cursor-pointer items-center justify-between gap-1 rounded-full bg-white pr-4 hover:bg-neutral-200"
-                            provider=SupportedOAuthProviders::Google
-                        >
-                            <div class="grid grid-cols-1 place-items-center pl-2 py-2 rounded-full">
-                                <GoogleSymbol class="text-xl rounded-full" />
-                            </div>
-                            <span class="text-neutral-900">{"Continue with Google"}</span>
-                        </LoginButton>
-                    }
-                }} {#[cfg(feature = "apple-oauth")]
-                {
-                    view! {
-                        <LoginButton
-                            auth=auth_store
-                            attr:class="flex flex-row justify-center cursor-pointer items-center pr-4 bg-white rounded-full border border-gray-300 hover:bg-neutral-200"
-                            provider=SupportedOAuthProviders::Apple
-                        >
-                            <div class="grid grid-cols-1 place-items-center">
-                                <AppleSymbol class="text-4xl" />
-                            </div>
-                            <span class="text-black">{"Continue with Apple"}</span>
-                        </LoginButton>
-                    }
-                }}
-            </div>
-        </div>
-    }
+    html::div()
+        .attr("class", "flex flex-col items-center text-white cursor-auto")
+        .child(YralSymbol(
+            YralSymbolProps::builder()
+                .class("rounded-full mb-6 text-8xl")
+                .build(),
+        ))
+        .child(html::span().attr("class", "text-2xl mb-4").child("Login to Yral"))
+        .child(
+            html::div()
+                .attr("class", "flex flex-col w-full gap-4 items-center")
+                .child(login_buttons),
+        )
 }
 
-#[component]
-pub fn LoginButton(
+#[cfg(any(feature = "phone-auth", feature = "google-oauth", feature = "apple-oauth"))]
+fn build_login_buttons(auth_store: StoredValue<Box<AuthQuery>>) -> Vec<AnyView> {
+    let mut login_buttons: Vec<AnyView> = Vec::new();
+
+    #[cfg(feature = "phone-auth")]
+    login_buttons.push(
+        login_button(
+            auth_store,
+            SupportedOAuthProviders::Phone,
+            "flex flex-row justify-center cursor-pointer items-center justify-between gap-1 rounded-full bg-white pr-4 hover:bg-neutral-200",
+            {
+                let icon_wrapper = html::div()
+                    .attr("class", "grid grid-cols-1 place-items-center pl-2 py-2 rounded-full")
+                    .child(WhatsAppSymbol(
+                        WhatsAppSymbolProps::builder()
+                            .class("text-xl rounded-full")
+                            .build(),
+                    ));
+                let label = html::span()
+                    .attr("class", "text-neutral-900")
+                    .child("Continue with Whatsapp");
+                (icon_wrapper, label)
+            },
+        )
+        .into_any(),
+    );
+
+    #[cfg(feature = "google-oauth")]
+    login_buttons.push(
+        login_button(
+            auth_store,
+            SupportedOAuthProviders::Google,
+            "flex flex-row justify-center cursor-pointer items-center justify-between gap-1 rounded-full bg-white pr-4 hover:bg-neutral-200",
+            {
+                let icon_wrapper = html::div()
+                    .attr("class", "grid grid-cols-1 place-items-center pl-2 py-2 rounded-full")
+                    .child(GoogleSymbol(
+                        GoogleSymbolProps::builder()
+                            .class("text-xl rounded-full")
+                            .build(),
+                    ));
+                let label = html::span()
+                    .attr("class", "text-neutral-900")
+                    .child("Continue with Google");
+                (icon_wrapper, label)
+            },
+        )
+        .into_any(),
+    );
+
+    #[cfg(feature = "apple-oauth")]
+    login_buttons.push(
+        login_button(
+            auth_store,
+            SupportedOAuthProviders::Apple,
+            "flex flex-row justify-center cursor-pointer items-center pr-4 bg-white rounded-full border border-gray-300 hover:bg-neutral-200",
+            {
+                let icon_wrapper = html::div()
+                    .attr("class", "grid grid-cols-1 place-items-center")
+                    .child(AppleSymbol(
+                        AppleSymbolProps::builder().class("text-4xl").build(),
+                    ));
+                let label = html::span()
+                    .attr("class", "text-black")
+                    .child("Continue with Apple");
+                (icon_wrapper, label)
+            },
+        )
+        .into_any(),
+    );
+
+    login_buttons
+}
+
+#[cfg(any(feature = "phone-auth", feature = "google-oauth", feature = "apple-oauth"))]
+pub fn login_button(
     auth: StoredValue<Box<AuthQuery>>,
-    children: Children,
     provider: SupportedOAuthProviders,
+    class: &'static str,
+    children: impl IntoView,
 ) -> impl IntoView {
     let redirect_to_oauth = move || {
-        let state_raw = auth.with_value(|a| postcard::to_stdvec(a).unwrap());
+        let state_raw = auth.with_value(|auth| postcard::to_stdvec(auth).unwrap());
         let state = BASE64_URL_SAFE.encode(state_raw);
         let redirect_path = format!("/oauth_redirector?provider={provider}&state={state}");
 
@@ -249,5 +303,8 @@ pub fn LoginButton(
         (nav)(&redirect_path, NavigateOptions::default());
     };
 
-    view! { <button on:click=move |_| redirect_to_oauth()>{children()}</button> }
+    html::button()
+        .attr("class", class)
+        .on(ev::click, move |_| redirect_to_oauth())
+        .child(children)
 }

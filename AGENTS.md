@@ -159,6 +159,17 @@ Modern IDEs and language tooling make long names ergonomic regardless of languag
 ### Colocated Code over Abstractions (Hard Rule)
 Avoid unnecessary abstractions, wrappers, and utility methods. Prefer calling methods directly at the call site rather than hiding a single expression behind a helper function. A one-line helper that wraps `ctx.sender_auth().jwt().map(|c| c.subject().to_string()).unwrap_or_else(|| ctx.sender().to_hex().to_string())` is worse than inlining it — the reader has to jump to the helper to understand what it does, when the expression itself is already readable at the call site. Only extract a helper when the same **non-trivial** logic (multiple lines, branching, state) is duplicated across 3+ call sites. Simple expressions, even if repeated, are better inlined for scannability.
 
+### No Lint Suppression (Hard Rule)
+**Never use `#[allow(...)]`, `#[allow(unused)]`, `#[allow(dead_code)]`, `#[allow(clippy::...)]`, or any other lint suppression to silence a warning.** Warnings indicate a real problem in the code — fix the root cause, not the symptom. Suppressions hide bugs, accumulate dead code, and defeat the purpose of the linter. Every warning must be resolved by changing the code:
+
+- **`unused variable`** — the variable is genuinely unused. Either use it (read the value, pass it somewhere) or remove it entirely. If it's unused only in certain `#[cfg]` feature combinations, gate the variable's declaration with `#[cfg(...)]` so it only exists when it's actually used.
+- **`unused import`** — the import is not needed. Remove it, or if it's only used in certain feature combinations, gate the `use` statement with `#[cfg(...)]`.
+- **`dead_code` / `field never read`** — the field, function, or variant is never accessed. Either use it (read the field, call the function, match the variant) or remove it. If it's only used in certain feature combinations, gate it with `#[cfg(...)]`.
+- **`clippy::needless_pass_by_value` / `clippy::needless_pass_by_ref`** — change the function signature to pass by reference (`&T`) or by value (`T`) as the lint suggests, rather than suppressing it.
+- **`unreachable_patterns`** — the catch-all `_` arm is needed for `#[non_exhaustive]` or `#[cfg]`-gated variants. This is the **one** acceptable `#[allow(unreachable_patterns)]` — it's not suppressing a warning about dead code, it's acknowledging that the exhaustive match is intentionally non-exhaustive across feature flags. Even then, prefer restructuring the match to avoid the catch-all where possible.
+
+When `#[cfg]` feature gates cause a variable/function/import to be unused in some configurations: gate the declaration itself with the matching `#[cfg(...)]` (or `#[cfg(any(...))]` for multiple features), so the symbol only exists when it's used. This is the correct pattern — the code is genuinely absent in that configuration, not present-but-suppressed. Gate both the definition and all call sites consistently.
+
 ### Pure Functions & Thin API Wrappers (Hard Rule)
 All business logic must be implemented as **pure functions** — no I/O, no side effects, no external service calls. Functions that call external APIs (HTTP, database, KV store, IC canister, SpacetimeDB, etc.) must be **thin wrappers** that delegate to pure functions for all logic. This applies to all application code (Rust, Kotlin, TypeScript, etc.):
 

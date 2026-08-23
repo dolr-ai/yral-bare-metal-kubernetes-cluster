@@ -1,15 +1,14 @@
-use std::sync::Arc;
-
+use crate::components::otp_input::OtpInput;
+use crate::error::AuthError;
 use leptos::logging::log;
 use leptos::prelude::*;
 use leptos::server_fn::codec::Json;
 use leptos_router::hooks::use_query;
 use leptos_router::params::Params;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "ssr")]
+use std::sync::Arc;
 use url::Url;
-
-use crate::components::otp_input::OtpInput;
-use crate::error::AuthError;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize, Params)]
 struct VerifyQuery {
