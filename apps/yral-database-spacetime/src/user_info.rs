@@ -1022,22 +1022,31 @@ pub fn upsert_user_follow_batch(
     Ok(())
 }
 
-/// Admin-only: one-time backfill reducer that copies all rows from the legacy
+/// Admin-only: batch backfill reducer that copies rows from the legacy
 /// `user_profiles` and `user_follows` tables into the new `user_profiles_2`
 /// and `user_follows_2` tables. Idempotent — skips rows that already exist in
 /// the new tables.
 ///
-/// Run this once after deploying the new table schema to migrate all existing
-/// data. After confirming the migration is complete and production is stable,
-/// the old tables can be removed in a follow-up schema change.
+/// Processes at most `batch_limit` rows per call to stay within the module
+/// energy budget. Call repeatedly until no more rows are migrated.
+/// Reducers cannot return values, so check progress by querying
+/// `SELECT count(*) FROM user_profiles_2` between calls.
 #[spacetimedb::reducer]
-pub fn migrate_user_profiles_to_2(ctx: &ReducerContext) -> Result<(), String> {
+pub fn migrate_user_profiles_to_2(
+    ctx: &ReducerContext,
+    batch_limit: u32,
+) -> Result<(), String> {
     if !crate::constants::ADMINS.contains(&ctx.sender()) {
         return Err("Unauthorized".to_string());
     }
 
+    let mut migrated_count: u32 = 0;
+
     // Migrate user_profiles → user_profiles_2 (skip rows already present)
     for legacy_profile in ctx.db.user_profiles().iter() {
+        if migrated_count >= batch_limit {
+            return Ok(());
+        }
         let already_migrated = ctx
             .db
             .user_profiles_2()
@@ -1047,11 +1056,15 @@ pub fn migrate_user_profiles_to_2(ctx: &ReducerContext) -> Result<(), String> {
             ctx.db
                 .user_profiles_2()
                 .insert(migrate_profile_row(&legacy_profile));
+            migrated_count += 1;
         }
     }
 
     // Migrate user_follows → user_follows_2 (skip rows already present)
     for legacy_follow in ctx.db.user_follows().iter() {
+        if migrated_count >= batch_limit {
+            return Ok(());
+        }
         let already_migrated = ctx
             .db
             .user_follows_2()
@@ -1061,6 +1074,7 @@ pub fn migrate_user_profiles_to_2(ctx: &ReducerContext) -> Result<(), String> {
             ctx.db
                 .user_follows_2()
                 .insert(migrate_follow_row(&legacy_follow));
+            migrated_count += 1;
         }
     }
 
