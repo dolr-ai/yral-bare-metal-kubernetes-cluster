@@ -1,32 +1,45 @@
 //! User info service — migrated from the IC `user_info_service` canister
 //! (`ivkka-7qaaa-aaaas-qbg3q-cai`).
 //!
+//! ## Incremental migration: `user_profiles` → `user_profiles_2`
+//!
+//! The old tables `user_profiles` (keyed by `principal_text`) and `user_follows`
+//! (keyed by `follower_text`/`followee_text`) are being migrated to `user_profiles_2`
+//! (keyed by `oauth_subject`) and `user_follows_2` (keyed by
+//! `follower_subject`/`followee_subject`). The old tables are kept as-is for the
+//! migration; all writes go to the new tables, reads use lazy migration (check
+//! `user_profiles_2` first, fall back to `user_profiles` and migrate on the fly).
+//! The admin reducer `migrate_user_profiles_to_2` backfills all rows.
+//!
 //! ## Tables
-//! - `user_profiles`: keyed by `principal_text`, stores profile/follow data
-//! - `user_follows`: keyed by `(follower_text, followee_text)`, bidirectional
+//! - `user_profiles_2`: keyed by `oauth_subject`, stores profile/follow data
+//! - `user_follows_2`: keyed by `(follower_subject, followee_subject)`, bidirectional
+//! - `user_profiles` (legacy, read-only during migration)
+//! - `user_follows` (legacy, read-only during migration)
 //!
 //! ## Procedures (reads, return typed data)
-//! - `get_profile_details_v4(principal_text) -> Option<UserProfileDetailsV4>`
-//! - `get_user_profile_details_v7(principal_text) -> Option<UserProfileDetailsV7>`
-//! - `get_users_profile_details(principal_texts) -> Vec<UserProfileDetailsV7>`
-//! - `get_followers(principal_text, limit, cursor) -> FollowersPage`
-//! - `get_following(principal_text, limit, cursor) -> FollowingPage`
+//! - `get_profile_details_v4(oauth_subject) -> Option<UserProfileDetailsV4>`
+//! - `get_user_profile_details_v7(oauth_subject) -> Option<UserProfileDetailsV7>`
+//! - `get_users_profile_details(oauth_subjects) -> Vec<UserProfileDetailsV7>`
+//! - `get_followers(oauth_subject, limit, cursor) -> FollowersPage`
+//! - `get_following(oauth_subject, limit, cursor) -> FollowingPage`
 //!
 //! ## Reducers (writes)
-//! - `follow_user(followee_text)` — bidirectional follow
-//! - `unfollow_user(followee_text)` — symmetric
+//! - `follow_user(followee_subject)` — bidirectional follow
+//! - `unfollow_user(followee_subject)` — symmetric
 //! - `update_profile_details(bio, website_url, profile_pic_url)` — sender only
 //! - `update_profile_details_v2(bio, website_url, profile_picture)` — sender only
-//! - `update_profile_ai_influencer_status(principal_text, is_ai)` — admin only
+//! - `update_profile_ai_influencer_status(oauth_subject, is_ai)` — admin only
 //! - `accept_new_user_registration_v2(new_principal_text, authenticated, main_account_text)` — register/bot
 //! - `delete_user_info(principal_to_delete_text)` — cascade delete
 //! - `update_user_last_access_time()` — sender only
-//! - `update_profile_picture_nsfw_info(principal_text, nsfw_info)` — admin only
-//! - `change_subscription_plan(principal_text, plan)` — admin only
-//! - `add_pro_plan_free_video_credits(principal_text, credits)` — admin only
-//! - `remove_pro_plan_free_video_credits(principal_text, credits)` — admin only
-//! - `upsert_user_profile_batch(profiles)` — admin only, backfill
-//! - `upsert_user_follow_batch(follows)` — admin only, backfill
+//! - `update_profile_picture_nsfw_info(oauth_subject, nsfw_info)` — admin only
+//! - `change_subscription_plan(oauth_subject, plan)` — admin only
+//! - `add_pro_plan_free_video_credits(oauth_subject, credits)` — admin only
+//! - `remove_pro_plan_free_video_credits(oauth_subject, credits)` — admin only
+//! - `upsert_user_profile_batch(profiles)` — admin only, backfill (writes to `user_profiles_2`)
+//! - `upsert_user_follow_batch(follows)` — admin only, backfill (writes to `user_follows_2`)
+//! - `migrate_user_profiles_to_2()` — admin only, one-time backfill from old tables
 
 use spacetimedb::{ProcedureContext, ReducerContext, SpacetimeType, Table, Timestamp};
 
@@ -34,12 +47,16 @@ use spacetimedb::{ProcedureContext, ReducerContext, SpacetimeType, Table, Timest
 // Tables
 // ─────────────────────────────────────────────────────────────────────────
 
-/// A user profile. Mirrors the IC `UserInfo` struct.
+/// Legacy user profile table (kept as-is for the incremental migration).
 ///
 /// Primary key: `principal_text`. For users registered via
 /// `accept_new_user_registration_v2`, this is the OAuth `sub` claim from the
 /// yral-auth JWT (e.g. a Google account ID like `100014004491598860137`).
 /// This is the same value stored in `posts_v2.creator_principal_text`.
+///
+/// **Do not write to this table.** All writes go to `user_profiles_2`.
+/// Reads use lazy migration: check `user_profiles_2` first, then fall back
+/// here and migrate the row.
 #[spacetimedb::table(accessor = user_profiles, public)]
 #[derive(Clone)]
 pub struct UserProfile {
@@ -73,10 +90,54 @@ pub struct UserProfile {
     pub user_id: Option<String>,
 }
 
-/// A follow relationship. Primary key is a composite key
-/// `{follower_text}::{followee_text}` for uniqueness. Both directions
-/// are indexed for efficient "who follows X" and "who does X follow"
-/// queries.
+/// New user profile table (target of the incremental migration).
+///
+/// Same schema as `UserProfile` but with `principal_text` renamed to
+/// `oauth_subject` to accurately reflect that this field holds the OAuth
+/// `sub` claim (not an Internet Computer "principal").
+///
+/// Primary key: `oauth_subject`. All writes go here; reads check here first
+/// and lazy-migrate from `user_profiles` on miss.
+#[spacetimedb::table(name = "user_profiles_2", accessor = user_profiles_2, public)]
+#[derive(Clone)]
+pub struct UserProfile2 {
+    #[primary_key]
+    pub oauth_subject: String,
+    pub bio: String,
+    pub website_url: String,
+    pub profile_picture_url: String,
+    pub followers_count: u64,
+    pub following_count: u64,
+    pub subscription_plan: SubscriptionPlan,
+    pub is_ai_influencer: bool,
+    pub is_nsfw: bool,
+    pub nsfw_ec: String,
+    pub nsfw_gore: String,
+    pub csam_detected: bool,
+    pub last_access_time: Timestamp,
+    pub account_type: UserAccountType,
+    /// Display name from the yral-metadata service.
+    /// Backfilled from `UserMetadata.user_name`. `None` if not yet backfilled.
+    #[default(None::<String>)]
+    pub username: Option<String>,
+    /// Email from the yral-metadata service.
+    /// Backfilled from `UserMetadata.email`. `None` if not set.
+    #[default(None::<String>)]
+    pub email: Option<String>,
+    /// OAuth subject identifier (Google/Apple `sub` or UUID for phone auth).
+    /// Links this profile to the yral-auth identity. `None` for legacy users
+    /// not yet linked to an OAuth sub.
+    #[default(None::<String>)]
+    pub user_id: Option<String>,
+}
+
+/// Legacy follow relationship table (kept as-is for the incremental migration).
+///
+/// Primary key is a composite key `{follower_text}::{followee_text}` for
+/// uniqueness. Both directions are indexed for efficient "who follows X" and
+/// "who does X follow" queries.
+///
+/// **Do not write to this table.** All writes go to `user_follows_2`.
 #[spacetimedb::table(accessor = user_follows, public)]
 #[derive(Clone)]
 pub struct UserFollow {
@@ -86,6 +147,25 @@ pub struct UserFollow {
     pub follower_text: String,
     #[index(btree)]
     pub followee_text: String,
+}
+
+/// New follow relationship table (target of the incremental migration).
+///
+/// Same schema as `UserFollow` but with `follower_text` → `follower_subject`
+/// and `followee_text` → `followee_subject` to accurately reflect that these
+/// fields hold OAuth `sub` claims.
+///
+/// Primary key is a composite key `{follower_subject}::{followee_subject}`
+/// for uniqueness. Both directions are indexed.
+#[spacetimedb::table(name = "user_follows_2", accessor = user_follows_2, public)]
+#[derive(Clone)]
+pub struct UserFollow2 {
+    #[primary_key]
+    pub key: String, // "{follower}::{followee}"
+    #[index(btree)]
+    pub follower_subject: String,
+    #[index(btree)]
+    pub followee_subject: String,
 }
 
 /// FCM push notification device token. A user can have multiple devices.
@@ -163,7 +243,7 @@ impl Default for UserAccountType {
 /// `UserProfileDetailsForFrontendV4`.
 #[derive(SpacetimeType, Clone, Debug)]
 pub struct UserProfileDetailsV4 {
-    pub principal_text: String,
+    pub oauth_subject: String,
     pub bio: String,
     pub website_url: String,
     pub profile_picture_url: String,
@@ -185,7 +265,7 @@ pub struct FollowersPage {
 
 #[derive(SpacetimeType, Clone, Debug)]
 pub struct FollowerItem {
-    pub principal_text: String,
+    pub oauth_subject: String,
     pub caller_follows: bool,
     pub profile_picture_url: String,
 }
@@ -200,7 +280,7 @@ pub struct FollowingPage {
 
 #[derive(SpacetimeType, Clone, Debug)]
 pub struct FollowingItem {
-    pub principal_text: String,
+    pub oauth_subject: String,
     pub caller_follows: bool,
     pub profile_picture_url: String,
 }
@@ -211,7 +291,7 @@ pub struct FollowingItem {
 /// with NSFW info.
 #[derive(SpacetimeType, Clone, Debug)]
 pub struct UserProfileDetailsV7 {
-    pub principal_text: String,
+    pub oauth_subject: String,
     pub profile_picture: Option<ProfilePictureData>,
     pub bio: String,
     pub website_url: String,
@@ -230,7 +310,7 @@ pub struct UserProfileDetailsV7 {
 /// `account_type` (backfill sets it to `MainAccount` default).
 #[derive(SpacetimeType, Clone, Debug)]
 pub struct UserProfileBatchEntry {
-    pub principal_text: String,
+    pub oauth_subject: String,
     pub bio: String,
     pub website_url: String,
     pub profile_picture_url: String,
@@ -252,8 +332,8 @@ pub struct UserProfileBatchEntry {
 /// Batch upsert entry for follow relationships (backfill).
 #[derive(SpacetimeType, Clone, Debug)]
 pub struct UserFollowBatchEntry {
-    pub follower_text: String,
-    pub followee_text: String,
+    pub follower_subject: String,
+    pub followee_subject: String,
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -269,7 +349,7 @@ const MAX_PAGE_SIZE: u64 = 100;
 
 /// Build a `ProfilePictureData` from the profile's URL and NSFW fields.
 /// Returns `None` when the profile has no picture URL set.
-fn profile_picture_data(profile: &UserProfile) -> Option<ProfilePictureData> {
+fn profile_picture_data(profile: &UserProfile2) -> Option<ProfilePictureData> {
     if profile.profile_picture_url.is_empty() {
         return None;
     }
@@ -288,25 +368,93 @@ fn profile_picture_data(profile: &UserProfile) -> Option<ProfilePictureData> {
 /// Returns `(caller_follows_user, user_follows_caller)`, both `None` when
 /// caller == user (self). Must be called inside a `with_tx` closure where
 /// `tx` is a `TxContext` (has `db` + `sender()`).
+///
+/// Uses `user_follows_2` (the new table). The caller and target subjects are
+/// OAuth `sub` claims.
 fn follow_relationships(
     tx: &spacetimedb::TxContext,
-    caller_text: &str,
-    principal_text: &str,
+    caller_subject: &str,
+    oauth_subject: &str,
 ) -> (Option<bool>, Option<bool>) {
-    if caller_text == principal_text {
+    if caller_subject == oauth_subject {
         return (None, None);
     }
     let caller_follows_user = tx
         .db
-        .user_follows()
+        .user_follows_2()
         .iter()
-        .any(|f| f.key == format!("{caller_text}::{principal_text}"));
+        .any(|f| f.key == format!("{caller_subject}::{oauth_subject}"));
     let user_follows_caller = tx
         .db
-        .user_follows()
+        .user_follows_2()
         .iter()
-        .any(|f| f.key == format!("{principal_text}::{caller_text}"));
+        .any(|f| f.key == format!("{oauth_subject}::{caller_subject}"));
     (Some(caller_follows_user), Some(user_follows_caller))
+}
+
+/// Lazy-migration helper: look up a user profile by `oauth_subject` in
+/// `user_profiles_2`. If not found, check the legacy `user_profiles` table
+/// (by `principal_text`), migrate the row to `user_profiles_2`, and return it.
+/// Returns `None` if the user exists in neither table.
+///
+/// Must be called inside a `with_tx` closure.
+fn get_or_migrate_profile(
+    tx: &spacetimedb::TxContext,
+    oauth_subject: &str,
+) -> Option<UserProfile2> {
+    // Check the new table first
+    if let Some(profile) = tx
+        .db
+        .user_profiles_2()
+        .iter()
+        .find(|p| p.oauth_subject == oauth_subject)
+    {
+        return Some(profile);
+    }
+    // Fall back to the legacy table and migrate
+    let legacy = tx
+        .db
+        .user_profiles()
+        .iter()
+        .find(|p| p.principal_text == oauth_subject)?;
+    let migrated = migrate_profile_row(&legacy);
+    tx.db.user_profiles_2().insert(migrated.clone());
+    Some(migrated)
+}
+
+/// Convert a legacy `UserProfile` row into a `UserProfile2` row (field-for-field
+/// copy with `principal_text` → `oauth_subject`). Pure function — no I/O.
+fn migrate_profile_row(legacy: &UserProfile) -> UserProfile2 {
+    UserProfile2 {
+        oauth_subject: legacy.principal_text.clone(),
+        bio: legacy.bio.clone(),
+        website_url: legacy.website_url.clone(),
+        profile_picture_url: legacy.profile_picture_url.clone(),
+        followers_count: legacy.followers_count,
+        following_count: legacy.following_count,
+        subscription_plan: legacy.subscription_plan,
+        is_ai_influencer: legacy.is_ai_influencer,
+        is_nsfw: legacy.is_nsfw,
+        nsfw_ec: legacy.nsfw_ec.clone(),
+        nsfw_gore: legacy.nsfw_gore.clone(),
+        csam_detected: legacy.csam_detected,
+        last_access_time: legacy.last_access_time,
+        account_type: legacy.account_type.clone(),
+        username: legacy.username.clone(),
+        email: legacy.email.clone(),
+        user_id: legacy.user_id.clone(),
+    }
+}
+
+/// Convert a legacy `UserFollow` row into a `UserFollow2` row (field-for-field
+/// copy with `follower_text` → `follower_subject`, `followee_text` →
+/// `followee_subject`). Pure function — no I/O.
+fn migrate_follow_row(legacy: &UserFollow) -> UserFollow2 {
+    UserFollow2 {
+        key: legacy.key.clone(),
+        follower_subject: legacy.follower_text.clone(),
+        followee_subject: legacy.followee_text.clone(),
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -316,44 +464,44 @@ fn follow_relationships(
 /// Follow another user. Bidirectional — inserts into both follower's
 /// following set and followee's followers set.
 #[spacetimedb::reducer]
-pub fn follow_user(ctx: &ReducerContext, followee_text: String) -> Result<(), String> {
-    let follower_text = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
-    let key = format!("{follower_text}::{followee_text}");
+pub fn follow_user(ctx: &ReducerContext, followee_subject: String) -> Result<(), String> {
+    let follower_subject = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
+    let key = format!("{follower_subject}::{followee_subject}");
 
-    if follower_text == followee_text {
+    if follower_subject == followee_subject {
         return Err("Cannot follow yourself".to_string());
     }
 
-    if ctx.db.user_follows().iter().any(|f| f.key == key) {
+    if ctx.db.user_follows_2().iter().any(|f| f.key == key) {
         return Err("Already following".to_string());
     }
 
-    ctx.db.user_follows().insert(UserFollow {
+    ctx.db.user_follows_2().insert(UserFollow2 {
         key,
-        follower_text: follower_text.clone(),
-        followee_text: followee_text.clone(),
+        follower_subject: follower_subject.clone(),
+        followee_subject: followee_subject.clone(),
     });
 
     // Update follower's following count
     if let Some(mut p) = ctx
         .db
-        .user_profiles()
+        .user_profiles_2()
         .iter()
-        .find(|p| p.principal_text == follower_text)
+        .find(|p| p.oauth_subject == follower_subject)
     {
         p.following_count += 1;
-        ctx.db.user_profiles().principal_text().update(p);
+        ctx.db.user_profiles_2().oauth_subject().update(p);
     }
 
     // Update followee's followers count
     if let Some(mut p) = ctx
         .db
-        .user_profiles()
+        .user_profiles_2()
         .iter()
-        .find(|p| p.principal_text == followee_text)
+        .find(|p| p.oauth_subject == followee_subject)
     {
         p.followers_count += 1;
-        ctx.db.user_profiles().principal_text().update(p);
+        ctx.db.user_profiles_2().oauth_subject().update(p);
     }
 
     Ok(())
@@ -361,36 +509,36 @@ pub fn follow_user(ctx: &ReducerContext, followee_text: String) -> Result<(), St
 
 /// Unfollow another user. Symmetric to follow.
 #[spacetimedb::reducer]
-pub fn unfollow_user(ctx: &ReducerContext, followee_text: String) -> Result<(), String> {
-    let follower_text = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
-    let key = format!("{follower_text}::{followee_text}");
+pub fn unfollow_user(ctx: &ReducerContext, followee_subject: String) -> Result<(), String> {
+    let follower_subject = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
+    let key = format!("{follower_subject}::{followee_subject}");
 
-    let Some(follow) = ctx.db.user_follows().iter().find(|f| f.key == key) else {
+    let Some(follow) = ctx.db.user_follows_2().iter().find(|f| f.key == key) else {
         return Err("Not following".to_string());
     };
 
-    ctx.db.user_follows().delete(follow);
+    ctx.db.user_follows_2().delete(follow);
 
     // Update follower's following count
     if let Some(mut p) = ctx
         .db
-        .user_profiles()
+        .user_profiles_2()
         .iter()
-        .find(|p| p.principal_text == follower_text)
+        .find(|p| p.oauth_subject == follower_subject)
     {
         p.following_count = p.following_count.saturating_sub(1);
-        ctx.db.user_profiles().principal_text().update(p);
+        ctx.db.user_profiles_2().oauth_subject().update(p);
     }
 
     // Update followee's followers count
     if let Some(mut p) = ctx
         .db
-        .user_profiles()
+        .user_profiles_2()
         .iter()
-        .find(|p| p.principal_text == followee_text)
+        .find(|p| p.oauth_subject == followee_subject)
     {
         p.followers_count = p.followers_count.saturating_sub(1);
-        ctx.db.user_profiles().principal_text().update(p);
+        ctx.db.user_profiles_2().oauth_subject().update(p);
     }
 
     Ok(())
@@ -405,13 +553,13 @@ pub fn update_profile_details(
     website_url: String,
     profile_pic_url: String,
 ) -> Result<(), String> {
-    let principal_text = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
+    let oauth_subject = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
 
     let mut profile = match ctx
         .db
-        .user_profiles()
+        .user_profiles_2()
         .iter()
-        .find(|p| p.principal_text == principal_text)
+        .find(|p| p.oauth_subject == oauth_subject)
     {
         Some(p) => p,
         None => return Err("User not found".to_string()),
@@ -420,7 +568,7 @@ pub fn update_profile_details(
     profile.bio = bio;
     profile.website_url = website_url;
     profile.profile_picture_url = profile_pic_url;
-    ctx.db.user_profiles().principal_text().update(profile);
+    ctx.db.user_profiles_2().oauth_subject().update(profile);
 
     Ok(())
 }
@@ -429,7 +577,7 @@ pub fn update_profile_details(
 #[spacetimedb::reducer]
 pub fn update_profile_ai_influencer_status(
     ctx: &ReducerContext,
-    principal_text: String,
+    oauth_subject: String,
     is_ai_influencer: bool,
 ) -> Result<(), String> {
     if !crate::constants::ADMINS.contains(&ctx.sender()) {
@@ -438,16 +586,16 @@ pub fn update_profile_ai_influencer_status(
 
     let mut profile = match ctx
         .db
-        .user_profiles()
+        .user_profiles_2()
         .iter()
-        .find(|p| p.principal_text == principal_text)
+        .find(|p| p.oauth_subject == oauth_subject)
     {
         Some(p) => p,
         None => return Err("User not found".to_string()),
     };
 
     profile.is_ai_influencer = is_ai_influencer;
-    ctx.db.user_profiles().principal_text().update(profile);
+    ctx.db.user_profiles_2().oauth_subject().update(profile);
 
     Ok(())
 }
@@ -462,13 +610,13 @@ pub fn update_profile_details_v2(
     website_url: Option<String>,
     profile_picture: Option<ProfilePictureData>,
 ) -> Result<(), String> {
-    let principal_text = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
+    let oauth_subject = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
 
     let mut profile = match ctx
         .db
-        .user_profiles()
+        .user_profiles_2()
         .iter()
-        .find(|p| p.principal_text == principal_text)
+        .find(|p| p.oauth_subject == oauth_subject)
     {
         Some(p) => p,
         None => return Err("User not found".to_string()),
@@ -487,7 +635,7 @@ pub fn update_profile_details_v2(
         profile.nsfw_gore = pic.nsfw_info.nsfw_gore;
         profile.csam_detected = pic.nsfw_info.csam_detected;
     }
-    ctx.db.user_profiles().principal_text().update(profile);
+    ctx.db.user_profiles_2().oauth_subject().update(profile);
 
     Ok(())
 }
@@ -497,7 +645,7 @@ pub fn update_profile_details_v2(
 #[spacetimedb::reducer]
 pub fn update_profile_picture_nsfw_info(
     ctx: &ReducerContext,
-    principal_text: String,
+    oauth_subject: String,
     nsfw_info: NSFWInfo,
 ) -> Result<(), String> {
     if !crate::constants::ADMINS.contains(&ctx.sender()) {
@@ -506,9 +654,9 @@ pub fn update_profile_picture_nsfw_info(
 
     let mut profile = match ctx
         .db
-        .user_profiles()
+        .user_profiles_2()
         .iter()
-        .find(|p| p.principal_text == principal_text)
+        .find(|p| p.oauth_subject == oauth_subject)
     {
         Some(p) => p,
         None => return Err("User not found".to_string()),
@@ -518,7 +666,7 @@ pub fn update_profile_picture_nsfw_info(
     profile.nsfw_ec = nsfw_info.nsfw_ec;
     profile.nsfw_gore = nsfw_info.nsfw_gore;
     profile.csam_detected = nsfw_info.csam_detected;
-    ctx.db.user_profiles().principal_text().update(profile);
+    ctx.db.user_profiles_2().oauth_subject().update(profile);
 
     Ok(())
 }
@@ -530,7 +678,7 @@ pub fn update_profile_picture_nsfw_info(
 ///   by `owner` (owner must exist and be a `MainAccount`). The bot is added
 ///   to the owner's `bots` list.
 /// - When `main_account_text` is `None`: creates a normal account for
-///   `new_principal_text`.
+///   `new_principal_text` (stored as `oauth_subject` in `user_profiles_2`).
 ///
 /// The `authenticated` parameter is accepted for API compatibility but does
 /// not set a session type (session types were dropped from the migration).
@@ -544,9 +692,9 @@ pub fn accept_new_user_registration_v2(
     // Idempotent: if user already exists, do nothing
     if ctx
         .db
-        .user_profiles()
+        .user_profiles_2()
         .iter()
-        .any(|p| p.principal_text == new_principal_text)
+        .any(|p| p.oauth_subject == new_principal_text)
     {
         return Ok(());
     }
@@ -556,9 +704,9 @@ pub fn accept_new_user_registration_v2(
             // Bot account creation — owner must exist and be a MainAccount
             let mut owner_profile = match ctx
                 .db
-                .user_profiles()
+                .user_profiles_2()
                 .iter()
-                .find(|p| p.principal_text == owner_text)
+                .find(|p| p.oauth_subject == owner_text)
             {
                 Some(p) => p,
                 None => return Err("Owner not found".to_string()),
@@ -570,7 +718,7 @@ pub fn accept_new_user_registration_v2(
                         &new_principal_text,
                     )
                     .expect("validated above");
-                    ctx.db.user_profiles().principal_text().update(owner_profile);
+                    ctx.db.user_profiles_2().oauth_subject().update(owner_profile);
                 }
                 UserAccountType::BotAccount { .. } => {
                     return Err("Bots cannot own other bots".to_string());
@@ -578,7 +726,7 @@ pub fn accept_new_user_registration_v2(
             }
 
             // Create the bot account
-            ctx.db.user_profiles().insert(build_bot_profile(
+            ctx.db.user_profiles_2().insert(build_bot_profile(
                 new_principal_text,
                 owner_text,
                 ctx.timestamp,
@@ -586,7 +734,7 @@ pub fn accept_new_user_registration_v2(
         }
         None => {
             // Normal account registration
-            ctx.db.user_profiles().insert(build_main_account_profile(
+            ctx.db.user_profiles_2().insert(build_main_account_profile(
                 new_principal_text,
                 ctx.timestamp,
             ));
@@ -612,9 +760,9 @@ pub fn delete_user_info(
 
     let profile = match ctx
         .db
-        .user_profiles()
+        .user_profiles_2()
         .iter()
-        .find(|p| p.principal_text == principal_to_delete_text)
+        .find(|p| p.oauth_subject == principal_to_delete_text)
     {
         Some(p) => p,
         None => return Err("User not found".to_string()),
@@ -630,15 +778,15 @@ pub fn delete_user_info(
             for bot_text in bots {
                 if let Some(bot_profile) = ctx
                     .db
-                    .user_profiles()
+                    .user_profiles_2()
                     .iter()
-                    .find(|p| &p.principal_text == bot_text)
+                    .find(|p| &p.oauth_subject == bot_text)
                 {
-                    ctx.db.user_profiles().delete(bot_profile);
+                    ctx.db.user_profiles_2().delete(bot_profile);
                 }
             }
             // Delete the main account
-            ctx.db.user_profiles().delete(profile);
+            ctx.db.user_profiles_2().delete(profile);
         }
         UserAccountType::BotAccount { owner } => {
             // Admin or owner can delete a BotAccount
@@ -648,9 +796,9 @@ pub fn delete_user_info(
             // Remove this bot from the owner's bots list
             if let Some(mut owner_profile) = ctx
                 .db
-                .user_profiles()
+                .user_profiles_2()
                 .iter()
-                .find(|p| p.principal_text == *owner)
+                .find(|p| p.oauth_subject == *owner)
             {
                 if let UserAccountType::MainAccount { bots } = &owner_profile.account_type {
                     let new_bots: Vec<String> = bots
@@ -659,26 +807,26 @@ pub fn delete_user_info(
                         .cloned()
                         .collect();
                     owner_profile.account_type = UserAccountType::MainAccount { bots: new_bots };
-                    ctx.db.user_profiles().principal_text().update(owner_profile);
+                    ctx.db.user_profiles_2().oauth_subject().update(owner_profile);
                 }
             }
             // Delete the bot
-            ctx.db.user_profiles().delete(profile);
+            ctx.db.user_profiles_2().delete(profile);
         }
     }
 
     // Also delete any follow relationships involving this user
-    let follows_to_delete: Vec<UserFollow> = ctx
+    let follows_to_delete: Vec<UserFollow2> = ctx
         .db
-        .user_follows()
+        .user_follows_2()
         .iter()
         .filter(|f| {
-            f.follower_text == principal_to_delete_text
-                || f.followee_text == principal_to_delete_text
+            f.follower_subject == principal_to_delete_text
+                || f.followee_subject == principal_to_delete_text
         })
         .collect();
     for f in follows_to_delete {
-        ctx.db.user_follows().delete(f);
+        ctx.db.user_follows_2().delete(f);
     }
 
     Ok(())
@@ -687,20 +835,20 @@ pub fn delete_user_info(
 /// Update the caller's last access time to the current timestamp.
 #[spacetimedb::reducer]
 pub fn update_user_last_access_time(ctx: &ReducerContext) -> Result<(), String> {
-    let principal_text = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
+    let oauth_subject = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
 
     let mut profile = match ctx
         .db
-        .user_profiles()
+        .user_profiles_2()
         .iter()
-        .find(|p| p.principal_text == principal_text)
+        .find(|p| p.oauth_subject == oauth_subject)
     {
         Some(p) => p,
         None => return Err("User not found".to_string()),
     };
 
     profile.last_access_time = ctx.timestamp;
-    ctx.db.user_profiles().principal_text().update(profile);
+    ctx.db.user_profiles_2().oauth_subject().update(profile);
 
     Ok(())
 }
@@ -709,7 +857,7 @@ pub fn update_user_last_access_time(ctx: &ReducerContext) -> Result<(), String> 
 #[spacetimedb::reducer]
 pub fn change_subscription_plan(
     ctx: &ReducerContext,
-    principal_text: String,
+    oauth_subject: String,
     plan: SubscriptionPlan,
 ) -> Result<(), String> {
     if !crate::constants::ADMINS.contains(&ctx.sender()) {
@@ -718,16 +866,16 @@ pub fn change_subscription_plan(
 
     let mut profile = match ctx
         .db
-        .user_profiles()
+        .user_profiles_2()
         .iter()
-        .find(|p| p.principal_text == principal_text)
+        .find(|p| p.oauth_subject == oauth_subject)
     {
         Some(p) => p,
         None => return Err("User not found".to_string()),
     };
 
     profile.subscription_plan = plan;
-    ctx.db.user_profiles().principal_text().update(profile);
+    ctx.db.user_profiles_2().oauth_subject().update(profile);
 
     Ok(())
 }
@@ -736,7 +884,7 @@ pub fn change_subscription_plan(
 #[spacetimedb::reducer]
 pub fn add_pro_plan_free_video_credits(
     ctx: &ReducerContext,
-    principal_text: String,
+    oauth_subject: String,
     credits: u32,
 ) -> Result<(), String> {
     if !crate::constants::ADMINS.contains(&ctx.sender()) {
@@ -745,9 +893,9 @@ pub fn add_pro_plan_free_video_credits(
 
     let mut profile = match ctx
         .db
-        .user_profiles()
+        .user_profiles_2()
         .iter()
-        .find(|p| p.principal_text == principal_text)
+        .find(|p| p.oauth_subject == oauth_subject)
     {
         Some(p) => p,
         None => return Err("User not found".to_string()),
@@ -761,7 +909,7 @@ pub fn add_pro_plan_free_video_credits(
             return Err("User is on Free plan".to_string());
         }
     }
-    ctx.db.user_profiles().principal_text().update(profile);
+    ctx.db.user_profiles_2().oauth_subject().update(profile);
 
     Ok(())
 }
@@ -770,7 +918,7 @@ pub fn add_pro_plan_free_video_credits(
 #[spacetimedb::reducer]
 pub fn remove_pro_plan_free_video_credits(
     ctx: &ReducerContext,
-    principal_text: String,
+    oauth_subject: String,
     credits: u32,
 ) -> Result<(), String> {
     if !crate::constants::ADMINS.contains(&ctx.sender()) {
@@ -779,9 +927,9 @@ pub fn remove_pro_plan_free_video_credits(
 
     let mut profile = match ctx
         .db
-        .user_profiles()
+        .user_profiles_2()
         .iter()
-        .find(|p| p.principal_text == principal_text)
+        .find(|p| p.oauth_subject == oauth_subject)
     {
         Some(p) => p,
         None => return Err("User not found".to_string()),
@@ -795,13 +943,13 @@ pub fn remove_pro_plan_free_video_credits(
             return Err("User is on Free plan".to_string());
         }
     }
-    ctx.db.user_profiles().principal_text().update(profile);
+    ctx.db.user_profiles_2().oauth_subject().update(profile);
 
     Ok(())
 }
 
 /// Admin-only: batch upsert user profiles (for IC → SpacetimeDB backfill).
-/// Idempotent — delete-then-insert by primary key.
+/// Writes to `user_profiles_2`. Idempotent — delete-then-insert by primary key.
 #[spacetimedb::reducer]
 pub fn upsert_user_profile_batch(
     ctx: &ReducerContext,
@@ -815,15 +963,15 @@ pub fn upsert_user_profile_batch(
         // Delete existing if present
         if let Some(existing) = ctx
             .db
-            .user_profiles()
+            .user_profiles_2()
             .iter()
-            .find(|p| p.principal_text == entry.principal_text)
+            .find(|p| p.oauth_subject == entry.oauth_subject)
         {
-            ctx.db.user_profiles().delete(existing);
+            ctx.db.user_profiles_2().delete(existing);
         }
 
-        ctx.db.user_profiles().insert(UserProfile {
-            principal_text: entry.principal_text,
+        ctx.db.user_profiles_2().insert(UserProfile2 {
+            oauth_subject: entry.oauth_subject,
             bio: entry.bio,
             website_url: entry.website_url,
             profile_picture_url: entry.profile_picture_url,
@@ -847,7 +995,7 @@ pub fn upsert_user_profile_batch(
 }
 
 /// Admin-only: batch upsert follow relationships (for IC → SpacetimeDB backfill).
-/// Idempotent — delete-then-insert by primary key.
+/// Writes to `user_follows_2`. Idempotent — delete-then-insert by primary key.
 #[spacetimedb::reducer]
 pub fn upsert_user_follow_batch(
     ctx: &ReducerContext,
@@ -858,17 +1006,62 @@ pub fn upsert_user_follow_batch(
     }
 
     for entry in follows {
-        let key = format!("{}::{}", entry.follower_text, entry.followee_text);
+        let key = format!("{}::{}", entry.follower_subject, entry.followee_subject);
         // Delete existing if present
-        if let Some(existing) = ctx.db.user_follows().iter().find(|f| f.key == key) {
-            ctx.db.user_follows().delete(existing);
+        if let Some(existing) = ctx.db.user_follows_2().iter().find(|f| f.key == key) {
+            ctx.db.user_follows_2().delete(existing);
         }
 
-        ctx.db.user_follows().insert(UserFollow {
+        ctx.db.user_follows_2().insert(UserFollow2 {
             key,
-            follower_text: entry.follower_text,
-            followee_text: entry.followee_text,
+            follower_subject: entry.follower_subject,
+            followee_subject: entry.followee_subject,
         });
+    }
+
+    Ok(())
+}
+
+/// Admin-only: one-time backfill reducer that copies all rows from the legacy
+/// `user_profiles` and `user_follows` tables into the new `user_profiles_2`
+/// and `user_follows_2` tables. Idempotent — skips rows that already exist in
+/// the new tables.
+///
+/// Run this once after deploying the new table schema to migrate all existing
+/// data. After confirming the migration is complete and production is stable,
+/// the old tables can be removed in a follow-up schema change.
+#[spacetimedb::reducer]
+pub fn migrate_user_profiles_to_2(ctx: &ReducerContext) -> Result<(), String> {
+    if !crate::constants::ADMINS.contains(&ctx.sender()) {
+        return Err("Unauthorized".to_string());
+    }
+
+    // Migrate user_profiles → user_profiles_2 (skip rows already present)
+    for legacy_profile in ctx.db.user_profiles().iter() {
+        let already_migrated = ctx
+            .db
+            .user_profiles_2()
+            .iter()
+            .any(|p| p.oauth_subject == legacy_profile.principal_text);
+        if !already_migrated {
+            ctx.db
+                .user_profiles_2()
+                .insert(migrate_profile_row(&legacy_profile));
+        }
+    }
+
+    // Migrate user_follows → user_follows_2 (skip rows already present)
+    for legacy_follow in ctx.db.user_follows().iter() {
+        let already_migrated = ctx
+            .db
+            .user_follows_2()
+            .iter()
+            .any(|f| f.key == legacy_follow.key);
+        if !already_migrated {
+            ctx.db
+                .user_follows_2()
+                .insert(migrate_follow_row(&legacy_follow));
+        }
     }
 
     Ok(())
@@ -930,7 +1123,7 @@ pub fn unregister_notification_token(ctx: &ReducerContext, token: String) -> Res
 #[spacetimedb::reducer]
 pub fn link_user_id(
     ctx: &ReducerContext,
-    principal_text: String,
+    oauth_subject: String,
     user_id: String,
 ) -> Result<(), String> {
     if !crate::constants::ADMINS.contains(&ctx.sender()) {
@@ -939,14 +1132,14 @@ pub fn link_user_id(
 
     if let Some(mut profile) = ctx
         .db
-        .user_profiles()
+        .user_profiles_2()
         .iter()
-        .find(|p| p.principal_text == principal_text)
+        .find(|p| p.oauth_subject == oauth_subject)
     {
         profile.user_id = Some(user_id);
         let profile_clone = profile.clone();
-        ctx.db.user_profiles().delete(profile);
-        ctx.db.user_profiles().insert(profile_clone);
+        ctx.db.user_profiles_2().delete(profile);
+        ctx.db.user_profiles_2().insert(profile_clone);
     }
 
     Ok(())
@@ -957,7 +1150,7 @@ pub fn link_user_id(
 #[spacetimedb::reducer]
 pub fn set_username(
     ctx: &ReducerContext,
-    principal_text: String,
+    oauth_subject: String,
     username: String,
 ) -> Result<(), String> {
     if !crate::constants::ADMINS.contains(&ctx.sender()) {
@@ -979,7 +1172,7 @@ pub fn set_username(
     // Check for duplicate username
     if ctx
         .db
-        .user_profiles()
+        .user_profiles_2()
         .iter()
         .any(|p| p.username.as_deref() == Some(&username))
     {
@@ -988,15 +1181,15 @@ pub fn set_username(
 
     if let Some(mut profile) = ctx
         .db
-        .user_profiles()
+        .user_profiles_2()
         .iter()
-        .find(|p| p.principal_text == principal_text)
+        .find(|p| p.oauth_subject == oauth_subject)
     {
         // Remove old username association if any
         profile.username = Some(username);
         let profile_clone = profile.clone();
-        ctx.db.user_profiles().delete(profile);
-        ctx.db.user_profiles().insert(profile_clone);
+        ctx.db.user_profiles_2().delete(profile);
+        ctx.db.user_profiles_2().insert(profile_clone);
     } else {
         return Err("User not found".to_string());
     }
@@ -1008,7 +1201,7 @@ pub fn set_username(
 #[spacetimedb::reducer]
 pub fn set_email(
     ctx: &ReducerContext,
-    principal_text: String,
+    oauth_subject: String,
     email: String,
 ) -> Result<(), String> {
     if !crate::constants::ADMINS.contains(&ctx.sender()) {
@@ -1017,14 +1210,14 @@ pub fn set_email(
 
     if let Some(mut profile) = ctx
         .db
-        .user_profiles()
+        .user_profiles_2()
         .iter()
-        .find(|p| p.principal_text == principal_text)
+        .find(|p| p.oauth_subject == oauth_subject)
     {
         profile.email = Some(email);
         let profile_clone = profile.clone();
-        ctx.db.user_profiles().delete(profile);
-        ctx.db.user_profiles().insert(profile_clone);
+        ctx.db.user_profiles_2().delete(profile);
+        ctx.db.user_profiles_2().insert(profile_clone);
     } else {
         return Err("User not found".to_string());
     }
@@ -1038,34 +1231,30 @@ pub fn set_email(
 
 /// Get profile details for a user. Returns `None` if the user doesn't exist.
 /// The `caller_follows_user` and `user_follows_caller` fields are computed
-/// from the `user_follows` table using `ctx.sender()`.
+/// from the `user_follows_2` table using `ctx.sender()`.
 #[spacetimedb::procedure]
 pub fn get_profile_details_v4(
     ctx: &mut ProcedureContext,
-    principal_text: String,
+    oauth_subject: String,
 ) -> Option<UserProfileDetailsV4> {
     ctx.with_tx(|tx| {
-        let profile = tx
-            .db
-            .user_profiles()
-            .iter()
-            .find(|p| p.principal_text == principal_text)?;
-        let caller_text = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
+        let profile = get_or_migrate_profile(tx, &oauth_subject)?;
+        let caller_subject = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
 
         let caller_follows_user = tx
             .db
-            .user_follows()
+            .user_follows_2()
             .iter()
-            .any(|f| f.key == format!("{caller_text}::{principal_text}"));
+            .any(|f| f.key == format!("{caller_subject}::{oauth_subject}"));
 
         let user_follows_caller = tx
             .db
-            .user_follows()
+            .user_follows_2()
             .iter()
-            .any(|f| f.key == format!("{principal_text}::{caller_text}"));
+            .any(|f| f.key == format!("{oauth_subject}::{caller_subject}"));
 
         Some(UserProfileDetailsV4 {
-            principal_text: profile.principal_text,
+            oauth_subject: profile.oauth_subject,
             bio: profile.bio,
             website_url: profile.website_url,
             profile_picture_url: profile.profile_picture_url,
@@ -1088,24 +1277,20 @@ pub fn get_profile_details_v4(
 #[spacetimedb::procedure]
 pub fn get_user_profile_details_v7(
     ctx: &mut ProcedureContext,
-    principal_text: String,
+    oauth_subject: String,
 ) -> Option<UserProfileDetailsV7> {
     ctx.with_tx(|tx| {
-        let profile = tx
-            .db
-            .user_profiles()
-            .iter()
-            .find(|p| p.principal_text == principal_text)?;
-        let caller_text = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
+        let profile = get_or_migrate_profile(tx, &oauth_subject)?;
+        let caller_subject = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
 
         let (caller_follows_user, user_follows_caller) =
-            follow_relationships(tx, &caller_text, &principal_text);
+            follow_relationships(tx, &caller_subject, &oauth_subject);
 
-        let principal_text = profile.principal_text.clone();
+        let oauth_subject = profile.oauth_subject.clone();
         let profile_picture = profile_picture_data(&profile);
 
         Some(UserProfileDetailsV7 {
-            principal_text,
+            oauth_subject,
             profile_picture,
             bio: profile.bio,
             website_url: profile.website_url,
@@ -1126,28 +1311,24 @@ pub fn get_user_profile_details_v7(
 #[spacetimedb::procedure]
 pub fn get_users_profile_details(
     ctx: &mut ProcedureContext,
-    principal_texts: Vec<String>,
+    oauth_subjects: Vec<String>,
 ) -> Vec<UserProfileDetailsV7> {
     ctx.with_tx(|tx| {
-        let caller_text = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
+        let caller_subject = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
 
-        principal_texts
+        oauth_subjects
             .iter()
-            .filter_map(|principal_text| {
-                let profile = tx
-                    .db
-                    .user_profiles()
-                    .iter()
-                    .find(|p| &p.principal_text == principal_text)?;
+            .filter_map(|oauth_subject| {
+                let profile = get_or_migrate_profile(tx, oauth_subject)?;
 
                 let (caller_follows_user, user_follows_caller) =
-                    follow_relationships(tx, &caller_text, principal_text);
+                    follow_relationships(tx, &caller_subject, oauth_subject);
 
-                let principal_text = profile.principal_text.clone();
+                let oauth_subject = profile.oauth_subject.clone();
                 let profile_picture = profile_picture_data(&profile);
 
                 Some(UserProfileDetailsV7 {
-                    principal_text,
+                    oauth_subject,
                     profile_picture,
                     bio: profile.bio,
                     website_url: profile.website_url,
@@ -1168,37 +1349,39 @@ pub fn get_users_profile_details(
 #[spacetimedb::procedure]
 pub fn get_followers(
     ctx: &mut ProcedureContext,
-    principal_text: String,
+    oauth_subject: String,
     limit: u64,
     cursor: Option<String>,
 ) -> FollowersPage {
     ctx.with_tx(|tx| {
         let limit = limit.min(MAX_PAGE_SIZE) as usize;
-        let caller_text = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
+        let caller_subject =
+            tx.sender_auth().jwt().expect("JWT required").subject().to_string();
 
-        // Collect all followers of this user (followee = principal_text)
-        let mut followers: Vec<UserFollow> = tx
+        // Collect all followers of this user (followee = oauth_subject)
+        let mut followers: Vec<UserFollow2> = tx
             .db
-            .user_follows()
+            .user_follows_2()
             .iter()
-            .filter(|f| f.followee_text == principal_text)
+            .filter(|f| f.followee_subject == oauth_subject)
             .collect();
 
-        // Sort by follower_text for stable pagination
-        followers.sort_by(|a, b| a.follower_text.cmp(&b.follower_text));
+        // Sort by follower_subject for stable pagination
+        followers.sort_by(|a, b| a.follower_subject.cmp(&b.follower_subject));
 
         // Find cursor position
         let start = match &cursor {
             Some(cursor_id) => followers
                 .iter()
-                .position(|f| f.follower_text.as_str() > cursor_id.as_str())
+                .position(|f| f.follower_subject.as_str() > cursor_id.as_str())
                 .unwrap_or(0),
             None => 0,
         };
 
-        let page: Vec<UserFollow> = followers.iter().skip(start).take(limit).cloned().collect();
+        let page: Vec<UserFollow2> =
+            followers.iter().skip(start).take(limit).cloned().collect();
         let next_cursor = if start + limit < followers.len() {
-            page.last().map(|f| f.follower_text.clone())
+            page.last().map(|f| f.follower_subject.clone())
         } else {
             None
         };
@@ -1209,19 +1392,16 @@ pub fn get_followers(
         let items: Vec<FollowerItem> = page
             .iter()
             .map(|f| {
-                let profile = tx
-                    .db
-                    .user_profiles()
-                    .iter()
-                    .find(|p| p.principal_text == f.follower_text);
-                let pic = profile.map(|p| p.profile_picture_url).unwrap_or_default();
+                let profile = get_or_migrate_profile(tx, &f.follower_subject);
+                let pic =
+                    profile.map(|p| p.profile_picture_url).unwrap_or_default();
                 let caller_follows = tx
                     .db
-                    .user_follows()
+                    .user_follows_2()
                     .iter()
-                    .any(|uf| uf.key == format!("{caller_text}::{}", f.follower_text));
+                    .any(|uf| uf.key == format!("{caller_subject}::{}", f.follower_subject));
                 FollowerItem {
-                    principal_text: f.follower_text.clone(),
+                    oauth_subject: f.follower_subject.clone(),
                     caller_follows,
                     profile_picture_url: pic,
                 }
@@ -1240,37 +1420,39 @@ pub fn get_followers(
 #[spacetimedb::procedure]
 pub fn get_following(
     ctx: &mut ProcedureContext,
-    principal_text: String,
+    oauth_subject: String,
     limit: u64,
     cursor: Option<String>,
 ) -> FollowingPage {
     ctx.with_tx(|tx| {
         let limit = limit.min(MAX_PAGE_SIZE) as usize;
-        let caller_text = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
+        let caller_subject =
+            tx.sender_auth().jwt().expect("JWT required").subject().to_string();
 
-        // Collect all users this user is following (follower = principal_text)
-        let mut following: Vec<UserFollow> = tx
+        // Collect all users this user is following (follower = oauth_subject)
+        let mut following: Vec<UserFollow2> = tx
             .db
-            .user_follows()
+            .user_follows_2()
             .iter()
-            .filter(|f| f.follower_text == principal_text)
+            .filter(|f| f.follower_subject == oauth_subject)
             .collect();
 
-        // Sort by followee_text for stable pagination
-        following.sort_by(|a, b| a.followee_text.cmp(&b.followee_text));
+        // Sort by followee_subject for stable pagination
+        following.sort_by(|a, b| a.followee_subject.cmp(&b.followee_subject));
 
         // Find cursor position
         let start = match &cursor {
             Some(cursor_id) => following
                 .iter()
-                .position(|f| f.followee_text.as_str() > cursor_id.as_str())
+                .position(|f| f.followee_subject.as_str() > cursor_id.as_str())
                 .unwrap_or(0),
             None => 0,
         };
 
-        let page: Vec<UserFollow> = following.iter().skip(start).take(limit).cloned().collect();
+        let page: Vec<UserFollow2> =
+            following.iter().skip(start).take(limit).cloned().collect();
         let next_cursor = if start + limit < following.len() {
-            page.last().map(|f| f.followee_text.clone())
+            page.last().map(|f| f.followee_subject.clone())
         } else {
             None
         };
@@ -1281,19 +1463,16 @@ pub fn get_following(
         let items: Vec<FollowingItem> = page
             .iter()
             .map(|f| {
-                let profile = tx
-                    .db
-                    .user_profiles()
-                    .iter()
-                    .find(|p| p.principal_text == f.followee_text);
-                let pic = profile.map(|p| p.profile_picture_url).unwrap_or_default();
+                let profile = get_or_migrate_profile(tx, &f.followee_subject);
+                let pic =
+                    profile.map(|p| p.profile_picture_url).unwrap_or_default();
                 let caller_follows = tx
                     .db
-                    .user_follows()
+                    .user_follows_2()
                     .iter()
-                    .any(|uf| uf.key == format!("{caller_text}::{}", f.followee_text));
+                    .any(|uf| uf.key == format!("{caller_subject}::{}", f.followee_subject));
                 FollowingItem {
-                    principal_text: f.followee_text.clone(),
+                    oauth_subject: f.followee_subject.clone(),
                     caller_follows,
                     profile_picture_url: pic,
                 }
@@ -1334,19 +1513,20 @@ pub fn get_user_profile_by_user_id(
     ctx.with_tx(|tx| {
         let profile = tx
             .db
-            .user_profiles()
+            .user_profiles_2()
             .iter()
             .find(|p| p.user_id.as_ref() == Some(&user_id))?;
 
-        let caller_text = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
+        let caller_subject =
+            tx.sender_auth().jwt().expect("JWT required").subject().to_string();
         let (caller_follows_user, user_follows_caller) =
-            follow_relationships(tx, &caller_text, &profile.principal_text);
+            follow_relationships(tx, &caller_subject, &profile.oauth_subject);
 
-        let principal_text = profile.principal_text.clone();
+        let oauth_subject = profile.oauth_subject.clone();
         let profile_picture = profile_picture_data(&profile);
 
         Some(UserProfileDetailsV7 {
-            principal_text,
+            oauth_subject,
             profile_picture,
             bio: profile.bio,
             website_url: profile.website_url,
@@ -1371,19 +1551,20 @@ pub fn get_user_profile_by_username(
     ctx.with_tx(|tx| {
         let profile = tx
             .db
-            .user_profiles()
+            .user_profiles_2()
             .iter()
             .find(|p| p.username.as_deref() == Some(&username))?;
 
-        let caller_text = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
+        let caller_subject =
+            tx.sender_auth().jwt().expect("JWT required").subject().to_string();
         let (caller_follows_user, user_follows_caller) =
-            follow_relationships(tx, &caller_text, &profile.principal_text);
+            follow_relationships(tx, &caller_subject, &profile.oauth_subject);
 
-        let principal_text = profile.principal_text.clone();
+        let oauth_subject = profile.oauth_subject.clone();
         let profile_picture = profile_picture_data(&profile);
 
         Some(UserProfileDetailsV7 {
-            principal_text,
+            oauth_subject,
             profile_picture,
             bio: profile.bio,
             website_url: profile.website_url,
@@ -1408,26 +1589,26 @@ pub fn get_user_profile_by_username(
 /// an error if the owner is a `BotAccount` (bots cannot own bots).
 fn validate_owner_for_bot_creation(
     owner_account_type: &UserAccountType,
-    new_bot_text: &str,
+    new_bot_subject: &str,
 ) -> Result<UserAccountType, String> {
     match owner_account_type {
         UserAccountType::MainAccount { bots } => {
             let mut updated_bots = bots.clone();
-            updated_bots.push(new_bot_text.to_string());
+            updated_bots.push(new_bot_subject.to_string());
             Ok(UserAccountType::MainAccount { bots: updated_bots })
         }
         UserAccountType::BotAccount { .. } => Err("Bots cannot own other bots".to_string()),
     }
 }
 
-/// Build a new bot `UserProfile` with default values, owned by `owner_text`.
+/// Build a new bot `UserProfile2` with default values, owned by `owner_subject`.
 fn build_bot_profile(
-    bot_text: String,
-    owner_text: String,
+    bot_subject: String,
+    owner_subject: String,
     timestamp: Timestamp,
-) -> UserProfile {
-    UserProfile {
-        principal_text: bot_text,
+) -> UserProfile2 {
+    UserProfile2 {
+        oauth_subject: bot_subject,
         bio: String::new(),
         website_url: String::new(),
         profile_picture_url: String::new(),
@@ -1441,7 +1622,7 @@ fn build_bot_profile(
         csam_detected: false,
         last_access_time: timestamp,
         account_type: UserAccountType::BotAccount {
-            owner: owner_text,
+            owner: owner_subject,
         },
         username: None,
         email: None,
@@ -1449,10 +1630,10 @@ fn build_bot_profile(
     }
 }
 
-/// Build a new main-account `UserProfile` with default values.
-fn build_main_account_profile(principal_text: String, timestamp: Timestamp) -> UserProfile {
-    UserProfile {
-        principal_text,
+/// Build a new main-account `UserProfile2` with default values.
+fn build_main_account_profile(oauth_subject: String, timestamp: Timestamp) -> UserProfile2 {
+    UserProfile2 {
+        oauth_subject,
         bio: String::new(),
         website_url: String::new(),
         profile_picture_url: String::new(),
@@ -1543,11 +1724,11 @@ mod tests {
     #[test]
     fn test_build_bot_profile_defaults() {
         let profile = build_bot_profile(
-            "bot-text".to_string(),
-            "owner-text".to_string(),
+            "bot-subject".to_string(),
+            "owner-subject".to_string(),
             TEST_TIMESTAMP,
         );
-        assert_eq!(profile.principal_text, "bot-text");
+        assert_eq!(profile.oauth_subject, "bot-subject");
         assert_eq!(profile.bio, "");
         assert_eq!(profile.website_url, "");
         assert_eq!(profile.profile_picture_url, "");
@@ -1586,8 +1767,8 @@ mod tests {
 
     #[test]
     fn test_build_main_account_profile_defaults() {
-        let profile = build_main_account_profile("main-text".to_string(), TEST_TIMESTAMP);
-        assert_eq!(profile.principal_text, "main-text");
+        let profile = build_main_account_profile("main-subject".to_string(), TEST_TIMESTAMP);
+        assert_eq!(profile.oauth_subject, "main-subject");
         assert_eq!(profile.followers_count, 0);
         assert_eq!(profile.following_count, 0);
         assert_eq!(profile.subscription_plan, SubscriptionPlan::Free);
@@ -1620,8 +1801,8 @@ mod tests {
 
     #[test]
     fn test_profile_picture_data_with_url() {
-        let profile = UserProfile {
-            principal_text: "test".to_string(),
+        let profile = UserProfile2 {
+            oauth_subject: "test".to_string(),
             bio: String::new(),
             website_url: String::new(),
             profile_picture_url: "https://example.com/pic.jpg".to_string(),
