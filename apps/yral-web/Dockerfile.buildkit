@@ -5,7 +5,7 @@
 # ── Stage 1: Build ──────────────────────────────────────────────────────────
 FROM rust:latest AS builder
 
-# Install build dependencies (git needed for gob-cloudflare git dep, musl, mold linker, protobuf compiler)
+# Install build dependencies (musl, mold linker, protobuf compiler)
 RUN apt-get update && apt-get install -y --no-install-recommends musl-tools git mold clang protobuf-compiler && \
     rm -rf /var/lib/apt/lists/*
 

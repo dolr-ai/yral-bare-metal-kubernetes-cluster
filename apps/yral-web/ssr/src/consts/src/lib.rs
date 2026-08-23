@@ -5,17 +5,14 @@ pub use remote::*;
 use once_cell::sync::Lazy;
 use reqwest::Url;
 
-pub const CF_STREAM_BASE: &str = "https://customer-2p3jflss4r4hmpnz.cloudflarestream.com";
-pub const FALLBACK_PROPIC_BASE: &str = "https://api.dicebear.com/7.x/big-smile/svg";
-// an example URL is "https://imagedelivery.net/abXI9nS4DYYtyR1yFFtziA/gob.5/public";
-pub const GOBGOB_PROPIC_URL: &str = "https://imagedelivery.net/abXI9nS4DYYtyR1yFFtziA/gob.";
+/// Base URL for the self-hosted media CDN (video + thumbnails).
+pub const MEDIA_CDN_BASE: &str = "https://cdn-yral-sfw.yral.com";
+/// GobGob NFT profile picture base on Hetzner Object Storage.
+pub const GOBGOB_PROPIC_URL: &str = "https://prakash-yral.hel1.your-objectstorage.com/gobgob/gob.";
 pub const GOBGOB_TOTAL_COUNT: u32 = 18557;
-pub const CF_WATERMARK_UID: &str = "b5588fa1516ca33a08ebfef06c8edb33";
 pub const ACCOUNT_CONNECTED_STORE: &str = "account-connected-1";
 pub const DEVICE_ID: &str = "device_id";
 pub const CUSTOM_DEVICE_ID: &str = "custom_device_id";
-pub static CF_BASE_URL: Lazy<Url> =
-    Lazy::new(|| Url::parse("https://api.cloudflare.com/client/v4/").unwrap());
 pub const NOTIFICATIONS_ENABLED_STORE: &str = "yral-notifications-enabled";
 pub const NOTIFICATION_MIGRATED_STORE: &str = "notifications-migrated";
 pub const NSFW_TOGGLE_STORE: &str = "nsfw-enabled";
@@ -32,9 +29,6 @@ pub static ANALYTICS_SERVER_URL: Lazy<Url> =
 
 pub static SMILEY_GAME_STATS_URL: Lazy<Url> =
     Lazy::new(|| Url::parse("https://us-central1-yral-mobile.cloudfunctions.net").unwrap());
-
-pub const CF_KV_ML_CACHE_NAMESPACE_ID: &str = "ea145fc839bd42f9bf2d34b950ddbda5";
-pub const CLOUDFLARE_ACCOUNT_ID: &str = "a209c523d2d9646cc56227dbe6ce3ede";
 
 pub const AUTH_UTIL_COOKIES_MAX_AGE_MS: i64 = 400 * 24 * 60 * 60 * 1000; // 400 days
 

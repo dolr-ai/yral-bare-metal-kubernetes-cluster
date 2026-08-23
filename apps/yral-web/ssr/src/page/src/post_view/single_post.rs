@@ -26,7 +26,7 @@ enum PostFetchError {
 #[component]
 fn SinglePostViewInner(post: PostDetails) -> impl IntoView {
     let AudioState { muted, volume } = expect_context();
-    let bg_url = bg_url(&post.uid);
+    let bg_url = bg_url(&post.poster_principal, &post.uid);
     let to_load = Memo::new(|_| true);
 
     view! {
@@ -89,7 +89,7 @@ pub fn SinglePost() -> impl IntoView {
                 };
                 // Map SpacetimeDB PostDetailsForFrontend to the PostDetails struct
                 // expected by the rest of the page.
-                let poster_principal = post.creator_principal_text.clone();
+                let poster_principal = post.creator_oauth_subject.clone();
                 let poster_principal_text = &poster_principal;
                 Ok(PostDetails {
                     canister_id: canister_id.clone(),

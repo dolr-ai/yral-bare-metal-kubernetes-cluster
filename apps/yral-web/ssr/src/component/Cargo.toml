@@ -29,7 +29,6 @@ dotenv = { workspace = true, optional = true }
 enum_dispatch = { workspace = true, optional = true }
 futures = { workspace = true }
 gloo = { workspace = true, features = ["futures", "net"] }
-gob-cloudflare = { workspace = true, optional = true }
 hex = { workspace = true }
 http = { workspace = true }
 icondata = { workspace = true }
@@ -92,12 +91,6 @@ backend-admin = [
   "state/backend-admin",
   "utils/backend-admin",
 ]
-cloudflare = [
-  "consts/cloudflare",
-  "dep:gob-cloudflare",
-  "state/cloudflare",
-  "utils/cloudflare",
-]
 hydrate = [
   "consts/hydrate",
   "dep:rand_chacha",
@@ -122,9 +115,7 @@ oauth-ssr = [
 ]
 release-bin = [
   "backend-admin",
-  "cloudflare",
   "consts/release-bin",
-  "gob-cloudflare/rustls-tls",
   "oauth-ssr",
   "ssr",
   "state/release-bin",
@@ -132,7 +123,6 @@ release-bin = [
 ]
 release-lib = [
   "backend-admin",
-  "cloudflare",
   "consts/release-lib",
   "dep:openidconnect",
   "hydrate",

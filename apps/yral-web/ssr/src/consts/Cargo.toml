@@ -66,7 +66,6 @@ axum-extra = {
 }
 openidconnect = { workspace = true, optional = true }
 dotenv = { workspace = true, optional = true }
-gob-cloudflare = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true }
 js-sys = { workspace = true }
 speedate = { workspace = true, optional = true }
@@ -107,18 +106,14 @@ ssr = [
 ]
 oauth-ssr = ["dep:openidconnect", "dep:jsonwebtoken"]
 oauth-hydrate = []
-cloudflare = ["dep:gob-cloudflare"]
 backend-admin = []
 release-bin = [
     "ssr",
-    "cloudflare",
-    "gob-cloudflare/rustls-tls",
     "backend-admin",
     "oauth-ssr",
 ]
 release-lib = [
     "hydrate",
-    "cloudflare",
     "backend-admin",
     "dep:openidconnect",
     "oauth-hydrate",

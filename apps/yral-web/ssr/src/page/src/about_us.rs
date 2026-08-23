@@ -30,7 +30,7 @@ pub fn AboutUs() -> impl IntoView {
                 </div>
 
                 <div class="mb-6 text-sm text-left whitespace-pre-line md:text-lg md:text-center">
-                    {"Most Yral data is stored on the blockchain, except for videos which are hosted on Cloudflare. As technology advances, we plan to move all storage onto the blockchain. Yral tackles the common problems of monetization and centralization found in traditional social media by creating a fair and transparent system."}
+                    {"Most Yral data is stored on the blockchain, except for videos which are hosted on our self-hosted CDN. As technology advances, we plan to move all storage onto the blockchain. Yral tackles the common problems of monetization and centralization found in traditional social media by creating a fair and transparent system."}
                 </div>
 
                 <div class="mb-6 text-sm text-left whitespace-pre-line md:text-lg md:text-center">

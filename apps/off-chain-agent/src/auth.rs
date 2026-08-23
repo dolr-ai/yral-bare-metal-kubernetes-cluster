@@ -83,23 +83,19 @@ pub fn extract_user_id_from_headers(
 }
 
 pub fn check_auth_events(req_token: Option<String>) -> Result<(), anyhow::Error> {
-    // GRPC_AUTH_TOKEN and YRAL_CLOUDFLARE_WORKER_GRPC_AUTH_TOKEN are shared
-    // secrets for the single-event POST endpoint (used by the mobile app and
-    // Cloudflare Worker). If neither is set, the endpoint is disabled.
+    // GRPC_AUTH_TOKEN is the shared secret for the single-event POST endpoint
+    // (used by the mobile app). If not set, the endpoint is disabled.
     let token = env::var("GRPC_AUTH_TOKEN").unwrap_or_default();
-    let yral_cloudflare_worker_token =
-        env::var("YRAL_CLOUDFLARE_WORKER_GRPC_AUTH_TOKEN").unwrap_or_default();
     let token = token.trim();
-    let yral_cloudflare_worker_token = yral_cloudflare_worker_token.trim();
 
-    if token.is_empty() && yral_cloudflare_worker_token.is_empty() {
+    if token.is_empty() {
         return Err(anyhow::anyhow!(
-            "No GRPC_AUTH_TOKEN or YRAL_CLOUDFLARE_WORKER_GRPC_AUTH_TOKEN set — single-event endpoint disabled"
+            "No GRPC_AUTH_TOKEN set — single-event endpoint disabled"
         ));
     }
 
     match req_token {
-        Some(t) if !t.is_empty() && (t == token || t == yral_cloudflare_worker_token) => Ok(()),
+        Some(t) if !t.is_empty() && t == token => Ok(()),
         _ => Err(anyhow::anyhow!("No valid auth token")),
     }
 }

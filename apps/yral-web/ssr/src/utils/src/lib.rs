@@ -71,24 +71,20 @@ impl<T> PartialEq for MockPartialEq<T> {
     }
 }
 
-use std::{
-    convert::Infallible,
-    fmt::{self, Display, Formatter},
-    str::FromStr,
-};
+use std::fmt::Display;
 
-use consts::CF_STREAM_BASE;
+use consts::MEDIA_CDN_BASE;
 
-pub fn bg_url(uid: impl Display) -> String {
-    format!("{CF_STREAM_BASE}/{uid}/thumbnails/thumbnail.jpg")
+/// Thumbnail URL on the self-hosted media CDN.
+/// Pattern: {MEDIA_CDN_BASE}/{publisher_user_id}/{video_uid}-thumbnail.png
+pub fn bg_url(publisher_user_id: impl Display, video_uid: impl Display) -> String {
+    format!("{MEDIA_CDN_BASE}/{publisher_user_id}/{video_uid}-thumbnail.png")
 }
 
-pub fn stream_url(uid: impl Display) -> String {
-    format!("{CF_STREAM_BASE}/{uid}/manifest/video.m3u8")
-}
-
-pub fn mp4_url(uid: impl Display) -> String {
-    format!("{CF_STREAM_BASE}/{uid}/downloads/default.mp4")
+/// Video MP4 URL on the self-hosted media CDN.
+/// Pattern: {MEDIA_CDN_BASE}/{publisher_user_id}/{video_uid}.mp4
+pub fn mp4_url(publisher_user_id: impl Display, video_uid: impl Display) -> String {
+    format!("{MEDIA_CDN_BASE}/{publisher_user_id}/{video_uid}.mp4")
 }
 
 #[cfg(not(feature = "hydrate"))]

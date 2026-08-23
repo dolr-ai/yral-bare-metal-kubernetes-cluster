@@ -32,7 +32,6 @@ dotenv = { workspace = true, optional = true }
 futures = { workspace = true }
 getrandom = { workspace = true, features = ["wasm_js"], optional = true }
 gloo = { workspace = true, features = ["futures", "net"] }
-gob-cloudflare = { workspace = true, optional = true }
 hex = { workspace = true }
 http = { workspace = true }
 icondata = { workspace = true }
@@ -135,13 +134,6 @@ backend-admin = [
   "state/backend-admin",
   "utils/backend-admin",
 ]
-cloudflare = [
-  "component/cloudflare",
-  "consts/cloudflare",
-  "dep:gob-cloudflare",
-  "state/cloudflare",
-  "utils/cloudflare",
-]
 oauth-hydrate = [
   "component/oauth-hydrate",
   "consts/oauth-hydrate",
@@ -158,10 +150,8 @@ oauth-ssr = [
 ]
 release-bin = [
   "backend-admin",
-  "cloudflare",
   "component/release-bin",
   "consts/release-bin",
-  "gob-cloudflare/rustls-tls",
   "oauth-ssr",
   "ssr",
   "state/release-bin",
@@ -169,7 +159,6 @@ release-bin = [
 ]
 release-lib = [
   "backend-admin",
-  "cloudflare",
   "component/release-lib",
   "consts/release-lib",
   "dep:openidconnect",

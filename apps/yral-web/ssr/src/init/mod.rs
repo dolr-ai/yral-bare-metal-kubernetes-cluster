@@ -5,16 +5,6 @@ use leptos::prelude::*;
 use leptos_axum::AxumRouteListing;
 use state::server::AppState;
 
-#[cfg(feature = "cloudflare")]
-fn init_cf() -> gob_cloudflare::CloudflareAuth {
-    use gob_cloudflare::{CloudflareAuth, Credentials};
-    let creds = Credentials {
-        token: env::var("CF_TOKEN").expect("`CF_TOKEN` is required!"),
-        account_id: env::var("CF_ACCOUNT_ID").expect("`CF_ACCOUNT_ID` is required!"),
-    };
-    CloudflareAuth::new(creds)
-}
-
 fn init_cookie_key() -> Key {
     let cookie_key_str = env::var("COOKIE_KEY").expect("`COOKIE_KEY` is required!");
     let cookie_key_raw =
@@ -73,8 +63,6 @@ impl AppStateBuilder {
         let app_state = AppState {
             leptos_options: self.leptos_options,
             routes: self.routes,
-            #[cfg(feature = "cloudflare")]
-            cloudflare: init_cf(),
             cookie_key: init_cookie_key(),
             #[cfg(feature = "oauth-ssr")]
             yral_oauth_client: init_yral_oauth(),

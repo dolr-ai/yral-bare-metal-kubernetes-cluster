@@ -75,6 +75,12 @@ where
             .map(|q| q.get_quick_post_details().video_uid)
             .unwrap_or_default()
     };
+    let publisher_user_id = move || {
+        post_with_prev.get()
+            .as_ref()
+            .map(|q| q.get_quick_post_details().publisher_user_id)
+            .unwrap_or_default()
+    };
 
     let high_priority = idx < 3;
 
@@ -82,7 +88,7 @@ where
         <div class="overflow-hidden relative w-full h-full bg-transparent">
             <div
                 class="absolute top-0 left-0 w-full h-full bg-center bg-cover z-1 blur-lg bg-black"
-                style:background-image=move || format!("url({})", bg_url(uid()))
+                style:background-image=move || format!("url({})", bg_url(publisher_user_id(), uid()))
             ></div>
             <Suspense>
             {move || Suspend::new(async move {
@@ -115,8 +121,28 @@ pub fn VideoView(
         }
         post_for_uid.with(|p| p.as_ref().map(|p| p.video_uid.clone()))
     });
-    let view_bg_url = move || uid.get().map(bg_url);
-    let view_video_url = move || uid.get().map(mp4_url);
+    let publisher_user_id = Memo::new(move |_| {
+        if !to_load.get() {
+            return None;
+        }
+        post_for_uid.with(|p| p.as_ref().map(|p| p.publisher_user_id.clone()))
+    });
+    let view_bg_url = move || {
+        let publisher = publisher_user_id.get();
+        let video = uid.get();
+        match (publisher, video) {
+            (Some(p), Some(v)) => Some(bg_url(p, v)),
+            _ => None,
+        }
+    };
+    let view_video_url = move || {
+        let publisher = publisher_user_id.get();
+        let video = uid.get();
+        match (publisher, video) {
+            (Some(p), Some(v)) => Some(mp4_url(p, v)),
+            _ => None,
+        }
+    };
 
     // Preload the background image
     // This is a workaround to ensure the image is loaded before the video starts

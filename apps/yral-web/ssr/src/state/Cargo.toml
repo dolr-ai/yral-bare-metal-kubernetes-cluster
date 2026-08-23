@@ -31,7 +31,6 @@ enum_dispatch = { workspace = true, optional = true }
 futures = { workspace = true }
 getrandom = { workspace = true, default-features = false, features = ["wasm_js"], optional = true }
 gloo = { workspace = true, features = ["futures", "net"] }
-gob-cloudflare = { workspace = true, optional = true }
 hex = { workspace = true }
 http = { workspace = true }
 icondata = { workspace = true }
@@ -92,7 +91,6 @@ anyhow = { workspace = true }
 
 [features]
 backend-admin = []
-cloudflare = ["dep:gob-cloudflare"]
 hydrate = [
   "consts/hydrate",
   "dep:base64",
@@ -111,14 +109,11 @@ oauth-hydrate = []
 oauth-ssr = ["dep:openidconnect"]
 release-bin = [
   "backend-admin",
-  "cloudflare",
-  "gob-cloudflare/rustls-tls",
   "oauth-ssr",
   "ssr",
 ]
 release-lib = [
   "backend-admin",
-  "cloudflare",
   "dep:openidconnect",
   "hydrate",
   "oauth-hydrate",

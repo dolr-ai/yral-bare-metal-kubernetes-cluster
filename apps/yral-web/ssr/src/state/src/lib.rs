@@ -18,8 +18,6 @@ pub mod server {
     #[derive(FromRef, Clone)]
     pub struct AppState {
         pub leptos_options: LeptosOptions,
-        #[cfg(feature = "cloudflare")]
-        pub cloudflare: gob_cloudflare::CloudflareAuth,
         pub routes: Vec<AxumRouteListing>,
         pub cookie_key: Key,
         #[cfg(feature = "oauth-ssr")]
