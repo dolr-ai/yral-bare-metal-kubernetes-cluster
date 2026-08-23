@@ -70,10 +70,3 @@ ssr = [
   "leptos_router/ssr",
   "leptos/ssr",
 ]
-
-[profile.wasm-release]
-inherits = "release"
-opt-level = "z"
-lto = true
-panic = "abort"
-codegen-units = 1

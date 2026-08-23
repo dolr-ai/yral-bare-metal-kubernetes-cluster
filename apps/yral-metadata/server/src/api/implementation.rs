@@ -1,14 +1,10 @@
+use crate::{state::SpacetimeClient, utils::error::Result};
 use candid::Principal;
 use std::collections::HashMap;
 use types::{
     BulkGetUserMetadataReq, BulkGetUserMetadataRes, BulkUsers, CanisterToPrincipalReq,
     CanisterToPrincipalRes, GetUserMetadataV2Res, SetUserMetadataReq, SetUserMetadataReqMetadata,
     SetUserMetadataRes, UserMetadata, UserMetadataV2,
-};
-
-use crate::{
-    state::SpacetimeClient,
-    utils::error::{Error, Result},
 };
 
 /// Set user metadata via SpacetimeDB.
@@ -86,7 +82,8 @@ pub async fn get_user_metadata_impl(
             .unwrap_or("")
             .to_string();
 
-        let user_principal = Principal::from_text(&principal_text).unwrap_or(Principal::anonymous());
+        let user_principal =
+            Principal::from_text(&principal_text).unwrap_or(Principal::anonymous());
 
         let metadata = UserMetadata {
             user_canister_id: Principal::anonymous(),
@@ -97,7 +94,10 @@ pub async fn get_user_metadata_impl(
             is_migrated: true,
         };
 
-        Ok(Some(UserMetadataV2::from_metadata(user_principal, metadata)))
+        Ok(Some(UserMetadataV2::from_metadata(
+            user_principal,
+            metadata,
+        )))
     } else {
         Ok(None)
     }
@@ -111,10 +111,7 @@ pub async fn delete_metadata_bulk_impl(
 ) -> Result<()> {
     for user in &users.users {
         spacetime
-            .call_reducer(
-                "delete_user_info",
-                serde_json::json!([user.to_text()]),
-            )
+            .call_reducer("delete_user_info", serde_json::json!([user.to_text()]))
             .await?;
     }
     Ok(())

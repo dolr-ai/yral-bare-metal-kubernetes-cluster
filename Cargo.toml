@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
-  "apps/hello-world",
+  "apps/leptos-tutorial-builder-syntax",
   "apps/my-website",
   "apps/off-chain-agent",
   "apps/task-runner",
@@ -18,12 +18,6 @@ members = [
   "apps/yral-web/ssr/src/page",
   "apps/yral-web/ssr/src/state",
   "apps/yral-web/ssr/src/utils",
-]
-
-exclude = [
-  # Gradle project with a Rust submodule — not part of this workspace because
-  # git submodules are not present in shallow clones (Shipwright/BuildKit).
-  "apps/yral-mobile/shared/rust/rust-agent/rust-agent-uniffi",
 ]
 
 [workspace.dependencies]
@@ -136,13 +130,15 @@ yral-database-spacetime-bindings = { package = "yral-database-spacetime-bindings
 yral-metadata-client = { path = "apps/yral-metadata/client", default-features = false }
 yral-metadata-types = { path = "apps/yral-metadata/types" }
 
-# Profile for yral-web release binary (from apps/yral-web/Cargo.toml)
+# Performance-optimized profile for SSR server binaries (used by yral-web/ssr).
+# Must live at workspace root — Cargo ignores profiles defined in member crates.
 [profile.prod-release]
 inherits = "release"
 debug = 1
 lto = true
 
-# Defines a size-optimized profile for the WASM bundle in release mode
+# Size-optimized profile for WASM client bundles (used by all Leptos apps).
+# Must live at workspace root — Cargo ignores profiles defined in member crates.
 [profile.wasm-release]
 inherits = "release"
 opt-level = "z"
