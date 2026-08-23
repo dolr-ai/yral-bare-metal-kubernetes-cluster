@@ -18,11 +18,7 @@ use leptos_router::hooks::{use_navigate, use_params};
 use leptos_router::params::Params;
 use serde::{Deserialize, Serialize};
 use utils::send_wrap;
-use wasm_bindgen::JsCast;
-use wasm_bindgen_futures::{JsFuture, spawn_local};
-
-/// Rishi's agent backend base URL.
-const AGENT_BACKEND_URL: &str = "https://agent.rishi.yral.com";
+use wasm_bindgen_futures::spawn_local;
 
 // ─── API types ─────────────────────────────────────────────────────────────
 
@@ -107,15 +103,15 @@ struct SendMessageRequest {
 async fn get_authentication_token() -> Result<String, ServerFnError> {
     use axum_extra::extract::{cookie::Key, SignedCookieJar};
 
-    let cookie_key: Key = use_context().or_else(|| {
-        let cookie_key_string =
-            std::env::var("COOKIE_KEY").expect("`COOKIE_KEY` is required!");
-        let raw_key = hex::decode(cookie_key_string).expect("Invalid `COOKIE_KEY`");
-        Some(Key::from(&raw_key))
-    }).unwrap();
+    let cookie_key: Key = use_context()
+        .or_else(|| {
+            let cookie_key_string = std::env::var("COOKIE_KEY").expect("`COOKIE_KEY` is required!");
+            let raw_key = hex::decode(cookie_key_string).expect("Invalid `COOKIE_KEY`");
+            Some(Key::from(&raw_key))
+        })
+        .unwrap();
 
-    let signed_cookie_jar: SignedCookieJar =
-        leptos_axum::extract_with_state(&cookie_key).await?;
+    let signed_cookie_jar: SignedCookieJar = leptos_axum::extract_with_state(&cookie_key).await?;
     let cookie = signed_cookie_jar
         .get(consts::auth::ID_TOKEN_COOKIE)
         .ok_or_else(|| ServerFnError::new("Not logged in"))?;
@@ -140,16 +136,12 @@ pub async fn create_conversation(
         })
         .send()
         .await
-        .map_err(|error| {
-            ServerFnError::new(format!("Create conversation failed: {error}"))
-        })?;
+        .map_err(|error| ServerFnError::new(format!("Create conversation failed: {error}")))?;
 
     let conversation_response: ConversationResponse = response
         .json()
         .await
-        .map_err(|error| {
-            ServerFnError::new(format!("Parse conversation failed: {error}"))
-        })?;
+        .map_err(|error| ServerFnError::new(format!("Parse conversation failed: {error}")))?;
 
     Ok(Conversation {
         identifier: conversation_response.identifier,
@@ -175,16 +167,12 @@ pub async fn list_conversation_messages(
         .header("Authorization", format!("Bearer {authentication_token}"))
         .send()
         .await
-        .map_err(|error| {
-            ServerFnError::new(format!("List messages failed: {error}"))
-        })?;
+        .map_err(|error| ServerFnError::new(format!("List messages failed: {error}")))?;
 
     let messages_response: ConversationMessagesResponse = response
         .json()
         .await
-        .map_err(|error| {
-            ServerFnError::new(format!("Parse messages failed: {error}"))
-        })?;
+        .map_err(|error| ServerFnError::new(format!("Parse messages failed: {error}")))?;
 
     Ok(messages_response
         .messages
@@ -261,8 +249,7 @@ async fn stream_message_via_sse(
     })
     .unwrap_or_default();
 
-    let headers =
-        web_sys::Headers::new().map_err(|error| format!("Headers error: {error:?}"))?;
+    let headers = web_sys::Headers::new().map_err(|error| format!("Headers error: {error:?}"))?;
     headers
         .set("Authorization", &format!("Bearer {authentication_token}"))
         .map_err(|error| format!("Set auth header: {error:?}"))?;
@@ -281,9 +268,7 @@ async fn stream_message_via_sse(
     let request = web_sys::Request::new_with_str_and_init(&url, &request_options)
         .map_err(|error| format!("Request creation: {error:?}"))?;
 
-    let fetch_promise = web_sys::window()
-        .unwrap()
-        .fetch_with_request(&request);
+    let fetch_promise = web_sys::window().unwrap().fetch_with_request(&request);
     let response = JsFuture::from(fetch_promise)
         .await
         .map_err(|error| format!("Fetch failed: {error:?}"))?;
@@ -295,8 +280,10 @@ async fn stream_message_via_sse(
     }
 
     let readable_stream = http_response.body().ok_or("No response body")?;
-    let reader: web_sys::ReadableStreamDefaultReader =
-        readable_stream.get_reader().dyn_into().map_err(|_| "Reader cast failed")?;
+    let reader: web_sys::ReadableStreamDefaultReader = readable_stream
+        .get_reader()
+        .dyn_into()
+        .map_err(|_| "Reader cast failed")?;
 
     let mut full_response_text = String::new();
     let mut buffer = String::new();
@@ -454,8 +441,7 @@ pub fn Chat() -> impl IntoView {
             let authentication_token = match get_chat_token().await {
                 Ok(token) => token,
                 Err(error) => {
-                    error_message_signal
-                        .set(Some(format!("Authentication error: {error}")));
+                    error_message_signal.set(Some(format!("Authentication error: {error}")));
                     is_sending_signal.set(false);
                     return;
                 }
@@ -487,15 +473,15 @@ pub fn Chat() -> impl IntoView {
                                 role: "assistant".to_string(),
                                 content: full_response,
                                 message_type: "text".to_string(),
-                            created_at: String::new(),
+                                created_at: String::new(),
+                            });
                         });
-                    });
+                    }
+                    Err(error) => {
+                        streaming_text_signal.set(String::new());
+                        error_message_signal.set(Some(format!("Stream error: {error}")));
+                    }
                 }
-                Err(error) => {
-                    streaming_text_signal.set(String::new());
-                    error_message_signal.set(Some(format!("Stream error: {error}")));
-                }
-            }
             }
             is_sending_signal.set(false);
         });

@@ -2,7 +2,7 @@ use codee::string::FromToStringCodec;
 use consts::{
     LoginProvider, NOTIFICATIONS_ENABLED_STORE,
 };
-use leptos::{ev, prelude::*};
+use leptos::{ev, html, prelude::*};
 use leptos_use::{
     storage::use_local_storage, use_event_listener, use_interval_fn,
     use_window,
@@ -12,7 +12,7 @@ use utils::types::NewIdentity;
 
 pub type YralAuthMessage = Result<NewIdentity, String>;
 
-use super::{LoginProvButton, LoginProvCtx, ProviderKind};
+use super::{login_prov_button, LoginProvCtx, ProviderKind};
 
 #[server]
 async fn yral_auth_login_url(
@@ -29,8 +29,7 @@ async fn yral_auth_login_url(
     Ok(url)
 }
 
-#[component]
-pub fn YralAuthProvider() -> impl IntoView {
+pub fn yral_auth_provider() -> impl IntoView {
     let ctx: LoginProvCtx = expect_context();
     let signing_in = move || ctx.processing.get() == Some(ProviderKind::YralAuth);
     let signing_in_provider = RwSignal::new(LoginProvider::Google);
@@ -119,48 +118,56 @@ pub fn YralAuthProvider() -> impl IntoView {
         });
     };
 
-    view! {
-        <LoginProvButton
-            prov=ProviderKind::YralAuth
-            class="flex gap-3 justify-center items-center p-3 w-full font-bold text-black bg-white rounded-md hover:bg-white/95"
-            on_click=move |ev| {
-                ev.stop_propagation();
+    (
+        login_prov_button(
+            ProviderKind::YralAuth,
+            "flex gap-3 justify-center items-center p-3 w-full font-bold text-black bg-white rounded-md hover:bg-white/95".into(),
+            move |event: ev::MouseEvent| {
+                event.stop_propagation();
                 signing_in_provider.set(LoginProvider::Google);
                 on_click(signing_in_provider.get(), "google");
-            }
-        >
-            <img class="size-5" src="/img/common/google.svg" />
-            <span>
-                {format!(
-                    "{}Google",
-                    if signing_in() && signing_in_provider.get() == LoginProvider::Google {
-                        "Logging in with "
-                    } else {
-                        "Login with "
-                    },
-                )}
-            </span>
-        </LoginProvButton>
-        <LoginProvButton
-            prov=ProviderKind::YralAuth
-            class="flex gap-3 justify-center items-center py-3 w-full font-bold text-black bg-white rounded-md hover:bg-white/95"
-            on_click=move |ev| {
-                ev.stop_propagation();
+            },
+            Signal::default(),
+            (
+                html::img()
+                    .attr("class", "size-5")
+                    .attr("src", "/img/common/google.svg"),
+                html::span().child(move || {
+                    format!(
+                        "{}Google",
+                        if signing_in() && signing_in_provider.get() == LoginProvider::Google {
+                            "Logging in with "
+                        } else {
+                            "Login with "
+                        },
+                    )
+                }),
+            ),
+        ),
+        login_prov_button(
+            ProviderKind::YralAuth,
+            "flex gap-3 justify-center items-center py-3 w-full font-bold text-black bg-white rounded-md hover:bg-white/95".into(),
+            move |event: ev::MouseEvent| {
+                event.stop_propagation();
                 signing_in_provider.set(LoginProvider::Apple);
                 on_click(signing_in_provider.get(), "apple");
-            }
-        >
-            <img class="size-5" src="/img/common/apple.svg" />
-            <span>
-                {format!(
-                    "{}Apple",
-                    if signing_in() && signing_in_provider.get() == LoginProvider::Apple {
-                        "Logging in with "
-                    } else {
-                        "Login with "
-                    },
-                )}
-            </span>
-        </LoginProvButton>
-    }
+            },
+            Signal::default(),
+            (
+                html::img()
+                    .attr("class", "size-5")
+                    .attr("src", "/img/common/apple.svg"),
+                html::span().child(move || {
+                    format!(
+                        "{}Apple",
+                        if signing_in() && signing_in_provider.get() == LoginProvider::Apple {
+                            "Logging in with "
+                        } else {
+                            "Login with "
+                        },
+                    )
+                }),
+            ),
+        ),
+    )
 }

@@ -5,8 +5,8 @@ pub mod yral;
 
 use leptos::logging;
 use leptos::prelude::ServerFnError;
-use leptos::{ev, prelude::*, reactive::wrappers::write::SignalSetter};
-use leptos_icons::Icon;
+use leptos::{ev, html, prelude::*, reactive::wrappers::write::SignalSetter};
+use leptos_icons::{Icon, IconProps};
 use leptos_router::hooks::use_navigate;
 use state::canisters::auth_state;
 use state::canisters::AuthSession;
@@ -49,42 +49,35 @@ pub struct LoginProvCtx {
 
 /// Login providers must use this button to trigger the login action
 /// automatically sets the processing state to true
-#[component]
-fn LoginProvButton<Cb: Fn(ev::MouseEvent) + 'static>(
+#[cfg(any(feature = "oauth-ssr", feature = "oauth-hydrate"))]
+fn login_prov_button<Cb: Fn(ev::MouseEvent) + 'static>(
     prov: ProviderKind,
-    #[prop(into)] class: Oco<'static, str>,
+    class: Oco<'static, str>,
     on_click: Cb,
-    #[prop(optional, into)] disabled: Signal<bool>,
-    children: Children,
+    disabled: Signal<bool>,
+    children: impl IntoView,
 ) -> impl IntoView {
     let ctx: LoginProvCtx = expect_context();
 
     let click_action = Action::new(move |()| async move {});
 
-    view! {
-        <button
-            disabled=move || ctx.processing.get().is_some() || disabled.get()
-            class=class
-            on:click=move |ev| {
-                ctx.set_processing.set(Some(prov));
-                on_click(ev);
-                click_action.dispatch(());
-            }
-        >
-
-            {children()}
-        </button>
-    }
+    html::button()
+        .attr("disabled", move || ctx.processing.get().is_some() || disabled.get())
+        .attr("class", class)
+        .on(ev::click, move |event| {
+            ctx.set_processing.set(Some(prov));
+            on_click(event);
+            click_action.dispatch(());
+        })
+        .child(children)
 }
 
-/// on_resolve -> a callback that returns the new principal
-#[component]
-pub fn LoginProviders(
+pub fn login_providers(
     show_modal: RwSignal<bool>,
     lock_closing: RwSignal<bool>,
     redirect_to: Option<String>,
-    #[prop(optional, into)] reload_window: bool,
-    #[prop(optional)] text: String,
+    reload_window: bool,
+    text: String,
 ) -> impl IntoView {
     let auth = auth_state();
 
@@ -93,24 +86,15 @@ pub fn LoginProviders(
     let nav = use_navigate();
 
     let login_action = Action::new(move |new_id: &NewIdentity| {
-        // Clone the necessary parts
         let new_id = new_id.clone();
         let redirect_to = redirect_to.clone();
-
         let nav = nav.clone();
-        // let start = start.clone();
-        // Capture the context signal setter
         send_wrap(async move {
             let canisters = auth
                 .set_new_identity_and_wait_for_authentication(new_id.clone(), true)
                 .await?;
 
-            if let Err(e) = handle_user_login(
-                canisters.clone(),
-                new_id.email,
-            )
-            .await
-            {
+            if let Err(e) = handle_user_login(canisters.clone(), new_id.email).await {
                 log::warn!("failed to handle user login, err {e}. skipping");
             }
 
@@ -135,61 +119,76 @@ pub fn LoginProviders(
             processing.set(val);
         }),
         login_complete: SignalSetter::map(move |val: NewIdentity| {
-            // Dispatch just the DelegatedIdentityWire
             logging::log!("email: {:?}", val.email);
             login_action.dispatch(val);
         }),
     };
     provide_context(ctx);
 
-    view! {
-        <div class="flex justify-center items-center py-6 px-4 w-full h-full cursor-auto">
-            <div class="overflow-hidden relative items-center w-full max-w-md rounded-md cursor-auto h-fit bg-neutral-950">
-                <img
-                    src="/img/common/refer-bg.webp"
-                    class="object-cover absolute inset-0 z-0 w-full h-full opacity-40"
-                />
-                <div
-                    style="background: radial-gradient(circle, rgba(226, 1, 123, 0.4) 0%, rgba(255,255,255,0) 50%);"
-                    class="absolute z-[1] size-[50rem] -left-[75%] -top-[50%]"
-                ></div>
-                <button
-                    on:click=move |_| show_modal.set(false)
-                    class="flex absolute top-4 right-4 justify-center items-center text-lg text-center text-white rounded-full md:text-xl size-6 bg-neutral-600 z-[3]"
-                >
-                    <Icon icon=icondata::ChCross />
-                </button>
-                <div class="flex relative flex-col gap-8 justify-center items-center py-10 px-12 text-white z-[2]">
-                    <img src="/img/common/join-yral.webp" class="object-contain h-52" />
-                    <div class="text-base font-bold text-center">
-                        {if text.is_empty() {
-                            view! {
-                                <span>
-                                    "Login in to watch, play & earn Bitcoin"
-                                </span>
-                            }.into_any()
-                        } else {
-                            view! {
-                                <span>
-                                    {text}
-                                </span>
-                            }.into_any()
-                        }}
-                    </div>
-                    <div class="flex flex-col gap-4 items-center w-full">
-                        {
-                            #[cfg(any(feature = "oauth-ssr", feature = "oauth-hydrate"))]
-                            view! { <yral::YralAuthProvider /> }
-                        }
-                    </div>
-                    <div class="flex flex-col items-center text-center text-md">
-                        <div>"By signing up, you agree to our"</div>
-                        <a class="font-bold text-pink-300" target="_blank" href="https://yral.com/terms-android">
-                            "Terms of Service"
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    }
+    let heading_text: AnyView = if text.is_empty() {
+        html::span()
+            .child("Login in to watch, play & earn Bitcoin")
+            .into_any()
+    } else {
+        html::span().child(text).into_any()
+    };
+
+    html::div()
+        .attr("class", "flex justify-center items-center py-6 px-4 w-full h-full cursor-auto")
+        .child(
+            html::div()
+                .attr("class", "overflow-hidden relative items-center w-full max-w-md rounded-md cursor-auto h-fit bg-neutral-950")
+                .child(
+                    html::img()
+                        .attr("src", "/img/common/refer-bg.webp")
+                        .attr("class", "object-cover absolute inset-0 z-0 w-full h-full opacity-40"),
+                )
+                .child(
+                    html::div()
+                        .attr("style", "background: radial-gradient(circle, rgba(226, 1, 123, 0.4) 0%, rgba(255,255,255,0) 50%);")
+                        .attr("class", "absolute z-[1] size-[50rem] -left-[75%] -top-[50%]"),
+                )
+                .child(
+                    html::button()
+                        .attr("class", "flex absolute top-4 right-4 justify-center items-center text-lg text-center text-white rounded-full md:text-xl size-6 bg-neutral-600 z-[3]")
+                        .on(ev::click, move |_| show_modal.set(false))
+                        .child(Icon(IconProps::builder().icon(icondata::ChCross).build())),
+                )
+                .child(
+                    html::div()
+                        .attr("class", "flex relative flex-col gap-8 justify-center items-center py-10 px-12 text-white z-[2]")
+                        .child(
+                            html::img()
+                                .attr("src", "/img/common/join-yral.webp")
+                                .attr("class", "object-contain h-52"),
+                        )
+                        .child(
+                            html::div()
+                                .attr("class", "text-base font-bold text-center")
+                                .child(heading_text),
+                        )
+                        .child(
+                            html::div()
+                                .attr("class", "flex flex-col gap-4 items-center w-full")
+                                .child({
+                                    #[cfg(any(feature = "oauth-ssr", feature = "oauth-hydrate"))]
+                                    { yral::yral_auth_provider().into_any() }
+                                    #[cfg(not(any(feature = "oauth-ssr", feature = "oauth-hydrate")))]
+                                    { ().into_any() }
+                                }),
+                        )
+                        .child(
+                            html::div()
+                                .attr("class", "flex flex-col items-center text-center text-md")
+                                .child(html::div().child("By signing up, you agree to our"))
+                                .child(
+                                    html::a()
+                                        .attr("class", "font-bold text-pink-300")
+                                        .attr("target", "_blank")
+                                        .attr("href", "https://yral.com/terms-android")
+                                        .child("Terms of Service"),
+                                ),
+                        ),
+                ),
+        )
 }

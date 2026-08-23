@@ -1,4 +1,4 @@
-use component::back_btn::BackButton;
+use component::back_btn::back_button;
 use component::notification_toggle::NotificationToggle;
 use component::social::*;
 use component::title::TitleText;
@@ -74,7 +74,7 @@ pub fn Settings() -> impl IntoView {
             <div class="flex flex-col gap-20 items-center pb-16 w-full">
                 <TitleText justify_center=false>
                     <div class="flex flex-row justify-between">
-                        <BackButton fallback="/menu".to_string() />
+                        {back_button("/menu".to_string().into())}
                         <span class="text-2xl font-bold">Settings</span>
                         <div></div>
                     </div>

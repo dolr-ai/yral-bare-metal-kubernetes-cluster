@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 use leptos_meta::*;
 
-use component::{back_btn::BackButton, title::TitleText};
+use component::{back_btn::back_button, title::TitleText};
 use state::app_state::AppState;
 
 #[component]
@@ -14,7 +14,7 @@ pub fn AboutUs() -> impl IntoView {
             <div class="sticky top-0 z-10 w-full bg-black">
                 <TitleText justify_center=false>
                     <div class="flex flex-row justify-between">
-                        <BackButton fallback="/menu".to_string() />
+                        {back_button("/menu".to_string().into())}
                         <div>
                             <span class="text-xl font-bold">About Us</span>
                         </div>

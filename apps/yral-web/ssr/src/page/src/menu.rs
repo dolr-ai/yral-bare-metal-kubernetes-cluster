@@ -4,7 +4,7 @@ use codee::string::FromToStringCodec;
 use component::notification_toggle::NotificationToggle;
 use component::title::TitleText;
 use component::toggle::Toggle;
-use component::{connect::ConnectLogin, social::*};
+use component::{connect::connect_login, social::*};
 use consts::NSFW_ENABLED_COOKIE;
 use leptos::html::Input;
 use leptos::prelude::*;
@@ -142,7 +142,7 @@ pub fn Menu() -> impl IntoView {
                     <Show when=move || !is_connected.get()>
                         <div class="px-8 w-full md:w-4/12 xl:w-2/12">
                             <div class="w-full">
-                                <ConnectLogin />
+                                {connect_login("Login", "menu", RwSignal::new(false), None)}
                             </div>
                         </div>
                         <div class="px-8 w-full font-sans text-sm text-center text-neutral-400">

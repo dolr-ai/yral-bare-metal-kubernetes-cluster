@@ -1,5 +1,5 @@
 use codee::string::FromToStringCodec;
-use component::connect::ConnectLogin;
+use component::connect::connect_login;
 use component::icons::notification_icon::NotificationIcon;
 use component::share_popup::ShareButtonWithFallbackPopup;
 use component::toggle::Toggle;
@@ -50,12 +50,7 @@ fn ProfileCard(
             </div>
 
             <Show when=move || !is_connected.get() && is_own_account>
-                <ConnectLogin
-                    show_login
-                    login_text="Login to claim YRAL"
-                    cta_location="wallet"
-                    redirect_to="/wallet"
-                />
+                {connect_login("Login to claim YRAL", "wallet", RwSignal::new(true), Some("/wallet".to_string()))}
             </Show>
         </div>
     }

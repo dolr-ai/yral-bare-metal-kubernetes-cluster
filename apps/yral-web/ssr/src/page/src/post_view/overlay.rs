@@ -1,5 +1,5 @@
 use codee::string::FromToStringCodec;
-use component::buttons::HighlightedButton;
+use component::buttons::highlighted_button;
 use component::icons::sound_off_icon::SoundOffIcon;
 use component::icons::sound_on_icon::SoundOnIcon;
 use component::icons::volume_high_icon::VolumeHighIcon;
@@ -125,16 +125,15 @@ pub fn VideoDetailsOverlay(
                         View NSFW Content Policy
                     </a>
                 </div>
-                <HighlightedButton
-                    classes="w-full mt-4".to_string()
-                    alt_style=false
-                    disabled=false
-                    on_click=move || {
+                {highlighted_button(
+                    "I Agree",
+                    move || {
                         click_nsfw.dispatch(());
-                    }
-                >
-                    I Agree
-                </HighlightedButton>
+                    },
+                    "w-full mt-4".to_string(),
+                    false,
+                    false,
+                )}
             </div>
         </Modal>
     }.into_any()
