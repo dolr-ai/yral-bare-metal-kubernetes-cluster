@@ -128,6 +128,32 @@ pub struct PostV2 {
     pub view_average_watch_percentage: u8,
 }
 
+/// V3 post table — renames `creator_principal_text` → `creator_oauth_subject`
+/// to use accurate current terminology (the value is the OAuth `sub` claim from
+/// the yral-auth JWT, not an IC principal). Created via incremental migration
+/// from `posts_v2`: dual-write, lazy-migrate on read, batch backfill, then swap
+/// read paths. The old `posts_v2` table stays as-is until the migration is
+/// confirmed complete.
+#[spacetimedb::table(name = "posts_3", accessor = posts_3, public)]
+#[derive(Clone)]
+pub struct Post3 {
+    #[primary_key]
+    pub id: String,
+    #[index(btree)]
+    pub creator: Identity,
+    /// OAuth subject (`sub` claim) from the yral-auth JWT.
+    pub creator_oauth_subject: String,
+    pub video_uid: String,
+    pub description: String,
+    pub hashtags: Vec<String>,
+    pub status: PostStatus,
+    pub created_at: Timestamp,
+    pub share_count: u64,
+    pub view_total_count: u64,
+    pub view_threshold_count: u64,
+    pub view_average_watch_percentage: u8,
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Return types (SpacetimeType — serialized as typed JSON for REST clients)
 // ─────────────────────────────────────────────────────────────────────────
@@ -136,9 +162,9 @@ pub struct PostV2 {
 /// `PostDetailsForFrontend`. `like_count` and `liked_by_me` are always `0` /
 /// `false` (likes feature dropped).
 ///
-/// `creator_principal_text` is the principal text from the yral-auth JWT —
-/// needed by clients for propic URLs, username fallback, and profile
-/// enrichment calls.
+/// `creator_oauth_subject` is the OAuth subject (`sub` claim) from the
+/// yral-auth JWT — needed by clients for propic URLs, username fallback,
+/// and profile enrichment calls.
 ///
 /// `status` mirrors the IC `Post` struct's status field (the IC
 /// `PostDetailsForFrontend` type omits it, but mobile's `from_post` path
@@ -150,7 +176,7 @@ pub struct PostDetailsForFrontend {
     pub hashtags: Vec<String>,
     pub video_uid: String,
     pub creator: Identity,
-    pub creator_principal_text: String,
+    pub creator_oauth_subject: String,
     pub created_at: Timestamp,
     pub total_view_count: u64,
     pub like_count: u64,
@@ -201,16 +227,16 @@ fn is_visible_post(status: &PostStatus) -> bool {
     )
 }
 
-/// Project a `Post` row into a `PostDetailsForFrontend` for a given viewer.
+/// Project a `Post3` row into a `PostDetailsForFrontend` for a given viewer.
 /// `like_count` and `liked_by_me` are always `0` / `false` (likes dropped).
-fn post_v2_to_details(post: &PostV2) -> PostDetailsForFrontend {
+fn post_3_to_details(post: &Post3) -> PostDetailsForFrontend {
     PostDetailsForFrontend {
         id: post.id.clone(),
         description: post.description.clone(),
         hashtags: post.hashtags.clone(),
         video_uid: post.video_uid.clone(),
         creator: post.creator,
-        creator_principal_text: post.creator_principal_text.clone(),
+        creator_oauth_subject: post.creator_oauth_subject.clone(),
         created_at: post.created_at,
         total_view_count: post.view_total_count,
         like_count: 0,
@@ -220,7 +246,7 @@ fn post_v2_to_details(post: &PostV2) -> PostDetailsForFrontend {
 }
 
 /// Project a `Post` (V1) row into a `PostDetailsForFrontend`.
-/// Used while V1 and V2 tables coexist during migration. `creator_principal_text`
+/// Used while V1 and V3 tables coexist during migration. `creator_oauth_subject`
 /// is empty (V1 doesn't have it).
 fn post_to_details(post: &Post) -> PostDetailsForFrontend {
     PostDetailsForFrontend {
@@ -229,13 +255,64 @@ fn post_to_details(post: &Post) -> PostDetailsForFrontend {
         hashtags: post.hashtags.clone(),
         video_uid: post.video_uid.clone(),
         creator: post.creator,
-        creator_principal_text: String::new(),
+        creator_oauth_subject: String::new(),
         created_at: post.created_at,
         total_view_count: post.view_total_count,
         like_count: 0,
         liked_by_me: false,
         status: post.status.clone(),
     }
+}
+
+/// Pure migration helper: map a `PostV2` row to a `Post3` row.
+/// Copies all fields, renaming `creator_principal_text` → `creator_oauth_subject`.
+pub fn migrate_post_v2_to_3(legacy: &PostV2) -> Post3 {
+    Post3 {
+        id: legacy.id.clone(),
+        creator: legacy.creator,
+        creator_oauth_subject: legacy.creator_principal_text.clone(),
+        video_uid: legacy.video_uid.clone(),
+        description: legacy.description.clone(),
+        hashtags: legacy.hashtags.clone(),
+        status: legacy.status.clone(),
+        created_at: legacy.created_at,
+        share_count: legacy.share_count,
+        view_total_count: legacy.view_total_count,
+        view_threshold_count: legacy.view_threshold_count,
+        view_average_watch_percentage: legacy.view_average_watch_percentage,
+    }
+}
+
+/// Lazy-migration helper: look up a post by ID in `posts_3` first. If not
+/// found, check `posts_v2`; if found there, migrate the row into `posts_3`
+/// and return it. Returns `None` if the post doesn't exist in either table.
+/// Used by read procedures to transparently migrate rows on access.
+///
+/// Must be called inside a `with_tx` closure.
+pub fn lazy_get_post_3(tx: &spacetimedb::TxContext, post_id: &str) -> Option<Post3> {
+    if let Some(p) = tx.db.posts_3().id().find(post_id.to_string()) {
+        return Some(p);
+    }
+    if let Some(legacy) = tx.db.posts_v2().id().find(post_id.to_string()) {
+        let migrated = migrate_post_v2_to_3(&legacy);
+        tx.db.posts_3().insert(migrated.clone());
+        return Some(migrated);
+    }
+    None
+}
+
+/// Lazy-migration helper for reducers (takes `&ReducerContext` instead of
+/// `&TxContext`). Same logic as `lazy_get_post_3`.
+pub fn lazy_get_post_3_reducer(ctx: &ReducerContext, post_id: &str) -> Option<Post3> {
+    if let Some(p) = ctx.db.posts_3().id().find(post_id.to_string()) {
+        return Some(p);
+    }
+    if let Some(legacy) = ctx.db.posts_v2().id().find(post_id.to_string()) {
+        let migrated = migrate_post_v2_to_3(&legacy);
+        ctx.db.posts_3().insert(migrated.clone());
+        return Some(migrated);
+    }
+    None
 }
 
 /// Recalculate the weighted running average of watch percentage.
@@ -454,18 +531,44 @@ pub fn upsert_posts_v2_batch(ctx: &ReducerContext, posts: Vec<PostV2>) -> Result
     Ok(())
 }
 
+/// Admin-only batch backfill: copy rows from `posts_v2` → `posts_3`, mapping
+/// `creator_principal_text` → `creator_oauth_subject`. Idempotent — uses
+/// primary-key lookup to skip rows already migrated (O(1) per row, not O(n)).
+/// Processes at most `batch_limit` rows per call. Call repeatedly until all
+/// rows are migrated. Part of the incremental migration from V2 → V3.
+#[spacetimedb::reducer]
+pub fn migrate_posts_to_3(ctx: &ReducerContext, batch_limit: u32) -> Result<(), String> {
+    if !crate::constants::ADMINS.contains(&ctx.sender()) {
+        return Err("Unauthorized".to_string());
+    }
+    let mut migrated_count: u32 = 0;
+    for legacy in ctx.db.posts_v2().iter() {
+        if migrated_count >= batch_limit {
+            break;
+        }
+        // Skip if already migrated (O(1) primary-key lookup).
+        if ctx.db.posts_3().id().find(legacy.id.clone()).is_some() {
+            continue;
+        }
+        let migrated = migrate_post_v2_to_3(&legacy);
+        ctx.db.posts_3().insert(migrated);
+        migrated_count += 1;
+    }
+    Ok(())
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // V2 post reducers — creator-callable (JWT-derived principal text)
 // ─────────────────────────────────────────────────────────────────────────
 
-/// Add a new post to the `posts_v2` table. Admin, or the creator adding
+/// Add a new post to the `posts_3` table. Admin, or the creator adding
 /// their own post. Rejects duplicate post IDs.
 ///
 /// Unlike the V1 `add_post`, no `creator` argument is taken — `creator` is
-/// derived from `ctx.sender()` and `creator_principal_text` is extracted
+/// derived from `ctx.sender()` and `creator_oauth_subject` is extracted
 /// from the caller's JWT (`ctx.sender_auth().jwt().subject()`). This means
 /// non-admin callers always create posts as themselves; an admin caller
-/// can create a post, but the principal text still comes from their own JWT.
+/// can create a post, but the OAuth subject still comes from their own JWT.
 #[spacetimedb::reducer]
 pub fn add_post_2(
     ctx: &ReducerContext,
@@ -476,22 +579,19 @@ pub fn add_post_2(
     status: PostStatus,
 ) -> Result<(), String> {
     let creator = ctx.sender();
-    let creator_principal_text = ctx
+    let creator_oauth_subject = ctx
         .sender_auth()
         .jwt()
         .expect("JWT required")
         .subject()
         .to_string();
-    if !crate::constants::ADMINS.contains(&ctx.sender()) && creator != ctx.sender() {
-        return Err("Unauthorized".to_string());
-    }
-    if ctx.db.posts_v2().id().find(id.clone()).is_some() {
+    if ctx.db.posts_3().id().find(id.clone()).is_some() {
         return Err("DuplicatePostId".to_string());
     }
-    ctx.db.posts_v2().insert(PostV2 {
+    ctx.db.posts_3().insert(Post3 {
         id,
         creator,
-        creator_principal_text,
+        creator_oauth_subject,
         video_uid,
         description,
         hashtags,
@@ -505,8 +605,8 @@ pub fn add_post_2(
     Ok(())
 }
 
-/// Update a post's status in the `posts_v2` table. Admin, or the post's
-/// creator. Mirrors the V1 `update_post_status` but operates on `posts_v2`.
+/// Update a post's status in the `posts_3` table. Admin, or the post's
+/// creator. Mirrors the V1 `update_post_status` but operates on `posts_3`.
 /// Special case: `Draft → Uploaded` resets `created_at` to now (publishing
 /// a draft timestamps it), matching the IC canister's behavior.
 ///
@@ -519,7 +619,7 @@ pub fn update_post_status_2(
     post_id: String,
     status: PostStatus,
 ) -> Result<(), String> {
-    let mut post = match ctx.db.posts_v2().id().find(post_id) {
+    let mut post = match lazy_get_post_3_reducer(ctx, &post_id) {
         Some(p) => p,
         None => return Err("PostNotFound".to_string()),
     };
@@ -531,7 +631,7 @@ pub fn update_post_status_2(
         post.created_at = ctx.timestamp;
     }
     post.status = status;
-    ctx.db.posts_v2().id().update(post);
+    ctx.db.posts_3().id().update(post);
     Ok(())
 }
 
@@ -548,10 +648,11 @@ pub fn get_post_by_id(
     post_id: String,
 ) -> Option<PostDetailsForFrontend> {
     ctx.with_tx(|tx| {
-        // Try V2 first (has creator_principal_text), fall back to V1.
-        if let Some(p) = tx.db.posts_v2().id().find(post_id.clone()) {
+        // Try posts_3 first (has creator_oauth_subject), with lazy migration
+        // from posts_v2. Fall back to V1 posts.
+        if let Some(p) = lazy_get_post_3(tx, &post_id) {
             if p.status != PostStatus::Deleted {
-                return Some(post_v2_to_details(&p));
+                return Some(post_3_to_details(&p));
             }
         }
         tx.db
@@ -723,10 +824,11 @@ pub fn get_individual_post_details_by_id(
     post_id: String,
 ) -> Option<PostDetailsForFrontend> {
     ctx.with_tx(|tx| {
-        // Try V2 first (has creator_principal_text), fall back to V1.
-        if let Some(p) = tx.db.posts_v2().id().find(post_id.clone()) {
+        // Try posts_3 first (has creator_oauth_subject), with lazy migration
+        // from posts_v2. Fall back to V1 posts.
+        if let Some(p) = lazy_get_post_3(tx, &post_id) {
             if p.status != PostStatus::Deleted {
-                return Some(post_v2_to_details(&p));
+                return Some(post_3_to_details(&p));
             }
         }
         tx.db
@@ -738,20 +840,20 @@ pub fn get_individual_post_details_by_id(
     })
 }
 
-/// Get a page of a user's visible posts by principal text, using offset
+/// Get a page of a user's visible posts by OAuth subject, using offset
 /// pagination. Matches the IC canister's
 /// `get_posts_of_this_user_profile_with_pagination(principal, offset, limit)`.
 ///
 /// Mobile passes `(principalId: String, startIndex: ULong, pageSize: ULong)`
 /// — offset-based, not cursor-based. This procedure accepts the same
-/// contract: `creator_principal_text` to match against `PostV2`, `offset`
+/// contract: `creator_oauth_subject` to match against `posts_3`, `offset`
 /// to skip, `limit` to take.
 ///
 /// Excludes Deleted, BannedDueToUserReporting, and Draft posts.
 #[spacetimedb::procedure]
 pub fn get_posts_of_user_by_principal(
     ctx: &mut ProcedureContext,
-    creator_principal_text: String,
+    creator_oauth_subject: String,
     offset: u64,
     limit: u64,
 ) -> PostListOffset {
@@ -759,21 +861,32 @@ pub fn get_posts_of_user_by_principal(
         let limit = limit.min(MAX_PAGE_SIZE) as usize;
         let offset = offset as usize;
 
-        // Try V2 first (has creator_principal_text index).
+        // Read from posts_3 (has creator_oauth_subject). Also lazily migrate
+        // any matching rows from posts_v2 that haven't been moved yet.
+        // First, migrate any unmigrated rows for this user from posts_v2.
+        for legacy in tx.db.posts_v2().iter().filter(|p| {
+            p.creator_principal_text == creator_oauth_subject
+                && tx.db.posts_3().id().find(p.id.clone()).is_none()
+        }) {
+            let migrated = migrate_post_v2_to_3(&legacy);
+            tx.db.posts_3().insert(migrated);
+        }
+
         let mut posts: Vec<PostDetailsForFrontend> = tx
             .db
-            .posts_v2()
+            .posts_3()
             .iter()
             .filter(|p| {
-                p.creator_principal_text == creator_principal_text && is_visible_post(&p.status)
+                p.creator_oauth_subject == creator_oauth_subject
+                    && is_visible_post(&p.status)
             })
-            .map(|p| post_v2_to_details(&p))
+            .map(|p| post_3_to_details(&p))
             .collect();
 
         if posts.is_empty() {
-            // Fallback: V1 table (no creator_principal_text — can only match
+            // Fallback: V1 table (no creator_oauth_subject — can only match
             // if the caller passes an empty string, which won't happen in
-            // practice since V2 is fully backfilled).
+            // practice since V3 is fully backfilled).
             posts = tx
                 .db
                 .posts()
@@ -796,17 +909,17 @@ pub fn get_posts_of_user_by_principal(
     })
 }
 
-/// Get a page of the current caller's draft posts by principal text, using
+/// Get a page of the current caller's draft posts by OAuth subject, using
 /// offset pagination. Matches the IC canister's
 /// `get_draft_posts_of_this_user_profile_with_pagination(offset, limit)`.
 ///
 /// Mobile passes `(startIndex: ULong, pageSize: ULong)` with no principal
 /// (uses session). This procedure uses `ctx.sender()` as the creator and
-/// accepts `creator_principal_text` for the V2 lookup.
+/// accepts `creator_oauth_subject` for the `posts_3` lookup.
 #[spacetimedb::procedure]
 pub fn get_draft_posts_of_user_by_principal(
     ctx: &mut ProcedureContext,
-    creator_principal_text: String,
+    creator_oauth_subject: String,
     offset: u64,
     limit: u64,
 ) -> PostListOffset {
@@ -814,15 +927,25 @@ pub fn get_draft_posts_of_user_by_principal(
         let limit = limit.min(MAX_PAGE_SIZE) as usize;
         let offset = offset as usize;
 
+        // Lazily migrate any unmigrated draft rows for this user from posts_v2.
+        for legacy in tx.db.posts_v2().iter().filter(|p| {
+            p.creator_principal_text == creator_oauth_subject
+                && p.status == PostStatus::Draft
+                && tx.db.posts_3().id().find(p.id.clone()).is_none()
+        }) {
+            let migrated = migrate_post_v2_to_3(&legacy);
+            tx.db.posts_3().insert(migrated);
+        }
+
         let mut posts: Vec<PostDetailsForFrontend> = tx
             .db
-            .posts_v2()
+            .posts_3()
             .iter()
             .filter(|p| {
-                p.creator_principal_text == creator_principal_text
+                p.creator_oauth_subject == creator_oauth_subject
                     && p.status == PostStatus::Draft
             })
-            .map(|p| post_v2_to_details(&p))
+            .map(|p| post_3_to_details(&p))
             .collect();
 
         // Sort newest-first by created_at, then by id as tiebreaker.
@@ -974,5 +1097,64 @@ mod tests {
         assert!(!details.liked_by_me);
         assert_eq!(details.total_view_count, 10);
         assert_eq!(details.id, "test-likes");
+        // V1 posts have no OAuth subject — should be empty.
+        assert_eq!(details.creator_oauth_subject, "");
+    }
+
+    #[test]
+    fn test_migrate_post_v2_to_3() {
+        let legacy = PostV2 {
+            id: "test-migrate".to_string(),
+            creator: Identity::ZERO,
+            creator_principal_text: "google-oauth-sub-123".to_string(),
+            video_uid: "vid".to_string(),
+            description: "desc".to_string(),
+            hashtags: vec!["tag".to_string()],
+            status: PostStatus::Uploaded,
+            created_at: Timestamp::UNIX_EPOCH,
+            share_count: 5,
+            view_total_count: 10,
+            view_threshold_count: 3,
+            view_average_watch_percentage: 75,
+        };
+
+        let migrated = migrate_post_v2_to_3(&legacy);
+        assert_eq!(migrated.id, "test-migrate");
+        assert_eq!(migrated.creator, Identity::ZERO);
+        // creator_principal_text → creator_oauth_subject
+        assert_eq!(migrated.creator_oauth_subject, "google-oauth-sub-123");
+        assert_eq!(migrated.video_uid, "vid");
+        assert_eq!(migrated.description, "desc");
+        assert_eq!(migrated.hashtags, vec!["tag".to_string()]);
+        assert_eq!(migrated.status, PostStatus::Uploaded);
+        assert_eq!(migrated.share_count, 5);
+        assert_eq!(migrated.view_total_count, 10);
+        assert_eq!(migrated.view_threshold_count, 3);
+        assert_eq!(migrated.view_average_watch_percentage, 75);
+    }
+
+    #[test]
+    fn test_post_3_to_details() {
+        let post = Post3 {
+            id: "test-3".to_string(),
+            creator: Identity::ZERO,
+            creator_oauth_subject: "oauth-sub-456".to_string(),
+            video_uid: "vid".to_string(),
+            description: "desc".to_string(),
+            hashtags: vec!["tag".to_string()],
+            status: PostStatus::Uploaded,
+            created_at: Timestamp::UNIX_EPOCH,
+            share_count: 5,
+            view_total_count: 10,
+            view_threshold_count: 3,
+            view_average_watch_percentage: 75,
+        };
+
+        let details = post_3_to_details(&post);
+        assert_eq!(details.id, "test-3");
+        assert_eq!(details.creator_oauth_subject, "oauth-sub-456");
+        assert_eq!(details.like_count, 0);
+        assert!(!details.liked_by_me);
+        assert_eq!(details.total_view_count, 10);
     }
 }
