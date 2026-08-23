@@ -7,6 +7,7 @@
 use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 pub mod accept_new_user_registration_v_2_reducer;
+pub mod add_post_2_reducer;
 pub mod add_post_reducer;
 pub mod add_pro_plan_free_video_credits_reducer;
 pub mod add_view_details_reducer;
@@ -51,7 +52,6 @@ pub mod post_view_details_from_frontend_type;
 pub mod posts_table;
 pub mod posts_v_2_table;
 pub mod profile_picture_data_type;
-pub mod register_new_user_reducer;
 pub mod register_notification_token_reducer;
 pub mod remove_pro_plan_free_video_credits_reducer;
 pub mod set_email_reducer;
@@ -59,6 +59,7 @@ pub mod set_username_reducer;
 pub mod subscription_plan_type;
 pub mod unfollow_user_reducer;
 pub mod unregister_notification_token_reducer;
+pub mod update_post_status_2_reducer;
 pub mod update_post_status_reducer;
 pub mod update_profile_ai_influencer_status_reducer;
 pub mod update_profile_details_reducer;
@@ -85,6 +86,7 @@ pub mod user_profiles_table;
 pub mod yral_pro_subscription_type;
 
 pub use accept_new_user_registration_v_2_reducer::accept_new_user_registration_v_2;
+pub use add_post_2_reducer::add_post_2;
 pub use add_post_reducer::add_post;
 pub use add_pro_plan_free_video_credits_reducer::add_pro_plan_free_video_credits;
 pub use add_view_details_reducer::add_view_details;
@@ -129,7 +131,6 @@ pub use post_view_details_from_frontend_type::PostViewDetailsFromFrontend;
 pub use posts_table::*;
 pub use posts_v_2_table::*;
 pub use profile_picture_data_type::ProfilePictureData;
-pub use register_new_user_reducer::register_new_user;
 pub use register_notification_token_reducer::register_notification_token;
 pub use remove_pro_plan_free_video_credits_reducer::remove_pro_plan_free_video_credits;
 pub use set_email_reducer::set_email;
@@ -137,6 +138,7 @@ pub use set_username_reducer::set_username;
 pub use subscription_plan_type::SubscriptionPlan;
 pub use unfollow_user_reducer::unfollow_user;
 pub use unregister_notification_token_reducer::unregister_notification_token;
+pub use update_post_status_2_reducer::update_post_status_2;
 pub use update_post_status_reducer::update_post_status;
 pub use update_profile_ai_influencer_status_reducer::update_profile_ai_influencer_status;
 pub use update_profile_details_reducer::update_profile_details;
@@ -183,6 +185,13 @@ pub enum Reducer {
         creator: __sdk::Identity,
         status: PostStatus,
     },
+    AddPost2 {
+        id: String,
+        description: String,
+        hashtags: Vec<String>,
+        video_uid: String,
+        status: PostStatus,
+    },
     AddProPlanFreeVideoCredits {
         principal_text: String,
         credits: u32,
@@ -215,7 +224,6 @@ pub enum Reducer {
         principal_text: String,
         user_id: String,
     },
-    RegisterNewUser,
     RegisterNotificationToken {
         token: String,
     },
@@ -238,6 +246,10 @@ pub enum Reducer {
         token: String,
     },
     UpdatePostStatus {
+        post_id: String,
+        status: PostStatus,
+    },
+    UpdatePostStatus2 {
         post_id: String,
         status: PostStatus,
     },
@@ -289,6 +301,7 @@ impl __sdk::Reducer for Reducer {
         match self {
             Reducer::AcceptNewUserRegistrationV2 { .. } => "accept_new_user_registration_v_2",
             Reducer::AddPost { .. } => "add_post",
+            Reducer::AddPost2 { .. } => "add_post_2",
             Reducer::AddProPlanFreeVideoCredits { .. } => "add_pro_plan_free_video_credits",
             Reducer::AddViewDetails { .. } => "add_view_details",
             Reducer::ChangeSubscriptionPlan { .. } => "change_subscription_plan",
@@ -298,7 +311,6 @@ impl __sdk::Reducer for Reducer {
             Reducer::KvDelete { .. } => "kv_delete",
             Reducer::KvSet { .. } => "kv_set",
             Reducer::LinkUserId { .. } => "link_user_id",
-            Reducer::RegisterNewUser => "register_new_user",
             Reducer::RegisterNotificationToken { .. } => "register_notification_token",
             Reducer::RemoveProPlanFreeVideoCredits { .. } => "remove_pro_plan_free_video_credits",
             Reducer::SetEmail { .. } => "set_email",
@@ -306,6 +318,7 @@ impl __sdk::Reducer for Reducer {
             Reducer::UnfollowUser { .. } => "unfollow_user",
             Reducer::UnregisterNotificationToken { .. } => "unregister_notification_token",
             Reducer::UpdatePostStatus { .. } => "update_post_status",
+            Reducer::UpdatePostStatus2 { .. } => "update_post_status_2",
             Reducer::UpdateProfileAiInfluencerStatus { .. } => {
                 "update_profile_ai_influencer_status"
             }
@@ -349,6 +362,19 @@ impl __sdk::Reducer for Reducer {
                 hashtags: hashtags.clone(),
                 video_uid: video_uid.clone(),
                 creator: creator.clone(),
+                status: status.clone(),
+            }),
+            Reducer::AddPost2 {
+                id,
+                description,
+                hashtags,
+                video_uid,
+                status,
+            } => __sats::bsatn::to_vec(&add_post_2_reducer::AddPost2Args {
+                id: id.clone(),
+                description: description.clone(),
+                hashtags: hashtags.clone(),
+                video_uid: video_uid.clone(),
                 status: status.clone(),
             }),
             Reducer::AddProPlanFreeVideoCredits {
@@ -404,9 +430,6 @@ impl __sdk::Reducer for Reducer {
                 principal_text: principal_text.clone(),
                 user_id: user_id.clone(),
             }),
-            Reducer::RegisterNewUser => {
-                __sats::bsatn::to_vec(&register_new_user_reducer::RegisterNewUserArgs {})
-            }
             Reducer::RegisterNotificationToken { token } => __sats::bsatn::to_vec(
                 &register_notification_token_reducer::RegisterNotificationTokenArgs {
                     token: token.clone(),
@@ -447,6 +470,12 @@ impl __sdk::Reducer for Reducer {
             ),
             Reducer::UpdatePostStatus { post_id, status } => {
                 __sats::bsatn::to_vec(&update_post_status_reducer::UpdatePostStatusArgs {
+                    post_id: post_id.clone(),
+                    status: status.clone(),
+                })
+            }
+            Reducer::UpdatePostStatus2 { post_id, status } => {
+                __sats::bsatn::to_vec(&update_post_status_2_reducer::UpdatePostStatus2Args {
                     post_id: post_id.clone(),
                     status: status.clone(),
                 })

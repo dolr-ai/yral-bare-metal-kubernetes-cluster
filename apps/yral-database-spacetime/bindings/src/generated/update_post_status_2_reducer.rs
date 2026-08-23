@@ -4,43 +4,53 @@
 #![allow(unused, clippy::all)]
 use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
+use super::post_status_type::PostStatus;
+
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
-pub(super) struct RegisterNewUserArgs {}
+pub(super) struct UpdatePostStatus2Args {
+    pub post_id: String,
+    pub status: PostStatus,
+}
 
-impl From<RegisterNewUserArgs> for super::Reducer {
-    fn from(args: RegisterNewUserArgs) -> Self {
-        Self::RegisterNewUser
+impl From<UpdatePostStatus2Args> for super::Reducer {
+    fn from(args: UpdatePostStatus2Args) -> Self {
+        Self::UpdatePostStatus2 {
+            post_id: args.post_id,
+            status: args.status,
+        }
     }
 }
 
-impl __sdk::InModule for RegisterNewUserArgs {
+impl __sdk::InModule for UpdatePostStatus2Args {
     type Module = super::RemoteModule;
 }
 
 #[allow(non_camel_case_types)]
-/// Extension trait for access to the reducer `register_new_user`.
+/// Extension trait for access to the reducer `update_post_status_2`.
 ///
 /// Implemented for [`super::RemoteReducers`].
-pub trait register_new_user {
-    /// Request that the remote module invoke the reducer `register_new_user` to run as soon as possible.
+pub trait update_post_status_2 {
+    /// Request that the remote module invoke the reducer `update_post_status_2` to run as soon as possible.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
-    /// /// Use [`register_new_user:register_new_user_then`] to run a callback after the reducer completes.
-    fn register_new_user(&self) -> __sdk::Result<()> {
-        self.register_new_user_then(|_, _| {})
+    /// /// Use [`update_post_status_2:update_post_status_2_then`] to run a callback after the reducer completes.
+    fn update_post_status_2(&self, post_id: String, status: PostStatus) -> __sdk::Result<()> {
+        self.update_post_status_2_then(post_id, status, |_, _| {})
     }
 
-    /// Request that the remote module invoke the reducer `register_new_user` to run as soon as possible,
+    /// Request that the remote module invoke the reducer `update_post_status_2` to run as soon as possible,
     /// registering `callback` to run when we are notified that the reducer completed.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and its status can be observed with the `callback`.
-    fn register_new_user_then(
+    fn update_post_status_2_then(
         &self,
+        post_id: String,
+        status: PostStatus,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -48,15 +58,17 @@ pub trait register_new_user {
     ) -> __sdk::Result<()>;
 }
 
-impl register_new_user for super::RemoteReducers {
-    fn register_new_user_then(
+impl update_post_status_2 for super::RemoteReducers {
+    fn update_post_status_2_then(
         &self,
+        post_id: String,
+        status: PostStatus,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
             + 'static,
     ) -> __sdk::Result<()> {
         self.imp
-            .invoke_reducer_with_callback(RegisterNewUserArgs {}, callback)
+            .invoke_reducer_with_callback(UpdatePostStatus2Args { post_id, status }, callback)
     }
 }
