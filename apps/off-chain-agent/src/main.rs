@@ -18,7 +18,6 @@ mod app_state;
 mod auth;
 mod config;
 mod consts;
-mod error;
 mod events;
 mod middleware;
 mod posts;

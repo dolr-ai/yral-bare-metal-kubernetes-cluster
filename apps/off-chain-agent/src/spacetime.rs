@@ -20,7 +20,6 @@ use std::env;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use spacetimedb_sdk::DbContext;
 use yral_database_spacetime_bindings::{
     self as bindings, DbConnection,
     add_view_details, delete_post,
