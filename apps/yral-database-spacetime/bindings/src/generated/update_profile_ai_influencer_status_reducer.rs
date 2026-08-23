@@ -7,14 +7,14 @@ use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 pub(super) struct UpdateProfileAiInfluencerStatusArgs {
-    pub principal_text: String,
+    pub oauth_subject: String,
     pub is_ai_influencer: bool,
 }
 
 impl From<UpdateProfileAiInfluencerStatusArgs> for super::Reducer {
     fn from(args: UpdateProfileAiInfluencerStatusArgs) -> Self {
         Self::UpdateProfileAiInfluencerStatus {
-            principal_text: args.principal_text,
+            oauth_subject: args.oauth_subject,
             is_ai_influencer: args.is_ai_influencer,
         }
     }
@@ -37,10 +37,10 @@ pub trait update_profile_ai_influencer_status {
     /// /// Use [`update_profile_ai_influencer_status:update_profile_ai_influencer_status_then`] to run a callback after the reducer completes.
     fn update_profile_ai_influencer_status(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         is_ai_influencer: bool,
     ) -> __sdk::Result<()> {
-        self.update_profile_ai_influencer_status_then(principal_text, is_ai_influencer, |_, _| {})
+        self.update_profile_ai_influencer_status_then(oauth_subject, is_ai_influencer, |_, _| {})
     }
 
     /// Request that the remote module invoke the reducer `update_profile_ai_influencer_status` to run as soon as possible,
@@ -51,7 +51,7 @@ pub trait update_profile_ai_influencer_status {
     ///  and its status can be observed with the `callback`.
     fn update_profile_ai_influencer_status_then(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         is_ai_influencer: bool,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
@@ -63,7 +63,7 @@ pub trait update_profile_ai_influencer_status {
 impl update_profile_ai_influencer_status for super::RemoteReducers {
     fn update_profile_ai_influencer_status_then(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         is_ai_influencer: bool,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
@@ -72,7 +72,7 @@ impl update_profile_ai_influencer_status for super::RemoteReducers {
     ) -> __sdk::Result<()> {
         self.imp.invoke_reducer_with_callback(
             UpdateProfileAiInfluencerStatusArgs {
-                principal_text,
+                oauth_subject,
                 is_ai_influencer,
             },
             callback,

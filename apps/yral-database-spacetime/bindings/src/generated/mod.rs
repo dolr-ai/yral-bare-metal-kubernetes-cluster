@@ -41,6 +41,7 @@ pub mod kv_get_procedure;
 pub mod kv_get_result_type;
 pub mod kv_set_reducer;
 pub mod link_user_id_reducer;
+pub mod migrate_user_profiles_to_2_reducer;
 pub mod nsfw_info_type;
 pub mod post_details_for_frontend_type;
 pub mod post_list_offset_type;
@@ -73,15 +74,19 @@ pub mod upsert_posts_v_2_batch_reducer;
 pub mod upsert_user_follow_batch_reducer;
 pub mod upsert_user_profile_batch_reducer;
 pub mod user_account_type_type;
+pub mod user_follow_2_type;
 pub mod user_follow_batch_entry_type;
 pub mod user_follow_type;
+pub mod user_follows_2_table;
 pub mod user_follows_table;
 pub mod user_notification_token_type;
 pub mod user_notification_tokens_table;
+pub mod user_profile_2_type;
 pub mod user_profile_batch_entry_type;
 pub mod user_profile_details_v_4_type;
 pub mod user_profile_details_v_7_type;
 pub mod user_profile_type;
+pub mod user_profiles_2_table;
 pub mod user_profiles_table;
 pub mod yral_pro_subscription_type;
 
@@ -120,6 +125,7 @@ pub use kv_get_procedure::kv_get;
 pub use kv_get_result_type::KvGetResult;
 pub use kv_set_reducer::kv_set;
 pub use link_user_id_reducer::link_user_id;
+pub use migrate_user_profiles_to_2_reducer::migrate_user_profiles_to_2;
 pub use nsfw_info_type::NsfwInfo;
 pub use post_details_for_frontend_type::PostDetailsForFrontend;
 pub use post_list_offset_type::PostListOffset;
@@ -152,15 +158,19 @@ pub use upsert_posts_v_2_batch_reducer::upsert_posts_v_2_batch;
 pub use upsert_user_follow_batch_reducer::upsert_user_follow_batch;
 pub use upsert_user_profile_batch_reducer::upsert_user_profile_batch;
 pub use user_account_type_type::UserAccountType;
+pub use user_follow_2_type::UserFollow2;
 pub use user_follow_batch_entry_type::UserFollowBatchEntry;
 pub use user_follow_type::UserFollow;
+pub use user_follows_2_table::*;
 pub use user_follows_table::*;
 pub use user_notification_token_type::UserNotificationToken;
 pub use user_notification_tokens_table::*;
+pub use user_profile_2_type::UserProfile2;
 pub use user_profile_batch_entry_type::UserProfileBatchEntry;
 pub use user_profile_details_v_4_type::UserProfileDetailsV4;
 pub use user_profile_details_v_7_type::UserProfileDetailsV7;
 pub use user_profile_type::UserProfile;
+pub use user_profiles_2_table::*;
 pub use user_profiles_table::*;
 pub use yral_pro_subscription_type::YralProSubscription;
 
@@ -193,7 +203,7 @@ pub enum Reducer {
         status: PostStatus,
     },
     AddProPlanFreeVideoCredits {
-        principal_text: String,
+        oauth_subject: String,
         credits: u32,
     },
     AddViewDetails {
@@ -201,7 +211,7 @@ pub enum Reducer {
         details: PostViewDetailsFromFrontend,
     },
     ChangeSubscriptionPlan {
-        principal_text: String,
+        oauth_subject: String,
         plan: SubscriptionPlan,
     },
     DeletePost {
@@ -211,7 +221,7 @@ pub enum Reducer {
         principal_to_delete_text: String,
     },
     FollowUser {
-        followee_text: String,
+        followee_subject: String,
     },
     KvDelete {
         key: String,
@@ -221,26 +231,27 @@ pub enum Reducer {
         value: String,
     },
     LinkUserId {
-        principal_text: String,
+        oauth_subject: String,
         user_id: String,
     },
+    MigrateUserProfilesTo2,
     RegisterNotificationToken {
         token: String,
     },
     RemoveProPlanFreeVideoCredits {
-        principal_text: String,
+        oauth_subject: String,
         credits: u32,
     },
     SetEmail {
-        principal_text: String,
+        oauth_subject: String,
         email: String,
     },
     SetUsername {
-        principal_text: String,
+        oauth_subject: String,
         username: String,
     },
     UnfollowUser {
-        followee_text: String,
+        followee_subject: String,
     },
     UnregisterNotificationToken {
         token: String,
@@ -254,7 +265,7 @@ pub enum Reducer {
         status: PostStatus,
     },
     UpdateProfileAiInfluencerStatus {
-        principal_text: String,
+        oauth_subject: String,
         is_ai_influencer: bool,
     },
     UpdateProfileDetails {
@@ -268,7 +279,7 @@ pub enum Reducer {
         profile_picture: Option<ProfilePictureData>,
     },
     UpdateProfilePictureNsfwInfo {
-        principal_text: String,
+        oauth_subject: String,
         nsfw_info: NsfwInfo,
     },
     UpdateUserLastAccessTime,
@@ -311,6 +322,7 @@ impl __sdk::Reducer for Reducer {
             Reducer::KvDelete { .. } => "kv_delete",
             Reducer::KvSet { .. } => "kv_set",
             Reducer::LinkUserId { .. } => "link_user_id",
+            Reducer::MigrateUserProfilesTo2 => "migrate_user_profiles_to_2",
             Reducer::RegisterNotificationToken { .. } => "register_notification_token",
             Reducer::RemoveProPlanFreeVideoCredits { .. } => "remove_pro_plan_free_video_credits",
             Reducer::SetEmail { .. } => "set_email",
@@ -378,11 +390,11 @@ impl __sdk::Reducer for Reducer {
                 status: status.clone(),
             }),
             Reducer::AddProPlanFreeVideoCredits {
-                principal_text,
+                oauth_subject,
                 credits,
             } => __sats::bsatn::to_vec(
                 &add_pro_plan_free_video_credits_reducer::AddProPlanFreeVideoCreditsArgs {
-                    principal_text: principal_text.clone(),
+                    oauth_subject: oauth_subject.clone(),
                     credits: credits.clone(),
                 },
             ),
@@ -393,11 +405,11 @@ impl __sdk::Reducer for Reducer {
                 })
             }
             Reducer::ChangeSubscriptionPlan {
-                principal_text,
+                oauth_subject,
                 plan,
             } => __sats::bsatn::to_vec(
                 &change_subscription_plan_reducer::ChangeSubscriptionPlanArgs {
-                    principal_text: principal_text.clone(),
+                    oauth_subject: oauth_subject.clone(),
                     plan: plan.clone(),
                 },
             ),
@@ -411,9 +423,9 @@ impl __sdk::Reducer for Reducer {
             } => __sats::bsatn::to_vec(&delete_user_info_reducer::DeleteUserInfoArgs {
                 principal_to_delete_text: principal_to_delete_text.clone(),
             }),
-            Reducer::FollowUser { followee_text } => {
+            Reducer::FollowUser { followee_subject } => {
                 __sats::bsatn::to_vec(&follow_user_reducer::FollowUserArgs {
-                    followee_text: followee_text.clone(),
+                    followee_subject: followee_subject.clone(),
                 })
             }
             Reducer::KvDelete { key } => {
@@ -424,43 +436,46 @@ impl __sdk::Reducer for Reducer {
                 value: value.clone(),
             }),
             Reducer::LinkUserId {
-                principal_text,
+                oauth_subject,
                 user_id,
             } => __sats::bsatn::to_vec(&link_user_id_reducer::LinkUserIdArgs {
-                principal_text: principal_text.clone(),
+                oauth_subject: oauth_subject.clone(),
                 user_id: user_id.clone(),
             }),
+            Reducer::MigrateUserProfilesTo2 => __sats::bsatn::to_vec(
+                &migrate_user_profiles_to_2_reducer::MigrateUserProfilesTo2Args {},
+            ),
             Reducer::RegisterNotificationToken { token } => __sats::bsatn::to_vec(
                 &register_notification_token_reducer::RegisterNotificationTokenArgs {
                     token: token.clone(),
                 },
             ),
             Reducer::RemoveProPlanFreeVideoCredits {
-                principal_text,
+                oauth_subject,
                 credits,
             } => __sats::bsatn::to_vec(
                 &remove_pro_plan_free_video_credits_reducer::RemoveProPlanFreeVideoCreditsArgs {
-                    principal_text: principal_text.clone(),
+                    oauth_subject: oauth_subject.clone(),
                     credits: credits.clone(),
                 },
             ),
             Reducer::SetEmail {
-                principal_text,
+                oauth_subject,
                 email,
             } => __sats::bsatn::to_vec(&set_email_reducer::SetEmailArgs {
-                principal_text: principal_text.clone(),
+                oauth_subject: oauth_subject.clone(),
                 email: email.clone(),
             }),
             Reducer::SetUsername {
-                principal_text,
+                oauth_subject,
                 username,
             } => __sats::bsatn::to_vec(&set_username_reducer::SetUsernameArgs {
-                principal_text: principal_text.clone(),
+                oauth_subject: oauth_subject.clone(),
                 username: username.clone(),
             }),
-            Reducer::UnfollowUser { followee_text } => {
+            Reducer::UnfollowUser { followee_subject } => {
                 __sats::bsatn::to_vec(&unfollow_user_reducer::UnfollowUserArgs {
-                    followee_text: followee_text.clone(),
+                    followee_subject: followee_subject.clone(),
                 })
             }
             Reducer::UnregisterNotificationToken { token } => __sats::bsatn::to_vec(
@@ -481,11 +496,11 @@ impl __sdk::Reducer for Reducer {
                 })
             }
             Reducer::UpdateProfileAiInfluencerStatus {
-                principal_text,
+                oauth_subject,
                 is_ai_influencer,
             } => __sats::bsatn::to_vec(
                 &update_profile_ai_influencer_status_reducer::UpdateProfileAiInfluencerStatusArgs {
-                    principal_text: principal_text.clone(),
+                    oauth_subject: oauth_subject.clone(),
                     is_ai_influencer: is_ai_influencer.clone(),
                 },
             ),
@@ -510,11 +525,11 @@ impl __sdk::Reducer for Reducer {
                 },
             ),
             Reducer::UpdateProfilePictureNsfwInfo {
-                principal_text,
+                oauth_subject,
                 nsfw_info,
             } => __sats::bsatn::to_vec(
                 &update_profile_picture_nsfw_info_reducer::UpdateProfilePictureNsfwInfoArgs {
-                    principal_text: principal_text.clone(),
+                    oauth_subject: oauth_subject.clone(),
                     nsfw_info: nsfw_info.clone(),
                 },
             ),
@@ -561,8 +576,10 @@ pub struct DbUpdate {
     posts: __sdk::TableUpdate<Post>,
     posts_v_2: __sdk::TableUpdate<PostV2>,
     user_follows: __sdk::TableUpdate<UserFollow>,
+    user_follows_2: __sdk::TableUpdate<UserFollow2>,
     user_notification_tokens: __sdk::TableUpdate<UserNotificationToken>,
     user_profiles: __sdk::TableUpdate<UserProfile>,
+    user_profiles_2: __sdk::TableUpdate<UserProfile2>,
 }
 
 impl TryFrom<__ws::v2::TransactionUpdate> for DbUpdate {
@@ -580,12 +597,18 @@ impl TryFrom<__ws::v2::TransactionUpdate> for DbUpdate {
                 "user_follows" => db_update
                     .user_follows
                     .append(user_follows_table::parse_table_update(table_update)?),
+                "user_follows_2" => db_update
+                    .user_follows_2
+                    .append(user_follows_2_table::parse_table_update(table_update)?),
                 "user_notification_tokens" => db_update.user_notification_tokens.append(
                     user_notification_tokens_table::parse_table_update(table_update)?,
                 ),
                 "user_profiles" => db_update
                     .user_profiles
                     .append(user_profiles_table::parse_table_update(table_update)?),
+                "user_profiles_2" => db_update
+                    .user_profiles_2
+                    .append(user_profiles_2_table::parse_table_update(table_update)?),
 
                 unknown => {
                     return Err(__sdk::InternalError::unknown_name(
@@ -621,6 +644,9 @@ impl __sdk::DbUpdate for DbUpdate {
         diff.user_follows = cache
             .apply_diff_to_table::<UserFollow>("user_follows", &self.user_follows)
             .with_updates_by_pk(|row| &row.key);
+        diff.user_follows_2 = cache
+            .apply_diff_to_table::<UserFollow2>("user_follows_2", &self.user_follows_2)
+            .with_updates_by_pk(|row| &row.key);
         diff.user_notification_tokens = cache
             .apply_diff_to_table::<UserNotificationToken>(
                 "user_notification_tokens",
@@ -630,6 +656,9 @@ impl __sdk::DbUpdate for DbUpdate {
         diff.user_profiles = cache
             .apply_diff_to_table::<UserProfile>("user_profiles", &self.user_profiles)
             .with_updates_by_pk(|row| &row.principal_text);
+        diff.user_profiles_2 = cache
+            .apply_diff_to_table::<UserProfile2>("user_profiles_2", &self.user_profiles_2)
+            .with_updates_by_pk(|row| &row.oauth_subject);
 
         diff
     }
@@ -646,11 +675,17 @@ impl __sdk::DbUpdate for DbUpdate {
                 "user_follows" => db_update
                     .user_follows
                     .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
+                "user_follows_2" => db_update
+                    .user_follows_2
+                    .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
                 "user_notification_tokens" => db_update
                     .user_notification_tokens
                     .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
                 "user_profiles" => db_update
                     .user_profiles
+                    .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
+                "user_profiles_2" => db_update
+                    .user_profiles_2
                     .append(__sdk::parse_row_list_as_inserts(table_rows.rows)?),
                 unknown => {
                     return Err(
@@ -674,11 +709,17 @@ impl __sdk::DbUpdate for DbUpdate {
                 "user_follows" => db_update
                     .user_follows
                     .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
+                "user_follows_2" => db_update
+                    .user_follows_2
+                    .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
                 "user_notification_tokens" => db_update
                     .user_notification_tokens
                     .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
                 "user_profiles" => db_update
                     .user_profiles
+                    .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
+                "user_profiles_2" => db_update
+                    .user_profiles_2
                     .append(__sdk::parse_row_list_as_deletes(table_rows.rows)?),
                 unknown => {
                     return Err(
@@ -698,8 +739,10 @@ pub struct AppliedDiff<'r> {
     posts: __sdk::TableAppliedDiff<'r, Post>,
     posts_v_2: __sdk::TableAppliedDiff<'r, PostV2>,
     user_follows: __sdk::TableAppliedDiff<'r, UserFollow>,
+    user_follows_2: __sdk::TableAppliedDiff<'r, UserFollow2>,
     user_notification_tokens: __sdk::TableAppliedDiff<'r, UserNotificationToken>,
     user_profiles: __sdk::TableAppliedDiff<'r, UserProfile>,
+    user_profiles_2: __sdk::TableAppliedDiff<'r, UserProfile2>,
     __unused: std::marker::PhantomData<&'r ()>,
 }
 
@@ -720,6 +763,11 @@ impl<'r> __sdk::AppliedDiff<'r> for AppliedDiff<'r> {
             &self.user_follows,
             event,
         );
+        callbacks.invoke_table_row_callbacks::<UserFollow2>(
+            "user_follows_2",
+            &self.user_follows_2,
+            event,
+        );
         callbacks.invoke_table_row_callbacks::<UserNotificationToken>(
             "user_notification_tokens",
             &self.user_notification_tokens,
@@ -728,6 +776,11 @@ impl<'r> __sdk::AppliedDiff<'r> for AppliedDiff<'r> {
         callbacks.invoke_table_row_callbacks::<UserProfile>(
             "user_profiles",
             &self.user_profiles,
+            event,
+        );
+        callbacks.invoke_table_row_callbacks::<UserProfile2>(
+            "user_profiles_2",
+            &self.user_profiles_2,
             event,
         );
     }
@@ -1393,14 +1446,18 @@ impl __sdk::SpacetimeModule for RemoteModule {
         posts_table::register_table(client_cache);
         posts_v_2_table::register_table(client_cache);
         user_follows_table::register_table(client_cache);
+        user_follows_2_table::register_table(client_cache);
         user_notification_tokens_table::register_table(client_cache);
         user_profiles_table::register_table(client_cache);
+        user_profiles_2_table::register_table(client_cache);
     }
     const ALL_TABLE_NAMES: &'static [&'static str] = &[
         "posts",
         "posts_v2",
         "user_follows",
+        "user_follows_2",
         "user_notification_tokens",
         "user_profiles",
+        "user_profiles_2",
     ];
 }

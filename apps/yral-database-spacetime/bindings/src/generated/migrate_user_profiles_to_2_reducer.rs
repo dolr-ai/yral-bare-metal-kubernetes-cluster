@@ -6,46 +6,41 @@ use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
-pub(super) struct FollowUserArgs {
-    pub followee_subject: String,
-}
+pub(super) struct MigrateUserProfilesTo2Args {}
 
-impl From<FollowUserArgs> for super::Reducer {
-    fn from(args: FollowUserArgs) -> Self {
-        Self::FollowUser {
-            followee_subject: args.followee_subject,
-        }
+impl From<MigrateUserProfilesTo2Args> for super::Reducer {
+    fn from(args: MigrateUserProfilesTo2Args) -> Self {
+        Self::MigrateUserProfilesTo2
     }
 }
 
-impl __sdk::InModule for FollowUserArgs {
+impl __sdk::InModule for MigrateUserProfilesTo2Args {
     type Module = super::RemoteModule;
 }
 
 #[allow(non_camel_case_types)]
-/// Extension trait for access to the reducer `follow_user`.
+/// Extension trait for access to the reducer `migrate_user_profiles_to_2`.
 ///
 /// Implemented for [`super::RemoteReducers`].
-pub trait follow_user {
-    /// Request that the remote module invoke the reducer `follow_user` to run as soon as possible.
+pub trait migrate_user_profiles_to_2 {
+    /// Request that the remote module invoke the reducer `migrate_user_profiles_to_2` to run as soon as possible.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
-    /// /// Use [`follow_user:follow_user_then`] to run a callback after the reducer completes.
-    fn follow_user(&self, followee_subject: String) -> __sdk::Result<()> {
-        self.follow_user_then(followee_subject, |_, _| {})
+    /// /// Use [`migrate_user_profiles_to_2:migrate_user_profiles_to_2_then`] to run a callback after the reducer completes.
+    fn migrate_user_profiles_to_2(&self) -> __sdk::Result<()> {
+        self.migrate_user_profiles_to_2_then(|_, _| {})
     }
 
-    /// Request that the remote module invoke the reducer `follow_user` to run as soon as possible,
+    /// Request that the remote module invoke the reducer `migrate_user_profiles_to_2` to run as soon as possible,
     /// registering `callback` to run when we are notified that the reducer completed.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and its status can be observed with the `callback`.
-    fn follow_user_then(
+    fn migrate_user_profiles_to_2_then(
         &self,
-        followee_subject: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -53,16 +48,15 @@ pub trait follow_user {
     ) -> __sdk::Result<()>;
 }
 
-impl follow_user for super::RemoteReducers {
-    fn follow_user_then(
+impl migrate_user_profiles_to_2 for super::RemoteReducers {
+    fn migrate_user_profiles_to_2_then(
         &self,
-        followee_subject: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
             + 'static,
     ) -> __sdk::Result<()> {
         self.imp
-            .invoke_reducer_with_callback(FollowUserArgs { followee_subject }, callback)
+            .invoke_reducer_with_callback(MigrateUserProfilesTo2Args {}, callback)
     }
 }

@@ -9,7 +9,7 @@ use super::subscription_plan_type::SubscriptionPlan;
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 pub struct UserProfileBatchEntry {
-    pub principal_text: String,
+    pub oauth_subject: String,
     pub bio: String,
     pub website_url: String,
     pub profile_picture_url: String,

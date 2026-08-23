@@ -7,14 +7,14 @@ use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 pub(super) struct SetEmailArgs {
-    pub principal_text: String,
+    pub oauth_subject: String,
     pub email: String,
 }
 
 impl From<SetEmailArgs> for super::Reducer {
     fn from(args: SetEmailArgs) -> Self {
         Self::SetEmail {
-            principal_text: args.principal_text,
+            oauth_subject: args.oauth_subject,
             email: args.email,
         }
     }
@@ -35,8 +35,8 @@ pub trait set_email {
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
     /// /// Use [`set_email:set_email_then`] to run a callback after the reducer completes.
-    fn set_email(&self, principal_text: String, email: String) -> __sdk::Result<()> {
-        self.set_email_then(principal_text, email, |_, _| {})
+    fn set_email(&self, oauth_subject: String, email: String) -> __sdk::Result<()> {
+        self.set_email_then(oauth_subject, email, |_, _| {})
     }
 
     /// Request that the remote module invoke the reducer `set_email` to run as soon as possible,
@@ -47,7 +47,7 @@ pub trait set_email {
     ///  and its status can be observed with the `callback`.
     fn set_email_then(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         email: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
@@ -59,7 +59,7 @@ pub trait set_email {
 impl set_email for super::RemoteReducers {
     fn set_email_then(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         email: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
@@ -68,7 +68,7 @@ impl set_email for super::RemoteReducers {
     ) -> __sdk::Result<()> {
         self.imp.invoke_reducer_with_callback(
             SetEmailArgs {
-                principal_text,
+                oauth_subject,
                 email,
             },
             callback,

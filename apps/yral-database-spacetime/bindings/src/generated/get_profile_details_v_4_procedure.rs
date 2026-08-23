@@ -9,7 +9,7 @@ use super::user_profile_details_v_4_type::UserProfileDetailsV4;
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 struct GetProfileDetailsV4Args {
-    pub principal_text: String,
+    pub oauth_subject: String,
 }
 
 impl __sdk::InModule for GetProfileDetailsV4Args {
@@ -21,13 +21,13 @@ impl __sdk::InModule for GetProfileDetailsV4Args {
 ///
 /// Implemented for [`super::RemoteProcedures`].
 pub trait get_profile_details_v_4 {
-    fn get_profile_details_v_4(&self, principal_text: String) {
-        self.get_profile_details_v_4_then(principal_text, |_, _| {});
+    fn get_profile_details_v_4(&self, oauth_subject: String) {
+        self.get_profile_details_v_4_then(oauth_subject, |_, _| {});
     }
 
     fn get_profile_details_v_4_then(
         &self,
-        principal_text: String,
+        oauth_subject: String,
 
         __callback: impl FnOnce(
                 &super::ProcedureEventContext,
@@ -40,7 +40,7 @@ pub trait get_profile_details_v_4 {
 impl get_profile_details_v_4 for super::RemoteProcedures {
     fn get_profile_details_v_4_then(
         &self,
-        principal_text: String,
+        oauth_subject: String,
 
         __callback: impl FnOnce(
                 &super::ProcedureEventContext,
@@ -51,7 +51,7 @@ impl get_profile_details_v_4 for super::RemoteProcedures {
         self.imp
             .invoke_procedure_with_callback::<_, Option<UserProfileDetailsV4>>(
                 "get_profile_details_v_4",
-                GetProfileDetailsV4Args { principal_text },
+                GetProfileDetailsV4Args { oauth_subject },
                 __callback,
             );
     }

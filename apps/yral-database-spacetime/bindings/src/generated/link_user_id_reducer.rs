@@ -7,14 +7,14 @@ use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 pub(super) struct LinkUserIdArgs {
-    pub principal_text: String,
+    pub oauth_subject: String,
     pub user_id: String,
 }
 
 impl From<LinkUserIdArgs> for super::Reducer {
     fn from(args: LinkUserIdArgs) -> Self {
         Self::LinkUserId {
-            principal_text: args.principal_text,
+            oauth_subject: args.oauth_subject,
             user_id: args.user_id,
         }
     }
@@ -35,8 +35,8 @@ pub trait link_user_id {
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
     /// /// Use [`link_user_id:link_user_id_then`] to run a callback after the reducer completes.
-    fn link_user_id(&self, principal_text: String, user_id: String) -> __sdk::Result<()> {
-        self.link_user_id_then(principal_text, user_id, |_, _| {})
+    fn link_user_id(&self, oauth_subject: String, user_id: String) -> __sdk::Result<()> {
+        self.link_user_id_then(oauth_subject, user_id, |_, _| {})
     }
 
     /// Request that the remote module invoke the reducer `link_user_id` to run as soon as possible,
@@ -47,7 +47,7 @@ pub trait link_user_id {
     ///  and its status can be observed with the `callback`.
     fn link_user_id_then(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         user_id: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
@@ -59,7 +59,7 @@ pub trait link_user_id {
 impl link_user_id for super::RemoteReducers {
     fn link_user_id_then(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         user_id: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
@@ -68,7 +68,7 @@ impl link_user_id for super::RemoteReducers {
     ) -> __sdk::Result<()> {
         self.imp.invoke_reducer_with_callback(
             LinkUserIdArgs {
-                principal_text,
+                oauth_subject,
                 user_id,
             },
             callback,

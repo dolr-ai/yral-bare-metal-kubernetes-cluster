@@ -9,14 +9,14 @@ use super::nsfw_info_type::NsfwInfo;
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 pub(super) struct UpdateProfilePictureNsfwInfoArgs {
-    pub principal_text: String,
+    pub oauth_subject: String,
     pub nsfw_info: NsfwInfo,
 }
 
 impl From<UpdateProfilePictureNsfwInfoArgs> for super::Reducer {
     fn from(args: UpdateProfilePictureNsfwInfoArgs) -> Self {
         Self::UpdateProfilePictureNsfwInfo {
-            principal_text: args.principal_text,
+            oauth_subject: args.oauth_subject,
             nsfw_info: args.nsfw_info,
         }
     }
@@ -39,10 +39,10 @@ pub trait update_profile_picture_nsfw_info {
     /// /// Use [`update_profile_picture_nsfw_info:update_profile_picture_nsfw_info_then`] to run a callback after the reducer completes.
     fn update_profile_picture_nsfw_info(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         nsfw_info: NsfwInfo,
     ) -> __sdk::Result<()> {
-        self.update_profile_picture_nsfw_info_then(principal_text, nsfw_info, |_, _| {})
+        self.update_profile_picture_nsfw_info_then(oauth_subject, nsfw_info, |_, _| {})
     }
 
     /// Request that the remote module invoke the reducer `update_profile_picture_nsfw_info` to run as soon as possible,
@@ -53,7 +53,7 @@ pub trait update_profile_picture_nsfw_info {
     ///  and its status can be observed with the `callback`.
     fn update_profile_picture_nsfw_info_then(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         nsfw_info: NsfwInfo,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
@@ -65,7 +65,7 @@ pub trait update_profile_picture_nsfw_info {
 impl update_profile_picture_nsfw_info for super::RemoteReducers {
     fn update_profile_picture_nsfw_info_then(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         nsfw_info: NsfwInfo,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
@@ -74,7 +74,7 @@ impl update_profile_picture_nsfw_info for super::RemoteReducers {
     ) -> __sdk::Result<()> {
         self.imp.invoke_reducer_with_callback(
             UpdateProfilePictureNsfwInfoArgs {
-                principal_text,
+                oauth_subject,
                 nsfw_info,
             },
             callback,

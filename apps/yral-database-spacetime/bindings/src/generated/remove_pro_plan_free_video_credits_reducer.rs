@@ -7,14 +7,14 @@ use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 pub(super) struct RemoveProPlanFreeVideoCreditsArgs {
-    pub principal_text: String,
+    pub oauth_subject: String,
     pub credits: u32,
 }
 
 impl From<RemoveProPlanFreeVideoCreditsArgs> for super::Reducer {
     fn from(args: RemoveProPlanFreeVideoCreditsArgs) -> Self {
         Self::RemoveProPlanFreeVideoCredits {
-            principal_text: args.principal_text,
+            oauth_subject: args.oauth_subject,
             credits: args.credits,
         }
     }
@@ -37,10 +37,10 @@ pub trait remove_pro_plan_free_video_credits {
     /// /// Use [`remove_pro_plan_free_video_credits:remove_pro_plan_free_video_credits_then`] to run a callback after the reducer completes.
     fn remove_pro_plan_free_video_credits(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         credits: u32,
     ) -> __sdk::Result<()> {
-        self.remove_pro_plan_free_video_credits_then(principal_text, credits, |_, _| {})
+        self.remove_pro_plan_free_video_credits_then(oauth_subject, credits, |_, _| {})
     }
 
     /// Request that the remote module invoke the reducer `remove_pro_plan_free_video_credits` to run as soon as possible,
@@ -51,7 +51,7 @@ pub trait remove_pro_plan_free_video_credits {
     ///  and its status can be observed with the `callback`.
     fn remove_pro_plan_free_video_credits_then(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         credits: u32,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
@@ -63,7 +63,7 @@ pub trait remove_pro_plan_free_video_credits {
 impl remove_pro_plan_free_video_credits for super::RemoteReducers {
     fn remove_pro_plan_free_video_credits_then(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         credits: u32,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
@@ -72,7 +72,7 @@ impl remove_pro_plan_free_video_credits for super::RemoteReducers {
     ) -> __sdk::Result<()> {
         self.imp.invoke_reducer_with_callback(
             RemoveProPlanFreeVideoCreditsArgs {
-                principal_text,
+                oauth_subject,
                 credits,
             },
             callback,

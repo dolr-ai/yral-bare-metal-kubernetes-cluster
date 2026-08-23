@@ -9,7 +9,7 @@ use super::followers_page_type::FollowersPage;
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 struct GetFollowersArgs {
-    pub principal_text: String,
+    pub oauth_subject: String,
     pub limit: u64,
     pub cursor: Option<String>,
 }
@@ -23,13 +23,13 @@ impl __sdk::InModule for GetFollowersArgs {
 ///
 /// Implemented for [`super::RemoteProcedures`].
 pub trait get_followers {
-    fn get_followers(&self, principal_text: String, limit: u64, cursor: Option<String>) {
-        self.get_followers_then(principal_text, limit, cursor, |_, _| {});
+    fn get_followers(&self, oauth_subject: String, limit: u64, cursor: Option<String>) {
+        self.get_followers_then(oauth_subject, limit, cursor, |_, _| {});
     }
 
     fn get_followers_then(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         limit: u64,
         cursor: Option<String>,
 
@@ -42,7 +42,7 @@ pub trait get_followers {
 impl get_followers for super::RemoteProcedures {
     fn get_followers_then(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         limit: u64,
         cursor: Option<String>,
 
@@ -53,7 +53,7 @@ impl get_followers for super::RemoteProcedures {
         self.imp.invoke_procedure_with_callback::<_, FollowersPage>(
             "get_followers",
             GetFollowersArgs {
-                principal_text,
+                oauth_subject,
                 limit,
                 cursor,
             },

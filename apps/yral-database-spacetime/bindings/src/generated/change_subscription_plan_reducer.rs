@@ -9,14 +9,14 @@ use super::subscription_plan_type::SubscriptionPlan;
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 pub(super) struct ChangeSubscriptionPlanArgs {
-    pub principal_text: String,
+    pub oauth_subject: String,
     pub plan: SubscriptionPlan,
 }
 
 impl From<ChangeSubscriptionPlanArgs> for super::Reducer {
     fn from(args: ChangeSubscriptionPlanArgs) -> Self {
         Self::ChangeSubscriptionPlan {
-            principal_text: args.principal_text,
+            oauth_subject: args.oauth_subject,
             plan: args.plan,
         }
     }
@@ -39,10 +39,10 @@ pub trait change_subscription_plan {
     /// /// Use [`change_subscription_plan:change_subscription_plan_then`] to run a callback after the reducer completes.
     fn change_subscription_plan(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         plan: SubscriptionPlan,
     ) -> __sdk::Result<()> {
-        self.change_subscription_plan_then(principal_text, plan, |_, _| {})
+        self.change_subscription_plan_then(oauth_subject, plan, |_, _| {})
     }
 
     /// Request that the remote module invoke the reducer `change_subscription_plan` to run as soon as possible,
@@ -53,7 +53,7 @@ pub trait change_subscription_plan {
     ///  and its status can be observed with the `callback`.
     fn change_subscription_plan_then(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         plan: SubscriptionPlan,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
@@ -65,7 +65,7 @@ pub trait change_subscription_plan {
 impl change_subscription_plan for super::RemoteReducers {
     fn change_subscription_plan_then(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         plan: SubscriptionPlan,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
@@ -74,7 +74,7 @@ impl change_subscription_plan for super::RemoteReducers {
     ) -> __sdk::Result<()> {
         self.imp.invoke_reducer_with_callback(
             ChangeSubscriptionPlanArgs {
-                principal_text,
+                oauth_subject,
                 plan,
             },
             callback,

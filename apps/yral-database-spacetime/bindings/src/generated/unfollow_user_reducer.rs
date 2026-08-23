@@ -7,13 +7,13 @@ use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 pub(super) struct UnfollowUserArgs {
-    pub followee_text: String,
+    pub followee_subject: String,
 }
 
 impl From<UnfollowUserArgs> for super::Reducer {
     fn from(args: UnfollowUserArgs) -> Self {
         Self::UnfollowUser {
-            followee_text: args.followee_text,
+            followee_subject: args.followee_subject,
         }
     }
 }
@@ -33,8 +33,8 @@ pub trait unfollow_user {
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
     /// /// Use [`unfollow_user:unfollow_user_then`] to run a callback after the reducer completes.
-    fn unfollow_user(&self, followee_text: String) -> __sdk::Result<()> {
-        self.unfollow_user_then(followee_text, |_, _| {})
+    fn unfollow_user(&self, followee_subject: String) -> __sdk::Result<()> {
+        self.unfollow_user_then(followee_subject, |_, _| {})
     }
 
     /// Request that the remote module invoke the reducer `unfollow_user` to run as soon as possible,
@@ -45,7 +45,7 @@ pub trait unfollow_user {
     ///  and its status can be observed with the `callback`.
     fn unfollow_user_then(
         &self,
-        followee_text: String,
+        followee_subject: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -56,13 +56,13 @@ pub trait unfollow_user {
 impl unfollow_user for super::RemoteReducers {
     fn unfollow_user_then(
         &self,
-        followee_text: String,
+        followee_subject: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
             + 'static,
     ) -> __sdk::Result<()> {
         self.imp
-            .invoke_reducer_with_callback(UnfollowUserArgs { followee_text }, callback)
+            .invoke_reducer_with_callback(UnfollowUserArgs { followee_subject }, callback)
     }
 }

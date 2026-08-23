@@ -7,14 +7,14 @@ use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 pub(super) struct SetUsernameArgs {
-    pub principal_text: String,
+    pub oauth_subject: String,
     pub username: String,
 }
 
 impl From<SetUsernameArgs> for super::Reducer {
     fn from(args: SetUsernameArgs) -> Self {
         Self::SetUsername {
-            principal_text: args.principal_text,
+            oauth_subject: args.oauth_subject,
             username: args.username,
         }
     }
@@ -35,8 +35,8 @@ pub trait set_username {
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
     /// /// Use [`set_username:set_username_then`] to run a callback after the reducer completes.
-    fn set_username(&self, principal_text: String, username: String) -> __sdk::Result<()> {
-        self.set_username_then(principal_text, username, |_, _| {})
+    fn set_username(&self, oauth_subject: String, username: String) -> __sdk::Result<()> {
+        self.set_username_then(oauth_subject, username, |_, _| {})
     }
 
     /// Request that the remote module invoke the reducer `set_username` to run as soon as possible,
@@ -47,7 +47,7 @@ pub trait set_username {
     ///  and its status can be observed with the `callback`.
     fn set_username_then(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         username: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
@@ -59,7 +59,7 @@ pub trait set_username {
 impl set_username for super::RemoteReducers {
     fn set_username_then(
         &self,
-        principal_text: String,
+        oauth_subject: String,
         username: String,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
@@ -68,7 +68,7 @@ impl set_username for super::RemoteReducers {
     ) -> __sdk::Result<()> {
         self.imp.invoke_reducer_with_callback(
             SetUsernameArgs {
-                principal_text,
+                oauth_subject,
                 username,
             },
             callback,

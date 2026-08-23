@@ -9,7 +9,7 @@ use super::user_profile_details_v_7_type::UserProfileDetailsV7;
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 struct GetUsersProfileDetailsArgs {
-    pub principal_texts: Vec<String>,
+    pub oauth_subjects: Vec<String>,
 }
 
 impl __sdk::InModule for GetUsersProfileDetailsArgs {
@@ -21,13 +21,13 @@ impl __sdk::InModule for GetUsersProfileDetailsArgs {
 ///
 /// Implemented for [`super::RemoteProcedures`].
 pub trait get_users_profile_details {
-    fn get_users_profile_details(&self, principal_texts: Vec<String>) {
-        self.get_users_profile_details_then(principal_texts, |_, _| {});
+    fn get_users_profile_details(&self, oauth_subjects: Vec<String>) {
+        self.get_users_profile_details_then(oauth_subjects, |_, _| {});
     }
 
     fn get_users_profile_details_then(
         &self,
-        principal_texts: Vec<String>,
+        oauth_subjects: Vec<String>,
 
         __callback: impl FnOnce(
                 &super::ProcedureEventContext,
@@ -40,7 +40,7 @@ pub trait get_users_profile_details {
 impl get_users_profile_details for super::RemoteProcedures {
     fn get_users_profile_details_then(
         &self,
-        principal_texts: Vec<String>,
+        oauth_subjects: Vec<String>,
 
         __callback: impl FnOnce(
                 &super::ProcedureEventContext,
@@ -51,7 +51,7 @@ impl get_users_profile_details for super::RemoteProcedures {
         self.imp
             .invoke_procedure_with_callback::<_, Vec<UserProfileDetailsV7>>(
                 "get_users_profile_details",
-                GetUsersProfileDetailsArgs { principal_texts },
+                GetUsersProfileDetailsArgs { oauth_subjects },
                 __callback,
             );
     }
