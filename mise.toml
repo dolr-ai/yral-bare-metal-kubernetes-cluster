@@ -20,8 +20,7 @@ helm = "latest"
 # (Kotlin 2.0.21) cannot parse JDK 26's version string ("26.0.2") and throws
 # IllegalArgumentException during script compilation. Bump only after upgrading
 # the Gradle wrapper to a version whose embedded Kotlin supports the new JDK.
-java = { version = "21.0.12+101.0.LTS", os = ["macos"] }
-kubectl = "latest"
+java = { version = "21", os = ["macos"] } kubectl = "latest"
 maestro = { version = "latest", os = ["macos"] }
 node = "latest"
 pitchfork = "latest"
@@ -582,10 +581,7 @@ run = '''
 ./gradlew allChecks
 ./gradlew :iosSharedUmbrella:podPublishDebugXCFramework
 
-# Auth allTests: iOS simulator test linking fails due to a pre-existing
-# Kotlin/Native CocoaPods transitive dependency issue (FirebasePerformance
-# framework not linked into the test binary). Android unit tests pass.
-./gradlew :shared:features:auth:allTests || echo '⚠ auth allTests failed (pre-existing iOS linking issue)'
+./gradlew :shared:features:auth:allTests
 ./gradlew test
 
 '''
