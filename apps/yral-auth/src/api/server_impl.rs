@@ -314,7 +314,7 @@ async fn handle_refresh_token_grant(
 
     let mut validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::ES256);
     validation.set_audience(&[&client_id]);
-    validation.set_issuer(&[server_url, "https://auth.yral.com", "https://auth.dolr.ai"]);
+    validation.set_issuer(&[server_url, "https://auth.yral.com"]);
 
     let refresh_token = jsonwebtoken::decode::<RefreshTokenClaims>(
         &refresh_token,

@@ -128,7 +128,7 @@ pub async fn complete_account_login_impl(code: String) -> Result<(), ServerFnErr
 
     let mut validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::ES256);
     validation.set_audience(&[SELF_SERVICE_CLIENT_ID]);
-    validation.set_issuer(&["https://auth.yral.com", "https://auth.dolr.ai"]);
+    validation.set_issuer(&["https://auth.yral.com"]);
 
     let auth_code = jsonwebtoken::decode::<AuthCodeClaims>(
         &code,

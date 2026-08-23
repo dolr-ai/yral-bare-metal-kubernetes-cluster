@@ -13,14 +13,13 @@
 //! - `get_following(principal_text, limit, cursor) -> FollowingPage`
 //!
 //! ## Reducers (writes)
-//! - `register_new_user()` — idempotent, creates empty profile for `ctx.sender()`
 //! - `follow_user(followee_text)` — bidirectional follow
 //! - `unfollow_user(followee_text)` — symmetric
 //! - `update_profile_details(bio, website_url, profile_pic_url)` — sender only
 //! - `update_profile_details_v2(bio, website_url, profile_picture)` — sender only
 //! - `update_profile_ai_influencer_status(principal_text, is_ai)` — admin only
-//! - `accept_new_user_registration_v2(new_principal, authenticated, main_account)` — register/bot
-//! - `delete_user_info(principal_to_delete)` — cascade delete
+//! - `accept_new_user_registration_v2(new_principal_text, authenticated, main_account_text)` — register/bot
+//! - `delete_user_info(principal_to_delete_text)` — cascade delete
 //! - `update_user_last_access_time()` — sender only
 //! - `update_profile_picture_nsfw_info(principal_text, nsfw_info)` — admin only
 //! - `change_subscription_plan(principal_text, plan)` — admin only
@@ -37,9 +36,10 @@ use spacetimedb::{ProcedureContext, ReducerContext, SpacetimeType, Table, Timest
 
 /// A user profile. Mirrors the IC `UserInfo` struct.
 ///
-/// Primary key: `principal_text` (the IC Principal as text, e.g.
-/// `w4rip-qiaaa-aaaas-ab5...`). This is the same value stored in
-/// `posts.creator_principal_text`.
+/// Primary key: `principal_text`. For users registered via
+/// `accept_new_user_registration_v2`, this is the OAuth `sub` claim from the
+/// yral-auth JWT (e.g. a Google account ID like `100014004491598860137`).
+/// This is the same value stored in `posts_v2.creator_principal_text`.
 #[spacetimedb::table(accessor = user_profiles, public)]
 #[derive(Clone)]
 pub struct UserProfile {
@@ -146,7 +146,7 @@ pub struct ProfilePictureData {
 }
 
 /// Account type. Mirrors the IC `UserAccountType` enum.
-/// `MainAccount` can own bots; `BotAccount` has an owner principal.
+/// `MainAccount` can own bots; `BotAccount` has an owner subject.
 #[derive(SpacetimeType, Clone, Debug, PartialEq, Eq)]
 pub enum UserAccountType {
     MainAccount { bots: Vec<String> },
@@ -313,49 +313,11 @@ fn follow_relationships(
 // Reducers (writes)
 // ─────────────────────────────────────────────────────────────────────────
 
-/// Register a new user. Idempotent — if the user already exists, does nothing.
-/// Called by the mobile app after authentication.
-#[spacetimedb::reducer]
-pub fn register_new_user(ctx: &ReducerContext) -> Result<(), String> {
-    let principal_text = ctx.sender().to_hex().to_string();
-
-    if ctx
-        .db
-        .user_profiles()
-        .iter()
-        .any(|p| p.principal_text == principal_text)
-    {
-        return Ok(()); // Already registered
-    }
-
-    ctx.db.user_profiles().insert(UserProfile {
-        principal_text,
-        bio: String::new(),
-        website_url: String::new(),
-        profile_picture_url: String::new(),
-        followers_count: 0,
-        following_count: 0,
-        subscription_plan: SubscriptionPlan::Free,
-        is_ai_influencer: false,
-        is_nsfw: false,
-        nsfw_ec: String::new(),
-        nsfw_gore: String::new(),
-        csam_detected: false,
-        last_access_time: ctx.timestamp,
-        account_type: UserAccountType::MainAccount { bots: Vec::new() },
-        username: None,
-        email: None,
-        user_id: None,
-    });
-
-    Ok(())
-}
-
 /// Follow another user. Bidirectional — inserts into both follower's
 /// following set and followee's followers set.
 #[spacetimedb::reducer]
 pub fn follow_user(ctx: &ReducerContext, followee_text: String) -> Result<(), String> {
-    let follower_text = ctx.sender().to_hex().to_string();
+    let follower_text = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
     let key = format!("{follower_text}::{followee_text}");
 
     if follower_text == followee_text {
@@ -400,7 +362,7 @@ pub fn follow_user(ctx: &ReducerContext, followee_text: String) -> Result<(), St
 /// Unfollow another user. Symmetric to follow.
 #[spacetimedb::reducer]
 pub fn unfollow_user(ctx: &ReducerContext, followee_text: String) -> Result<(), String> {
-    let follower_text = ctx.sender().to_hex().to_string();
+    let follower_text = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
     let key = format!("{follower_text}::{followee_text}");
 
     let Some(follow) = ctx.db.user_follows().iter().find(|f| f.key == key) else {
@@ -443,7 +405,7 @@ pub fn update_profile_details(
     website_url: String,
     profile_pic_url: String,
 ) -> Result<(), String> {
-    let principal_text = ctx.sender().to_hex().to_string();
+    let principal_text = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
 
     let mut profile = match ctx
         .db
@@ -500,7 +462,7 @@ pub fn update_profile_details_v2(
     website_url: Option<String>,
     profile_picture: Option<ProfilePictureData>,
 ) -> Result<(), String> {
-    let principal_text = ctx.sender().to_hex().to_string();
+    let principal_text = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
 
     let mut profile = match ctx
         .db
@@ -645,7 +607,7 @@ pub fn delete_user_info(
     ctx: &ReducerContext,
     principal_to_delete_text: String,
 ) -> Result<(), String> {
-    let caller_text = ctx.sender().to_hex().to_string();
+    let caller_text = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
     let admin = crate::constants::ADMINS.contains(&ctx.sender());
 
     let profile = match ctx
@@ -725,7 +687,7 @@ pub fn delete_user_info(
 /// Update the caller's last access time to the current timestamp.
 #[spacetimedb::reducer]
 pub fn update_user_last_access_time(ctx: &ReducerContext) -> Result<(), String> {
-    let principal_text = ctx.sender().to_hex().to_string();
+    let principal_text = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
 
     let mut profile = match ctx
         .db
@@ -920,7 +882,7 @@ pub fn upsert_user_follow_batch(
 /// Idempotent — if the token already exists, it's a no-op.
 #[spacetimedb::reducer]
 pub fn register_notification_token(ctx: &ReducerContext, token: String) -> Result<(), String> {
-    let user_id = ctx.sender().to_hex().to_string();
+    let user_id = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
     let key = format!("{user_id}::{token}");
 
     // Check if already exists
@@ -947,7 +909,7 @@ pub fn register_notification_token(ctx: &ReducerContext, token: String) -> Resul
 /// Unregister a device notification token for the caller.
 #[spacetimedb::reducer]
 pub fn unregister_notification_token(ctx: &ReducerContext, token: String) -> Result<(), String> {
-    let user_id = ctx.sender().to_hex().to_string();
+    let user_id = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
     let key = format!("{user_id}::{token}");
 
     if let Some(existing) = ctx
@@ -1088,7 +1050,7 @@ pub fn get_profile_details_v4(
             .user_profiles()
             .iter()
             .find(|p| p.principal_text == principal_text)?;
-        let caller_text = tx.sender().to_hex().to_string();
+        let caller_text = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
 
         let caller_follows_user = tx
             .db
@@ -1134,7 +1096,7 @@ pub fn get_user_profile_details_v7(
             .user_profiles()
             .iter()
             .find(|p| p.principal_text == principal_text)?;
-        let caller_text = tx.sender().to_hex().to_string();
+        let caller_text = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
 
         let (caller_follows_user, user_follows_caller) =
             follow_relationships(tx, &caller_text, &principal_text);
@@ -1158,7 +1120,7 @@ pub fn get_user_profile_details_v7(
     })
 }
 
-/// Batch profile lookup. Returns V7 profile details for each principal.
+/// Batch profile lookup. Returns V7 profile details for each subject.
 /// Users that are not found are silently skipped (matches IC canister
 /// behavior). Follow relationships are computed using `ctx.sender()`.
 #[spacetimedb::procedure]
@@ -1167,7 +1129,7 @@ pub fn get_users_profile_details(
     principal_texts: Vec<String>,
 ) -> Vec<UserProfileDetailsV7> {
     ctx.with_tx(|tx| {
-        let caller_text = tx.sender().to_hex().to_string();
+        let caller_text = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
 
         principal_texts
             .iter()
@@ -1212,7 +1174,7 @@ pub fn get_followers(
 ) -> FollowersPage {
     ctx.with_tx(|tx| {
         let limit = limit.min(MAX_PAGE_SIZE) as usize;
-        let caller_text = tx.sender().to_hex().to_string();
+        let caller_text = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
 
         // Collect all followers of this user (followee = principal_text)
         let mut followers: Vec<UserFollow> = tx
@@ -1284,7 +1246,7 @@ pub fn get_following(
 ) -> FollowingPage {
     ctx.with_tx(|tx| {
         let limit = limit.min(MAX_PAGE_SIZE) as usize;
-        let caller_text = tx.sender().to_hex().to_string();
+        let caller_text = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
 
         // Collect all users this user is following (follower = principal_text)
         let mut following: Vec<UserFollow> = tx
@@ -1376,7 +1338,7 @@ pub fn get_user_profile_by_user_id(
             .iter()
             .find(|p| p.user_id.as_ref() == Some(&user_id))?;
 
-        let caller_text = tx.sender().to_hex().to_string();
+        let caller_text = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
         let (caller_follows_user, user_follows_caller) =
             follow_relationships(tx, &caller_text, &profile.principal_text);
 
@@ -1413,7 +1375,7 @@ pub fn get_user_profile_by_username(
             .iter()
             .find(|p| p.username.as_deref() == Some(&username))?;
 
-        let caller_text = tx.sender().to_hex().to_string();
+        let caller_text = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
         let (caller_follows_user, user_follows_caller) =
             follow_relationships(tx, &caller_text, &profile.principal_text);
 
@@ -1446,26 +1408,26 @@ pub fn get_user_profile_by_username(
 /// an error if the owner is a `BotAccount` (bots cannot own bots).
 fn validate_owner_for_bot_creation(
     owner_account_type: &UserAccountType,
-    new_bot_principal: &str,
+    new_bot_text: &str,
 ) -> Result<UserAccountType, String> {
     match owner_account_type {
         UserAccountType::MainAccount { bots } => {
             let mut updated_bots = bots.clone();
-            updated_bots.push(new_bot_principal.to_string());
+            updated_bots.push(new_bot_text.to_string());
             Ok(UserAccountType::MainAccount { bots: updated_bots })
         }
         UserAccountType::BotAccount { .. } => Err("Bots cannot own other bots".to_string()),
     }
 }
 
-/// Build a new bot `UserProfile` with default values, owned by `owner_principal`.
+/// Build a new bot `UserProfile` with default values, owned by `owner_text`.
 fn build_bot_profile(
-    bot_principal: String,
-    owner_principal: String,
+    bot_text: String,
+    owner_text: String,
     timestamp: Timestamp,
 ) -> UserProfile {
     UserProfile {
-        principal_text: bot_principal,
+        principal_text: bot_text,
         bio: String::new(),
         website_url: String::new(),
         profile_picture_url: String::new(),
@@ -1479,7 +1441,7 @@ fn build_bot_profile(
         csam_detected: false,
         last_access_time: timestamp,
         account_type: UserAccountType::BotAccount {
-            owner: owner_principal,
+            owner: owner_text,
         },
         username: None,
         email: None,
@@ -1488,9 +1450,9 @@ fn build_bot_profile(
 }
 
 /// Build a new main-account `UserProfile` with default values.
-fn build_main_account_profile(principal: String, timestamp: Timestamp) -> UserProfile {
+fn build_main_account_profile(principal_text: String, timestamp: Timestamp) -> UserProfile {
     UserProfile {
-        principal_text: principal,
+        principal_text,
         bio: String::new(),
         website_url: String::new(),
         profile_picture_url: String::new(),
@@ -1581,11 +1543,11 @@ mod tests {
     #[test]
     fn test_build_bot_profile_defaults() {
         let profile = build_bot_profile(
-            "bot-principal".to_string(),
-            "owner-principal".to_string(),
+            "bot-text".to_string(),
+            "owner-text".to_string(),
             TEST_TIMESTAMP,
         );
-        assert_eq!(profile.principal_text, "bot-principal");
+        assert_eq!(profile.principal_text, "bot-text");
         assert_eq!(profile.bio, "");
         assert_eq!(profile.website_url, "");
         assert_eq!(profile.profile_picture_url, "");
@@ -1624,8 +1586,8 @@ mod tests {
 
     #[test]
     fn test_build_main_account_profile_defaults() {
-        let profile = build_main_account_profile("main-principal".to_string(), TEST_TIMESTAMP);
-        assert_eq!(profile.principal_text, "main-principal");
+        let profile = build_main_account_profile("main-text".to_string(), TEST_TIMESTAMP);
+        assert_eq!(profile.principal_text, "main-text");
         assert_eq!(profile.followers_count, 0);
         assert_eq!(profile.following_count, 0);
         assert_eq!(profile.subscription_plan, SubscriptionPlan::Free);

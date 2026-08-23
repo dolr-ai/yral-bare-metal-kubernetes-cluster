@@ -53,9 +53,9 @@ pub async fn set_signup_datetime(
     Path(user_principal): Path<Principal>,
     Json(_req): Json<SetUserSignedInMetadataReq>,
 ) -> Result<Json<ApiResult<UserMetadata>>> {
-    // Signup datetime is now handled by SpacetimeDB's register_new_user reducer.
-    // This endpoint is kept for backward compatibility — it just returns the
-    // current user metadata.
+    // Signup datetime is now handled by SpacetimeDB's accept_new_user_registration_v2
+    // reducer. This endpoint is kept for backward compatibility — it just returns
+    // the current user metadata.
     let result = get_user_metadata_from_spacetime(&state.spacetime, user_principal).await?;
     Ok(Json(Ok(result)))
 }

@@ -68,8 +68,8 @@ pub async fn update_session_as_registered_v2(
     let _jwt_claim = app_state.yral_auth_jwt.verify_token(auth_jwt_token)?;
 
     // IC canister session update removed — SpacetimeDB handles user registration
-    // via the register_new_user reducer. This endpoint now just verifies the
-    // JWT and returns OK. Will be deleted entirely once all consumers are
+    // via the accept_new_user_registration_v2 reducer. This endpoint now just verifies
+    // the JWT and returns OK. Will be deleted entirely once all consumers are
     // migrated to call SpacetimeDB directly.
     log::info!("Session update acknowledged for user: {}", req_payload.user_principal);
 

@@ -154,6 +154,11 @@ Always use well-named, descriptive variable and type names. Never use shortened 
 
 Modern IDEs and language tooling make long names ergonomic regardless of language. Descriptive names serve as inline documentation and make grep/code-search effective. Abbreviations create cognitive overhead and inconsistency.
 
+**No legacy domain jargon (Hard Rule):** Do not carry over naming from previous platforms (e.g. Internet Computer "principal", "canister"). Call things what they actually are in the current system. `principal_text` → `oauth_subject` / `user_id`, `canister_id` → `service_id`. When touching code that uses legacy jargon, rename to the accurate current term in the same change. This prevents conflation (e.g. "principal" was used for IC Principal, SpacetimeDB Identity hex, and OAuth sub — three different things) and makes the code self-documenting.
+
+### Colocated Code over Abstractions (Hard Rule)
+Avoid unnecessary abstractions, wrappers, and utility methods. Prefer calling methods directly at the call site rather than hiding a single expression behind a helper function. A one-line helper that wraps `ctx.sender_auth().jwt().map(|c| c.subject().to_string()).unwrap_or_else(|| ctx.sender().to_hex().to_string())` is worse than inlining it — the reader has to jump to the helper to understand what it does, when the expression itself is already readable at the call site. Only extract a helper when the same **non-trivial** logic (multiple lines, branching, state) is duplicated across 3+ call sites. Simple expressions, even if repeated, are better inlined for scannability.
+
 ### Pure Functions & Thin API Wrappers (Hard Rule)
 All business logic must be implemented as **pure functions** — no I/O, no side effects, no external service calls. Functions that call external APIs (HTTP, database, KV store, IC canister, SpacetimeDB, etc.) must be **thin wrappers** that delegate to pure functions for all logic. This applies to all application code (Rust, Kotlin, TypeScript, etc.):
 
@@ -302,7 +307,7 @@ This ensures `mise bootstrap --yes && mise run setup` is the only command needed
 
 **Never use `--delete-data` on production (Hard Rule).** `--delete-data` wipes ALL tables in the database — including KV stores, post tables, and any other data. This is NEVER acceptable on a production/Maincloud database, regardless of the reason. If a schema migration requires data deletion (e.g. removing a table with data, changing column types), use the V2 table pattern: create a new table, backfill data into it, validate, swap read paths, then clean up the old table via a reducer (not `--delete-data`). There are no exceptions to this rule.
 
-**Schema migrations — Incremental Migration pattern (Hard Rule).** SpacetimeDB's automatic migrations support adding tables, adding columns with defaults at the end, adding indexes, and adding reducers. Forbidden changes (removing tables, modifying columns, reordering) must use the [Incremental Migration](https://spacetimedb.com/docs/databases/incremental-migrations) pattern instead:
+**Schema migrations — Incremental Migration pattern (Hard Rule).** SpacetimeDB's automatic migrations support adding tables, adding columns with defaults at the end, adding indexes, and adding reducers. **Column renames, column type changes, column removals, and column reordering are all "modifying columns" — they are forbidden and require the incremental migration pattern, not `--delete-data`.** Never rename a field on an existing `#[spacetimedb::table]` struct in place — that changes the column name in the live table and breaks the schema. Forbidden changes (removing tables, modifying columns, reordering) must use the [Incremental Migration](https://spacetimedb.com/docs/databases/incremental-migrations) pattern instead:
 1. **Create a new versioned table** (`<table>_v2`) with the desired schema — adding tables is always safe.
 2. **Dual-write**: new writes go to both old and new tables so outdated clients continue working.
 3. **Lazy migration**: on read, check the new table first; if the row is missing, migrate it from the old table on-the-fly (amortizes cost across transactions).
@@ -318,6 +323,8 @@ This ensures `mise bootstrap --yes && mise run setup` is the only command needed
 - **Reducer/procedure names:** Use `<name>_2` (e.g. `accept_new_user_registration_2` not `accept_new_user_registration_v2`). There is no `name` attribute for reducers, so the function name is the REST API name — numeric suffixes avoid the `v_2` split.
 
 Existing `v`-prefixed names (`posts_v2`, `UserProfileDetailsV7`, etc.) are left as-is to avoid breaking schema migrations; the convention applies to **new** types/tables/reducers/procedures going forward.
+
+**Sequential versioning — only when a prior version exists (Hard Rule):** Only create a versioned table/type/reducer when there is an existing prior version to migrate from. If `user_profiles` exists and needs a schema change, create `user_profiles_2`. Do not create versioned names preemptively ("just in case"). When versioning is needed, use sequential numbering: if `posts_v2` is the current version, the next is `posts_3` (not `posts_5`). Check the codebase for existing versions before choosing a number.
 
 **Cursor-based pagination (Hard Rule).** All paginated APIs (procedures, REST endpoints) must use cursor-based pagination, not offset/limit. The cursor is the ID (or timestamp) of the last record from the previous page — pass it as an optional `cursor` argument alongside a `limit`/`size` parameter. `None` cursor starts from the beginning. Return `next_cursor` (`None` when no more results). Offset/limit pagination is rejected — it's inefficient for large datasets and unstable under concurrent inserts.
 

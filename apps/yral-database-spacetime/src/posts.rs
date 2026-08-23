@@ -98,10 +98,10 @@ pub struct Post {
     pub view_average_watch_percentage: u8,
 }
 
-/// V2 post table — adds `creator_principal_text` (original IC Principal as
-/// text) alongside `creator` (Identity, one-way hash). Clients (yral-mobile)
-/// need the original Principal text for CDN URL construction, propic URLs,
-/// username fallback, profile links, and enrichment calls.
+/// V2 post table — adds `creator_principal_text` (principal text from the
+/// yral-auth JWT) alongside `creator` (Identity, one-way hash). Clients
+/// (yral-mobile) need the original principal text for CDN URL construction,
+/// propic URLs, username fallback, profile links, and enrichment calls.
 ///
 /// This is a **new table** (not a column on `Post`) to avoid a manual
 /// migration on the existing 730K-row `Post` table. Rust's `#[default("")]`
@@ -115,7 +115,7 @@ pub struct PostV2 {
     pub id: String,
     #[index(btree)]
     pub creator: Identity,
-    /// Original IC Principal as text (e.g. `w4rip-qiaaa-aaaas-ab5...`).
+    /// Principal text from the yral-auth JWT (e.g. a Google account ID).
     pub creator_principal_text: String,
     pub video_uid: String,
     pub description: String,
@@ -136,8 +136,9 @@ pub struct PostV2 {
 /// `PostDetailsForFrontend`. `like_count` and `liked_by_me` are always `0` /
 /// `false` (likes feature dropped).
 ///
-/// `creator_principal_text` is the original IC Principal as text — needed by
-/// clients for propic URLs, username fallback, and profile enrichment calls.
+/// `creator_principal_text` is the principal text from the yral-auth JWT —
+/// needed by clients for propic URLs, username fallback, and profile
+/// enrichment calls.
 ///
 /// `status` mirrors the IC `Post` struct's status field (the IC
 /// `PostDetailsForFrontend` type omits it, but mobile's `from_post` path
@@ -450,6 +451,87 @@ pub fn upsert_posts_v2_batch(ctx: &ReducerContext, posts: Vec<PostV2>) -> Result
         ctx.db.posts_v2().id().delete(post.id.clone());
         ctx.db.posts_v2().insert(post);
     }
+    Ok(())
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// V2 post reducers — creator-callable (JWT-derived principal text)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Add a new post to the `posts_v2` table. Admin, or the creator adding
+/// their own post. Rejects duplicate post IDs.
+///
+/// Unlike the V1 `add_post`, no `creator` argument is taken — `creator` is
+/// derived from `ctx.sender()` and `creator_principal_text` is extracted
+/// from the caller's JWT (`ctx.sender_auth().jwt().subject()`). This means
+/// non-admin callers always create posts as themselves; an admin caller
+/// can create a post, but the principal text still comes from their own JWT.
+#[spacetimedb::reducer]
+pub fn add_post_2(
+    ctx: &ReducerContext,
+    id: String,
+    description: String,
+    hashtags: Vec<String>,
+    video_uid: String,
+    status: PostStatus,
+) -> Result<(), String> {
+    let creator = ctx.sender();
+    let creator_principal_text = ctx
+        .sender_auth()
+        .jwt()
+        .expect("JWT required")
+        .subject()
+        .to_string();
+    if !crate::constants::ADMINS.contains(&ctx.sender()) && creator != ctx.sender() {
+        return Err("Unauthorized".to_string());
+    }
+    if ctx.db.posts_v2().id().find(id.clone()).is_some() {
+        return Err("DuplicatePostId".to_string());
+    }
+    ctx.db.posts_v2().insert(PostV2 {
+        id,
+        creator,
+        creator_principal_text,
+        video_uid,
+        description,
+        hashtags,
+        status,
+        created_at: ctx.timestamp,
+        share_count: 0,
+        view_total_count: 0,
+        view_threshold_count: 0,
+        view_average_watch_percentage: 0,
+    });
+    Ok(())
+}
+
+/// Update a post's status in the `posts_v2` table. Admin, or the post's
+/// creator. Mirrors the V1 `update_post_status` but operates on `posts_v2`.
+/// Special case: `Draft → Uploaded` resets `created_at` to now (publishing
+/// a draft timestamps it), matching the IC canister's behavior.
+///
+/// The post is looked up before the authorization check so ownership can be
+/// compared. A non-admin caller therefore sees `PostNotFound` rather than
+/// `Unauthorized` for a post that does not exist.
+#[spacetimedb::reducer]
+pub fn update_post_status_2(
+    ctx: &ReducerContext,
+    post_id: String,
+    status: PostStatus,
+) -> Result<(), String> {
+    let mut post = match ctx.db.posts_v2().id().find(post_id) {
+        Some(p) => p,
+        None => return Err("PostNotFound".to_string()),
+    };
+    if !crate::constants::ADMINS.contains(&ctx.sender()) && post.creator != ctx.sender() {
+        return Err("Unauthorized".to_string());
+    }
+    // Draft → Uploaded resets created_at (publishing a draft).
+    if status == PostStatus::Uploaded && post.status == PostStatus::Draft {
+        post.created_at = ctx.timestamp;
+    }
+    post.status = status;
+    ctx.db.posts_v2().id().update(post);
     Ok(())
 }
 
