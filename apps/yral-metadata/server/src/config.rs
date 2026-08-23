@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 
 use config::{Config, ConfigError, Environment, File};
 use serde::Deserialize;
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::serde_as;
 
 #[serde_as]
 #[derive(Deserialize)]

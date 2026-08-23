@@ -12,11 +12,11 @@ use reqwest::{
 };
 use std::collections::HashMap;
 use types::{
-    ApiResult, BulkGetUserMetadataReq, BulkGetUserMetadataRes, BulkUsers, CanisterToPrincipalReq,
-    CanisterToPrincipalRes, GetUserMetadataRes, GetUserMetadataV2Res, RegisterDeviceReq,
-    RegisterDeviceRes, SetUserEmailMetadataReq, SetUserEmailReq, SetUserMetadataReq,
-    SetUserMetadataReqMetadata, SetUserMetadataRes, SetUserSignedInMetadataReq,
-    UnregisterDeviceReq, UnregisterDeviceRes, UserMetadata, UserMetadataV2,
+    ApiResult, BulkGetUserMetadataReq, BulkGetUserMetadataRes, BulkUsers, GetUserMetadataRes,
+    GetUserMetadataV2Res, RegisterDeviceReq, RegisterDeviceRes, SetUserEmailMetadataReq,
+    SetUserEmailReq, SetUserMetadataReq, SetUserMetadataReqMetadata, SetUserMetadataRes,
+    SetUserSignedInMetadataReq, UnregisterDeviceReq, UnregisterDeviceRes, UserMetadata,
+    UserMetadataV2,
 };
 use types::identity::sign_message;
 
@@ -170,26 +170,6 @@ impl<const A: bool> MetadataClient<A> {
 
         let res: ApiResult<BulkGetUserMetadataRes> = res.json().await?;
         Ok(res?)
-    }
-
-    pub async fn get_canister_to_principal_bulk(
-        &self,
-        canisters: Vec<Principal>,
-    ) -> Result<HashMap<Principal, Principal>> {
-        let api_url = self
-            .base_url
-            .join("canister-to-principal/bulk")
-            .map_err(|e| Error::Api(types::error::ApiError::Unknown(e.to_string())))?;
-
-        let res = self
-            .client
-            .post(api_url)
-            .json(&CanisterToPrincipalReq { canisters })
-            .send()
-            .await?;
-
-        let res: ApiResult<CanisterToPrincipalRes> = res.json().await?;
-        Ok(res?.mappings)
     }
 
     pub async fn set_signup_datetime(

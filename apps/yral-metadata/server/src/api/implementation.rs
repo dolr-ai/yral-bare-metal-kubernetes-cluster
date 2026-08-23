@@ -2,9 +2,9 @@ use crate::{state::SpacetimeClient, utils::error::Result};
 use candid::Principal;
 use std::collections::HashMap;
 use types::{
-    BulkGetUserMetadataReq, BulkGetUserMetadataRes, BulkUsers, CanisterToPrincipalReq,
-    CanisterToPrincipalRes, GetUserMetadataV2Res, SetUserMetadataReq, SetUserMetadataReqMetadata,
-    SetUserMetadataRes, UserMetadata, UserMetadataV2,
+    BulkGetUserMetadataReq, BulkGetUserMetadataRes, BulkUsers, GetUserMetadataV2Res,
+    SetUserMetadataReq, SetUserMetadataReqMetadata, SetUserMetadataRes, UserMetadata,
+    UserMetadataV2,
 };
 
 /// Set user metadata via SpacetimeDB.
@@ -160,17 +160,6 @@ pub async fn get_user_metadata_bulk_impl(
     }
 
     Ok(result_map)
-}
-
-/// Bulk canister-to-principal lookup.
-/// IC canisters are decommissioned — returns empty mappings.
-pub async fn get_canister_to_principal_bulk_impl(
-    _spacetime: &SpacetimeClient,
-    req: CanisterToPrincipalReq,
-) -> Result<CanisterToPrincipalRes> {
-    Ok(CanisterToPrincipalRes {
-        mappings: HashMap::new(),
-    })
 }
 
 /// Parse SpacetimeDB Option<T> from REST API response.

@@ -57,10 +57,6 @@ async fn main_impl() -> Result<()> {
             "/metadata-bulk",
             post(api::handlers::get_user_metadata_bulk),
         )
-        .route(
-            "/canister-to-principal/bulk",
-            post(api::handlers::get_canister_to_principal_bulk),
-        )
         // Session routes
         .route(
             "/v2/update_session_as_registered",

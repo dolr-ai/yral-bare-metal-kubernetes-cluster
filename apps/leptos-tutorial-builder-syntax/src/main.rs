@@ -2,6 +2,7 @@ use leptos::html;
 use leptos::prelude::*;
 // use leptos::*;
 
+mod components_and_props;
 mod dynamic_attributes;
 
 fn main() {
@@ -13,7 +14,7 @@ fn app() -> impl IntoView {
     (
         dynamic_attributes::dynamic_attributes(),
         separator(),
-        html::p().child("Some text"),
+        components_and_props::components_and_props(),
     )
 }
 

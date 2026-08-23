@@ -10,8 +10,8 @@ use types::{error::ApiError, ApiResult};
 use utoipa::ToSchema;
 
 use crate::services::error_wrappers::{
-    AgentErrorDetail, ConfigErrorDetail, IOErrorData, IdentityErrorDetail,
-    JwtErrorDetail, PrincipalErrorDetail, SerdeJsonErrorDetail, VarErrorDetail,
+    AgentErrorDetail, ConfigErrorDetail, IOErrorData, IdentityErrorDetail, JwtErrorDetail,
+    PrincipalErrorDetail, SerdeJsonErrorDetail, VarErrorDetail,
 };
 
 #[derive(Error, Debug, ToSchema)]
@@ -71,22 +71,14 @@ impl From<&Error> for ApiResult<()> {
                 log::warn!("internal error {value}");
                 ApiError::Unknown("internal error, reported".into())
             }
-            Error::Identity(_) => {
-                ApiError::InvalidSignature
-            }
+            Error::Identity(_) => ApiError::InvalidSignature,
             Error::Deser(e) => {
                 log::warn!("deserialization error {e}");
                 ApiError::Deser
             }
-            Error::Jwt(_) => {
-                ApiError::Jwt
-            }
-            Error::AuthTokenMissing => {
-                ApiError::AuthTokenMissing
-            }
-            Error::AuthTokenInvalid => {
-                ApiError::AuthToken
-            }
+            Error::Jwt(_) => ApiError::Jwt,
+            Error::AuthTokenMissing => ApiError::AuthTokenMissing,
+            Error::AuthTokenInvalid => ApiError::AuthToken,
             Error::BackendAdminIdentityInvalid(e) => {
                 log::error!("Backend admin identity invalid: {e}");
                 ApiError::BackendAdminIdentityInvalid(e.clone())

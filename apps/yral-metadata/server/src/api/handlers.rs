@@ -7,16 +7,15 @@ use axum::{
 use candid::Principal;
 use std::sync::Arc;
 use types::{
-    ApiResult, BulkGetUserMetadataReq, BulkGetUserMetadataRes, BulkUsers, CanisterToPrincipalReq,
-    CanisterToPrincipalRes, DeleteMetadataBulkRes, GetUserMetadataV2Res, SetUserMetadataReq,
+    ApiResult, BulkGetUserMetadataReq, BulkGetUserMetadataRes, BulkUsers,
+    DeleteMetadataBulkRes, GetUserMetadataV2Res, SetUserMetadataReq,
     SetUserMetadataRes,
 };
 
 use crate::{
     api::implementation::{
-        delete_metadata_bulk_impl, get_canister_to_principal_bulk_impl,
-        get_user_metadata_bulk_impl, get_user_metadata_impl, set_user_metadata_core,
-        set_user_metadata_impl,
+        delete_metadata_bulk_impl, get_user_metadata_bulk_impl, get_user_metadata_impl,
+        set_user_metadata_core, set_user_metadata_impl,
     },
     services::error_wrappers::{ErrorWrapper, NullOk, OkWrapper},
     state::AppState,
@@ -155,23 +154,6 @@ pub async fn get_user_metadata_bulk(
             log::error!("API error: {e:?}");
             e
         })?;
-    Ok(Json(Ok(result)))
-}
-
-#[utoipa::path(
-    post,
-    path = "/canister-to-principal/bulk",
-    request_body = CanisterToPrincipalReq,
-    responses(
-        (status = 200, description = "Get canister to principal mapping in bulk successfully", body = OkWrapper<CanisterToPrincipalRes>),
-        (status = 500, description = "Internal server error", body = ErrorWrapper<CanisterToPrincipalRes>)
-    )
-)]
-pub async fn get_canister_to_principal_bulk(
-    State(state): State<Arc<AppState>>,
-    Json(req): Json<CanisterToPrincipalReq>,
-) -> Result<Json<ApiResult<CanisterToPrincipalRes>>> {
-    let result = get_canister_to_principal_bulk_impl(&state.spacetime, req).await?;
     Ok(Json(Ok(result)))
 }
 
