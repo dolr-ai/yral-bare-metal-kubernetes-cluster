@@ -1047,12 +1047,14 @@ pub fn migrate_user_profiles_to_2(
         if migrated_count >= batch_limit {
             return Ok(());
         }
-        let already_migrated = ctx
+        // Use primary key lookup instead of full scan — O(1) not O(n)
+        if ctx
             .db
             .user_profiles_2()
-            .iter()
-            .any(|p| p.oauth_subject == legacy_profile.principal_text);
-        if !already_migrated {
+            .oauth_subject()
+            .find(legacy_profile.principal_text.clone())
+            .is_none()
+        {
             ctx.db
                 .user_profiles_2()
                 .insert(migrate_profile_row(&legacy_profile));
@@ -1065,12 +1067,14 @@ pub fn migrate_user_profiles_to_2(
         if migrated_count >= batch_limit {
             return Ok(());
         }
-        let already_migrated = ctx
+        // Use primary key lookup instead of full scan
+        if ctx
             .db
             .user_follows_2()
-            .iter()
-            .any(|f| f.key == legacy_follow.key);
-        if !already_migrated {
+            .key()
+            .find(legacy_follow.key.clone())
+            .is_none()
+        {
             ctx.db
                 .user_follows_2()
                 .insert(migrate_follow_row(&legacy_follow));
