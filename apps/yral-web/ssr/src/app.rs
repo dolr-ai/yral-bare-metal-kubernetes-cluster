@@ -2,17 +2,13 @@ use crate::error_template::{AppError, ErrorTemplate};
 use component::{base_route::BaseRoute, nav::NavBar};
 use leptos::prelude::*;
 use leptos_meta::*;
-use leptos_router::hooks::use_location;
 use leptos_router::{components::*, path, MatchNestedRoutes};
 use page::about_us::AboutUs;
 use page::chat::Chat;
 use page::feed::Home;
 use page::post_view::PostDetailsCacheCtx;
 use page::{
-    err::ServerErrorPage,
-    logout::Logout,
-    menu::Menu,
-    post_view::single_post::SinglePost,
+    err::ServerErrorPage, logout::Logout, menu::Menu, post_view::single_post::SinglePost,
     wallet::Wallet,
 };
 use state::app_state::AppState;

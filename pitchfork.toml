@@ -26,13 +26,13 @@ auto_start = true  # Start web UI automatically with supervisor
 bind_port = 3120  # Default port (default: 3120)
 bind_address = "127.0.0.1"  # Default: localhost only
 
-# ── hello-world dev server (Trunk serve, CSR WASM) ──────────────────────────
+# ── leptos-tutorial-builder-syntax dev server (Trunk serve, CSR WASM) ──────────────────────────
 # Leptos CSR demo app served by Trunk with hot reload.
 # Port 8080 is hardcoded in Trunk's default config.
 
-[daemons.hello-world]
+[daemons.leptos-tutorial-builder-syntax]
 run = "trunk serve --port 8082"
-dir = "apps/hello-world"
+dir = "apps/leptos-tutorial-builder-syntax"
 ready_http = "http://localhost:8082/healthz"
 auto = ["start", "stop"]
 
