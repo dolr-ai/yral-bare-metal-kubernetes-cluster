@@ -49,7 +49,7 @@ hmac = "0.12.1"
 http = "1.1.0"
 http-body-util = "0.1.2"
 ic-agent = { version = "0.49.0", default-features = false }
-icondata = "0.3.0"
+icondata = "0.7.0"
 icondata_core = "0.1.0"
 indexmap = "2.8.0"
 js-sys = "0.3.104"
