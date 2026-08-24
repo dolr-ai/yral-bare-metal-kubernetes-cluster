@@ -81,15 +81,15 @@ openssl-sys = "0.9.117"
 p256 = "0.13.2"
 postcard = "1.1.1"
 priority-queue = "2.1.0"
-rand = { version = "0.9", default-features = false }
-rand_chacha = "0.9.0"
-rand_xoshiro = "0.7.0"
+rand = { version = "0.10.2" }
+rand_chacha = "0.10.0"
+rand_xoshiro = "0.8.1"
 reactive_graph = "0.2.5"
 redb = "2.0.0"
 regex = "1.11.1"
-reqwest = { version = "0.13.4", default-features = false }
+reqwest = { version = "0.13.4" }
 rust_decimal = "1.36"
-rustls = { version = "0.23.26", default-features = false }
+rustls = { version = "0.23.26" }
 send_wrapper = "0.6.0"
 serde = "1.0.210"
 serde_bytes = "0.11.15"

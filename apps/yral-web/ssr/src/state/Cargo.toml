@@ -47,7 +47,7 @@ log = { workspace = true }
 once_cell = { workspace = true }
 openidconnect = { workspace = true, optional = true }
 openssl-sys = { workspace = true, features = ["vendored"], optional = true }
-rand = { workspace = true, default-features = false, features = ["small_rng"] }
+rand = { workspace = true, default-features = false }
 rand_chacha = { workspace = true, optional = true }
 regex = { workspace = true, optional = true }
 reqwest = { workspace = true, features = ["http2", "json", "multipart"] }
