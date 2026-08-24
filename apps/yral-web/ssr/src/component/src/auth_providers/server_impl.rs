@@ -6,13 +6,13 @@ pub async fn mark_user_registered(user_id: String) -> Result<bool, ServerFnError
     // Check if user already exists in SpacetimeDB.
     #[cfg(feature = "ssr")]
     {
-        use yral_database_spacetime_bindings::get_user_profile_details_v_7;
+        use yral_database_spacetime_bindings::get_user_profile_details;
         use tokio::sync::oneshot;
         use state::spacetime::spacetime_conn;
 
         let conn = spacetime_conn();
         let (tx, rx) = oneshot::channel();
-        conn.procedures.get_user_profile_details_v_7_then(
+        conn.procedures.get_user_profile_details_then(
             user_id.clone(),
             move |_ctx, result| { let _ = tx.send(result.ok().flatten()); },
         );

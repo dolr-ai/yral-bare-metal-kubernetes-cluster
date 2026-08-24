@@ -4,12 +4,12 @@
 #![allow(unused, clippy::all)]
 use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
-use super::post_type::Post;
+use super::post_v_2_type::PostV2;
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 pub(super) struct UpsertPostsBatchArgs {
-    pub posts: Vec<Post>,
+    pub posts: Vec<PostV2>,
 }
 
 impl From<UpsertPostsBatchArgs> for super::Reducer {
@@ -33,7 +33,7 @@ pub trait upsert_posts_batch {
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
     /// /// Use [`upsert_posts_batch:upsert_posts_batch_then`] to run a callback after the reducer completes.
-    fn upsert_posts_batch(&self, posts: Vec<Post>) -> __sdk::Result<()> {
+    fn upsert_posts_batch(&self, posts: Vec<PostV2>) -> __sdk::Result<()> {
         self.upsert_posts_batch_then(posts, |_, _| {})
     }
 
@@ -45,7 +45,7 @@ pub trait upsert_posts_batch {
     ///  and its status can be observed with the `callback`.
     fn upsert_posts_batch_then(
         &self,
-        posts: Vec<Post>,
+        posts: Vec<PostV2>,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -56,7 +56,7 @@ pub trait upsert_posts_batch {
 impl upsert_posts_batch for super::RemoteReducers {
     fn upsert_posts_batch_then(
         &self,
-        posts: Vec<Post>,
+        posts: Vec<PostV2>,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send

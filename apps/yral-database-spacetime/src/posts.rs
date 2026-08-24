@@ -467,48 +467,14 @@ pub fn add_view_details(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Post reducer — backfill (idempotent upsert)
-// ─────────────────────────────────────────────────────────────────────────
-
-/// Idempotent upsert of a full post row. Admin-only.
-/// Used by the IC→SpacetimeDB backfill binary. Safe to run multiple times:
-/// re-running with the same post ID updates the row instead of duplicating.
-/// This enables the two-run migration strategy (seed at staging, delta at
-/// app-store rollout).
-#[spacetimedb::reducer]
-pub fn upsert_post(ctx: &ReducerContext, post: Post) -> Result<(), String> {
-    if !crate::constants::ADMINS.contains(&ctx.sender()) {
-        return Err("Unauthorized".to_string());
-    }
-    // Delete if exists, then insert (upsert by primary key).
-    ctx.db.posts().id().delete(post.id.clone());
-    ctx.db.posts().insert(post);
-    Ok(())
-}
-
-/// Bulk upsert — accepts a Vec of posts and upserts each one.
-/// Admin-only. Used by the IC→SpacetimeDB backfill to reduce REST API calls
-/// from ~730K (one per post) to ~730 (one per batch of 1000).
-#[spacetimedb::reducer]
-pub fn upsert_posts_batch(ctx: &ReducerContext, posts: Vec<Post>) -> Result<(), String> {
-    if !crate::constants::ADMINS.contains(&ctx.sender()) {
-        return Err("Unauthorized".to_string());
-    }
-    for post in posts {
-        ctx.db.posts().id().delete(post.id.clone());
-        ctx.db.posts().insert(post);
-    }
-    Ok(())
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// V2 backfill reducers (PostV2 table with creator_principal_text)
+// Backfill reducers (PostV2 table)
 // ─────────────────────────────────────────────────────────────────────────
 
 /// Idempotent upsert of a V2 post row. Admin-only.
-/// Same as `upsert_post` but for the `PostV2` table (includes `creator_principal_text`).
+/// Used by the IC→SpacetimeDB backfill binary. Safe to run multiple times:
+/// re-running with the same post ID updates the row instead of duplicating.
 #[spacetimedb::reducer]
-pub fn upsert_post_v2(ctx: &ReducerContext, post: PostV2) -> Result<(), String> {
+pub fn upsert_post(ctx: &ReducerContext, post: PostV2) -> Result<(), String> {
     if !crate::constants::ADMINS.contains(&ctx.sender()) {
         return Err("Unauthorized".to_string());
     }
@@ -517,10 +483,10 @@ pub fn upsert_post_v2(ctx: &ReducerContext, post: PostV2) -> Result<(), String> 
     Ok(())
 }
 
-/// Bulk upsert V2 — accepts a Vec of V2 posts and upserts each one.
-/// Admin-only. Used by the IC→SpacetimeDB V2 backfill.
+/// Bulk upsert — accepts a Vec of V2 posts and upserts each one.
+/// Admin-only. Used by the IC→SpacetimeDB backfill to reduce REST API calls.
 #[spacetimedb::reducer]
-pub fn upsert_posts_v2_batch(ctx: &ReducerContext, posts: Vec<PostV2>) -> Result<(), String> {
+pub fn upsert_posts_batch(ctx: &ReducerContext, posts: Vec<PostV2>) -> Result<(), String> {
     if !crate::constants::ADMINS.contains(&ctx.sender()) {
         return Err("Unauthorized".to_string());
     }

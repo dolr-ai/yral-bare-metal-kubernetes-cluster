@@ -4,12 +4,14 @@
 #![allow(unused, clippy::all)]
 use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
+use super::profile_picture_data_type::ProfilePictureData;
+
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 pub(super) struct UpdateProfileDetailsArgs {
-    pub bio: String,
-    pub website_url: String,
-    pub profile_pic_url: String,
+    pub bio: Option<String>,
+    pub website_url: Option<String>,
+    pub profile_picture: Option<ProfilePictureData>,
 }
 
 impl From<UpdateProfileDetailsArgs> for super::Reducer {
@@ -17,7 +19,7 @@ impl From<UpdateProfileDetailsArgs> for super::Reducer {
         Self::UpdateProfileDetails {
             bio: args.bio,
             website_url: args.website_url,
-            profile_pic_url: args.profile_pic_url,
+            profile_picture: args.profile_picture,
         }
     }
 }
@@ -39,11 +41,11 @@ pub trait update_profile_details {
     /// /// Use [`update_profile_details:update_profile_details_then`] to run a callback after the reducer completes.
     fn update_profile_details(
         &self,
-        bio: String,
-        website_url: String,
-        profile_pic_url: String,
+        bio: Option<String>,
+        website_url: Option<String>,
+        profile_picture: Option<ProfilePictureData>,
     ) -> __sdk::Result<()> {
-        self.update_profile_details_then(bio, website_url, profile_pic_url, |_, _| {})
+        self.update_profile_details_then(bio, website_url, profile_picture, |_, _| {})
     }
 
     /// Request that the remote module invoke the reducer `update_profile_details` to run as soon as possible,
@@ -54,9 +56,9 @@ pub trait update_profile_details {
     ///  and its status can be observed with the `callback`.
     fn update_profile_details_then(
         &self,
-        bio: String,
-        website_url: String,
-        profile_pic_url: String,
+        bio: Option<String>,
+        website_url: Option<String>,
+        profile_picture: Option<ProfilePictureData>,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -67,9 +69,9 @@ pub trait update_profile_details {
 impl update_profile_details for super::RemoteReducers {
     fn update_profile_details_then(
         &self,
-        bio: String,
-        website_url: String,
-        profile_pic_url: String,
+        bio: Option<String>,
+        website_url: Option<String>,
+        profile_picture: Option<ProfilePictureData>,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -79,7 +81,7 @@ impl update_profile_details for super::RemoteReducers {
             UpdateProfileDetailsArgs {
                 bio,
                 website_url,
-                profile_pic_url,
+                profile_picture,
             },
             callback,
         )

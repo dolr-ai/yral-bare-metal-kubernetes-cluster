@@ -327,13 +327,13 @@ This ensures `mise bootstrap --yes && mise run setup` is the only command needed
 6. **Validate**: confirm counts match, spot-check rows, verify all clients work.
 7. **Clean up**: remove the old table from the schema and publish. The old table must be empty first (clear via a reducer — never `--delete-data`). Drop the old table only after a confirmed production period.
 
-**Naming convention — use numeric suffixes, not `v` (Hard Rule).** SpacetimeDB's automatic snake_case conversion splits `v2` into `v_2` (e.g. `posts_v2` → `posts_v_2`, `accept_new_user_registration_v2` → `accept_new_user_registration_v_2` in the REST API). This causes confusion for external consumers (other bots, mobile clients) who see the mangled name. To avoid this:
+**Naming convention — use numeric suffixes, not `v` (Hard Rule).** The module uses `CaseConversionPolicy::None` (set in `lib.rs`), which means Rust function/type names are used verbatim as canonical/wire names — no automatic case conversion. Despite this, the `v` prefix convention is still prohibited for a different reason: `v2` / `V7` suffixes are legacy IC canister jargon that conflates Internet Computer versioning with our current naming. Use numeric suffixes instead:
 
-- **Type names:** Use `<Type>2` instead of `<Type>V2` (e.g. `UserProfileDetails7` not `UserProfileDetailsV7`). SpacetimeDB's snake_case conversion produces `user_profile_details_7` — clean, no underscore-split ambiguity.
+- **Type names:** Use `<Type>2` instead of `<Type>V2` (e.g. `UserProfileDetails7` not `UserProfileDetailsV7`).
 - **Table names:** Use `<table_name>_2` (e.g. `posts_2` not `posts_v2`). Use the `name` attribute in `#[spacetimedb::table(name = "posts_2", ...)]` to override automatic splitting.
-- **Reducer/procedure names:** Use `<name>_2` (e.g. `accept_new_user_registration_2` not `accept_new_user_registration_v2`). There is no `name` attribute for reducers, so the function name is the REST API name — numeric suffixes avoid the `v_2` split.
+- **Reducer/procedure names:** Use `<name>_2` (e.g. `accept_new_user_registration_2` not `accept_new_user_registration_v2`).
 
-Existing `v`-prefixed names (`posts_v2`, `UserProfileDetailsV7`, etc.) are left as-is to avoid breaking schema migrations; the convention applies to **new** types/tables/reducers/procedures going forward.
+Legacy `v`-prefixed table names (`posts_v2`, `PostV2`) are kept as-is because they are backed by live data — renaming table structs requires `--delete-data` (wipes all rows). All non-table `v`-suffixed names have been removed (V4/V7 types, v2 procedures/reducers).
 
 **Sequential versioning — only when a prior version exists (Hard Rule):** Only create a versioned table/type/reducer when there is an existing prior version to migrate from. If `user_profiles` exists and needs a schema change, create `user_profiles_2`. Do not create versioned names preemptively ("just in case"). When versioning is needed, use sequential numbering: if `posts_v2` is the current version, the next is `posts_3` (not `posts_5`). Check the codebase for existing versions before choosing a number.
 

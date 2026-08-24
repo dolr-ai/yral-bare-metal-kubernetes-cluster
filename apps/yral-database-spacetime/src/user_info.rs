@@ -18,19 +18,17 @@
 //! - `user_follows` (legacy, read-only during migration)
 //!
 //! ## Procedures (reads, return typed data)
-//! - `get_profile_details_v4(oauth_subject) -> Option<UserProfileDetailsV4>`
-//! - `get_user_profile_details_v7(oauth_subject) -> Option<UserProfileDetailsV7>`
-//! - `get_users_profile_details(oauth_subjects) -> Vec<UserProfileDetailsV7>`
+//! - `get_user_profile_details(oauth_subject) -> Option<UserProfileDetails>`
+//! - `get_users_profile_details(oauth_subjects) -> Vec<UserProfileDetails>`
 //! - `get_followers(oauth_subject, limit, cursor) -> FollowersPage`
 //! - `get_following(oauth_subject, limit, cursor) -> FollowingPage`
 //!
 //! ## Reducers (writes)
 //! - `follow_user(followee_subject)` — bidirectional follow
 //! - `unfollow_user(followee_subject)` — symmetric
-//! - `update_profile_details(bio, website_url, profile_pic_url)` — sender only
-//! - `update_profile_details_v2(bio, website_url, profile_picture)` — sender only
+//! - `update_profile_details(bio, website_url, profile_picture)` — sender only, NSFW-aware
 //! - `update_profile_ai_influencer_status(oauth_subject, is_ai)` — admin only
-//! - `accept_new_user_registration_v2(new_principal_text, authenticated, main_account_text)` — register/bot
+//! - `accept_new_user_registration(new_principal_text, authenticated, main_account_text)` — register/bot
 //! - `delete_user_info(principal_to_delete_text)` — cascade delete
 //! - `update_user_last_access_time()` — sender only
 //! - `update_profile_picture_nsfw_info(oauth_subject, nsfw_info)` — admin only
@@ -50,7 +48,7 @@ use spacetimedb::{ProcedureContext, ReducerContext, SpacetimeType, Table, Timest
 /// Legacy user profile table (kept as-is for the incremental migration).
 ///
 /// Primary key: `principal_text`. For users registered via
-/// `accept_new_user_registration_v2`, this is the OAuth `sub` claim from the
+/// `accept_new_user_registration`, this is the OAuth `sub` claim from the
 /// yral-auth JWT (e.g. a Google account ID like `100014004491598860137`).
 /// This is the same value stored in `posts_v2.creator_principal_text`.
 ///
@@ -239,22 +237,6 @@ impl Default for UserAccountType {
     }
 }
 
-/// Frontend-facing profile projection. Mirrors the IC canister's
-/// `UserProfileDetailsForFrontendV4`.
-#[derive(SpacetimeType, Clone, Debug)]
-pub struct UserProfileDetailsV4 {
-    pub oauth_subject: String,
-    pub bio: String,
-    pub website_url: String,
-    pub profile_picture_url: String,
-    pub followers_count: u64,
-    pub following_count: u64,
-    pub subscription_plan: SubscriptionPlan,
-    pub is_ai_influencer: bool,
-    pub caller_follows_user: bool,
-    pub user_follows_caller: bool,
-}
-
 /// A page of followers (cursor-paginated).
 #[derive(SpacetimeType, Clone, Debug)]
 pub struct FollowersPage {
@@ -285,12 +267,11 @@ pub struct FollowingItem {
     pub profile_picture_url: String,
 }
 
-/// Frontend-facing profile projection V7. Mirrors the IC canister's
-/// `UserProfileDetailsForFrontendV7`. This is the primary profile read
+/// Frontend-facing profile projection. This is the primary profile read
 /// used by the mobile app. Includes `account_type` and `profile_picture`
 /// with NSFW info.
 #[derive(SpacetimeType, Clone, Debug)]
-pub struct UserProfileDetailsV7 {
+pub struct UserProfileDetails {
     pub oauth_subject: String,
     pub profile_picture: Option<ProfilePictureData>,
     pub bio: String,
@@ -465,7 +446,12 @@ fn migrate_follow_row(legacy: &UserFollow) -> UserFollow2 {
 /// following set and followee's followers set.
 #[spacetimedb::reducer]
 pub fn follow_user(ctx: &ReducerContext, followee_subject: String) -> Result<(), String> {
-    let follower_subject = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
+    let follower_subject = ctx
+        .sender_auth()
+        .jwt()
+        .expect("JWT required")
+        .subject()
+        .to_string();
     let key = format!("{follower_subject}::{followee_subject}");
 
     if follower_subject == followee_subject {
@@ -510,7 +496,12 @@ pub fn follow_user(ctx: &ReducerContext, followee_subject: String) -> Result<(),
 /// Unfollow another user. Symmetric to follow.
 #[spacetimedb::reducer]
 pub fn unfollow_user(ctx: &ReducerContext, followee_subject: String) -> Result<(), String> {
-    let follower_subject = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
+    let follower_subject = ctx
+        .sender_auth()
+        .jwt()
+        .expect("JWT required")
+        .subject()
+        .to_string();
     let key = format!("{follower_subject}::{followee_subject}");
 
     let Some(follow) = ctx.db.user_follows_2().iter().find(|f| f.key == key) else {
@@ -544,35 +535,6 @@ pub fn unfollow_user(ctx: &ReducerContext, followee_subject: String) -> Result<(
     Ok(())
 }
 
-/// Update profile details. Only the authenticated user can update their own
-/// profile.
-#[spacetimedb::reducer]
-pub fn update_profile_details(
-    ctx: &ReducerContext,
-    bio: String,
-    website_url: String,
-    profile_pic_url: String,
-) -> Result<(), String> {
-    let oauth_subject = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
-
-    let mut profile = match ctx
-        .db
-        .user_profiles_2()
-        .iter()
-        .find(|p| p.oauth_subject == oauth_subject)
-    {
-        Some(p) => p,
-        None => return Err("User not found".to_string()),
-    };
-
-    profile.bio = bio;
-    profile.website_url = website_url;
-    profile.profile_picture_url = profile_pic_url;
-    ctx.db.user_profiles_2().oauth_subject().update(profile);
-
-    Ok(())
-}
-
 /// Admin-only: update the AI influencer status for a user.
 #[spacetimedb::reducer]
 pub fn update_profile_ai_influencer_status(
@@ -600,17 +562,22 @@ pub fn update_profile_ai_influencer_status(
     Ok(())
 }
 
-/// Update profile details (V2 — with NSFW-aware profile picture).
-/// Mirrors the IC canister's `update_profile_details_v2`. Only the
-/// authenticated user can update their own profile.
+/// Update profile details with NSFW-aware profile picture. Only the
+/// authenticated user can update their own profile. All fields are optional
+/// — pass `None` to leave a field unchanged.
 #[spacetimedb::reducer]
-pub fn update_profile_details_v2(
+pub fn update_profile_details(
     ctx: &ReducerContext,
     bio: Option<String>,
     website_url: Option<String>,
     profile_picture: Option<ProfilePictureData>,
 ) -> Result<(), String> {
-    let oauth_subject = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
+    let oauth_subject = ctx
+        .sender_auth()
+        .jwt()
+        .expect("JWT required")
+        .subject()
+        .to_string();
 
     let mut profile = match ctx
         .db
@@ -671,8 +638,7 @@ pub fn update_profile_picture_nsfw_info(
     Ok(())
 }
 
-/// Register a new user or create a bot account. Mirrors the IC canister's
-/// `accept_new_user_registration_v2`.
+/// Register a new user or create a bot account.
 ///
 /// - When `main_account_text` is `Some(owner)`: creates a bot account owned
 ///   by `owner` (owner must exist and be a `MainAccount`). The bot is added
@@ -683,7 +649,7 @@ pub fn update_profile_picture_nsfw_info(
 /// The `authenticated` parameter is accepted for API compatibility but does
 /// not set a session type (session types were dropped from the migration).
 #[spacetimedb::reducer]
-pub fn accept_new_user_registration_v2(
+pub fn accept_new_user_registration(
     ctx: &ReducerContext,
     new_principal_text: String,
     _authenticated: bool,
@@ -718,7 +684,10 @@ pub fn accept_new_user_registration_v2(
                         &new_principal_text,
                     )
                     .expect("validated above");
-                    ctx.db.user_profiles_2().oauth_subject().update(owner_profile);
+                    ctx.db
+                        .user_profiles_2()
+                        .oauth_subject()
+                        .update(owner_profile);
                 }
                 UserAccountType::BotAccount { .. } => {
                     return Err("Bots cannot own other bots".to_string());
@@ -755,7 +724,12 @@ pub fn delete_user_info(
     ctx: &ReducerContext,
     principal_to_delete_text: String,
 ) -> Result<(), String> {
-    let caller_text = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
+    let caller_text = ctx
+        .sender_auth()
+        .jwt()
+        .expect("JWT required")
+        .subject()
+        .to_string();
     let admin = crate::constants::ADMINS.contains(&ctx.sender());
 
     let profile = match ctx
@@ -807,7 +781,10 @@ pub fn delete_user_info(
                         .cloned()
                         .collect();
                     owner_profile.account_type = UserAccountType::MainAccount { bots: new_bots };
-                    ctx.db.user_profiles_2().oauth_subject().update(owner_profile);
+                    ctx.db
+                        .user_profiles_2()
+                        .oauth_subject()
+                        .update(owner_profile);
                 }
             }
             // Delete the bot
@@ -835,7 +812,12 @@ pub fn delete_user_info(
 /// Update the caller's last access time to the current timestamp.
 #[spacetimedb::reducer]
 pub fn update_user_last_access_time(ctx: &ReducerContext) -> Result<(), String> {
-    let oauth_subject = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
+    let oauth_subject = ctx
+        .sender_auth()
+        .jwt()
+        .expect("JWT required")
+        .subject()
+        .to_string();
 
     let mut profile = match ctx
         .db
@@ -1032,10 +1014,7 @@ pub fn upsert_user_follow_batch(
 /// Reducers cannot return values, so check progress by querying
 /// `SELECT count(*) FROM user_profiles_2` between calls.
 #[spacetimedb::reducer]
-pub fn migrate_user_profiles_to_2(
-    ctx: &ReducerContext,
-    batch_limit: u32,
-) -> Result<(), String> {
+pub fn migrate_user_profiles_to_2(ctx: &ReducerContext, batch_limit: u32) -> Result<(), String> {
     if !crate::constants::ADMINS.contains(&ctx.sender()) {
         return Err("Unauthorized".to_string());
     }
@@ -1093,7 +1072,12 @@ pub fn migrate_user_profiles_to_2(
 /// Idempotent — if the token already exists, it's a no-op.
 #[spacetimedb::reducer]
 pub fn register_notification_token(ctx: &ReducerContext, token: String) -> Result<(), String> {
-    let user_id = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
+    let user_id = ctx
+        .sender_auth()
+        .jwt()
+        .expect("JWT required")
+        .subject()
+        .to_string();
     let key = format!("{user_id}::{token}");
 
     // Check if already exists
@@ -1120,7 +1104,12 @@ pub fn register_notification_token(ctx: &ReducerContext, token: String) -> Resul
 /// Unregister a device notification token for the caller.
 #[spacetimedb::reducer]
 pub fn unregister_notification_token(ctx: &ReducerContext, token: String) -> Result<(), String> {
-    let user_id = ctx.sender_auth().jwt().expect("JWT required").subject().to_string();
+    let user_id = ctx
+        .sender_auth()
+        .jwt()
+        .expect("JWT required")
+        .subject()
+        .to_string();
     let key = format!("{user_id}::{token}");
 
     if let Some(existing) = ctx
@@ -1217,11 +1206,7 @@ pub fn set_username(
 
 /// Set email for a user profile. Admin-only (called by yral-metadata).
 #[spacetimedb::reducer]
-pub fn set_email(
-    ctx: &ReducerContext,
-    oauth_subject: String,
-    email: String,
-) -> Result<(), String> {
+pub fn set_email(ctx: &ReducerContext, oauth_subject: String, email: String) -> Result<(), String> {
     if !crate::constants::ADMINS.contains(&ctx.sender()) {
         return Err("Unauthorized".to_string());
     }
@@ -1247,59 +1232,25 @@ pub fn set_email(
 // Procedures (reads — return typed data)
 // ─────────────────────────────────────────────────────────────────────────
 
-/// Get profile details for a user. Returns `None` if the user doesn't exist.
-/// The `caller_follows_user` and `user_follows_caller` fields are computed
-/// from the `user_follows_2` table using `ctx.sender()`.
-#[spacetimedb::procedure]
-pub fn get_profile_details_v4(
-    ctx: &mut ProcedureContext,
-    oauth_subject: String,
-) -> Option<UserProfileDetailsV4> {
-    ctx.with_tx(|tx| {
-        let profile = get_or_migrate_profile(tx, &oauth_subject)?;
-        let caller_subject = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
-
-        let caller_follows_user = tx
-            .db
-            .user_follows_2()
-            .iter()
-            .any(|f| f.key == format!("{caller_subject}::{oauth_subject}"));
-
-        let user_follows_caller = tx
-            .db
-            .user_follows_2()
-            .iter()
-            .any(|f| f.key == format!("{oauth_subject}::{caller_subject}"));
-
-        Some(UserProfileDetailsV4 {
-            oauth_subject: profile.oauth_subject,
-            bio: profile.bio,
-            website_url: profile.website_url,
-            profile_picture_url: profile.profile_picture_url,
-            followers_count: profile.followers_count,
-            following_count: profile.following_count,
-            subscription_plan: profile.subscription_plan,
-            is_ai_influencer: profile.is_ai_influencer,
-            caller_follows_user,
-            user_follows_caller,
-        })
-    })
-}
-
-/// Get profile details V7 for a user. Returns `None` if the user doesn't
+/// Get profile details for a user. Returns `None` if the user doesn't
 /// exist. This is the primary profile read used by the mobile app.
 /// Includes `account_type`, `profile_picture` with NSFW info, and
 /// `subscription_plan` with Pro credits.
 ///
 /// Follow relationship fields are `None` when caller == user (self).
 #[spacetimedb::procedure]
-pub fn get_user_profile_details_v7(
+pub fn get_user_profile_details(
     ctx: &mut ProcedureContext,
     oauth_subject: String,
-) -> Option<UserProfileDetailsV7> {
+) -> Option<UserProfileDetails> {
     ctx.with_tx(|tx| {
         let profile = get_or_migrate_profile(tx, &oauth_subject)?;
-        let caller_subject = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
+        let caller_subject = tx
+            .sender_auth()
+            .jwt()
+            .expect("JWT required")
+            .subject()
+            .to_string();
 
         let (caller_follows_user, user_follows_caller) =
             follow_relationships(tx, &caller_subject, &oauth_subject);
@@ -1307,7 +1258,7 @@ pub fn get_user_profile_details_v7(
         let oauth_subject = profile.oauth_subject.clone();
         let profile_picture = profile_picture_data(&profile);
 
-        Some(UserProfileDetailsV7 {
+        Some(UserProfileDetails {
             oauth_subject,
             profile_picture,
             bio: profile.bio,
@@ -1323,16 +1274,21 @@ pub fn get_user_profile_details_v7(
     })
 }
 
-/// Batch profile lookup. Returns V7 profile details for each subject.
+/// Batch profile lookup. Returns profile details for each subject.
 /// Users that are not found are silently skipped (matches IC canister
 /// behavior). Follow relationships are computed using `ctx.sender()`.
 #[spacetimedb::procedure]
 pub fn get_users_profile_details(
     ctx: &mut ProcedureContext,
     oauth_subjects: Vec<String>,
-) -> Vec<UserProfileDetailsV7> {
+) -> Vec<UserProfileDetails> {
     ctx.with_tx(|tx| {
-        let caller_subject = tx.sender_auth().jwt().expect("JWT required").subject().to_string();
+        let caller_subject = tx
+            .sender_auth()
+            .jwt()
+            .expect("JWT required")
+            .subject()
+            .to_string();
 
         oauth_subjects
             .iter()
@@ -1345,7 +1301,7 @@ pub fn get_users_profile_details(
                 let oauth_subject = profile.oauth_subject.clone();
                 let profile_picture = profile_picture_data(&profile);
 
-                Some(UserProfileDetailsV7 {
+                Some(UserProfileDetails {
                     oauth_subject,
                     profile_picture,
                     bio: profile.bio,
@@ -1373,8 +1329,12 @@ pub fn get_followers(
 ) -> FollowersPage {
     ctx.with_tx(|tx| {
         let limit = limit.min(MAX_PAGE_SIZE) as usize;
-        let caller_subject =
-            tx.sender_auth().jwt().expect("JWT required").subject().to_string();
+        let caller_subject = tx
+            .sender_auth()
+            .jwt()
+            .expect("JWT required")
+            .subject()
+            .to_string();
 
         // Collect all followers of this user (followee = oauth_subject)
         let mut followers: Vec<UserFollow2> = tx
@@ -1396,8 +1356,7 @@ pub fn get_followers(
             None => 0,
         };
 
-        let page: Vec<UserFollow2> =
-            followers.iter().skip(start).take(limit).cloned().collect();
+        let page: Vec<UserFollow2> = followers.iter().skip(start).take(limit).cloned().collect();
         let next_cursor = if start + limit < followers.len() {
             page.last().map(|f| f.follower_subject.clone())
         } else {
@@ -1407,24 +1366,22 @@ pub fn get_followers(
         let total_count = followers.len() as u64;
 
         // Build follower items with profile pics and follow status
-        let items: Vec<FollowerItem> = page
-            .iter()
-            .map(|f| {
-                let profile = get_or_migrate_profile(tx, &f.follower_subject);
-                let pic =
-                    profile.map(|p| p.profile_picture_url).unwrap_or_default();
-                let caller_follows = tx
-                    .db
-                    .user_follows_2()
-                    .iter()
-                    .any(|uf| uf.key == format!("{caller_subject}::{}", f.follower_subject));
-                FollowerItem {
-                    oauth_subject: f.follower_subject.clone(),
-                    caller_follows,
-                    profile_picture_url: pic,
-                }
-            })
-            .collect();
+        let items: Vec<FollowerItem> =
+            page.iter()
+                .map(|f| {
+                    let profile = get_or_migrate_profile(tx, &f.follower_subject);
+                    let pic = profile.map(|p| p.profile_picture_url).unwrap_or_default();
+                    let caller_follows =
+                        tx.db.user_follows_2().iter().any(|uf| {
+                            uf.key == format!("{caller_subject}::{}", f.follower_subject)
+                        });
+                    FollowerItem {
+                        oauth_subject: f.follower_subject.clone(),
+                        caller_follows,
+                        profile_picture_url: pic,
+                    }
+                })
+                .collect();
 
         FollowersPage {
             followers: items,
@@ -1444,8 +1401,12 @@ pub fn get_following(
 ) -> FollowingPage {
     ctx.with_tx(|tx| {
         let limit = limit.min(MAX_PAGE_SIZE) as usize;
-        let caller_subject =
-            tx.sender_auth().jwt().expect("JWT required").subject().to_string();
+        let caller_subject = tx
+            .sender_auth()
+            .jwt()
+            .expect("JWT required")
+            .subject()
+            .to_string();
 
         // Collect all users this user is following (follower = oauth_subject)
         let mut following: Vec<UserFollow2> = tx
@@ -1467,8 +1428,7 @@ pub fn get_following(
             None => 0,
         };
 
-        let page: Vec<UserFollow2> =
-            following.iter().skip(start).take(limit).cloned().collect();
+        let page: Vec<UserFollow2> = following.iter().skip(start).take(limit).cloned().collect();
         let next_cursor = if start + limit < following.len() {
             page.last().map(|f| f.followee_subject.clone())
         } else {
@@ -1478,24 +1438,22 @@ pub fn get_following(
         let total_count = following.len() as u64;
 
         // Build following items with profile pics and follow status
-        let items: Vec<FollowingItem> = page
-            .iter()
-            .map(|f| {
-                let profile = get_or_migrate_profile(tx, &f.followee_subject);
-                let pic =
-                    profile.map(|p| p.profile_picture_url).unwrap_or_default();
-                let caller_follows = tx
-                    .db
-                    .user_follows_2()
-                    .iter()
-                    .any(|uf| uf.key == format!("{caller_subject}::{}", f.followee_subject));
-                FollowingItem {
-                    oauth_subject: f.followee_subject.clone(),
-                    caller_follows,
-                    profile_picture_url: pic,
-                }
-            })
-            .collect();
+        let items: Vec<FollowingItem> =
+            page.iter()
+                .map(|f| {
+                    let profile = get_or_migrate_profile(tx, &f.followee_subject);
+                    let pic = profile.map(|p| p.profile_picture_url).unwrap_or_default();
+                    let caller_follows =
+                        tx.db.user_follows_2().iter().any(|uf| {
+                            uf.key == format!("{caller_subject}::{}", f.followee_subject)
+                        });
+                    FollowingItem {
+                        oauth_subject: f.followee_subject.clone(),
+                        caller_follows,
+                        profile_picture_url: pic,
+                    }
+                })
+                .collect();
 
         FollowingPage {
             following: items,
@@ -1527,7 +1485,7 @@ pub fn get_notification_tokens(ctx: &mut ProcedureContext, user_id: String) -> V
 pub fn get_user_profile_by_user_id(
     ctx: &mut ProcedureContext,
     user_id: String,
-) -> Option<UserProfileDetailsV7> {
+) -> Option<UserProfileDetails> {
     ctx.with_tx(|tx| {
         let profile = tx
             .db
@@ -1535,15 +1493,19 @@ pub fn get_user_profile_by_user_id(
             .iter()
             .find(|p| p.user_id.as_ref() == Some(&user_id))?;
 
-        let caller_subject =
-            tx.sender_auth().jwt().expect("JWT required").subject().to_string();
+        let caller_subject = tx
+            .sender_auth()
+            .jwt()
+            .expect("JWT required")
+            .subject()
+            .to_string();
         let (caller_follows_user, user_follows_caller) =
             follow_relationships(tx, &caller_subject, &profile.oauth_subject);
 
         let oauth_subject = profile.oauth_subject.clone();
         let profile_picture = profile_picture_data(&profile);
 
-        Some(UserProfileDetailsV7 {
+        Some(UserProfileDetails {
             oauth_subject,
             profile_picture,
             bio: profile.bio,
@@ -1565,7 +1527,7 @@ pub fn get_user_profile_by_user_id(
 pub fn get_user_profile_by_username(
     ctx: &mut ProcedureContext,
     username: String,
-) -> Option<UserProfileDetailsV7> {
+) -> Option<UserProfileDetails> {
     ctx.with_tx(|tx| {
         let profile = tx
             .db
@@ -1573,15 +1535,19 @@ pub fn get_user_profile_by_username(
             .iter()
             .find(|p| p.username.as_deref() == Some(&username))?;
 
-        let caller_subject =
-            tx.sender_auth().jwt().expect("JWT required").subject().to_string();
+        let caller_subject = tx
+            .sender_auth()
+            .jwt()
+            .expect("JWT required")
+            .subject()
+            .to_string();
         let (caller_follows_user, user_follows_caller) =
             follow_relationships(tx, &caller_subject, &profile.oauth_subject);
 
         let oauth_subject = profile.oauth_subject.clone();
         let profile_picture = profile_picture_data(&profile);
 
-        Some(UserProfileDetailsV7 {
+        Some(UserProfileDetails {
             oauth_subject,
             profile_picture,
             bio: profile.bio,

@@ -4,7 +4,7 @@
 #![allow(unused, clippy::all)]
 use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
-use super::user_profile_details_v_7_type::UserProfileDetailsV7;
+use super::user_profile_details_type::UserProfileDetails;
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
@@ -31,7 +31,7 @@ pub trait get_users_profile_details {
 
         __callback: impl FnOnce(
                 &super::ProcedureEventContext,
-                Result<Vec<UserProfileDetailsV7>, __sdk::InternalError>,
+                Result<Vec<UserProfileDetails>, __sdk::InternalError>,
             ) + Send
             + 'static,
     );
@@ -44,12 +44,12 @@ impl get_users_profile_details for super::RemoteProcedures {
 
         __callback: impl FnOnce(
                 &super::ProcedureEventContext,
-                Result<Vec<UserProfileDetailsV7>, __sdk::InternalError>,
+                Result<Vec<UserProfileDetails>, __sdk::InternalError>,
             ) + Send
             + 'static,
     ) {
         self.imp
-            .invoke_procedure_with_callback::<_, Vec<UserProfileDetailsV7>>(
+            .invoke_procedure_with_callback::<_, Vec<UserProfileDetails>>(
                 "get_users_profile_details",
                 GetUsersProfileDetailsArgs { oauth_subjects },
                 __callback,

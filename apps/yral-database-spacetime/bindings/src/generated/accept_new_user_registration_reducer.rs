@@ -6,15 +6,15 @@ use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
-pub(super) struct AcceptNewUserRegistrationV2Args {
+pub(super) struct AcceptNewUserRegistrationArgs {
     pub new_principal_text: String,
     pub authenticated: bool,
     pub main_account_text: Option<String>,
 }
 
-impl From<AcceptNewUserRegistrationV2Args> for super::Reducer {
-    fn from(args: AcceptNewUserRegistrationV2Args) -> Self {
-        Self::AcceptNewUserRegistrationV2 {
+impl From<AcceptNewUserRegistrationArgs> for super::Reducer {
+    fn from(args: AcceptNewUserRegistrationArgs) -> Self {
+        Self::AcceptNewUserRegistration {
             new_principal_text: args.new_principal_text,
             authenticated: args.authenticated,
             main_account_text: args.main_account_text,
@@ -22,28 +22,28 @@ impl From<AcceptNewUserRegistrationV2Args> for super::Reducer {
     }
 }
 
-impl __sdk::InModule for AcceptNewUserRegistrationV2Args {
+impl __sdk::InModule for AcceptNewUserRegistrationArgs {
     type Module = super::RemoteModule;
 }
 
 #[allow(non_camel_case_types)]
-/// Extension trait for access to the reducer `accept_new_user_registration_v_2`.
+/// Extension trait for access to the reducer `accept_new_user_registration`.
 ///
 /// Implemented for [`super::RemoteReducers`].
-pub trait accept_new_user_registration_v_2 {
-    /// Request that the remote module invoke the reducer `accept_new_user_registration_v_2` to run as soon as possible.
+pub trait accept_new_user_registration {
+    /// Request that the remote module invoke the reducer `accept_new_user_registration` to run as soon as possible.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
-    /// /// Use [`accept_new_user_registration_v_2:accept_new_user_registration_v_2_then`] to run a callback after the reducer completes.
-    fn accept_new_user_registration_v_2(
+    /// /// Use [`accept_new_user_registration:accept_new_user_registration_then`] to run a callback after the reducer completes.
+    fn accept_new_user_registration(
         &self,
         new_principal_text: String,
         authenticated: bool,
         main_account_text: Option<String>,
     ) -> __sdk::Result<()> {
-        self.accept_new_user_registration_v_2_then(
+        self.accept_new_user_registration_then(
             new_principal_text,
             authenticated,
             main_account_text,
@@ -51,13 +51,13 @@ pub trait accept_new_user_registration_v_2 {
         )
     }
 
-    /// Request that the remote module invoke the reducer `accept_new_user_registration_v_2` to run as soon as possible,
+    /// Request that the remote module invoke the reducer `accept_new_user_registration` to run as soon as possible,
     /// registering `callback` to run when we are notified that the reducer completed.
     ///
     /// This method returns immediately, and errors only if we are unable to send the request.
     /// The reducer will run asynchronously in the future,
     ///  and its status can be observed with the `callback`.
-    fn accept_new_user_registration_v_2_then(
+    fn accept_new_user_registration_then(
         &self,
         new_principal_text: String,
         authenticated: bool,
@@ -69,8 +69,8 @@ pub trait accept_new_user_registration_v_2 {
     ) -> __sdk::Result<()>;
 }
 
-impl accept_new_user_registration_v_2 for super::RemoteReducers {
-    fn accept_new_user_registration_v_2_then(
+impl accept_new_user_registration for super::RemoteReducers {
+    fn accept_new_user_registration_then(
         &self,
         new_principal_text: String,
         authenticated: bool,
@@ -81,7 +81,7 @@ impl accept_new_user_registration_v_2 for super::RemoteReducers {
             + 'static,
     ) -> __sdk::Result<()> {
         self.imp.invoke_reducer_with_callback(
-            AcceptNewUserRegistrationV2Args {
+            AcceptNewUserRegistrationArgs {
                 new_principal_text,
                 authenticated,
                 main_account_text,

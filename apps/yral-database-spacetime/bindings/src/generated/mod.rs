@@ -6,7 +6,7 @@
 #![allow(unused, clippy::all)]
 use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
-pub mod accept_new_user_registration_v_2_reducer;
+pub mod accept_new_user_registration_reducer;
 pub mod add_post_2_reducer;
 pub mod add_post_reducer;
 pub mod add_pro_plan_free_video_credits_reducer;
@@ -31,10 +31,9 @@ pub mod get_notification_tokens_procedure;
 pub mod get_post_by_id_procedure;
 pub mod get_posts_of_user_by_principal_procedure;
 pub mod get_posts_of_user_procedure;
-pub mod get_profile_details_v_4_procedure;
 pub mod get_user_profile_by_user_id_procedure;
 pub mod get_user_profile_by_username_procedure;
-pub mod get_user_profile_details_v_7_procedure;
+pub mod get_user_profile_details_procedure;
 pub mod get_users_profile_details_procedure;
 pub mod kv_delete_reducer;
 pub mod kv_get_procedure;
@@ -67,13 +66,10 @@ pub mod update_post_status_2_reducer;
 pub mod update_post_status_reducer;
 pub mod update_profile_ai_influencer_status_reducer;
 pub mod update_profile_details_reducer;
-pub mod update_profile_details_v_2_reducer;
 pub mod update_profile_picture_nsfw_info_reducer;
 pub mod update_user_last_access_time_reducer;
 pub mod upsert_post_reducer;
-pub mod upsert_post_v_2_reducer;
 pub mod upsert_posts_batch_reducer;
-pub mod upsert_posts_v_2_batch_reducer;
 pub mod upsert_user_follow_batch_reducer;
 pub mod upsert_user_profile_batch_reducer;
 pub mod user_account_type_type;
@@ -86,14 +82,13 @@ pub mod user_notification_token_type;
 pub mod user_notification_tokens_table;
 pub mod user_profile_2_type;
 pub mod user_profile_batch_entry_type;
-pub mod user_profile_details_v_4_type;
-pub mod user_profile_details_v_7_type;
+pub mod user_profile_details_type;
 pub mod user_profile_type;
 pub mod user_profiles_2_table;
 pub mod user_profiles_table;
 pub mod yral_pro_subscription_type;
 
-pub use accept_new_user_registration_v_2_reducer::accept_new_user_registration_v_2;
+pub use accept_new_user_registration_reducer::accept_new_user_registration;
 pub use add_post_2_reducer::add_post_2;
 pub use add_post_reducer::add_post;
 pub use add_pro_plan_free_video_credits_reducer::add_pro_plan_free_video_credits;
@@ -118,10 +113,9 @@ pub use get_notification_tokens_procedure::get_notification_tokens;
 pub use get_post_by_id_procedure::get_post_by_id;
 pub use get_posts_of_user_by_principal_procedure::get_posts_of_user_by_principal;
 pub use get_posts_of_user_procedure::get_posts_of_user;
-pub use get_profile_details_v_4_procedure::get_profile_details_v_4;
 pub use get_user_profile_by_user_id_procedure::get_user_profile_by_user_id;
 pub use get_user_profile_by_username_procedure::get_user_profile_by_username;
-pub use get_user_profile_details_v_7_procedure::get_user_profile_details_v_7;
+pub use get_user_profile_details_procedure::get_user_profile_details;
 pub use get_users_profile_details_procedure::get_users_profile_details;
 pub use kv_delete_reducer::kv_delete;
 pub use kv_get_procedure::kv_get;
@@ -154,13 +148,10 @@ pub use update_post_status_2_reducer::update_post_status_2;
 pub use update_post_status_reducer::update_post_status;
 pub use update_profile_ai_influencer_status_reducer::update_profile_ai_influencer_status;
 pub use update_profile_details_reducer::update_profile_details;
-pub use update_profile_details_v_2_reducer::update_profile_details_v_2;
 pub use update_profile_picture_nsfw_info_reducer::update_profile_picture_nsfw_info;
 pub use update_user_last_access_time_reducer::update_user_last_access_time;
 pub use upsert_post_reducer::upsert_post;
-pub use upsert_post_v_2_reducer::upsert_post_v_2;
 pub use upsert_posts_batch_reducer::upsert_posts_batch;
-pub use upsert_posts_v_2_batch_reducer::upsert_posts_v_2_batch;
 pub use upsert_user_follow_batch_reducer::upsert_user_follow_batch;
 pub use upsert_user_profile_batch_reducer::upsert_user_profile_batch;
 pub use user_account_type_type::UserAccountType;
@@ -173,8 +164,7 @@ pub use user_notification_token_type::UserNotificationToken;
 pub use user_notification_tokens_table::*;
 pub use user_profile_2_type::UserProfile2;
 pub use user_profile_batch_entry_type::UserProfileBatchEntry;
-pub use user_profile_details_v_4_type::UserProfileDetailsV4;
-pub use user_profile_details_v_7_type::UserProfileDetailsV7;
+pub use user_profile_details_type::UserProfileDetails;
 pub use user_profile_type::UserProfile;
 pub use user_profiles_2_table::*;
 pub use user_profiles_table::*;
@@ -188,7 +178,7 @@ pub use yral_pro_subscription_type::YralProSubscription;
 /// to indicate which reducer caused the event.
 
 pub enum Reducer {
-    AcceptNewUserRegistrationV2 {
+    AcceptNewUserRegistration {
         new_principal_text: String,
         authenticated: bool,
         main_account_text: Option<String>,
@@ -280,11 +270,6 @@ pub enum Reducer {
         is_ai_influencer: bool,
     },
     UpdateProfileDetails {
-        bio: String,
-        website_url: String,
-        profile_pic_url: String,
-    },
-    UpdateProfileDetailsV2 {
         bio: Option<String>,
         website_url: Option<String>,
         profile_picture: Option<ProfilePictureData>,
@@ -295,15 +280,9 @@ pub enum Reducer {
     },
     UpdateUserLastAccessTime,
     UpsertPost {
-        post: Post,
-    },
-    UpsertPostV2 {
         post: PostV2,
     },
     UpsertPostsBatch {
-        posts: Vec<Post>,
-    },
-    UpsertPostsV2Batch {
         posts: Vec<PostV2>,
     },
     UpsertUserFollowBatch {
@@ -321,7 +300,7 @@ impl __sdk::InModule for Reducer {
 impl __sdk::Reducer for Reducer {
     fn reducer_name(&self) -> &'static str {
         match self {
-            Reducer::AcceptNewUserRegistrationV2 { .. } => "accept_new_user_registration_v_2",
+            Reducer::AcceptNewUserRegistration { .. } => "accept_new_user_registration",
             Reducer::AddPost { .. } => "add_post",
             Reducer::AddPost2 { .. } => "add_post_2",
             Reducer::AddProPlanFreeVideoCredits { .. } => "add_pro_plan_free_video_credits",
@@ -347,13 +326,10 @@ impl __sdk::Reducer for Reducer {
                 "update_profile_ai_influencer_status"
             }
             Reducer::UpdateProfileDetails { .. } => "update_profile_details",
-            Reducer::UpdateProfileDetailsV2 { .. } => "update_profile_details_v_2",
             Reducer::UpdateProfilePictureNsfwInfo { .. } => "update_profile_picture_nsfw_info",
             Reducer::UpdateUserLastAccessTime => "update_user_last_access_time",
             Reducer::UpsertPost { .. } => "upsert_post",
-            Reducer::UpsertPostV2 { .. } => "upsert_post_v_2",
             Reducer::UpsertPostsBatch { .. } => "upsert_posts_batch",
-            Reducer::UpsertPostsV2Batch { .. } => "upsert_posts_v_2_batch",
             Reducer::UpsertUserFollowBatch { .. } => "upsert_user_follow_batch",
             Reducer::UpsertUserProfileBatch { .. } => "upsert_user_profile_batch",
             _ => unreachable!(),
@@ -362,12 +338,12 @@ impl __sdk::Reducer for Reducer {
     #[allow(clippy::clone_on_copy)]
     fn args_bsatn(&self) -> Result<Vec<u8>, __sats::bsatn::EncodeError> {
         match self {
-            Reducer::AcceptNewUserRegistrationV2 {
+            Reducer::AcceptNewUserRegistration {
                 new_principal_text,
                 authenticated,
                 main_account_text,
             } => __sats::bsatn::to_vec(
-                &accept_new_user_registration_v_2_reducer::AcceptNewUserRegistrationV2Args {
+                &accept_new_user_registration_reducer::AcceptNewUserRegistrationArgs {
                     new_principal_text: new_principal_text.clone(),
                     authenticated: authenticated.clone(),
                     main_account_text: main_account_text.clone(),
@@ -526,23 +502,12 @@ impl __sdk::Reducer for Reducer {
             Reducer::UpdateProfileDetails {
                 bio,
                 website_url,
-                profile_pic_url,
+                profile_picture,
             } => __sats::bsatn::to_vec(&update_profile_details_reducer::UpdateProfileDetailsArgs {
                 bio: bio.clone(),
                 website_url: website_url.clone(),
-                profile_pic_url: profile_pic_url.clone(),
+                profile_picture: profile_picture.clone(),
             }),
-            Reducer::UpdateProfileDetailsV2 {
-                bio,
-                website_url,
-                profile_picture,
-            } => __sats::bsatn::to_vec(
-                &update_profile_details_v_2_reducer::UpdateProfileDetailsV2Args {
-                    bio: bio.clone(),
-                    website_url: website_url.clone(),
-                    profile_picture: profile_picture.clone(),
-                },
-            ),
             Reducer::UpdateProfilePictureNsfwInfo {
                 oauth_subject,
                 nsfw_info,
@@ -558,18 +523,8 @@ impl __sdk::Reducer for Reducer {
             Reducer::UpsertPost { post } => {
                 __sats::bsatn::to_vec(&upsert_post_reducer::UpsertPostArgs { post: post.clone() })
             }
-            Reducer::UpsertPostV2 { post } => {
-                __sats::bsatn::to_vec(&upsert_post_v_2_reducer::UpsertPostV2Args {
-                    post: post.clone(),
-                })
-            }
             Reducer::UpsertPostsBatch { posts } => {
                 __sats::bsatn::to_vec(&upsert_posts_batch_reducer::UpsertPostsBatchArgs {
-                    posts: posts.clone(),
-                })
-            }
-            Reducer::UpsertPostsV2Batch { posts } => {
-                __sats::bsatn::to_vec(&upsert_posts_v_2_batch_reducer::UpsertPostsV2BatchArgs {
                     posts: posts.clone(),
                 })
             }

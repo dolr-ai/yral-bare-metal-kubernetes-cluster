@@ -4,12 +4,12 @@
 #![allow(unused, clippy::all)]
 use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
-use super::post_type::Post;
+use super::post_v_2_type::PostV2;
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
 pub(super) struct UpsertPostArgs {
-    pub post: Post,
+    pub post: PostV2,
 }
 
 impl From<UpsertPostArgs> for super::Reducer {
@@ -33,7 +33,7 @@ pub trait upsert_post {
     /// The reducer will run asynchronously in the future,
     ///  and this method provides no way to listen for its completion status.
     /// /// Use [`upsert_post:upsert_post_then`] to run a callback after the reducer completes.
-    fn upsert_post(&self, post: Post) -> __sdk::Result<()> {
+    fn upsert_post(&self, post: PostV2) -> __sdk::Result<()> {
         self.upsert_post_then(post, |_, _| {})
     }
 
@@ -45,7 +45,7 @@ pub trait upsert_post {
     ///  and its status can be observed with the `callback`.
     fn upsert_post_then(
         &self,
-        post: Post,
+        post: PostV2,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -56,7 +56,7 @@ pub trait upsert_post {
 impl upsert_post for super::RemoteReducers {
     fn upsert_post_then(
         &self,
-        post: Post,
+        post: PostV2,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send

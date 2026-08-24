@@ -4,54 +4,54 @@
 #![allow(unused, clippy::all)]
 use spacetimedb_sdk::__codegen::{self as __sdk, __lib, __sats, __ws};
 
-use super::user_profile_details_v_4_type::UserProfileDetailsV4;
+use super::user_profile_details_type::UserProfileDetails;
 
 #[derive(__lib::ser::Serialize, __lib::de::Deserialize, Clone, PartialEq, Debug)]
 #[sats(crate = __lib)]
-struct GetProfileDetailsV4Args {
+struct GetUserProfileDetailsArgs {
     pub oauth_subject: String,
 }
 
-impl __sdk::InModule for GetProfileDetailsV4Args {
+impl __sdk::InModule for GetUserProfileDetailsArgs {
     type Module = super::RemoteModule;
 }
 
 #[allow(non_camel_case_types)]
-/// Extension trait for access to the procedure `get_profile_details_v_4`.
+/// Extension trait for access to the procedure `get_user_profile_details`.
 ///
 /// Implemented for [`super::RemoteProcedures`].
-pub trait get_profile_details_v_4 {
-    fn get_profile_details_v_4(&self, oauth_subject: String) {
-        self.get_profile_details_v_4_then(oauth_subject, |_, _| {});
+pub trait get_user_profile_details {
+    fn get_user_profile_details(&self, oauth_subject: String) {
+        self.get_user_profile_details_then(oauth_subject, |_, _| {});
     }
 
-    fn get_profile_details_v_4_then(
+    fn get_user_profile_details_then(
         &self,
         oauth_subject: String,
 
         __callback: impl FnOnce(
                 &super::ProcedureEventContext,
-                Result<Option<UserProfileDetailsV4>, __sdk::InternalError>,
+                Result<Option<UserProfileDetails>, __sdk::InternalError>,
             ) + Send
             + 'static,
     );
 }
 
-impl get_profile_details_v_4 for super::RemoteProcedures {
-    fn get_profile_details_v_4_then(
+impl get_user_profile_details for super::RemoteProcedures {
+    fn get_user_profile_details_then(
         &self,
         oauth_subject: String,
 
         __callback: impl FnOnce(
                 &super::ProcedureEventContext,
-                Result<Option<UserProfileDetailsV4>, __sdk::InternalError>,
+                Result<Option<UserProfileDetails>, __sdk::InternalError>,
             ) + Send
             + 'static,
     ) {
         self.imp
-            .invoke_procedure_with_callback::<_, Option<UserProfileDetailsV4>>(
-                "get_profile_details_v_4",
-                GetProfileDetailsV4Args { oauth_subject },
+            .invoke_procedure_with_callback::<_, Option<UserProfileDetails>>(
+                "get_user_profile_details",
+                GetUserProfileDetailsArgs { oauth_subject },
                 __callback,
             );
     }

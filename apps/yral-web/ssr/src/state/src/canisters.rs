@@ -85,11 +85,11 @@ async fn do_session_auth(
     #[cfg(feature = "ssr")]
     {
         use tokio::sync::oneshot;
-        use yral_database_spacetime_bindings::get_user_profile_details_v_7;
+        use yral_database_spacetime_bindings::get_user_profile_details;
 
         let conn = crate::spacetime::spacetime_conn();
         let (tx, rx) = oneshot::channel();
-        conn.procedures.get_user_profile_details_v_7_then(
+        conn.procedures.get_user_profile_details_then(
             user_id.clone(),
             move |_ctx, result| {
                 let _ = tx.send(result.ok().flatten());

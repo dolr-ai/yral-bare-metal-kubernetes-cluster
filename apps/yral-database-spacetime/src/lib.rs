@@ -27,3 +27,13 @@ mod auth_kv;
 mod constants;
 mod posts;
 mod user_info;
+
+/// Disable SpacetimeDB's automatic case conversion. By default (SnakeCase),
+/// SpacetimeDB inserts underscores at letter-digit boundaries (e.g. `v7` ->
+/// `v_7`). With `None`, the Rust function/type names are used verbatim as
+/// canonical/wire names — what you write is what you get on the REST API and
+/// in generated bindings. Our names are already snake_case (functions) and
+/// PascalCase (types) by Rust convention, so no conversion is needed.
+#[spacetimedb::settings]
+const CASE_CONVERSION_POLICY: spacetimedb::CaseConversionPolicy =
+    spacetimedb::CaseConversionPolicy::None;

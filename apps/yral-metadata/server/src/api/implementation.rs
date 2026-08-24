@@ -48,7 +48,7 @@ pub async fn get_user_metadata_impl(
     let result = if let Ok(principal) = Principal::from_text(&username_or_principal) {
         spacetime
             .call_procedure::<serde_json::Value>(
-                "get_user_profile_details_v_7",
+                "get_user_profile_details",
                 serde_json::json!([principal.to_text()]),
             )
             .await?
