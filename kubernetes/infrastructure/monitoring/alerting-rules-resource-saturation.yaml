@@ -178,12 +178,20 @@ data:
                   # Join restart count with last_terminated_reason to only
                   # alert when a container that was OOMKilled has a restart
                   # count that increased in the last 5 minutes.
+                  #
+                  # The outer parentheses around (... > 0) are required:
+                  # PromQL '*' has higher precedence than '>', so without them
+                  # the parser interprets '> 0 * on(...)' as '> (0 * on(...))'
+                  # which fails with "vector matching only allowed between
+                  # instant vectors" because 0 is a scalar, not a vector.
                   expr: |
                     (
-                      kube_pod_container_status_restarts_total{namespace!=""}
-                    -
-                      kube_pod_container_status_restarts_total{namespace!=""} offset 5m
-                    ) > 0
+                      (
+                        kube_pod_container_status_restarts_total{namespace!=""}
+                      -
+                        kube_pod_container_status_restarts_total{namespace!=""} offset 5m
+                      ) > 0
+                    )
                     * on(namespace, pod, container, uid)
                     group_left(reason)
                     kube_pod_container_status_last_terminated_reason{reason="OOMKilled"}
