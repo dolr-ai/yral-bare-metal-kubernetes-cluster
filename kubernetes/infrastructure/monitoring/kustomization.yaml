@@ -17,3 +17,7 @@ resources:
   - alerting-notification-policy.yaml
   - alerting-rules-resource-saturation.yaml
   - alertmanager-config.sops.yaml
+  # Alertmanager → Google Chat webhook relay: translates Alertmanager's native
+  # JSON webhook format to Google Chat's {"text": "..."} expected format.
+  - alertmanager-google-chat-relay-configmap.yaml
+  - alertmanager-google-chat-relay.yaml
