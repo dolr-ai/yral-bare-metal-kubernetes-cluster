@@ -14,8 +14,10 @@ use serde::{Deserialize, Serialize};
 use utils::send_wrap;
 
 /// Rishi's agent backend base URL (matches CHAT_BASE_URL in yral-mobile).
+#[cfg(feature = "ssr")]
 const AGENT_BASE_URL: &str = "https://agent.rishi.yral.com";
 /// Discovery influencer feed path (v2, matches DISCOVERY_FEED_PATH in mobile).
+#[cfg(feature = "ssr")]
 const DISCOVERY_FEED_PATH: &str = "api/v2/discovery/influencer-feed";
 
 /// An influencer profile card for the grid.
@@ -33,24 +35,16 @@ pub struct InfluencerCard {
 }
 
 /// Response from the discovery influencer feed API.
+#[cfg(feature = "ssr")]
 #[derive(Debug, Deserialize)]
 struct InfluencerFeedResponse {
     influencers: Vec<InfluencerFeedItem>,
-    #[serde(rename = "total_count")]
-    #[allow(dead_code)]
-    total_count: i32,
-    #[allow(dead_code)]
-    offset: i32,
-    #[allow(dead_code)]
-    limit: i32,
     #[serde(rename = "has_more")]
     has_more: bool,
-    #[serde(rename = "feed_generated_at")]
-    #[allow(dead_code)]
-    feed_generated_at: Option<String>,
 }
 
 /// Individual influencer from the feed API.
+#[cfg(feature = "ssr")]
 #[derive(Debug, Deserialize)]
 struct InfluencerFeedItem {
     id: String,
@@ -59,16 +53,15 @@ struct InfluencerFeedItem {
     display_name: String,
     #[serde(rename = "avatar_url")]
     avatar_url: String,
-    #[allow(dead_code)]
     description: String,
     category: String,
     #[serde(rename = "created_at")]
     created_at: String,
-    #[allow(dead_code)]
     signals: Option<InfluencerFeedSignals>,
 }
 
 /// Engagement signals (optional, from the feed API).
+#[cfg(feature = "ssr")]
 #[derive(Debug, Deserialize)]
 struct InfluencerFeedSignals {
     #[serde(rename = "conversation_count")]

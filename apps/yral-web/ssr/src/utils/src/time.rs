@@ -35,7 +35,7 @@ pub fn to_hh_mm_ss(duration: Duration) -> String {
     format!("{hh:02}:{mm:02}:{ss:02}")
 }
 
-pub async fn sleep(duration: Duration) {
+pub async fn sleep(_: Duration) {
     #[cfg(feature = "ssr")]
     {
         use tokio::time;

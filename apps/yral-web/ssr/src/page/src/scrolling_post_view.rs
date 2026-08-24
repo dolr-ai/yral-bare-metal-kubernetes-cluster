@@ -6,8 +6,8 @@ use leptos_icons::*;
 use leptos_use::{use_intersection_observer_with_options, UseIntersectionObserverOptions};
 
 use state::audio_state::AudioState;
-use utils::{ml_feed::QuickPostDetails, posts::FeedPostCtx};
 use utils::posts::PostDetails;
+use utils::{ml_feed::QuickPostDetails, posts::FeedPostCtx};
 
 /// A trait that requires some post details to be accessible instantly while others may be suspended
 pub trait PostDetailResolver {
@@ -112,7 +112,7 @@ pub fn ScrollingPostView<
 
                 <For
                     each=move || video_queue_for_feed.get()
-                    key=move |feedpost| (feedpost.key)
+                    key=move |feedpost| feedpost.key
                     children=move |feedpost| {
                         let queue_idx = feedpost.key;
                         let post = feedpost.value;

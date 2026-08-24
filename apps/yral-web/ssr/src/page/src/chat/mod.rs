@@ -42,34 +42,24 @@ pub struct Conversation {
 }
 
 /// Response from creating a conversation.
+#[cfg(feature = "ssr")]
 #[derive(Debug, Deserialize)]
 struct ConversationResponse {
     identifier: String,
-    #[serde(rename = "influencer_id")]
-    #[allow(dead_code)]
-    influencer_identifier: Option<String>,
-    #[allow(dead_code)]
     created_at: String,
     #[serde(rename = "message_count")]
     message_count: i32,
 }
 
 /// Response from listing messages.
+#[cfg(feature = "ssr")]
 #[derive(Debug, Deserialize)]
 struct ConversationMessagesResponse {
-    #[serde(rename = "conversation_id")]
-    #[allow(dead_code)]
-    conversation_identifier: String,
     messages: Vec<ChatMessageApi>,
-    #[allow(dead_code)]
-    total: i32,
-    #[allow(dead_code)]
-    limit: i32,
-    #[allow(dead_code)]
-    offset: i32,
 }
 
 /// Individual message from the API (raw, content is optional).
+#[cfg(feature = "ssr")]
 #[derive(Debug, Deserialize)]
 struct ChatMessageApi {
     identifier: String,
@@ -82,6 +72,7 @@ struct ChatMessageApi {
 }
 
 /// Request to create a conversation.
+#[cfg(feature = "ssr")]
 #[derive(Debug, Serialize)]
 struct CreateConversationRequest {
     #[serde(rename = "influencer_id")]
@@ -89,6 +80,7 @@ struct CreateConversationRequest {
 }
 
 /// Request to send a message.
+#[cfg(feature = "hydrate")]
 #[derive(Debug, Serialize)]
 struct SendMessageRequest {
     content: String,
@@ -193,39 +185,6 @@ pub async fn list_conversation_messages(
 #[server(endpoint = "get_chat_token", input = Json, output = Json)]
 pub async fn get_chat_token() -> Result<String, ServerFnError> {
     get_authentication_token().await
-}
-
-// ─── SSE streaming via Fetch API + ReadableStream ──────────────────────────
-
-/// SSE event parsed from the stream.
-enum ServerSentEvent {
-    Token(String),
-    Done,
-    Error(String),
-}
-
-/// Parse a single SSE event from its type and data fields.
-fn parse_server_sent_event(event_type: &str, data: &str) -> ServerSentEvent {
-    match event_type {
-        "token" => {
-            if let Ok(value) = serde_json::from_str::<serde_json::Value>(data) {
-                if let Some(text) = value["text"].as_str() {
-                    return ServerSentEvent::Token(text.to_string());
-                }
-            }
-            ServerSentEvent::Token(data.to_string())
-        }
-        "done" => ServerSentEvent::Done,
-        "error" => {
-            if let Ok(value) = serde_json::from_str::<serde_json::Value>(data) {
-                if let Some(message) = value["message"].as_str() {
-                    return ServerSentEvent::Error(message.to_string());
-                }
-            }
-            ServerSentEvent::Error(data.to_string())
-        }
-        _ => ServerSentEvent::Token(data.to_string()),
-    }
 }
 
 /// Stream a chat message via SSE using the Fetch API's ReadableStream.
@@ -413,13 +372,6 @@ pub fn Chat() -> impl IntoView {
         error_message.set(None);
         input_text.set(String::new());
 
-        let conversation = conversation_resource.get().flatten();
-        let Some(conversation) = conversation.as_ref() else {
-            is_sending.set(false);
-            return;
-        };
-        let conversation_identifier = conversation.identifier.clone();
-
         // Add user message immediately for instant feedback
         messages.update(|message_list| {
             message_list.push(ChatMessage {
@@ -431,22 +383,13 @@ pub fn Chat() -> impl IntoView {
             });
         });
 
-        let messages_signal = messages.clone();
-        let streaming_text_signal = streaming_text.clone();
         let is_sending_signal = is_sending.clone();
+        #[cfg(feature = "hydrate")]
         let error_message_signal = error_message.clone();
+        #[cfg(not(feature = "hydrate"))]
+        let _ = &error_message;
 
         spawn_local(async move {
-            // Get the JWT for client-side SSE streaming
-            let authentication_token = match get_chat_token().await {
-                Ok(token) => token,
-                Err(error) => {
-                    error_message_signal.set(Some(format!("Authentication error: {error}")));
-                    is_sending_signal.set(false);
-                    return;
-                }
-            };
-
             // Stream the message via SSE — the on_token callback updates
             // streaming_text in real-time so the user sees tokens appear.
             // This only runs on the client (hydrate) since it uses the
@@ -618,8 +561,7 @@ pub fn Chat() -> impl IntoView {
                             "flex-1 bg-neutral-800 text-white rounded-full px-4 py-2 focus:outline-none",
                         )
                         .prop("value", move || input_text.get())
-                        .on(ev::input, move |event: ev::Event| {
-                            let target = event.target().unwrap();
+                        .on(ev::input, move |_| {
                             #[cfg(feature = "hydrate")]
                             {
                                 let input_element: web_sys::HtmlInputElement =

@@ -28,8 +28,7 @@ macro_rules! try_or_redirect_opt {
     };
 }
 
-pub fn failure_redirect<E: Display>(err: E) {
-    let path = format!("/error?err={err}");
+pub fn failure_redirect<E: Display>(_: E) {
     #[cfg(feature = "hydrate")]
     {
         let nav = leptos_router::hooks::use_navigate();
@@ -43,7 +42,6 @@ pub fn failure_redirect<E: Display>(err: E) {
 }
 
 pub fn go_to_root() {
-    let path = "/";
     #[cfg(feature = "hydrate")]
     {
         let nav = leptos_router::hooks::use_navigate();
