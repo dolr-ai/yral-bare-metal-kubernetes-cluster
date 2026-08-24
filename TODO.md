@@ -1,4 +1,3 @@
-- setup flux alerts and provider to google chat
 - move the self hosted beszel to kubernetes
 - move the self hosted uptime kuma to kubernetes
 - Instead of beszel move all bare metal servers to grafana and prometheus node exporter and use grafana to monitor them instead of having a separate monitoring solution for the bare metal servers
