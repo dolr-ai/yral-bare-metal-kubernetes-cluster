@@ -1,0 +1,23 @@
+apiVersion: ENC[AES256_GCM,data:kdc=,iv:iSXrNep4qWqfgrPoEKbIzpqu/G8NjeCZsK/AWnU13Jg=,tag:Z6GS22i1wULs0Laww+WIKw==,type:str]
+kind: ENC[AES256_GCM,data:ucz+LS79,iv:0Vk5qI4nts6yg9SSKcKAbzH8I/ogShJwuY1VcOV4aUY=,tag:QRzijTg2KonRPjD/+zI37Q==,type:str]
+metadata:
+    name: ENC[AES256_GCM,data:P/dXHTJI5j3jlCTLwhW/7+h5bw==,iv:G0zcl4nnB/mMyGkXsSEdCEYwGTBN1Ouh1FFXhFqrGH0=,tag:Bq/1l9C6KfWOI2yInabYRA==,type:str]
+    namespace: ENC[AES256_GCM,data:8dXncx0xsHufU/k=,iv:JKPg/LgsowhTShGY9s+/m77eTmydA4LdvfqwDsxokuk=,tag:o5BcuobiJtH2jVNzuDIKQw==,type:str]
+type: ENC[AES256_GCM,data:v1LPRZn7,iv:OlcSTDiqTf9O37u4CkyAmmT0a+sPs9fINdIBU3PYhWc=,tag:LXjT4B5CXV85KZy2UWU/VQ==,type:str]
+stringData:
+    address: ENC[AES256_GCM,data:Atn3Wc2Z97W9nAJr1XYqOaCcrMbpCgwH6WwC+PyI8hyMRUTC0NEn0XhUBOXV796bPbbMA870AHM6xQZBvNaYpoLe9jzx7Cu0yBs8maZ/IDusSADUna9kftXkIEtbf0bZpJTNmuZYlS8hLJWEQZwDPJsEGqLGMlli3WogZihk4sPTt3L1dlziRPPu5r3xRZjFjk7E6DTLMKY=,iv:NzMcT3WX5ag8UGwckenc8ar2kBTBeua3KHrOB5hBjrE=,tag:s5XOPs+DFLRTGO+pP7Flng==,type:str]
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBIZUtDUkhiZmFsZXZ5N0Jk
+            VXJESWhBUDNqb1FOQm9UMjVPSkxMQThzQUJVCk9JRkhHUUxtUnJWZDNOWWM1QXJs
+            WGFMaDFWVGVqdk5yc2pQdit3NWUvbEUKLS0tIE8zQVFENm1jQ2FUQ2p3OGVmcHBy
+            R2FDTzd1bmVJVGE2WE1KS1gzTkRQQTgKYVmjhHwJ20wR7JdNFPZ963jiRRzb4CtX
+            qoOO0jrCHc0XmhmDHgWUp6MeqXfyyTczfSrsRoSKnpOyulYTey4dSw==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1pdqae3ffmt9rxtmn2758pxjqaaxnytg6mzx3wpepuhs7de2ttfkqk3z7hl
+    lastmodified: "2026-08-24T19:20:57Z"
+    mac: ENC[AES256_GCM,data:dZp2TFNtSAgX5CSw1uttbD8AW7b4t2MtdyrpULzn+BTESgS+NzJiCsktGjV0rC7jYpXY/SRQeTY1deapTZDNonbMci2NXW/USUaHhDtYlFeaaF4IRwtavDTsxvjfvJ99s189KTHLsuiq1ZyeVPBEy94NJsC1jLruIQv0VVNPgj4=,iv:3jRLZrWS/j3gslrHmEywt6NxbxziGhVnG4PboA2QodA=,tag:Mij8u+B4DknFuNKbQ+uNaw==,type:str]
+    unencrypted_suffix: _unencrypted
+    version: 3.13.2
