@@ -35,5 +35,3 @@ spec:
       name: '*'
     - kind: ImageUpdateAutomation
       name: '*'
-    - kind: Receiver
-      name: '*'
