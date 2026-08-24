@@ -81,7 +81,7 @@ openssl-sys = "0.9.117"
 p256 = "0.13.2"
 postcard = "1.1.1"
 priority-queue = "2.1.0"
-rand = { version = "0.9", default-features = false }
+rand = { version = "0.10", default-features = false }
 rand_chacha = "0.9.0"
 rand_xoshiro = "0.7.0"
 reactive_graph = "0.2.5"
