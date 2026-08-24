@@ -54,7 +54,7 @@ icondata_core = "0.1.0"
 indexmap = "2.8.0"
 js-sys = "0.3.104"
 jsonwebtoken = "11.0.0"
-k256 = { version = "0.13.4", default-features = false }
+k256 = { version = "0.14.0", default-features = false }
 leptos = "0.8.20"
 leptos_axum = "0.8.7"
 leptos_icons = "0.6.1"
