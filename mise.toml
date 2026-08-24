@@ -9,7 +9,7 @@ cargo-binstall = "latest"
 "cargo:topcoat-cli" = "latest"
 "cargo:trunk" = "latest"
 cocoapods = { version = "latest", os = ["macos"] }
-flux2 = "latest"
+flux2 = "2.9.4"
 fnox = "latest"
 gh = "latest"
 helm = "latest"

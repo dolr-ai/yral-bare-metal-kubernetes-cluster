@@ -1,8 +1,3 @@
-- Update AGENTS.md after the internet computer and redis migration to spacetimedb is done and remove redundant sections
-- For subsequent migrations, instead of copying over live data and turning off the app temporarily, the preffered mechanism is to instead create another replica of the backing store, be it kafka or postgres, and then do a controlled failover to the new replica once it's fully synced. This way we can minimize downtime and avoid the risks associated with copying live data. Once, we're sure that the data is migrated, we point the app to the new replica and decommission the old one. Note this migration preference in AGENTS.md for future reference and to ensure that we follow best practices for migrations going forward.
-- Check if Hetzner has Ubuntu 26.04 and use that everywhere
-- cleanup the rust counter service when done testing cloudnative pg with it
-- flux bootstrap instead of flux install. Currently flux tab on headlamp shows not bootstrapped
 - setup flux alerts and provider to google chat
 - move the self hosted beszel to kubernetes
 - move the self hosted uptime kuma to kubernetes
@@ -13,7 +8,6 @@
 - Instead of TSV, should we move to json or something else?
 - Remove goldilocks completely. I seem to have seen a goldilocks-alloy container
 - Remove yral-auth specific task runner and use the global task runner for everything
-- Remove the library/rust-counter image from harbor
 - Move all env to mise instead of direnv
 - Move task runners to mise? Check and decide
 - Migrate DNS from Cloudflare to in-cluster CoreDNS to fix Reliance Jio DNS blocking. Jio intermittently blocks DNS queries to Cloudflare's resolvers, causing mobile app clients in India to fail with DNS resolution errors (offchain.yral.com, agent.rishi.yral.com, etc.). The fix is to stop using Cloudflare as the authoritative NS for yral.com and instead run CoreDNS in-cluster as the authoritative NS. This also eliminates the 40× per-node *.yral.com A records in Cloudflare and enables per-team-member wildcards (*.ansuman.yral.com, *.rishi.yral.com, etc.) with zero DNS provider changes. Steps: (1) transfer yral.com domain from Cloudflare Registrar to a registrar that allows custom NS (e.g. Hetzner Domains) — Cloudflare Registrar does NOT allow pointing NS to external nameservers, (2) set glue records at the new registrar: ns1-5.yral.com → 5 CP IPs (static, one-time), (3) deploy CoreDNS on the 5 CPs with hostNetwork:true on port 53 serving the yral.com zone with wildcards for *.yral.com, *.ansuman.yral.com, etc. → all cluster node IPs, (4) switch cert-manager from Cloudflare API to RFC-2136 (dynamic DNS updates to CoreDNS) for DNS-01 challenges, (5) delete all Cloudflare DNS records — no longer needed. Cloudflare stays as the domain registrar is NOT an option (forced Cloudflare NS coupling).

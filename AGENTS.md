@@ -109,7 +109,7 @@ When making changes to a codebase (fixing bugs, migrating APIs, adding features)
 ### Sweeping Changes — Per-Component Verification (Hard Rule)
 When making sweeping changes (removing a feature, restructuring workspaces, bumping shared deps, etc.) that touch multiple components, **verify each affected component individually** before pushing:
 1. **Compile** — `cargo check` / `cargo build` / `mise run <app>-build` for each affected component.
-2. **Test** — `cargo test` / `mise run <app>-test`. Tests requiring external services (IC canisters) that fail with "Connection refused" are expected locally; verify no *new* test failures from the change.
+2. **Test** — `cargo test` / `mise run <app>-test`. Tests requiring external services (SpacetimeDB, Kafka, PostgreSQL) that fail with "Connection refused" are expected locally; verify no *new* test failures from the change.
 3. **Run locally** — `mise run <app>-run` (via pitchfork) to verify the app starts and the health endpoint responds.
 4. **Push** — once all components pass, push to git and let CI/CD handle deployment.
 5. **Validate on prod** — after deployment, verify the service is healthy in production (read-only `kubectl get/describe/logs`, health endpoint, smoke test).
@@ -154,7 +154,7 @@ Always use well-named, descriptive variable and type names. Never use shortened 
 
 Modern IDEs and language tooling make long names ergonomic regardless of language. Descriptive names serve as inline documentation and make grep/code-search effective. Abbreviations create cognitive overhead and inconsistency.
 
-**No legacy domain jargon (Hard Rule):** Do not carry over naming from previous platforms (e.g. Internet Computer "principal", "canister"). Call things what they actually are in the current system. `principal_text` → `oauth_subject` / `user_id`, `canister_id` → `service_id`. When touching code that uses legacy jargon, rename to the accurate current term in the same change. This prevents conflation (e.g. "principal" was used for IC Principal, SpacetimeDB Identity hex, and OAuth sub — three different things) and makes the code self-documenting.
+**No legacy domain jargon (Hard Rule):** Do not carry over naming from previous platforms. Call things what they actually are in the current system (e.g. `oauth_subject` / `user_id` for user identifiers, `service_id` for service identifiers, SpacetimeDB `Identity` for database identity). When touching code that uses legacy jargon from a prior platform, rename to the accurate current term in the same change. This prevents conflation and makes the code self-documenting.
 
 ### Colocated Code over Abstractions (Hard Rule)
 Avoid unnecessary abstractions, wrappers, and utility methods. Prefer calling methods directly at the call site rather than hiding a single expression behind a helper function. A one-line helper that wraps `ctx.sender_auth().jwt().map(|c| c.subject().to_string()).unwrap_or_else(|| ctx.sender().to_hex().to_string())` is worse than inlining it — the reader has to jump to the helper to understand what it does, when the expression itself is already readable at the call site. Only extract a helper when the same **non-trivial** logic (multiple lines, branching, state) is duplicated across 3+ call sites. Simple expressions, even if repeated, are better inlined for scannability.
@@ -171,7 +171,7 @@ Avoid unnecessary abstractions, wrappers, and utility methods. Prefer calling me
 When `#[cfg]` feature gates cause a variable/function/import to be unused in some configurations: gate the declaration itself with the matching `#[cfg(...)]` (or `#[cfg(any(...))]` for multiple features), so the symbol only exists when it's used. This is the correct pattern — the code is genuinely absent in that configuration, not present-but-suppressed. Gate both the definition and all call sites consistently.
 
 ### Pure Functions & Thin API Wrappers (Hard Rule)
-All business logic must be implemented as **pure functions** — no I/O, no side effects, no external service calls. Functions that call external APIs (HTTP, database, KV store, IC canister, SpacetimeDB, etc.) must be **thin wrappers** that delegate to pure functions for all logic. This applies to all application code (Rust, Kotlin, TypeScript, etc.):
+All business logic must be implemented as **pure functions** — no I/O, no side effects, no external service calls. Functions that call external APIs (HTTP, database, KV store, SpacetimeDB, etc.) must be **thin wrappers** that delegate to pure functions for all logic. This applies to all application code (Rust, Kotlin, TypeScript, etc.):
 
 - **Pure functions** take inputs, return outputs, and have no side effects. They contain all business logic: validation, transformation, computation, decision-making.
 - **Thin wrappers** handle only I/O: calling the external API, passing the result to a pure function, and returning/writing the result. No business logic in wrappers.
@@ -327,7 +327,7 @@ This ensures `mise bootstrap --yes && mise run setup` is the only command needed
 6. **Validate**: confirm counts match, spot-check rows, verify all clients work.
 7. **Clean up**: remove the old table from the schema and publish. The old table must be empty first (clear via a reducer — never `--delete-data`). Drop the old table only after a confirmed production period.
 
-**Naming convention — use numeric suffixes, not `v` (Hard Rule).** The module uses SpacetimeDB's default `CaseConversionPolicy::SnakeCase`, which converts Rust names to snake_case canonical/wire names. This splits `v2` into `v_2` (e.g. `accept_new_user_registration_v2` → `accept_new_user_registration_v_2` in the REST API). To avoid this, the `v` prefix convention is prohibited — `v2` / `V7` suffixes are legacy IC canister jargon that conflates Internet Computer versioning with our current naming. Use numeric suffixes instead:
+**Naming convention — use numeric suffixes, not `v` (Hard Rule).** The module uses SpacetimeDB's default `CaseConversionPolicy::SnakeCase`, which converts Rust names to snake_case canonical/wire names. This splits `v2` into `v_2` (e.g. `accept_new_user_registration_v2` → `accept_new_user_registration_v_2` in the REST API). To avoid this, the `v` prefix convention is prohibited — use numeric suffixes instead:
 
 - **Type names:** Use `<Type>2` instead of `<Type>V2` (e.g. `UserProfileDetails7` not `UserProfileDetailsV7`).
 - **Table names:** Use `<table_name>_2` (e.g. `posts_2` not `posts_v2`). Use the `name` attribute in `#[spacetimedb::table(name = "posts_2", ...)]` to override automatic splitting.
