@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: dbx
-          image: t8y2/dbx:0.5.91
+          image: t8y2/dbx:0.5.92
           ports:
             - containerPort: 4224
               name: http
