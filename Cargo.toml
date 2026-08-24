@@ -57,7 +57,7 @@ jsonwebtoken = "11.0.0"
 k256 = { version = "0.13.4", default-features = false }
 leptos = "0.8.20"
 leptos_axum = "0.8.7"
-leptos_icons = "0.6.1"
+leptos_icons = "0.7.0"
 leptos_meta = "0.8.5"
 leptos_router = "0.8.11"
 leptos-use = "0.16.2-beta2"
