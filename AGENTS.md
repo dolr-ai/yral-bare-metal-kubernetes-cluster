@@ -327,7 +327,7 @@ This ensures `mise bootstrap --yes && mise run setup` is the only command needed
 6. **Validate**: confirm counts match, spot-check rows, verify all clients work.
 7. **Clean up**: remove the old table from the schema and publish. The old table must be empty first (clear via a reducer — never `--delete-data`). Drop the old table only after a confirmed production period.
 
-**Naming convention — use numeric suffixes, not `v` (Hard Rule).** The module uses `CaseConversionPolicy::None` (set in `lib.rs`), which means Rust function/type names are used verbatim as canonical/wire names — no automatic case conversion. Despite this, the `v` prefix convention is still prohibited for a different reason: `v2` / `V7` suffixes are legacy IC canister jargon that conflates Internet Computer versioning with our current naming. Use numeric suffixes instead:
+**Naming convention — use numeric suffixes, not `v` (Hard Rule).** The module uses SpacetimeDB's default `CaseConversionPolicy::SnakeCase`, which converts Rust names to snake_case canonical/wire names. This splits `v2` into `v_2` (e.g. `accept_new_user_registration_v2` → `accept_new_user_registration_v_2` in the REST API). To avoid this, the `v` prefix convention is prohibited — `v2` / `V7` suffixes are legacy IC canister jargon that conflates Internet Computer versioning with our current naming. Use numeric suffixes instead:
 
 - **Type names:** Use `<Type>2` instead of `<Type>V2` (e.g. `UserProfileDetails7` not `UserProfileDetailsV7`).
 - **Table names:** Use `<table_name>_2` (e.g. `posts_2` not `posts_v2`). Use the `name` attribute in `#[spacetimedb::table(name = "posts_2", ...)]` to override automatic splitting.
