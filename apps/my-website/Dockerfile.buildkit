@@ -9,7 +9,7 @@
 # cargo-leptos manages Tailwind CSS internally via the tailwind CLI — no Node.js needed.
 
 # ── Stage 1: Build ──────────────────────────────────────────────────────────
-FROM docker.io/rust:1.90-bookworm AS builder
+FROM docker.io/rust:1.98-bookworm AS builder
 
 # Install build dependencies (musl-tools for musl cross-compilation)
 RUN apt-get update && apt-get install -y --no-install-recommends \
