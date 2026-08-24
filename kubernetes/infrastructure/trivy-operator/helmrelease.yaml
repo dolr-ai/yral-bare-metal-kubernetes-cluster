@@ -67,6 +67,16 @@ spec:
       severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
       # Slower but less resource-intensive
       slow: true
+      # Resource limits for scan job containers (Trivy). The chart default
+      # 500M limit triggers "Memory Near Limit (>80%)" alerts during scans
+      # that load the vuln DB + scan large images. Bumped to 1Gi.
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 1Gi
     trivyOperator:
       # Tolerate the control-plane taint so scan jobs can run on CP nodes.
       # The node-collector auto-selects a CP node (useNodeSelector: true) for
