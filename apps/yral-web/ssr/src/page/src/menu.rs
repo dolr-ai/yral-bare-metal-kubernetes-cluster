@@ -1,10 +1,11 @@
-#![allow(dead_code)]
-
 use codee::string::FromToStringCodec;
 use component::notification_toggle::NotificationToggle;
 use component::title::TitleText;
 use component::toggle::Toggle;
-use component::{connect::connect_login, social::*};
+use component::{
+    connect::connect_login,
+    social::{discord, domain_specific_href, ic_website, telegram, twitter},
+};
 use consts::NSFW_ENABLED_COOKIE;
 use leptos::html::Input;
 use leptos::prelude::*;
@@ -68,10 +69,10 @@ fn MenuFooter() -> impl IntoView {
         <div class="flex flex-col gap-4 items-center pt-10 pb-8 w-full">
             <span class="text-sm text-white/50">Follow us on</span>
             <div class="flex flex-row gap-4">
-                <Telegram />
-                <Discord />
-                <Twitter />
-                <IcWebsite />
+                {telegram()}
+                {discord()}
+                {twitter()}
+                {ic_website()}
             </div>
             <svg class="h-14 rounded-md outline outline-primary-600 outline-1" viewBox="0 0 228 49">
                 <path
@@ -175,9 +176,9 @@ pub fn Menu() -> impl IntoView {
                 // Legal section
                 <SectionHeader text="Legal" />
                 <div class="flex flex-col gap-4">
-                    <MenuItem href="https://yral.com/terms-android" text="Terms of service" icon=icondata::TbBook2 target="_blank" />
-                    <MenuItem href="https://yral.com/privacy-policy" text="Privacy Policy" icon=icondata::TbLock target="_blank" />
-                    <MenuItem href="/about-us" text="About Us" icon=icondata::TbInfoCircle />
+                    <MenuItem href="https://yral.com/terms-android" text="Terms of service" icon=icondata::TbBook2Outline target="_blank" />
+                    <MenuItem href="https://yral.com/privacy-policy" text="Privacy Policy" icon=icondata::TbLockOutline target="_blank" />
+                    <MenuItem href="/about-us" text="About Us" icon=icondata::TbInfoCircleOutline />
                 </div>
 
                 <div class="h-px bg-white/10 w-full" />

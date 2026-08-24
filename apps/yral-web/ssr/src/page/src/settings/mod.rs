@@ -1,6 +1,6 @@
 use component::back_btn::back_button;
 use component::notification_toggle::NotificationToggle;
-use component::social::*;
+use component::social::{telegram, discord, twitter, ic_website};
 use component::title::TitleText;
 use leptos::prelude::*;
 use leptos_icons::*;
@@ -30,10 +30,10 @@ fn MenuFooter() -> impl IntoView {
         <div class="flex flex-col gap-4 items-center pt-10 pb-8 w-full">
             <span class="text-sm text-white/50">Follow us on</span>
             <div class="flex flex-row gap-4">
-                <Telegram />
-                <Discord />
-                <Twitter />
-                <IcWebsite />
+                {telegram()}
+                {discord()}
+                {twitter()}
+                {ic_website()}
             </div>
             <svg class="h-14 rounded-md outline outline-primary-600 outline-1" viewBox="0 0 228 49">
                 <path

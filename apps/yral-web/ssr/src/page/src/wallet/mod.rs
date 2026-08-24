@@ -1,7 +1,7 @@
 use codee::string::FromToStringCodec;
 use component::connect::connect_login;
 use component::icons::notification_icon::NotificationIcon;
-use component::share_popup::ShareButtonWithFallbackPopup;
+use component::share_popup::share_button_with_fallback_popup;
 use component::toggle::Toggle;
 use consts::NOTIFICATIONS_ENABLED_STORE;
 use leptos::either::Either;
@@ -88,7 +88,7 @@ fn Header(details: UserIdentity) -> impl IntoView {
         <div class="flex gap-10 justify-between items-center py-3 px-4 w-full">
             <div class="text-xl font-bold text-white font-kumbh">My Wallet</div>
             <div class="flex gap-8 items-center">
-                <ShareButtonWithFallbackPopup share_link message />
+                {share_button_with_fallback_popup(share_link.clone(), message.clone(), String::new())}
             </div>
         </div>
     }
