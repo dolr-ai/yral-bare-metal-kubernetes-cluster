@@ -216,19 +216,6 @@
     msg: "Node {{ node_remove_k8s_name }} not found in cluster, skipping drain"
   when: node_check.rc != 0
 
-# --- Pre-drain: remove storage replicas from the node ---
-# Longhorn replicas must be evacuated BEFORE draining so the storage layer
-# can rebalance data to remaining nodes while the node is still running.
-- name: Evict Longhorn replicas from node
-  ansible.builtin.include_role:
-    name: longhorn-evict
-  vars:
-    target_host: "{{ node_remove_k8s_name }}"
-  when:
-    - node_check.rc == 0
-    - not is_control_plane
-  run_once: true
-
 - name: Force-delete Terminating pods on dead node before drain
   # Pods stuck in Terminating on an unreachable node will never complete graceful
   # termination — kubectl drain waits for them and times out. Force-deleting them
@@ -278,6 +265,22 @@
   ansible.builtin.debug:
     msg: "{{ drain_result.stdout_lines }}"
   when: node_check.rc == 0
+
+# --- Post-drain: evacuate Longhorn replicas ---
+# Longhorn replicas must be evacuated AFTER draining. While the node is still
+# running, pods have their PVCs attached — Longhorn cannot move a replica
+# that is actively mounted by a running pod. Draining first evicts all pods
+# (including stateful workloads like Loki), detaching PVCs. Once detached,
+# Longhorn can freely rebuild replicas on other nodes.
+- name: Evict Longhorn replicas from node (post-drain)
+  ansible.builtin.include_role:
+    name: longhorn-evict
+  vars:
+    target_host: "{{ node_remove_k8s_name }}"
+  when:
+    - node_check.rc == 0
+    - not is_control_plane
+  run_once: true
 
 - name: Get etcd member ID
   ansible.builtin.shell: |

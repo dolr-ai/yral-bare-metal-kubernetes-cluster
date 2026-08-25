@@ -1,3 +1,4 @@
+# TODO: Have longhorn only use space it's been provided and not overflow. It's a massive headache. I'd rather have the app fail early when it reaches its size limit rather than have to deal with a full disk later
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:

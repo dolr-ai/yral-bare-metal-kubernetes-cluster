@@ -461,6 +461,15 @@ Full clean playbook run (no partial apply). On failure: diagnose read-only, fix 
 3. Re-run full playbook.
 4. Never "apply the fix by hand on the node".
 
+### Ansible Idempotency & Graceful Failure (Hard Rule)
+All Ansible roles and playbooks must be **idempotent** (safe to re-run without side effects) and **handle failures gracefully** (no manual intervention required). If a step fails, the role must be fixed so that re-running it succeeds — never bypass a failure with a manual `kubectl` command, SSH command, or any imperative action.
+
+Specifically:
+- **Longhorn replica eviction timeout**: If replicas can't be evacuated (insufficient space, scheduling constraints), the role must detect this, verify that the remaining replicas are sufficient for data safety (replica count ≥ 2 for 2-replica volumes), and proceed with a forced eviction instead of hanging. The node will be reprovisioned from scratch — the replica on the doomed node is already lost; waiting indefinitely for evacuation that can't complete is worse than proceeding.
+- **Drain before Longhorn eviction**: `node-remove` must drain the K8s node (evict all pods, detach PVCs) BEFORE running `longhorn-evict`. Longhorn cannot move a replica that is actively mounted by a running pod. Evicting pods first detaches PVCs, allowing Longhorn to freely rebuild replicas on other nodes. Evicting before draining causes the eviction to hang indefinitely on volumes with attached pods.
+- **Partial failure recovery**: If a playbook run fails midway, re-running it must detect the partial state and resume from where it left off — not start over from the beginning or fail because of stale state.
+- **No manual kubectl/SSH between playbook runs**: If something goes wrong, fix the role and re-run. Never intervene manually.
+
 ## Maintaining This Document
 
 Add to / update AGENTS.md only for new patterns, clarifications that prevent repeated mistakes, or new core constraints.
