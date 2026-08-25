@@ -18,6 +18,10 @@ kind: Deployment
 metadata:
   name: beszel
   namespace: beszel
+  annotations:
+    # Reloader restarts the pod when the beszel-config ConfigMap changes
+    # (e.g. TRUSTED_AUTH_HEADER, USER_EMAIL updates).
+    configmap.reloader.stakater.com/reload: "beszel-config"
 spec:
   replicas: 1
   strategy:
