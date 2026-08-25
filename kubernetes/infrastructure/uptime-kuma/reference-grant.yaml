@@ -1,0 +1,17 @@
+# Allows HTTPRoutes in kube-system (where the Cilium Gateway lives) to reference
+# the uptime-kuma Service as a backend. Required because the Gateway and the
+# backend Service are in different namespaces.
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-kube-system-httproutes
+  namespace: uptime-kuma
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: kube-system
+  to:
+    - group: ""
+      kind: Service

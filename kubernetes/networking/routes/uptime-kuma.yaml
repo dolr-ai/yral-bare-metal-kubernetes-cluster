@@ -1,0 +1,46 @@
+# Uptime Kuma HTTPRoute
+#
+# Exposes Uptime Kuma at https://status.yral.com via the Cilium Gateway.
+# Direct-to-Service (no oauth2-proxy) — Uptime Kuma has its own built-in login
+# for the admin dashboard. Public status pages are accessible without auth.
+#
+# TLS is terminated by the Cilium Gateway using the wildcard *.yral.com certificate.
+# The ReferenceGrant in the uptime-kuma namespace allows this HTTPRoute to
+# reference the uptime-kuma Service as a backend.
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: uptime-kuma-redirect
+  namespace: kube-system
+spec:
+  parentRefs:
+    - name: web-gateway
+      namespace: kube-system
+      sectionName: http
+  hostnames:
+    - status.yral.com
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: uptime-kuma
+  namespace: kube-system
+spec:
+  parentRefs:
+    - name: web-gateway
+      namespace: kube-system
+      sectionName: https
+  hostnames:
+    - status.yral.com
+  rules:
+    - backendRefs:
+        - name: uptime-kuma
+          namespace: uptime-kuma
+          port: 3001

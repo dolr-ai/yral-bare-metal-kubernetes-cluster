@@ -1,0 +1,15 @@
+# Uptime Kuma SQLite database storage.
+# Uptime Kuma stores all config, monitors, and history in a SQLite database
+# under /app/data. Longhorn 2-replica for storage-level HA.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: uptime-kuma-data
+  namespace: uptime-kuma
+spec:
+  storageClassName: longhorn
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

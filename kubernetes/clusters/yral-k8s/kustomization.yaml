@@ -48,6 +48,7 @@ resources:
   - infrastructure-tekton-pipelines.yaml
   - infrastructure-tekton-triggers.yaml
   - infrastructure-trivy-operator.yaml
+  - infrastructure-uptime-kuma.yaml
   - infrastructure-velero.yaml
   - networking.yaml
 

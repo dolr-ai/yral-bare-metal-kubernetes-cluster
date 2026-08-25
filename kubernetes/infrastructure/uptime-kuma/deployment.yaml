@@ -1,0 +1,68 @@
+# Uptime Kuma — self-hosted uptime monitoring
+#
+# Monitors HTTP(s), TCP, DNS, and other service endpoints. Provides public
+# status pages and a private admin dashboard with its own login auth.
+#
+# Image: louislam/uptime-kuma (Docker Hub, multi-arch amd64/arm64)
+# Port: 3001  |  Data dir: /app/data (SQLite, PVC-backed)
+# Exposed at https://status.yral.com via Cilium Gateway (direct, no oauth2-proxy —
+# Uptime Kuma has its own built-in login for the admin dashboard; status pages
+# are public by design).
+#
+# No TRUSTED_AUTH_HEADER equivalent exists in Uptime Kuma (unlike Beszel), so
+# we cannot suppress its own login. The admin dashboard is protected by
+# Uptime Kuma's own authentication.
+#
+# Upgrades: bump the image tag below, push, Flux reconciles with Recreate
+# strategy (brief downtime — single replica + PVC). No image automation for
+# third-party images; upgrades are manual tag bumps in git.
+# Releases: https://github.com/louislam/uptime-kuma/releases
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: uptime-kuma
+  namespace: uptime-kuma
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: uptime-kuma
+  template:
+    metadata:
+      labels:
+        app: uptime-kuma
+    spec:
+      containers:
+        - name: uptime-kuma
+          image: louislam/uptime-kuma:2.5.3
+          ports:
+            - containerPort: 3001
+              name: http
+          volumeMounts:
+            - name: uptime-kuma-data
+              mountPath: /app/data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3001
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3001
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: uptime-kuma-data
+          persistentVolumeClaim:
+            claimName: uptime-kuma-data
