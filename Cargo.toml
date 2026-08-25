@@ -4,7 +4,6 @@ members = [
   "apps/leptos-tutorial-builder-syntax",
   "apps/my-website",
   "apps/off-chain-agent",
-  "apps/task-runner",
   "apps/yral-auth",
   "apps/yral-database-spacetime",
   "apps/yral-database-spacetime/bindings",
@@ -36,7 +35,6 @@ config = "0.15.25"
 console_error_panic_hook = "0.1.7"
 console_log = "1.1.0"
 crc32fast = "1.4.0"
-dotenv = "0.15.0"
 elsa = "1.11.2"
 email_address = "0.2.9"
 enum_dispatch = "0.3"

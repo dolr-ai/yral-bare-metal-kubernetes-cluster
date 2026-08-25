@@ -28,7 +28,6 @@ component = { path = "../component" }
 console_error_panic_hook = { workspace = true }
 console_log = { workspace = true }
 consts = { path = "../consts" }
-dotenv = { workspace = true, optional = true }
 futures = { workspace = true }
 getrandom = { workspace = true, features = ["wasm_js"], optional = true }
 gloo = { workspace = true, features = ["futures", "net"] }
@@ -109,7 +108,6 @@ ssr = [
   "component/ssr",
   "consts/ssr",
   "dep:axum",
-  "dep:dotenv",
   "dep:leptos_axum",
   "dep:rand_chacha",
   "dep:regex",

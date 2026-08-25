@@ -26,7 +26,6 @@ console_error_panic_hook = { workspace = true }
 console_log = { workspace = true }
 # workspace deps
 consts = { path = "../consts" }
-dotenv = { workspace = true, optional = true }
 enum_dispatch = { workspace = true, optional = true }
 futures = { workspace = true }
 getrandom = { workspace = true, default-features = false, features = ["wasm_js"], optional = true }
@@ -119,4 +118,4 @@ release-lib = [
   "oauth-hydrate",
 ]
 spacetimedb-browser = ["spacetimedb-sdk/browser"]
-ssr = ["auth/ssr", "axum-extra", "consts/ssr", "dep:axum", "dep:dotenv", "dep:enum_dispatch", "dep:leptos_axum", "dep:openssl-sys", "dep:rand_chacha", "dep:regex", "dep:spacetimedb-sdk", "dep:tokio", "dep:tower", "dep:tower-http", "dep:tracing", "dep:yral-database-spacetime-bindings", "leptos_meta/ssr", "leptos_router/ssr", "leptos-use/axum", "leptos-use/ssr", "leptos/ssr", "reqwest/rustls", "speedate", "utils/ssr"]
+ssr = ["auth/ssr", "axum-extra", "consts/ssr", "dep:axum", "dep:enum_dispatch", "dep:leptos_axum", "dep:openssl-sys", "dep:rand_chacha", "dep:regex", "dep:spacetimedb-sdk", "dep:tokio", "dep:tower", "dep:tower-http", "dep:tracing", "dep:yral-database-spacetime-bindings", "leptos_meta/ssr", "leptos_router/ssr", "leptos-use/axum", "leptos-use/ssr", "leptos/ssr", "reqwest/rustls", "speedate", "utils/ssr"]

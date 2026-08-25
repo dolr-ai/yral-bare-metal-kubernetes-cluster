@@ -114,7 +114,6 @@ component = { path = "./src/component" }
 console_error_panic_hook = { workspace = true }
 console_log = { workspace = true }
 consts = { path = "./src/consts" }
-dotenv = { workspace = true, optional = true }
 enum_dispatch = { workspace = true, optional = true }
 futures = { workspace = true }
 gloo = { workspace = true, features = ["futures", "net"] }
@@ -197,7 +196,6 @@ ssr = [
   "component/ssr",
   "consts/ssr",
   "dep:axum",
-  "dep:dotenv",
   "dep:enum_dispatch",
   "dep:leptos_axum",
   "dep:regex",

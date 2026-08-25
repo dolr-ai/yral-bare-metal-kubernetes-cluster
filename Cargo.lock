@@ -896,7 +896,6 @@ dependencies = [
  "console_error_panic_hook",
  "console_log",
  "consts",
- "dotenv",
  "enum_dispatch",
  "futures",
  "gloo",
@@ -1097,7 +1096,6 @@ dependencies = [
  "codee",
  "console_error_panic_hook",
  "console_log",
- "dotenv",
  "enum_dispatch",
  "futures",
  "gloo",
@@ -1649,12 +1647,6 @@ checksum = "442039f5147480ba31067cb00ada1adae6892028e40e45fc5de7b7df6dcc1b5f"
 dependencies = [
  "const-random",
 ]
-
-[[package]]
-name = "dotenv"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
 
 [[package]]
 name = "drain_filter_polyfill"
@@ -4538,7 +4530,6 @@ dependencies = [
  "console_error_panic_hook",
  "console_log",
  "consts",
- "dotenv",
  "futures",
  "getrandom 0.4.3",
  "gloo",
@@ -6693,7 +6684,6 @@ dependencies = [
  "console_error_panic_hook",
  "console_log",
  "consts",
- "dotenv",
  "enum_dispatch",
  "futures",
  "getrandom 0.4.3",
@@ -6927,15 +6917,6 @@ dependencies = [
  "throw_error",
  "wasm-bindgen",
  "web-sys",
-]
-
-[[package]]
-name = "task_runner"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "reqwest 0.13.4",
- "spacetimedb-sdk",
 ]
 
 [[package]]
@@ -7636,7 +7617,6 @@ dependencies = [
  "console_log",
  "consts",
  "crc32fast",
- "dotenv",
  "enum_dispatch",
  "futures",
  "gloo",
@@ -8394,7 +8374,6 @@ dependencies = [
  "console_error_panic_hook",
  "console_log",
  "consts",
- "dotenv",
  "enum_dispatch",
  "futures",
  "gloo",

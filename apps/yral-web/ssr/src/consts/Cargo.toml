@@ -65,7 +65,6 @@ axum-extra = {
   optional = true
 }
 openidconnect = { workspace = true, optional = true }
-dotenv = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true }
 js-sys = { workspace = true }
 speedate = { workspace = true, optional = true }
@@ -100,7 +99,6 @@ ssr = [
     "dep:enum_dispatch",
     "axum-extra",
     "dep:rand_chacha",
-    "dep:dotenv",
     "speedate",
     "dep:regex",
 ]

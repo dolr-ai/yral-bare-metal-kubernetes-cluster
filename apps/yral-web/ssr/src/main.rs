@@ -60,8 +60,6 @@ pub async fn leptos_routes_handler(state: State<AppState>, req: Request<AxumBody
 }
 
 async fn main_impl() -> Result<(), Box<dyn std::error::Error>> {
-    dotenv::dotenv().ok();
-
     // Setting get_configuration(None) means we'll be using cargo-leptos's env values
     // For deployment these variables are:
     // <https://github.com/leptos-rs/start-axum#executing-a-server-on-a-remote-machine-without-the-toolchain>
