@@ -90,3 +90,20 @@
     msg: >-
       Added A record: {{ cloudflare_app_wildcard_hostname }} → {{ hostvars[inventory_hostname]['ansible_host'] }}
       (record id: {{ control_plane_join_cf_wildcard_result.json.result.id }})
+
+- name: Remove NoSchedule taint for stacked mode
+  ansible.builtin.command: >
+    kubectl taint node {{ inventory_hostname }}
+    node-role.kubernetes.io/control-plane:NoSchedule-
+  delegate_to: "{{ (groups['control_plane'] | reject('equalto', inventory_hostname) | list)[0] }}"
+  register: taint_removal_result
+  changed_when: "'untainted' in taint_removal_result.stdout"
+  failed_when: "'not found' in taint_removal_result.stderr and 'untainted' not in taint_removal_result.stdout"
+  when: stacked_mode | bool
+
+- name: Display taint removal result (stacked mode)
+  ansible.builtin.debug:
+    msg: >-
+      Stacked mode: removed NoSchedule taint from {{ inventory_hostname }}.
+      Workloads can now schedule on this control plane node.
+  when: stacked_mode | bool

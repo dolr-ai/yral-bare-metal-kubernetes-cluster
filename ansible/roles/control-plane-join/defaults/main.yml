@@ -1,0 +1,6 @@
+---
+# When true, the node joins as a stacked control plane + worker:
+# the NoSchedule taint is removed after joining so workloads can schedule.
+# When false (default), the node joins as a dedicated control plane
+# with the NoSchedule taint preserved.
+stacked_mode: false
