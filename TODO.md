@@ -1,4 +1,3 @@
-- Remove goldilocks completely. I seem to have seen a goldilocks-alloy container
 - Remove yral-auth specific task runner and use the global task runner for everything
 - Move all env to mise instead of direnv
 - Move task runners to mise? Check and decide
