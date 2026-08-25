@@ -35,7 +35,7 @@ fn ProfileCard(
         <div class="flex flex-col gap-4 p-4 w-full rounded-lg bg-neutral-900">
             <div class="flex gap-4 items-center">
                 <img
-                    src=details.profile_pic_or_random()
+                    src=details.profile_pic_or_empty()
                     alt="Profile picture"
                     class="object-cover w-12 h-12 rounded-full shrink-0"
                 />

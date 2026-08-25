@@ -7616,7 +7616,6 @@ dependencies = [
  "console_error_panic_hook",
  "console_log",
  "consts",
- "crc32fast",
  "enum_dispatch",
  "futures",
  "gloo",

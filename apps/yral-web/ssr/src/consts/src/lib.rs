@@ -7,9 +7,6 @@ use reqwest::Url;
 
 /// Base URL for the self-hosted media CDN (video + thumbnails).
 pub const MEDIA_CDN_BASE: &str = "https://cdn-yral-sfw.yral.com";
-/// GobGob NFT profile picture base on Hetzner Object Storage.
-pub const GOBGOB_PROPIC_URL: &str = "https://prakash-yral.hel1.your-objectstorage.com/gobgob/gob.";
-pub const GOBGOB_TOTAL_COUNT: u32 = 18557;
 pub const ACCOUNT_CONNECTED_STORE: &str = "account-connected-1";
 pub const DEVICE_ID: &str = "device_id";
 pub const CUSTOM_DEVICE_ID: &str = "custom_device_id";

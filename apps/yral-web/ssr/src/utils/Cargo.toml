@@ -25,7 +25,6 @@ thiserror = { workspace = true }
 tracing = { workspace = true, optional = true }
 http = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-crc32fast = { workspace = true }
 futures = { workspace = true }
 leptos-use = { workspace = true }
 codee = { workspace = true, features = ["json_serde"] }
