@@ -1,6 +1,12 @@
 # Beszel hub configuration.
 # APP_URL is used for notification links and agent config generation — must match
 # the external URL served by the Cilium Gateway HTTPRoute.
+#
+# TRUSTED_AUTH_HEADER: Beszel trusts the X-Forwarded-Email header forwarded by
+# oauth2-proxy and bypasses its own login form. oauth2-proxy gates access to
+# @gobazzinga.io emails in the developer-admin Google group.
+# USER_EMAIL: creates the first admin user on startup so TRUSTED_AUTH_HEADER
+# has a user to authenticate against.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -8,3 +14,5 @@ metadata:
   namespace: beszel
 data:
   APP_URL: "https://beszel.yral.com"
+  TRUSTED_AUTH_HEADER: "X-Forwarded-Email"
+  USER_EMAIL: "s@gobazzinga.io"

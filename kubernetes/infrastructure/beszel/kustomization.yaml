@@ -6,4 +6,7 @@ resources:
   - pvc.yaml
   - deployment.yaml
   - service.yaml
-  - reference-grant.yaml
+# ReferenceGrant not needed — traffic goes through oauth2-proxy-beszel in the
+# oauth2-proxy namespace, which already has its own ReferenceGrant for kube-system
+# HTTPRoutes. The beszel Service is only accessed cluster-internally by
+# oauth2-proxy (not by the Gateway HTTPRoute directly).

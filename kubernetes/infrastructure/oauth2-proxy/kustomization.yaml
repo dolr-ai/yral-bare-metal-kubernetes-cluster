@@ -17,6 +17,8 @@ resources:
   - service-kafka-console.yaml
   - deployment-dbx.yaml
   - service-dbx.yaml
+  - deployment-beszel.yaml
+  - service-beszel.yaml
   - deployment-longhorn-ui.yaml
   - service-longhorn-ui.yaml
   - reference-grant.yaml

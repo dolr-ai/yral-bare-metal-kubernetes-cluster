@@ -1,11 +1,11 @@
 # Beszel hub HTTPRoute
 #
-# Exposes the Beszel hub at https://beszel.yral.com via the Cilium Gateway.
-# Direct-to-Service (no oauth2-proxy) — Beszel has its own built-in auth.
+# Exposes the Beszel hub at https://beszel.yral.com via oauth2-proxy (Google
+# Workspace SSO, @gobazzinga.io email domain, developer-admin group).
+# Beszel's own login form is disabled — TRUSTED_AUTH_HEADER trusts the
+# X-Forwarded-Email header from oauth2-proxy.
 #
 # TLS is terminated by the Cilium Gateway using the wildcard *.yral.com certificate.
-# The ReferenceGrant in the beszel namespace allows this HTTPRoute to reference
-# the beszel Service as a backend.
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -40,6 +40,6 @@ spec:
     - beszel.yral.com
   rules:
     - backendRefs:
-        - name: beszel
-          namespace: beszel
-          port: 8090
+        - name: oauth2-proxy-beszel
+          namespace: oauth2-proxy
+          port: 4180
