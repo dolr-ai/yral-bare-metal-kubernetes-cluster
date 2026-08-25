@@ -119,8 +119,12 @@ YRAL_AUTH_CLIENT_ID = "804814798298-taifmq3k6olk9bjr1cqb9gfnp1mssqqb.apps.google
 BIND_ADDRESS = "0.0.0.0:7000"
 
 # ── yral-mobile ───────────────────────────────────────────────────────────
-# Kafka bootstrap server for e2e test assertions (checks module).
-KAFKA_BOOTSTRAP = "kafka.yral.com:9092"
+# Kafka bridge URL + bearer token for e2e test assertions (checks module).
+# The e2e tests use the Kafka Bridge HTTP REST API (not native Kafka) to
+# consume Snowplow events from the snowplow-raw topic. The bearer token
+# authenticates against the nginx proxy in front of the Kafka Bridge.
+# Token is injected via fnox (KAFKA_BRIDGE_TOKEN secret).
+KAFKA_BRIDGE_URL = "https://kafka-bridge.yral.com"
 # Gradle — use the project wrapper (./gradlew) for all builds.
 # These improve build performance and reliability.
 GRADLE_OPTS = "-Dorg.gradle.daemon=true -Dorg.gradle.caching=true"

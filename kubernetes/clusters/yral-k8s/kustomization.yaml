@@ -21,7 +21,6 @@ resources:
   - infrastructure-cert-manager-issuers.yaml
   - infrastructure-cert-manager.yaml
   - infrastructure-cilium.yaml
-  - infrastructure-ci-e2e-reader.yaml
   - infrastructure-cloudnative-pg.yaml
   - infrastructure-coredns.yaml
   - infrastructure-dbx.yaml
