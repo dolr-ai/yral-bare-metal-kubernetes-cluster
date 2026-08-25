@@ -1,1 +1,0 @@
-- Move to a 7 node control plane with mixed nodes for better upgradeability and cross data failure isolation. Also, do a stacked control plane deployment where control planes live on the same nodes as workloads. No wasted nodes
