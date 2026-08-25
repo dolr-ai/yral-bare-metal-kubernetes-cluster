@@ -27,7 +27,6 @@ pub mod username_generator;
 pub mod web;
 
 /// Navigation category for bottom nav tracking and cookie logic.
-/// Moved here from mixpanel_events.rs (which has been removed).
 #[derive(serde::Serialize, serde::Deserialize, Debug, Default, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum BottomNavigationCategory {
