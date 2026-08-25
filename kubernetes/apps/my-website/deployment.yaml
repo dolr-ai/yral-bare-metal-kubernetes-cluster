@@ -22,7 +22,7 @@ spec:
         - name: harbor-pull-secret
       containers:
         - name: my-website
-          image: harbor.yral.com/my-website/my-website:20260825214847-c40c5f46 # {"$imagepolicy": "flux-system:my-website"}
+          image: harbor.yral.com/my-website/my-website:20260825221211-721424b7 # {"$imagepolicy": "flux-system:my-website"}
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
