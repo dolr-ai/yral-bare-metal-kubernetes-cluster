@@ -1,0 +1,67 @@
+# Beszel hub — lightweight server monitoring platform
+#
+# The hub is a PocketBase web application that provides a dashboard for viewing
+# and managing connected systems (agents). Agents run on each monitored host in
+# the hetzner-bare-metal-fleet and connect to the hub via WebSocket.
+#
+# Image: henrygd/beszel (Docker Hub, multi-arch amd64/arm64)
+# Port: 8090  |  Data dir: /beszel_data (SQLite, PVC-backed)
+# Exposed at https://beszel.yral.com via Cilium Gateway (direct, no oauth2-proxy —
+# Beszel has its own built-in auth).
+#
+# Upgrades: bump the image tag below, push, Flux reconciles with Recreate
+# strategy (brief downtime — single replica + PVC). No image automation for
+# third-party images; upgrades are manual tag bumps in git.
+# Releases: https://github.com/henrygd/beszel/releases
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: beszel
+  namespace: beszel
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: beszel
+  template:
+    metadata:
+      labels:
+        app: beszel
+    spec:
+      containers:
+        - name: beszel
+          image: henrygd/beszel:0.18.8
+          ports:
+            - containerPort: 8090
+              name: http
+          envFrom:
+            - configMapRef:
+                name: beszel-config
+          volumeMounts:
+            - name: beszel-data
+              mountPath: /beszel_data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /_/
+              port: 8090
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /_/
+              port: 8090
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: beszel-data
+          persistentVolumeClaim:
+            claimName: beszel-data

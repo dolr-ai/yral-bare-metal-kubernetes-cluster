@@ -1,0 +1,10 @@
+# Beszel hub configuration.
+# APP_URL is used for notification links and agent config generation — must match
+# the external URL served by the Cilium Gateway HTTPRoute.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: beszel-config
+  namespace: beszel
+data:
+  APP_URL: "https://beszel.yral.com"

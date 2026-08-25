@@ -1,0 +1,15 @@
+# Beszel hub SQLite database storage.
+# PocketBase stores all hub state (users, systems, metrics history) in a single
+# SQLite file under /beszel_data. Longhorn 2-replica for storage-level HA.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: beszel-data
+  namespace: beszel
+spec:
+  storageClassName: longhorn
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

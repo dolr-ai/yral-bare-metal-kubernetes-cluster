@@ -17,6 +17,7 @@ resources:
   - app-yral-metadata.yaml
   - app-yral-web.yaml
   - infrastructure-alloy.yaml
+  - infrastructure-beszel.yaml
   - infrastructure-cert-manager-issuers.yaml
   - infrastructure-cert-manager.yaml
   - infrastructure-cilium.yaml
