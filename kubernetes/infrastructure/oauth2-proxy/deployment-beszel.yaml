@@ -1,5 +1,8 @@
-# oauth2-proxy for Beszel — gates access to @gobazzinga.io (developer-admin group).
+# oauth2-proxy for Beszel — gates access to @gobazzinga.io emails.
 # Beszel's own login is disabled via TRUSTED_AUTH_HEADER=X-Forwarded-Email.
+# No google-group restriction — all @gobazzinga.io users are allowed.
+# The /api/beszel/agent-connect path is exempted via --skip-auth-regex because
+# Beszel agents authenticate with their own token, not Google SSO.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -21,7 +24,6 @@ spec:
           args:
             - --provider=google
             - --email-domain=gobazzinga.io
-            - --google-group=developer-admin@gobazzinga.io
             - --google-admin-email=s@gobazzinga.io
             - --google-service-account-json=/etc/oauth2-proxy/service-account.json
             - --upstream=http://beszel.beszel.svc.cluster.local:8090
@@ -32,6 +34,9 @@ spec:
             - --redirect-url=https://beszel.yral.com/oauth2/callback
             - --skip-provider-button=true
             - --pass-user-headers=true
+            # Beszel agents connect via WebSocket to /api/beszel/agent-connect
+            # with their own token auth — bypass oauth2-proxy for this path.
+            - --skip-auth-regex=^/api/beszel/agent-connect
           env:
             - name: OAUTH2_PROXY_CLIENT_ID
               valueFrom:
