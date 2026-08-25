@@ -6,8 +6,9 @@
 #
 # Image: henrygd/beszel (Docker Hub, multi-arch amd64/arm64)
 # Port: 8090  |  Data dir: /beszel_data (SQLite, PVC-backed)
-# Exposed at https://beszel.yral.com via Cilium Gateway (direct, no oauth2-proxy —
-# Beszel has its own built-in auth).
+# Exposed at https://beszel.yral.com via oauth2-proxy (Google Workspace SSO,
+# @gobazzinga.io email domain, developer-admin group). Beszel's own login is
+# disabled via TRUSTED_AUTH_HEADER=X-Forwarded-Email.
 #
 # Upgrades: bump the image tag below, push, Flux reconciles with Recreate
 # strategy (brief downtime — single replica + PVC). No image automation for
@@ -33,6 +34,10 @@ spec:
     metadata:
       labels:
         app: beszel
+      annotations:
+        # Force pod restart to pick up ConfigMap changes (TRUSTED_AUTH_HEADER, USER_EMAIL).
+        # Reloader handles future ConfigMap changes automatically via the Deployment annotation above.
+        reloaded-at: "2026-08-25T07:00:00Z"
     spec:
       containers:
         - name: beszel
