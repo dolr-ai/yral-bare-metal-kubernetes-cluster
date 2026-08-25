@@ -53,5 +53,4 @@ git submodule update --init --recursive
 | `apps/yral-web/`             | `legacy.yral.com`                                           |
 | `apps/yral-metadata/`           | `metadata.yral.com`                                         |
 | `apps/off-chain-agent/`         | `offchain.yral.com`                                         |
-| `apps/task-runner/`             | Workspace member (root Cargo.toml)                          |
 | `apps/yral-database-spacetime/` | Workspace member (root Cargo.toml)                          |
