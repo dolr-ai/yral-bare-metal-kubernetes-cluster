@@ -4,7 +4,6 @@ use anyhow::Result;
 use axum::extract::DefaultBodyLimit;
 use axum::http::StatusCode;
 use axum::{routing::get, Router};
-use config::AppConfig;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tower::make::Shared;
@@ -16,9 +15,6 @@ use utoipa_swagger_ui::SwaggerUi;
 
 mod app_state;
 mod auth;
-mod config;
-mod consts;
-mod events;
 mod middleware;
 mod posts;
 mod spacetime;
@@ -37,21 +33,11 @@ async fn main_impl() -> Result<()> {
     )]
     struct ApiDoc;
 
-    let conf = AppConfig::load()?;
-
-    let shared_state = Arc::new(AppState::new(conf.clone()).await);
+    let shared_state = Arc::new(AppState::new().await);
 
     let router = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .nest("/api/v1/posts", posts::posts_router(shared_state.clone()))
-        .nest(
-            "/api/v1/events",
-            events::events_router(shared_state.clone()),
-        )
         .nest("/api/v1/user", user::user_router(shared_state.clone()))
-        .nest(
-            "/api/v2/events",
-            events::events_router_v2(shared_state.clone()),
-        )
         .nest(
             "/api/v2/posts",
             posts::posts_router_v2(shared_state.clone()),

@@ -81,21 +81,3 @@ pub fn extract_user_id_from_headers(
 
     Ok(claims.sub)
 }
-
-pub fn check_auth_events(req_token: Option<String>) -> Result<(), anyhow::Error> {
-    // GRPC_AUTH_TOKEN is the shared secret for the single-event POST endpoint
-    // (used by the mobile app). If not set, the endpoint is disabled.
-    let token = env::var("GRPC_AUTH_TOKEN").unwrap_or_default();
-    let token = token.trim();
-
-    if token.is_empty() {
-        return Err(anyhow::anyhow!(
-            "No GRPC_AUTH_TOKEN set — single-event endpoint disabled"
-        ));
-    }
-
-    match req_token {
-        Some(t) if !t.is_empty() && t == token => Ok(()),
-        _ => Err(anyhow::anyhow!("No valid auth token")),
-    }
-}

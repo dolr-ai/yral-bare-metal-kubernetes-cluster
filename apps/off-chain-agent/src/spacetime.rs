@@ -16,14 +16,10 @@
 //! (e.g. `delete_post`) to work. View-count updates (`add_view_details`)
 //! require no admin check — any caller can invoke them.
 
+use anyhow::{Context, Result};
 use std::env;
 use std::sync::Arc;
-
-use anyhow::{Context, Result};
-use yral_database_spacetime_bindings::{
-    self as bindings, DbConnection,
-    add_view_details, delete_post,
-};
+use yral_database_spacetime_bindings::{delete_post, DbConnection};
 
 pub type SpacetimeConnection = DbConnection;
 
@@ -33,12 +29,9 @@ pub type SpacetimeConnection = DbConnection;
 /// from environment variables. The connection is kept alive via `run_async()`
 /// spawned as a background tokio task that pumps the WebSocket message loop.
 pub async fn init_spacetimedb_connection() -> Result<Arc<SpacetimeConnection>> {
-    let url = env::var("SPACETIMEDB_URL")
-        .context("SPACETIMEDB_URL is not set")?;
-    let db_name = env::var("SPACETIMEDB_DB_NAME")
-        .context("SPACETIMEDB_DB_NAME is not set")?;
-    let token = env::var("SPACETIMEDB_ADMIN_TOKEN")
-        .context("SPACETIMEDB_ADMIN_TOKEN is not set");
+    let url = env::var("SPACETIMEDB_URL").context("SPACETIMEDB_URL is not set")?;
+    let db_name = env::var("SPACETIMEDB_DB_NAME").context("SPACETIMEDB_DB_NAME is not set")?;
+    let token = env::var("SPACETIMEDB_ADMIN_TOKEN").context("SPACETIMEDB_ADMIN_TOKEN is not set");
 
     let token = match token {
         Ok(t) => Some(t),
@@ -55,7 +48,10 @@ pub async fn init_spacetimedb_connection() -> Result<Arc<SpacetimeConnection>> {
         .with_database_name(db_name)
         .with_token(token)
         .on_connect(move |_ctx, identity, _token| {
-            log::info!("SpacetimeDB connected. Admin identity: {}", identity.to_hex());
+            log::info!(
+                "SpacetimeDB connected. Admin identity: {}",
+                identity.to_hex()
+            );
         })
         .build()?;
 
@@ -75,28 +71,6 @@ pub async fn init_spacetimedb_connection() -> Result<Arc<SpacetimeConnection>> {
     });
 
     Ok(conn)
-}
-
-/// Send a fire-and-forget view-count update to SpacetimeDB.
-/// Mirrors the IC `update_post_add_view_details` call.
-///
-/// The IC version used an enum (`WatchedPartially`/`WatchedMultipleTimes`);
-/// SpacetimeDB uses a flat struct `{ percentage_watched, watch_count }`.
-/// Both branches of the IC enum produce the same struct fields with
-/// different values, so we just construct the struct directly.
-pub fn send_view_details(
-    conn: &SpacetimeConnection,
-    post_id: String,
-    percentage_watched: u8,
-    watch_count: u8,
-) -> Result<()> {
-    conn.reducers
-        .add_view_details(post_id.clone(), bindings::PostViewDetailsFromFrontend {
-            percentage_watched,
-            watch_count,
-        })
-        .context("Failed to send add_view_details reducer call")?;
-    Ok(())
 }
 
 /// Send a fire-and-forget post delete to SpacetimeDB.

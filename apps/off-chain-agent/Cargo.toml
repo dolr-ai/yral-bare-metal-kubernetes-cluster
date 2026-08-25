@@ -15,21 +15,13 @@ path = "src/bin/generate_jwt.rs"
 
 [dependencies]
 anyhow = { workspace = true }
-async-channel = { workspace = true }
 axum = { workspace = true, features = ["json", "macros"] }
 chrono = { workspace = true, features = ["serde"] }
-chrono-tz = { workspace = true }
-config = { workspace = true, features = ["toml"] }
-futures = { workspace = true }
 hex = { workspace = true }
-hmac = { workspace = true }
 http = { workspace = true }
 http-body-util = { workspace = true }
 jsonwebtoken = { workspace = true, features = ["aws_lc_rs", "use_pem"] }
 log = { workspace = true }
-num-bigint = { workspace = true }
-num-traits = { workspace = true }
-once_cell = { workspace = true }
 openssl-sys = { workspace = true, features = ["vendored"] }
 rand = { workspace = true }
 regex = { workspace = true }
@@ -47,20 +39,15 @@ rustls = { workspace = true, features = ["ring"] }
 serde = { workspace = true, features = ["derive"] }
 serde_bytes = { workspace = true }
 serde_json = { workspace = true }
-serde_with = { workspace = true }
-sha1 = { workspace = true }
 sha2 = { workspace = true }
 spacetimedb-sdk = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
-strum_macros = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
 tower = { workspace = true, features = ["full"] }
 tower-http = { workspace = true, features = ["cors", "limit"] }
 tracing = { workspace = true }
-tracing-futures = { workspace = true }
-tracing-log = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 urlencoding = { workspace = true }
 utoipa = { workspace = true }
