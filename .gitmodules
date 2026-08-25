@@ -7,3 +7,6 @@
 [submodule "apps/yral"]
 	path = apps/yral
 	url = git@github.com:dolr-ai/yral.git
+[submodule "apps/hetzner-bare-metal-fleet"]
+	path = apps/hetzner-bare-metal-fleet
+	url = git@github.com:dolr-ai/hetzner-bare-metal-fleet.git
