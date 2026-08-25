@@ -38,6 +38,7 @@ ruby = { version = "latest", os = ["macos"] }
 # it would be dead weight (RUSTUP_TOOLCHAIN env var takes precedence).
 rust = { version = "nightly", targets = ["wasm32-unknown-unknown", "x86_64-unknown-linux-musl"], components = ["rustfmt", "clippy", "rust-src", "rust-analyzer"] }
 sops = "latest"
+sqlite = "latest"
 swiftlint = { version = "latest", os = ["macos"] }
 
 # System packages — project-specific build dependencies (apt on Debian/Ubuntu).
