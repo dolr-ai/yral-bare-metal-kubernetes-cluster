@@ -110,9 +110,9 @@ pub fn NavigationMenu() -> impl IntoView {
                 .child(
                     html::div()
                         .class(move || if menu_open.get() { Some("open") } else { None })
-                        .child(html::span().attr("class", "block"))
-                        .child(html::span().attr("class", "block"))
-                        .child(html::span().attr("class", "block")),
+                        .child(html::span().attr("class", "block h-0.5 w-6 bg-white my-1.5 rounded-full transition-all"))
+                        .child(html::span().attr("class", "block h-0.5 w-6 bg-white my-1.5 rounded-full transition-all"))
+                        .child(html::span().attr("class", "block h-0.5 w-6 bg-white my-1.5 rounded-full transition-all")),
                 ),
         )
         .child(move || {

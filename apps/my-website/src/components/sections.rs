@@ -87,10 +87,14 @@ pub fn intro_section() -> impl IntoView {
 
 /// Builds a single "Find me at" list item: an `<a>` with an icon and label,
 /// styled with a colored left border.
+///
+/// `border_class` must be a complete Tailwind class (e.g. "border-yellow-600")
+/// so the JIT scanner can detect it. Dynamic class construction like
+/// `format!("border-{color}")` does not work with Tailwind v4's scanner.
 fn find_me_on_link(
     href: &str,
     label: &str,
-    border_color: &str,
+    border_class: &str,
     icon: impl IntoView,
 ) -> impl IntoView {
     html::li()
@@ -102,7 +106,7 @@ fn find_me_on_link(
                 .attr(
                     "class",
                     format!(
-                        "flex gap-2 items-center text-xl p-4 border-l-2 border-{border_color} hover:shadow-md transition duration-300",
+                        "flex gap-2 items-center text-xl p-4 border-l-2 {border_class} hover:shadow-md transition duration-300",
                     ),
                 )
                 .child(icon)
@@ -121,37 +125,37 @@ pub fn find_me_on_section() -> impl IntoView {
                 .child(find_me_on_link(
                     "https://saikat.dev",
                     "My Website",
-                    "yellow-600",
+                    "border-yellow-600",
                     svelte_icon("w-5 h-5"),
                 ))
                 .child(find_me_on_link(
                     "https://github.com/saikatdas0790",
                     "Github",
-                    "black",
+                    "border-black",
                     github_icon("w-5 h-5"),
                 ))
                 .child(find_me_on_link(
                     "https://www.npmjs.com/~saikatdas0790",
                     "NPM",
-                    "red-600",
+                    "border-red-600",
                     npm_icon("w-5 h-5"),
                 ))
                 .child(find_me_on_link(
                     "mailto:saikatdas0790@gmail.com",
                     "Email",
-                    "red-500",
+                    "border-red-500",
                     gmail_icon("w-5 h-5"),
                 ))
                 .child(find_me_on_link(
                     "https://www.linkedin.com/in/saikat-das-13674166/",
                     "LinkedIn",
-                    "blue-700",
+                    "border-blue-700",
                     linkedin_icon("w-5 h-5"),
                 ))
                 .child(find_me_on_link(
                     "https://stackoverflow.com/users/3462837/saikat-das",
                     "Stack Overflow",
-                    "yellow-500",
+                    "border-yellow-500",
                     stackoverflow_icon("w-5 h-5"),
                 )),
         )
