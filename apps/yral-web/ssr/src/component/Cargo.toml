@@ -20,7 +20,7 @@ axum-extra = {
   ],
   optional = true
 }
-chrono = "0.4"
+chrono = { workspace = true }
 codee = { workspace = true, features = ["json_serde"] }
 console_error_panic_hook = { workspace = true }
 console_log = { workspace = true }

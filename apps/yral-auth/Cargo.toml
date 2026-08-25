@@ -128,13 +128,13 @@ jsonwebtoken = { workspace = true, features = ["aws_lc_rs", "use_pem"] }
 p256 = { workspace = true, features = ["pkcs8"] }
 rand = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }
-yral-database-spacetime-bindings = { path = "../yral-database-spacetime/bindings" }
+yral-database-spacetime-bindings = { workspace = true }
 
 # getrandom v0.4 is pulled transitively by leptos_macro's uuid dep.
 # On wasm32-unknown-unknown, it needs the wasm_js feature enabled.
 # This is a target-specific dependency — only active on WASM targets.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom_0_4 = { package = "getrandom", version = "0.4", default-features = false, features = ["wasm_js"] }
+getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
 
 [features]
 apple-oauth = []

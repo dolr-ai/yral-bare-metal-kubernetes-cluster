@@ -78,7 +78,7 @@ sha2 = { workspace = true }
 anyhow = { workspace = true }
 send_wrapper = { workspace = true, features = ["futures"] }
 indexmap = { workspace = true }
-chrono = "0.4"
+chrono = { workspace = true }
 num-bigint = { workspace = true }
 
 # workspace specific deps
