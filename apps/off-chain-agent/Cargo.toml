@@ -68,6 +68,3 @@ utoipa-axum = { workspace = true }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 uuid = { workspace = true, features = ["fast-rng", "v4"] }
 yral-database-spacetime-bindings = { workspace = true }
-
-[features]
-prod-bin = []
