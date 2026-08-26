@@ -289,22 +289,23 @@
 
 - name: Get etcd member ID
   ansible.builtin.shell: |
-    # Find an etcd pod on a v1.36.x node (kubectl exec to v1.35.x pods fails with Forbidden)
-    # Prefer non-control-plane-* nodes (v1.36.x: node-*, worker-12) over control-plane-* (v1.35.x)
-    ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
+    # Use local API server (127.0.0.1:6443) — the kubeconfig points to
+    # kubernetes-api.yral.com which round-robins to v1.35.x CPs that can't proxy exec
+    KUBECTL="kubectl --kubeconfig=/etc/kubernetes/admin.conf --server=https://127.0.0.1:6443 --insecure-skip-tls-verify=true"
+    ETCD_POD=$($KUBECTL -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
       grep -v '{{ node_remove_k8s_name }}' | \
       grep -v '^etcd-control-plane-' | head -1 | awk '{print $1}')
     # Fallback: any etcd pod not on the removed node
     if [ -z "$ETCD_POD" ]; then
-      ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
+      ETCD_POD=$($KUBECTL -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
         grep -v '{{ node_remove_k8s_name }}' | head -1 | awk '{print $1}')
     fi
     if [ -z "$ETCD_POD" ]; then
       echo "No suitable etcd pod found" >&2
       exit 1
     fi
-    # Run kubectl exec from this node (v1.36.x) so the API server proxy works
-    kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system exec "$ETCD_POD" -- \
+    # Run kubectl exec via local API server (v1.36.x) so exec proxy works
+    $KUBECTL -n kube-system exec "$ETCD_POD" -- \
       etcdctl member list \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
@@ -323,15 +324,15 @@
 
 - name: Remove etcd member
   ansible.builtin.shell: |
-    # Find an etcd pod on a v1.36.x node (kubectl exec to v1.35.x pods fails with Forbidden)
-    ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
+    KUBECTL="kubectl --kubeconfig=/etc/kubernetes/admin.conf --server=https://127.0.0.1:6443 --insecure-skip-tls-verify=true"
+    ETCD_POD=$($KUBECTL -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
       grep -v '{{ node_remove_k8s_name }}' | \
       grep -v '^etcd-control-plane-' | head -1 | awk '{print $1}')
     if [ -z "$ETCD_POD" ]; then
-      ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
+      ETCD_POD=$($KUBECTL -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
         grep -v '{{ node_remove_k8s_name }}' | head -1 | awk '{print $1}')
     fi
-    kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system exec "$ETCD_POD" -- \
+    $KUBECTL -n kube-system exec "$ETCD_POD" -- \
       etcdctl member remove {{ etcd_member_id.stdout | trim }} \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
@@ -516,15 +517,15 @@
 
 - name: Verify etcd cluster health (control plane only)
   ansible.builtin.shell: |
-    # Find an etcd pod on a v1.36.x node (kubectl exec to v1.35.x pods fails with Forbidden)
-    ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
+    KUBECTL="kubectl --kubeconfig=/etc/kubernetes/admin.conf --server=https://127.0.0.1:6443 --insecure-skip-tls-verify=true"
+    ETCD_POD=$($KUBECTL -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
       grep -v '{{ node_remove_k8s_name }}' | \
       grep -v '^etcd-control-plane-' | head -1 | awk '{print $1}')
     if [ -z "$ETCD_POD" ]; then
-      ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
+      ETCD_POD=$($KUBECTL -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
         grep -v '{{ node_remove_k8s_name }}' | head -1 | awk '{print $1}')
     fi
-    timeout 60 kubectl -n kube-system exec "$ETCD_POD" -- \
+    timeout 60 $KUBECTL -n kube-system exec "$ETCD_POD" -- \
       etcdctl endpoint health \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
