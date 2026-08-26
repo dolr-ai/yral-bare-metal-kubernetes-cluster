@@ -13,33 +13,6 @@
       delegate_to: "{{ (groups['control_plane'] | reject('equalto', inventory_hostname) | list)[0] }}"
       register: join_command
 
-    - name: Check kubeadm-config ClusterConfiguration kubernetesVersion
-      ansible.builtin.shell: |
-        kubectl get configmap kubeadm-config -n kube-system -o jsonpath='{.data.ClusterConfiguration}' 2>/dev/null | grep -oP 'kubernetesVersion:\s*\K.*' | tr -d ' '
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      delegate_to: "{{ (groups['control_plane'] | reject('equalto', inventory_hostname) | list)[0] }}"
-      register: cluster_kubernetes_version
-      changed_when: false
-
-    - name: Display cluster kubeadm-config version
-      ansible.builtin.debug:
-        msg: "Cluster kubeadm-config version: {{ cluster_kubernetes_version.stdout }}, installed kubeadm version: v{{ kubernetes_version }}"
-
-    - name: Upgrade cluster config to match installed kubeadm version
-      ansible.builtin.command: >
-        kubeadm upgrade apply v{{ kubernetes_version }} --yes
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      delegate_to: "{{ (groups['control_plane'] | reject('equalto', inventory_hostname) | list)[0] }}"
-      register: kubeadm_upgrade
-      when: cluster_kubernetes_version.stdout != "v" ~ kubernetes_version
-
-    - name: Display kubeadm upgrade result
-      ansible.builtin.debug:
-        msg: "{{ kubeadm_upgrade.stdout_lines }}"
-      when: cluster_kubernetes_version.stdout != "v" ~ kubernetes_version
-
     - name: Build final join command
       ansible.builtin.set_fact:
         join_command_final: >-
