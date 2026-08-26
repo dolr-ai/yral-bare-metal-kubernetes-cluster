@@ -286,25 +286,15 @@
   ansible.builtin.shell: |
     export KUBECONFIG=/etc/kubernetes/admin.conf
     # Find an etcd pod on a v1.36.x node (kubectl exec to v1.35.x pods fails with Forbidden)
-    ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o json | \
-      python3 -c "
-import sys, json
-pods = json.load(sys.stdin)['items']
-for p in pods:
-    node = p['spec']['nodeName']
-    # Skip the node being removed
-    if node == '{{ node_remove_k8s_name }}':
-        continue
-    # Prefer v1.36.x nodes (node-*, worker-12) over v1.35.x (control-plane-*)
-    if not node.startswith('control-plane-'):
-        print(p['metadata']['name'])
-        sys.exit(0)
-# Fallback: any etcd pod not on the removed node
-for p in pods:
-    if p['spec']['nodeName'] != '{{ node_remove_k8s_name }}':
-        print(p['metadata']['name'])
-        sys.exit(0)
-")
+    # Prefer non-control-plane-* nodes (v1.36.x: node-*, worker-12) over control-plane-* (v1.35.x)
+    ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
+      grep -v '{{ node_remove_k8s_name }}' | \
+      grep -v '^etcd-control-plane-' | head -1 | awk '{print $1}')
+    # Fallback: any etcd pod not on the removed node
+    if [ -z "$ETCD_POD" ]; then
+      ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
+        grep -v '{{ node_remove_k8s_name }}' | head -1 | awk '{print $1}')
+    fi
     if [ -z "$ETCD_POD" ]; then
       echo "No suitable etcd pod found" >&2
       exit 1
@@ -332,22 +322,13 @@ for p in pods:
   ansible.builtin.shell: |
     export KUBECONFIG=/etc/kubernetes/admin.conf
     # Find an etcd pod on a v1.36.x node (kubectl exec to v1.35.x pods fails with Forbidden)
-    ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o json | \
-      python3 -c "
-import sys, json
-pods = json.load(sys.stdin)['items']
-for p in pods:
-    node = p['spec']['nodeName']
-    if node == '{{ node_remove_k8s_name }}':
-        continue
-    if not node.startswith('control-plane-'):
-        print(p['metadata']['name'])
-        sys.exit(0)
-for p in pods:
-    if p['spec']['nodeName'] != '{{ node_remove_k8s_name }}':
-        print(p['metadata']['name'])
-        sys.exit(0)
-")
+    ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
+      grep -v '{{ node_remove_k8s_name }}' | \
+      grep -v '^etcd-control-plane-' | head -1 | awk '{print $1}')
+    if [ -z "$ETCD_POD" ]; then
+      ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
+        grep -v '{{ node_remove_k8s_name }}' | head -1 | awk '{print $1}')
+    fi
     kubectl -n kube-system exec "$ETCD_POD" -- \
       etcdctl member remove {{ etcd_member_id.stdout | trim }} \
       --endpoints=https://127.0.0.1:2379 \
@@ -390,6 +371,12 @@ for p in pods:
 # finalizer should be removed by the controller. But if the controller is slow
 # or the node is already gone, we force-remove the finalizer to ensure the CR
 # is actually deleted before the node is reprovisioned.
+#
+# The Longhorn validating webhook may block deletion when the K8s node is
+# already gone (KubernetesNodeGone condition). Workaround: temporarily point
+# the webhook to a non-existent service so failurePolicy: Ignore kicks in,
+# delete the CR, then restore the webhook.
+# See: https://github.com/longhorn/longhorn/issues/13494
 - name: Delete Longhorn Node CR
   ansible.builtin.command: >
     kubectl delete node.longhorn.io {{ node_remove_k8s_name }}
@@ -399,17 +386,42 @@ for p in pods:
   failed_when: false
   changed_when: longhorn_node_delete.rc == 0
 
-- name: Force-remove finalizer if Longhorn Node CR is stuck terminating
-  ansible.builtin.shell: |
-    kubectl -n longhorn-system patch node.longhorn.io {{ node_remove_k8s_name }} \
-      --type=merge -p '{"metadata":{"finalizers":null}}' 2>/dev/null
-    kubectl -n longhorn-system delete node.longhorn.io {{ node_remove_k8s_name }} \
-      --ignore-not-found 2>/dev/null
-  delegate_to: "{{ kubectl_delegate }}"
-  register: longhorn_node_force_delete
-  failed_when: false
-  changed_when: true
+- name: Bypass Longhorn webhook to delete stuck Node CR
   when: longhorn_node_delete.rc != 0
+  block:
+    - name: Temporarily disable Longhorn webhook validation
+      ansible.builtin.shell: |
+        kubectl patch validatingwebhookconfiguration longhorn-webhook-validator \
+          --type=json -p='[{"op":"replace","path":"/webhooks/0/clientConfig/service/name","value":"longhorn-admission-webhook-disabled"}]'
+      delegate_to: "{{ kubectl_delegate }}"
+      changed_when: true
+
+    - name: Delete Longhorn Node CR with webhook bypassed
+      ansible.builtin.command: >
+        kubectl delete node.longhorn.io {{ node_remove_k8s_name }}
+        -n longhorn-system --ignore-not-found --timeout=30s
+      delegate_to: "{{ kubectl_delegate }}"
+      register: longhorn_node_bypass_delete
+      failed_when: false
+      changed_when: longhorn_node_bypass_delete.rc == 0
+
+    - name: Restore Longhorn webhook validation
+      ansible.builtin.shell: |
+        kubectl patch validatingwebhookconfiguration longhorn-webhook-validator \
+          --type=json -p='[{"op":"replace","path":"/webhooks/0/clientConfig/service/name","value":"longhorn-admission-webhook"}]'
+      delegate_to: "{{ kubectl_delegate }}"
+      changed_when: true
+
+    - name: Force-remove finalizer if still stuck
+      ansible.builtin.shell: |
+        kubectl -n longhorn-system patch node.longhorn.io {{ node_remove_k8s_name }} \
+          --type=merge -p '{"metadata":{"finalizers":null}}' 2>/dev/null
+        kubectl -n longhorn-system delete node.longhorn.io {{ node_remove_k8s_name }} \
+          --ignore-not-found 2>/dev/null
+      delegate_to: "{{ kubectl_delegate }}"
+      register: longhorn_node_force_delete
+      failed_when: false
+      changed_when: true
 
 - name: Display Longhorn Node CR deletion result
   ansible.builtin.debug:
