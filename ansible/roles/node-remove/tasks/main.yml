@@ -284,7 +284,9 @@
 
 - name: Get etcd member ID
   ansible.builtin.shell: |
-    kubectl -n kube-system exec etcd-{{ kubectl_delegate_k8s_name }} -- \
+    export KUBECONFIG=/etc/kubernetes/admin.conf
+    ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o jsonpath='{.items[0].metadata.name}')
+    kubectl -n kube-system exec "$ETCD_POD" -- \
       etcdctl member list \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
@@ -305,7 +307,9 @@
 
 - name: Remove etcd member
   ansible.builtin.shell: |
-    kubectl -n kube-system exec etcd-{{ kubectl_delegate_k8s_name }} -- \
+    export KUBECONFIG=/etc/kubernetes/admin.conf
+    ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o jsonpath='{.items[0].metadata.name}')
+    kubectl -n kube-system exec "$ETCD_POD" -- \
       etcdctl member remove {{ etcd_member_id.stdout | trim }} \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
