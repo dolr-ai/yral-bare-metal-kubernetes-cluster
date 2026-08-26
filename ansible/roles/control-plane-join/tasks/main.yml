@@ -1,6 +1,12 @@
 ---
 - name: Join control plane node
   block:
+    - name: Reset any stale kubeadm state before join
+      ansible.builtin.shell: |
+        kubeadm reset --force 2>/dev/null || true
+        rm -rf /var/lib/etcd /etc/kubernetes/pki/etcd /etc/kubernetes/kubelet.conf /etc/kubernetes/bootstrap-kubelet.conf
+      changed_when: true
+
     - name: Upload control plane certificates on first control plane
       ansible.builtin.shell: |
         kubeadm init phase upload-certs --upload-certs 2>/dev/null | grep -E '^[a-f0-9]{64}$'
