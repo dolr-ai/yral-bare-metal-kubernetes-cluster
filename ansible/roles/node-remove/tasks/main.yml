@@ -282,6 +282,11 @@
     - not is_control_plane
   run_once: true
 
+- name: Find a v1.36.x control plane node for etcd operations
+  ansible.builtin.set_fact:
+    etcd_delegate: "{{ (groups['control_plane'] | reject('equalto', target_host) | select('match', '^(node-|worker-12)') | list) | first | default((groups['control_plane'] | reject('equalto', target_host) | list)[0]) }}"
+  when: is_control_plane
+
 - name: Get etcd member ID
   ansible.builtin.shell: |
     # Find an etcd pod on a v1.36.x node (kubectl exec to v1.35.x pods fails with Forbidden)
@@ -298,13 +303,15 @@
       echo "No suitable etcd pod found" >&2
       exit 1
     fi
-    kubectl -n kube-system exec "$ETCD_POD" -- \
+    # Run kubectl exec from this node (v1.36.x) so the API server proxy works
+    kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system exec "$ETCD_POD" -- \
       etcdctl member list \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
       --cert=/etc/kubernetes/pki/etcd/server.crt \
       --key=/etc/kubernetes/pki/etcd/server.key \
       | grep {{ node_remove_k8s_name }} | cut -d',' -f1
+  delegate_to: "{{ etcd_delegate }}"
   register: etcd_member_id
   when: is_control_plane
   failed_when: false
@@ -324,12 +331,13 @@
       ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
         grep -v '{{ node_remove_k8s_name }}' | head -1 | awk '{print $1}')
     fi
-    kubectl -n kube-system exec "$ETCD_POD" -- \
+    kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system exec "$ETCD_POD" -- \
       etcdctl member remove {{ etcd_member_id.stdout | trim }} \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
       --cert=/etc/kubernetes/pki/etcd/server.crt \
       --key=/etc/kubernetes/pki/etcd/server.key
+  delegate_to: "{{ etcd_delegate }}"
   when:
     - is_control_plane
     - etcd_member_id.stdout | trim != ""
@@ -523,6 +531,7 @@
       --cert=/etc/kubernetes/pki/etcd/server.crt \
       --key=/etc/kubernetes/pki/etcd/server.key \
       --cluster
+  delegate_to: "{{ etcd_delegate }}"
   register: etcd_health
   when: is_control_plane
   changed_when: false
