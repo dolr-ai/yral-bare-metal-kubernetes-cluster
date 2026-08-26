@@ -14,6 +14,7 @@ pub(super) struct AddPost2Args {
     pub hashtags: Vec<String>,
     pub video_uid: String,
     pub status: PostStatus,
+    pub post_as_ai_account_id: Option<String>,
 }
 
 impl From<AddPost2Args> for super::Reducer {
@@ -24,6 +25,7 @@ impl From<AddPost2Args> for super::Reducer {
             hashtags: args.hashtags,
             video_uid: args.video_uid,
             status: args.status,
+            post_as_ai_account_id: args.post_as_ai_account_id,
         }
     }
 }
@@ -50,8 +52,17 @@ pub trait add_post_2 {
         hashtags: Vec<String>,
         video_uid: String,
         status: PostStatus,
+        post_as_ai_account_id: Option<String>,
     ) -> __sdk::Result<()> {
-        self.add_post_2_then(id, description, hashtags, video_uid, status, |_, _| {})
+        self.add_post_2_then(
+            id,
+            description,
+            hashtags,
+            video_uid,
+            status,
+            post_as_ai_account_id,
+            |_, _| {},
+        )
     }
 
     /// Request that the remote module invoke the reducer `add_post_2` to run as soon as possible,
@@ -67,6 +78,7 @@ pub trait add_post_2 {
         hashtags: Vec<String>,
         video_uid: String,
         status: PostStatus,
+        post_as_ai_account_id: Option<String>,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -82,6 +94,7 @@ impl add_post_2 for super::RemoteReducers {
         hashtags: Vec<String>,
         video_uid: String,
         status: PostStatus,
+        post_as_ai_account_id: Option<String>,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -94,6 +107,7 @@ impl add_post_2 for super::RemoteReducers {
                 hashtags,
                 video_uid,
                 status,
+                post_as_ai_account_id,
             },
             callback,
         )

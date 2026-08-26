@@ -197,6 +197,7 @@ pub enum Reducer {
         hashtags: Vec<String>,
         video_uid: String,
         status: PostStatus,
+        post_as_ai_account_id: Option<String>,
     },
     AddProPlanFreeVideoCredits {
         oauth_subject: String,
@@ -370,12 +371,14 @@ impl __sdk::Reducer for Reducer {
                 hashtags,
                 video_uid,
                 status,
+                post_as_ai_account_id,
             } => __sats::bsatn::to_vec(&add_post_2_reducer::AddPost2Args {
                 id: id.clone(),
                 description: description.clone(),
                 hashtags: hashtags.clone(),
                 video_uid: video_uid.clone(),
                 status: status.clone(),
+                post_as_ai_account_id: post_as_ai_account_id.clone(),
             }),
             Reducer::AddProPlanFreeVideoCredits {
                 oauth_subject,
