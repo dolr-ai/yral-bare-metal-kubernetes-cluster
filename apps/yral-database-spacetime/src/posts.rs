@@ -532,9 +532,10 @@ pub fn migrate_posts_to_3(ctx: &ReducerContext, batch_limit: u32) -> Result<(), 
 ///
 /// Unlike the V1 `add_post`, no `creator` argument is taken — `creator` is
 /// derived from `ctx.sender()` and `creator_oauth_subject` is extracted
-/// from the caller's JWT (`ctx.sender_auth().jwt().subject()`). This means
-/// non-admin callers always create posts as themselves; an admin caller
-/// can create a post, but the OAuth subject still comes from their own JWT.
+/// from the caller's JWT, or — when `as_account` is given — from one of the AI
+/// accounts that JWT says the caller owns (`ext_ai_account_ids`). That lets an
+/// owner post as any of their bots on one shared session, with no second login,
+/// while a caller can never post as an account it does not own.
 #[spacetimedb::reducer]
 pub fn add_post_2(
     ctx: &ReducerContext,
@@ -543,14 +544,13 @@ pub fn add_post_2(
     hashtags: Vec<String>,
     video_uid: String,
     status: PostStatus,
+    as_account: Option<String>,
 ) -> Result<(), String> {
     let creator = ctx.sender();
-    let creator_oauth_subject = ctx
-        .sender_auth()
-        .jwt()
-        .expect("JWT required")
-        .subject()
-        .to_string();
+    // `None` posts as the caller. `Some(id)` posts as one of the caller's own
+    // AI accounts — verified against the `ext_ai_account_ids` claim in their
+    // signed token, so a client cannot claim an account it does not own.
+    let creator_oauth_subject = crate::auth::acting_subject(ctx, as_account)?;
     if ctx.db.posts_3().id().find(id.clone()).is_some() {
         return Err("DuplicatePostId".to_string());
     }
@@ -589,7 +589,14 @@ pub fn update_post_status_2(
         Some(p) => p,
         None => return Err("PostNotFound".to_string()),
     };
-    if !crate::constants::ADMINS.contains(&ctx.sender()) && post.creator != ctx.sender() {
+    // Admin, the poster themselves, or the owner of the AI account that posted
+    // it — publishing a bot's draft is something its owner does.
+    let is_owner_of_poster =
+        crate::auth::acting_subject(ctx, Some(post.creator_oauth_subject.clone())).is_ok();
+    if !crate::constants::ADMINS.contains(&ctx.sender())
+        && post.creator != ctx.sender()
+        && !is_owner_of_poster
+    {
         return Err("Unauthorized".to_string());
     }
     // Draft → Uploaded resets created_at (publishing a draft).

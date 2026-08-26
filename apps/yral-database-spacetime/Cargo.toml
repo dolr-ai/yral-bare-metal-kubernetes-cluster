@@ -17,3 +17,7 @@ log = { workspace = true }
 # `#[spacetimedb::http::handler]` (unstable-gated in spacetimedb 2.6.1).
 # Required by the `posts` feature (procedures + HTTP handler).
 spacetimedb = { workspace = true, features = ["unstable"] }
+# Reads the `ext_ai_account_ids` custom claim off the caller's JWT via
+# `JwtClaims::raw_payload()`, which the SDK documents as the way to reach
+# claims beyond `sub`/`iss`/`aud`. See `auth::acting_subject`.
+serde_json = { workspace = true }
