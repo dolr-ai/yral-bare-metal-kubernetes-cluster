@@ -284,7 +284,6 @@
 
 - name: Get etcd member ID
   ansible.builtin.shell: |
-    export KUBECONFIG=/etc/kubernetes/admin.conf
     # Find an etcd pod on a v1.36.x node (kubectl exec to v1.35.x pods fails with Forbidden)
     # Prefer non-control-plane-* nodes (v1.36.x: node-*, worker-12) over control-plane-* (v1.35.x)
     ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
@@ -306,9 +305,6 @@
       --cert=/etc/kubernetes/pki/etcd/server.crt \
       --key=/etc/kubernetes/pki/etcd/server.key \
       | grep {{ node_remove_k8s_name }} | cut -d',' -f1
-  environment:
-    KUBECONFIG: /etc/kubernetes/admin.conf
-  delegate_to: "{{ kubectl_delegate }}"
   register: etcd_member_id
   when: is_control_plane
   failed_when: false
@@ -320,7 +316,6 @@
 
 - name: Remove etcd member
   ansible.builtin.shell: |
-    export KUBECONFIG=/etc/kubernetes/admin.conf
     # Find an etcd pod on a v1.36.x node (kubectl exec to v1.35.x pods fails with Forbidden)
     ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
       grep -v '{{ node_remove_k8s_name }}' | \
@@ -335,9 +330,6 @@
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
       --cert=/etc/kubernetes/pki/etcd/server.crt \
       --key=/etc/kubernetes/pki/etcd/server.key
-  environment:
-    KUBECONFIG: /etc/kubernetes/admin.conf
-  delegate_to: "{{ kubectl_delegate }}"
   when:
     - is_control_plane
     - etcd_member_id.stdout | trim != ""
@@ -516,16 +508,21 @@
 
 - name: Verify etcd cluster health (control plane only)
   ansible.builtin.shell: |
-    timeout 60 kubectl -n kube-system exec etcd-{{ kubectl_delegate_k8s_name }} -- \
+    # Find an etcd pod on a v1.36.x node (kubectl exec to v1.35.x pods fails with Forbidden)
+    ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
+      grep -v '{{ node_remove_k8s_name }}' | \
+      grep -v '^etcd-control-plane-' | head -1 | awk '{print $1}')
+    if [ -z "$ETCD_POD" ]; then
+      ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName --no-headers | \
+        grep -v '{{ node_remove_k8s_name }}' | head -1 | awk '{print $1}')
+    fi
+    timeout 60 kubectl -n kube-system exec "$ETCD_POD" -- \
       etcdctl endpoint health \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
       --cert=/etc/kubernetes/pki/etcd/server.crt \
       --key=/etc/kubernetes/pki/etcd/server.key \
       --cluster
-  environment:
-    KUBECONFIG: /etc/kubernetes/admin.conf
-  delegate_to: "{{ kubectl_delegate }}"
   register: etcd_health
   when: is_control_plane
   changed_when: false
