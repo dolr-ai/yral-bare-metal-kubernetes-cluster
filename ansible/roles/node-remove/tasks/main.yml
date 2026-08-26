@@ -292,7 +292,7 @@
     # Use ctr (containerd CLI) to exec directly into the local etcd container.
     # This avoids kubectl exec proxy issues (v1.35.x API servers can't proxy exec).
     # The etcd pod runs with hostNetwork: true, so 127.0.0.1:2379 reaches local etcd.
-    ETCD_CID=$(ctr -n k8s.io containers list | grep 'etcd:' | head -1 | awk '{print $1}')
+    ETCD_CID=$(ctr -n k8s.io containers list | grep 'etcd:' | head -1 | cut -d' ' -f1)
     if [ -z "$ETCD_CID" ]; then
       echo "No etcd container found on this node" >&2
       exit 1
@@ -316,7 +316,7 @@
 
 - name: Remove etcd member
   ansible.builtin.shell: |
-    ETCD_CID=$(ctr -n k8s.io containers list | grep 'etcd:' | head -1 | awk '{print $1}')
+    ETCD_CID=$(ctr -n k8s.io containers list | grep 'etcd:' | head -1 | cut -d' ' -f1)
     ctr -n k8s.io tasks exec --exec-id etcd-remove "$ETCD_CID" \
       etcdctl member remove {{ etcd_member_id.stdout | trim }} \
       --endpoints=https://127.0.0.1:2379 \
@@ -502,7 +502,7 @@
 
 - name: Verify etcd cluster health (control plane only)
   ansible.builtin.shell: |
-    ETCD_CID=$(ctr -n k8s.io containers list | grep 'etcd:' | head -1 | awk '{print $1}')
+    ETCD_CID=$(ctr -n k8s.io containers list | grep 'etcd:' | head -1 | cut -d' ' -f1)
     timeout 60 ctr -n k8s.io tasks exec --exec-id etcd-health "$ETCD_CID" \
       etcdctl endpoint health \
       --endpoints=https://127.0.0.1:2379 \
