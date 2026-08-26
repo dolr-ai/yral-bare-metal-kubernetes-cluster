@@ -297,7 +297,7 @@
       echo "No etcd container found on this node" >&2
       exit 1
     fi
-    ctr -n k8s.io tasks exec --exec-id etcd-list-$$ "$ETCD_CID" \
+    ctr -n k8s.io tasks exec --exec-id etcd-list "$ETCD_CID" \
       etcdctl member list \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
@@ -317,7 +317,7 @@
 - name: Remove etcd member
   ansible.builtin.shell: |
     ETCD_CID=$(ctr -n k8s.io containers list | grep 'etcd:' | head -1 | awk '{print $1}')
-    ctr -n k8s.io tasks exec --exec-id etcd-remove-$$ "$ETCD_CID" \
+    ctr -n k8s.io tasks exec --exec-id etcd-remove "$ETCD_CID" \
       etcdctl member remove {{ etcd_member_id.stdout | trim }} \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
@@ -503,7 +503,7 @@
 - name: Verify etcd cluster health (control plane only)
   ansible.builtin.shell: |
     ETCD_CID=$(ctr -n k8s.io containers list | grep 'etcd:' | head -1 | awk '{print $1}')
-    timeout 60 ctr -n k8s.io tasks exec --exec-id etcd-health-$$ "$ETCD_CID" \
+    timeout 60 ctr -n k8s.io tasks exec --exec-id etcd-health "$ETCD_CID" \
       etcdctl endpoint health \
       --endpoints=https://127.0.0.1:2379 \
       --cacert=/etc/kubernetes/pki/etcd/ca.crt \
