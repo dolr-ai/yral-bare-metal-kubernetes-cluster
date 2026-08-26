@@ -23,6 +23,7 @@
 //!   — `spacetimedb::Table` must be imported for `.insert()/.iter()/.id().update()`;
 //!   the per-table accessor traits are auto-in-scope in the same module.
 
+mod ai_account_ownership;
 mod auth_kv;
 mod constants;
 mod posts;

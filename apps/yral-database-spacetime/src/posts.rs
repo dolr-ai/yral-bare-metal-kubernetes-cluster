@@ -532,9 +532,14 @@ pub fn migrate_posts_to_3(ctx: &ReducerContext, batch_limit: u32) -> Result<(), 
 ///
 /// Unlike the V1 `add_post`, no `creator` argument is taken — `creator` is
 /// derived from `ctx.sender()` and `creator_oauth_subject` is extracted
-/// from the caller's JWT (`ctx.sender_auth().jwt().subject()`). This means
-/// non-admin callers always create posts as themselves; an admin caller
-/// can create a post, but the OAuth subject still comes from their own JWT.
+/// from the caller's JWT.
+///
+/// Pass `post_as_ai_account_id` to post as one of your own AI accounts instead
+/// of as yourself — an owner posting as one of their bots. The caller's token
+/// lists the AI accounts they own, so ownership is checked from the credential
+/// they already presented: no second login, and nothing a client can fake.
+/// Passing `None` behaves exactly as this reducer did before the parameter was
+/// added.
 #[spacetimedb::reducer]
 pub fn add_post_2(
     ctx: &ReducerContext,
@@ -543,14 +548,31 @@ pub fn add_post_2(
     hashtags: Vec<String>,
     video_uid: String,
     status: PostStatus,
+    // Which account the post is BY. `None` means the caller themselves.
+    // `Some(id)` means one of the caller's own AI accounts — an owner posting
+    // as one of their bots.
+    post_as_ai_account_id: Option<String>,
 ) -> Result<(), String> {
     let creator = ctx.sender();
-    let creator_oauth_subject = ctx
-        .sender_auth()
-        .jwt()
-        .expect("JWT required")
-        .subject()
-        .to_string();
+
+    // Work out whose post this is.
+    let creator_oauth_subject = match post_as_ai_account_id {
+        // Posting as yourself — unchanged from before this parameter existed.
+        None => crate::ai_account_ownership::caller_oauth_subject(ctx),
+
+        // Posting as an AI account. Allowed if the caller's token says they own
+        // it, or if the caller is an admin (backend services hold an admin
+        // token and post on users' behalf).
+        Some(ai_account_id) => {
+            let caller_owns_it =
+                crate::ai_account_ownership::caller_owns_ai_account(ctx, &ai_account_id);
+            let caller_is_admin = crate::constants::ADMINS.contains(&ctx.sender());
+            if !caller_owns_it && !caller_is_admin {
+                return Err("Unauthorized".to_string());
+            }
+            ai_account_id
+        }
+    };
     if ctx.db.posts_3().id().find(id.clone()).is_some() {
         return Err("DuplicatePostId".to_string());
     }
@@ -589,7 +611,16 @@ pub fn update_post_status_2(
         Some(p) => p,
         None => return Err("PostNotFound".to_string()),
     };
-    if !crate::constants::ADMINS.contains(&ctx.sender()) && post.creator != ctx.sender() {
+    // Who may change this post's status:
+    //   - an admin
+    //   - whoever posted it
+    //   - the owner of the AI account that posted it, since publishing a bot's
+    //     draft is something the bot's owner does
+    let caller_is_admin = crate::constants::ADMINS.contains(&ctx.sender());
+    let caller_is_the_poster = post.creator == ctx.sender();
+    let caller_owns_the_posting_ai_account =
+        crate::ai_account_ownership::caller_owns_ai_account(ctx, &post.creator_oauth_subject);
+    if !caller_is_admin && !caller_is_the_poster && !caller_owns_the_posting_ai_account {
         return Err("Unauthorized".to_string());
     }
     // Draft → Uploaded resets created_at (publishing a draft).
