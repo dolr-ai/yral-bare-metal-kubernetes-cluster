@@ -285,7 +285,30 @@
 - name: Get etcd member ID
   ansible.builtin.shell: |
     export KUBECONFIG=/etc/kubernetes/admin.conf
-    ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o jsonpath='{.items[0].metadata.name}')
+    # Find an etcd pod on a v1.36.x node (kubectl exec to v1.35.x pods fails with Forbidden)
+    ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o json | \
+      python3 -c "
+import sys, json
+pods = json.load(sys.stdin)['items']
+for p in pods:
+    node = p['spec']['nodeName']
+    # Skip the node being removed
+    if node == '{{ node_remove_k8s_name }}':
+        continue
+    # Prefer v1.36.x nodes (node-*, worker-12) over v1.35.x (control-plane-*)
+    if not node.startswith('control-plane-'):
+        print(p['metadata']['name'])
+        sys.exit(0)
+# Fallback: any etcd pod not on the removed node
+for p in pods:
+    if p['spec']['nodeName'] != '{{ node_remove_k8s_name }}':
+        print(p['metadata']['name'])
+        sys.exit(0)
+")
+    if [ -z "$ETCD_POD" ]; then
+      echo "No suitable etcd pod found" >&2
+      exit 1
+    fi
     kubectl -n kube-system exec "$ETCD_POD" -- \
       etcdctl member list \
       --endpoints=https://127.0.0.1:2379 \
@@ -308,7 +331,23 @@
 - name: Remove etcd member
   ansible.builtin.shell: |
     export KUBECONFIG=/etc/kubernetes/admin.conf
-    ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o jsonpath='{.items[0].metadata.name}')
+    # Find an etcd pod on a v1.36.x node (kubectl exec to v1.35.x pods fails with Forbidden)
+    ETCD_POD=$(kubectl -n kube-system get pod -l component=etcd -o json | \
+      python3 -c "
+import sys, json
+pods = json.load(sys.stdin)['items']
+for p in pods:
+    node = p['spec']['nodeName']
+    if node == '{{ node_remove_k8s_name }}':
+        continue
+    if not node.startswith('control-plane-'):
+        print(p['metadata']['name'])
+        sys.exit(0)
+for p in pods:
+    if p['spec']['nodeName'] != '{{ node_remove_k8s_name }}':
+        print(p['metadata']['name'])
+        sys.exit(0)
+")
     kubectl -n kube-system exec "$ETCD_POD" -- \
       etcdctl member remove {{ etcd_member_id.stdout | trim }} \
       --endpoints=https://127.0.0.1:2379 \
