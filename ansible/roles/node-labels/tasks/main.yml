@@ -138,7 +138,7 @@
   failed_when: false
 
 - name: Reset stale Longhorn disk with UUID mismatch
-  when: lh_stale_disk.stdout | trim != ''
+  when: lh_stale_disk.stdout | trim != '' and lh_stale_disk.stdout | trim != 'healthy'
   block:
     - name: Disable scheduling on stale disk
       ansible.builtin.shell: |
@@ -223,7 +223,7 @@
 - name: Skip Longhorn disk fix (no mismatch)
   ansible.builtin.debug:
     msg: "Longhorn disk on {{ ansible_facts['hostname'] }} is healthy, no UUID fix needed"
-  when: lh_stale_disk.stdout | trim == ''
+  when: lh_stale_disk.stdout | trim == '' or lh_stale_disk.stdout | trim == 'healthy'
 
 - name: Get nodes by topology
   ansible.builtin.command: >
