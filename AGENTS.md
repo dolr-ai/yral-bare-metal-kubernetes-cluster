@@ -216,12 +216,16 @@ Run `ansible-lint ansible/playbooks/operations/` before changes. Playbooks must 
 **Full init flow (never partial):** provision → storage-longhorn → ssh-hardening → base-system (reboot if needed) → containerd → kubernetes → (init or join) → node-labels → cloudflare-dns.
 
 ### Kubernetes Cluster
-- kubeadm, stacked etcd, odd # CPs (currently 5, one per Helsinki building for blast radius).
+- kubeadm, stacked etcd, 7 stacked CP nodes (node-1 through node-7).
+- All CP nodes run both control plane and workloads (stacked mode, `stacked_mode: true` host var in inventory).
+- etcd quorum=4, tolerates 3 node failures.
+- 5 nodes in Helsinki (node-1, node-3, node-4, node-5, node-6), 2 in Falkenstein (node-2, node-7).
 - Control plane HA via Cloudflare DNS round-robin (`kubernetes-api.yral.com`).
 - Cilium + WireGuard encryption. Gateway API for exposure.
 - Serial node operations.
 - CoreDNS topology: see `kubernetes/infrastructure/coredns/coredns-*-topology.yaml` (non-Flux, kubeadm-owned). Run `kubectl apply -f` after adding workers in new zones.
 - Storage (Longhorn): see `kubernetes/infrastructure/longhorn/helmrelease.yaml` for version and settings. Default `longhorn` SC (2 replicas, LUKS2 encryption, `dataLocality: best-effort` for local primary replica). `longhorn-1replica` SC for workloads with app-layer replication. `storage-longhorn` role handles btrfs RAID0 expansion + Longhorn data dir creation on all nodes.
+- Node naming convention: `node-N` for all cluster nodes (control plane + workers). Workers still named `worker-N` until reprovisioned.
 
 ### Storage Replication Policy
 
@@ -359,7 +363,7 @@ For any external service the repo calls (SpacetimeDB Maincloud, third-party APIs
 - Wire config into the consuming app via its existing config mechanism (e.g. mobile `BuildConfig`/config module; Rust service `mise.toml [env]` + `fnox exec`).
 
 ### Inventory
-`control_plane` / `worker_nodes` / `k8s_cluster`. Target via `-e target_host=...`.
+`control_plane` (node-1 through node-7, all stacked CP+worker) / `worker_nodes` (worker-1 through worker-35, pure workers) / `k8s_cluster` (parent group containing both). Target via `-e target_host=...`.
 
 ### Ansible / Playbook Execution
 - `become` is globally false; remote plays SSH as root; localhost plays as vscode user.
