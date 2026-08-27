@@ -18,16 +18,16 @@
           echo "No etcd container found"
           exit 0
         fi
-        # Find any etcd member at this node's IP (stale from a previous failed join)
+        NODE_IP="{{ ansible_facts['default_ipv4']['address'] }}"
         STALE_ID=$(ctr -n k8s.io tasks exec --exec-id etcd-check "$ETCD_CID" \
           etcdctl member list \
           --endpoints=https://127.0.0.1:2379 \
           --cacert=/etc/kubernetes/pki/etcd/ca.crt \
           --cert=/etc/kubernetes/pki/etcd/server.crt \
           --key=/etc/kubernetes/pki/etcd/server.key 2>/dev/null \
-          | grep "{{ ansible_facts['default_ipv4']['address'] }}" | cut -d, -f1 | tr -d " ")
+          | grep "$NODE_IP" | cut -d, -f1 | tr -d " ")
         if [ -n "$STALE_ID" ]; then
-          echo "Removing stale etcd member(s) at {{ ansible_facts['default_ipv4']['address'] }}: $STALE_ID"
+          echo "Removing stale etcd member(s) at $NODE_IP: $STALE_ID"
           for id in $STALE_ID; do
             ctr -n k8s.io tasks exec --exec-id etcd-rm "$ETCD_CID" \
               etcdctl member remove "$id" \
@@ -37,7 +37,7 @@
               --key=/etc/kubernetes/pki/etcd/server.key 2>&1
           done
         else
-          echo "No stale etcd member found at {{ ansible_facts['default_ipv4']['address'] }}"
+          echo "No stale etcd member found at $NODE_IP"
         fi
       delegate_to: "{{ etcd_delegate }}"
       register: stale_etcd_cleanup
