@@ -17,20 +17,35 @@
 //! removed nothing replaced it, so every write a bot makes is now recorded
 //! against its owner instead of against the bot.
 //!
-//! # Why the token is enough
+//! # Why this reads the database and not the token
 //!
-//! yral-auth already puts the list of AI accounts a person owns into every
-//! id_token, as the `ext_ai_account_ids` claim. That same id_token is the
-//! SpacetimeDB token (it carries `ext_spacetimedb_token: true`), so the list is
-//! sitting right there in the credential the caller already presented.
+//! It used to read the `ext_ai_account_ids` claim out of the caller's token.
+//! That was wrong, and it made creating a bot and immediately using it
+//! impossible.
 //!
-//! That means no second login, no separate bot token to mint or refresh, and
-//! nothing a client can fake — the claim is inside a signature we verify.
+//! The claim is stamped into a token when the token is **granted**. A bot
+//! created afterwards cannot appear in a token that was already issued, and the
+//! app creates a bot and generates its first video about nine seconds later, in
+//! the same session, with the same token. So the check refused every brand-new
+//! bot — which is exactly the case the whole mechanism exists to allow. There
+//! is no ordering that fixes this from the client: the token is older than the
+//! bot by construction.
 //!
-//! `JwtClaims::raw_payload()` is the SDK's documented way to read claims beyond
-//! `sub` / `iss` / `aud`.
+//! `user_profiles_2` already holds the answer, and holds it *correctly*.
+//! `accept_new_user_registration` records the bot against its owner —
+//! `UserAccountType::MainAccount { bots }` — and the app calls that **before**
+//! it does anything as the bot. So by the time any reducer asks "does this
+//! caller own that bot?", the row has been written.
+//!
+//! Reading it here means ownership is answered from the same table that created
+//! the relationship, is correct the instant a bot exists, and needs no token
+//! refresh, no client change, and no second login.
 
-use spacetimedb::ReducerContext;
+use spacetimedb::{ReducerContext, Table};
+
+// `user_profiles_2` is the generated table-accessor trait; it must be in
+// scope for `ctx.db.user_profiles_2()` to resolve.
+use crate::user_info::{user_profiles_2, UserAccountType};
 
 /// The OAuth subject of whoever made this call.
 ///
@@ -45,65 +60,80 @@ pub fn caller_oauth_subject(ctx: &ReducerContext) -> String {
         .to_string()
 }
 
-/// Whether the caller's token says they own this AI account.
+/// Whether `ai_account_id` is one of the bots this account owns.
 ///
-/// Reads the `ext_ai_account_ids` claim and looks for `ai_account_id` in it.
+/// Split out from the lookup so the rule can be tested without a
+/// `ReducerContext`. A bot may not act as another bot.
+fn account_owns_bot(account_type: &UserAccountType, ai_account_id: &str) -> bool {
+    match account_type {
+        UserAccountType::MainAccount { bots } => bots.iter().any(|bot| bot == ai_account_id),
+        UserAccountType::BotAccount { .. } => false,
+    }
+}
+
+/// Whether the caller owns this AI account.
 ///
-/// Returns `false` if the claim is missing or malformed — an older token simply
-/// cannot act as a bot, which is the safe answer. It does NOT consider admins;
-/// callers that want to allow admins should check `constants::ADMINS`
-/// separately, so that reading the call site makes both rules obvious.
+/// Looks the caller up in `user_profiles_2` and asks whether the account is in
+/// their `bots` list. Returns `false` if the caller has no profile — someone who
+/// has never registered owns nothing, which is the safe answer.
+///
+/// This does NOT consider admins; callers that want to allow admins should check
+/// `constants::ADMINS` separately, so that reading the call site makes both
+/// rules obvious.
 pub fn caller_owns_ai_account(ctx: &ReducerContext, ai_account_id: &str) -> bool {
-    let Some(jwt) = ctx.sender_auth().jwt() else {
-        return false;
-    };
-    let Ok(claims) = serde_json::from_str::<serde_json::Value>(jwt.raw_payload()) else {
-        return false;
-    };
-    claims
-        .get("ext_ai_account_ids")
-        .and_then(|ai_account_ids| ai_account_ids.as_array())
-        .is_some_and(|ai_account_ids| {
-            ai_account_ids
-                .iter()
-                .any(|owned_id| owned_id.as_str() == Some(ai_account_id))
-        })
+    let caller = caller_oauth_subject(ctx);
+    ctx.db
+        .user_profiles_2()
+        .iter()
+        .find(|profile| profile.oauth_subject == caller)
+        .is_some_and(|profile| account_owns_bot(&profile.account_type, ai_account_id))
 }
 
 #[cfg(test)]
 mod tests {
-    /// The claim-reading half of `caller_owns_ai_account`, split out so it can
-    /// be tested without a `ReducerContext`.
-    fn token_lists_ai_account(raw_payload: &str, ai_account_id: &str) -> bool {
-        let Ok(claims) = serde_json::from_str::<serde_json::Value>(raw_payload) else {
-            return false;
-        };
-        claims
-            .get("ext_ai_account_ids")
-            .and_then(|ids| ids.as_array())
-            .is_some_and(|ids| ids.iter().any(|id| id.as_str() == Some(ai_account_id)))
+    use super::account_owns_bot;
+    use crate::user_info::UserAccountType;
+
+    fn owner_of(bots: &[&str]) -> UserAccountType {
+        UserAccountType::MainAccount {
+            bots: bots.iter().map(|b| b.to_string()).collect(),
+        }
     }
 
     #[test]
     fn owner_can_act_as_their_own_ai_account() {
-        let token = r#"{"sub":"owner-1","ext_ai_account_ids":["bot-a","bot-b"]}"#;
-        assert!(token_lists_ai_account(token, "bot-a"));
-        assert!(token_lists_ai_account(token, "bot-b"));
+        let owner = owner_of(&["bot-a", "bot-b"]);
+        assert!(account_owns_bot(&owner, "bot-a"));
+        assert!(account_owns_bot(&owner, "bot-b"));
     }
 
     #[test]
     fn cannot_act_as_someone_elses_ai_account() {
-        let token = r#"{"sub":"owner-1","ext_ai_account_ids":["bot-a"]}"#;
-        assert!(!token_lists_ai_account(token, "bot-owned-by-someone-else"));
+        let owner = owner_of(&["bot-a"]);
+        assert!(!account_owns_bot(&owner, "bot-owned-by-someone-else"));
     }
 
     #[test]
-    fn token_without_the_claim_owns_nothing() {
-        assert!(!token_lists_ai_account(r#"{"sub":"owner-1"}"#, "bot-a"));
-        assert!(!token_lists_ai_account(
-            r#"{"ext_ai_account_ids":"not-an-array"}"#,
-            "bot-a"
-        ));
-        assert!(!token_lists_ai_account("not json at all", "bot-a"));
+    fn an_account_with_no_bots_owns_nothing() {
+        assert!(!account_owns_bot(&owner_of(&[]), "bot-a"));
+    }
+
+    #[test]
+    fn a_bot_cannot_act_as_another_bot() {
+        let bot = UserAccountType::BotAccount {
+            owner: "owner-1".to_string(),
+        };
+        assert!(!account_owns_bot(&bot, "bot-a"));
+    }
+
+    /// The regression this module was rewritten for: a bot registered against
+    /// its owner is usable immediately, with no token refresh. Under the old
+    /// token-claim check this was refused until the caller signed in again.
+    #[test]
+    fn a_just_created_bot_is_usable_immediately() {
+        let owner = owner_of(&["bot-a"]);
+        let after_creating_another = owner_of(&["bot-a", "brand-new-bot"]);
+        assert!(!account_owns_bot(&owner, "brand-new-bot"));
+        assert!(account_owns_bot(&after_creating_another, "brand-new-bot"));
     }
 }
