@@ -12,6 +12,7 @@ pub(super) struct UpdateProfileDetailsArgs {
     pub bio: Option<String>,
     pub website_url: Option<String>,
     pub profile_picture: Option<ProfilePictureData>,
+    pub update_as_ai_account_id: Option<String>,
 }
 
 impl From<UpdateProfileDetailsArgs> for super::Reducer {
@@ -20,6 +21,7 @@ impl From<UpdateProfileDetailsArgs> for super::Reducer {
             bio: args.bio,
             website_url: args.website_url,
             profile_picture: args.profile_picture,
+            update_as_ai_account_id: args.update_as_ai_account_id,
         }
     }
 }
@@ -44,8 +46,15 @@ pub trait update_profile_details {
         bio: Option<String>,
         website_url: Option<String>,
         profile_picture: Option<ProfilePictureData>,
+        update_as_ai_account_id: Option<String>,
     ) -> __sdk::Result<()> {
-        self.update_profile_details_then(bio, website_url, profile_picture, |_, _| {})
+        self.update_profile_details_then(
+            bio,
+            website_url,
+            profile_picture,
+            update_as_ai_account_id,
+            |_, _| {},
+        )
     }
 
     /// Request that the remote module invoke the reducer `update_profile_details` to run as soon as possible,
@@ -59,6 +68,7 @@ pub trait update_profile_details {
         bio: Option<String>,
         website_url: Option<String>,
         profile_picture: Option<ProfilePictureData>,
+        update_as_ai_account_id: Option<String>,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -72,6 +82,7 @@ impl update_profile_details for super::RemoteReducers {
         bio: Option<String>,
         website_url: Option<String>,
         profile_picture: Option<ProfilePictureData>,
+        update_as_ai_account_id: Option<String>,
 
         callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
             + Send
@@ -82,6 +93,7 @@ impl update_profile_details for super::RemoteReducers {
                 bio,
                 website_url,
                 profile_picture,
+                update_as_ai_account_id,
             },
             callback,
         )

@@ -274,6 +274,7 @@ pub enum Reducer {
         bio: Option<String>,
         website_url: Option<String>,
         profile_picture: Option<ProfilePictureData>,
+        update_as_ai_account_id: Option<String>,
     },
     UpdateProfilePictureNsfwInfo {
         oauth_subject: String,
@@ -506,10 +507,12 @@ impl __sdk::Reducer for Reducer {
                 bio,
                 website_url,
                 profile_picture,
+                update_as_ai_account_id,
             } => __sats::bsatn::to_vec(&update_profile_details_reducer::UpdateProfileDetailsArgs {
                 bio: bio.clone(),
                 website_url: website_url.clone(),
                 profile_picture: profile_picture.clone(),
+                update_as_ai_account_id: update_as_ai_account_id.clone(),
             }),
             Reducer::UpdateProfilePictureNsfwInfo {
                 oauth_subject,
