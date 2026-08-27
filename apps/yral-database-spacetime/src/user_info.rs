@@ -562,22 +562,37 @@ pub fn update_profile_ai_influencer_status(
     Ok(())
 }
 
-/// Update profile details with NSFW-aware profile picture. Only the
-/// authenticated user can update their own profile. All fields are optional
-/// — pass `None` to leave a field unchanged.
+/// Update profile details with NSFW-aware profile picture. All fields are
+/// optional — pass `None` to leave a field unchanged.
+///
+/// `update_as_ai_account_id` names whose profile is being edited:
+///
+/// - `None` — your own, unchanged from before this argument existed.
+/// - `Some(id)` — an AI account you own. A creator sets their bot's picture and
+///   bio from their own session, so without this the bot's details land on the
+///   creator's profile instead of the bot's. Allowed if the caller owns the
+///   account, or is an admin (backend services hold an admin token and edit on
+///   users' behalf) — the same rule `add_post_2` uses for posting as a bot.
 #[spacetimedb::reducer]
 pub fn update_profile_details(
     ctx: &ReducerContext,
     bio: Option<String>,
     website_url: Option<String>,
     profile_picture: Option<ProfilePictureData>,
+    update_as_ai_account_id: Option<String>,
 ) -> Result<(), String> {
-    let oauth_subject = ctx
-        .sender_auth()
-        .jwt()
-        .expect("JWT required")
-        .subject()
-        .to_string();
+    let oauth_subject = match update_as_ai_account_id {
+        None => crate::ai_account_ownership::caller_oauth_subject(ctx),
+        Some(ai_account_id) => {
+            let caller_owns_it =
+                crate::ai_account_ownership::caller_owns_ai_account(ctx, &ai_account_id);
+            let caller_is_admin = crate::constants::ADMINS.contains(&ctx.sender());
+            if !caller_owns_it && !caller_is_admin {
+                return Err("Unauthorized".to_string());
+            }
+            ai_account_id
+        }
+    };
 
     let mut profile = match ctx
         .db
