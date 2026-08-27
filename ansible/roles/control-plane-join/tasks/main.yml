@@ -87,6 +87,29 @@
         remote_src: true
         mode: "0600"
 
+- name: Query Cloudflare for existing CP A record at this IP
+  ansible.builtin.uri:
+    url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=A&name={{ kubernetes_api_hostname }}&content={{ hostvars[inventory_hostname]['ansible_host'] }}"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ cloudflare_api_token }}"
+    return_content: true
+  delegate_to: localhost
+  register: cf_existing_cp_record
+  changed_when: false
+
+- name: Delete existing CP A record if found
+  ansible.builtin.uri:
+    url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records/{{ cf_existing_cp_record.json.result[0].id }}"
+    method: DELETE
+    headers:
+      Authorization: "Bearer {{ cloudflare_api_token }}"
+    status_code: 200
+  delegate_to: localhost
+  when: cf_existing_cp_record.json.result | length > 0
+  register: cf_cp_delete
+  changed_when: true
+
 - name: Add CP A record to Cloudflare DNS after successful join
   ansible.builtin.uri:
     url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records"
@@ -104,13 +127,36 @@
     status_code: 200
   delegate_to: localhost
   register: control_plane_join_cf_result
-  changed_when: control_plane_join_cf_result.status == 200
+  changed_when: true
 
 - name: Display Cloudflare DNS registration result
   ansible.builtin.debug:
     msg: >-
       Added A record: {{ kubernetes_api_hostname }} → {{ hostvars[inventory_hostname]['ansible_host'] }}
       (record id: {{ control_plane_join_cf_result.json.result.id }})
+
+- name: Query Cloudflare for existing app wildcard A record at this IP
+  ansible.builtin.uri:
+    url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=A&name={{ cloudflare_app_wildcard_hostname }}&content={{ hostvars[inventory_hostname]['ansible_host'] }}"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ cloudflare_api_token }}"
+    return_content: true
+  delegate_to: localhost
+  register: cf_existing_wildcard_record
+  changed_when: false
+
+- name: Delete existing app wildcard A record if found
+  ansible.builtin.uri:
+    url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records/{{ cf_existing_wildcard_record.json.result[0].id }}"
+    method: DELETE
+    headers:
+      Authorization: "Bearer {{ cloudflare_api_token }}"
+    status_code: 200
+  delegate_to: localhost
+  when: cf_existing_wildcard_record.json.result | length > 0
+  register: cf_wildcard_delete
+  changed_when: true
 
 - name: Add CP app wildcard A record to Cloudflare DNS after successful join
   ansible.builtin.uri:
@@ -129,7 +175,7 @@
     status_code: 200
   delegate_to: localhost
   register: control_plane_join_cf_wildcard_result
-  changed_when: control_plane_join_cf_wildcard_result.status == 200
+  changed_when: true
 
 - name: Display Cloudflare app wildcard DNS registration result
   ansible.builtin.debug:
