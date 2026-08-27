@@ -7,6 +7,46 @@
         rm -rf /var/lib/etcd /etc/kubernetes/pki/etcd /etc/kubernetes/kubelet.conf /etc/kubernetes/bootstrap-kubelet.conf
       changed_when: true
 
+    - name: Find a v1.36.x control plane node for etcd operations
+      ansible.builtin.set_fact:
+        etcd_delegate: "{{ (groups['control_plane'] | reject('equalto', inventory_hostname) | list)[0] }}"
+
+    - name: Remove stale etcd member at this node's IP if exists
+      ansible.builtin.shell: |
+        ETCD_CID=$(ctr -n k8s.io containers list | grep "etcd:" | head -1 | cut -d" " -f1)
+        if [ -z "$ETCD_CID" ]; then
+          echo "No etcd container found"
+          exit 0
+        fi
+        # Find any etcd member at this node's IP (stale from a previous failed join)
+        STALE_ID=$(ctr -n k8s.io tasks exec --exec-id etcd-check "$ETCD_CID" \
+          etcdctl member list \
+          --endpoints=https://127.0.0.1:2379 \
+          --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+          --cert=/etc/kubernetes/pki/etcd/server.crt \
+          --key=/etc/kubernetes/pki/etcd/server.key 2>/dev/null \
+          | grep "{{ ansible_facts['default_ipv4']['address'] }}" | cut -d, -f1 | tr -d " ")
+        if [ -n "$STALE_ID" ]; then
+          echo "Removing stale etcd member(s) at {{ ansible_facts['default_ipv4']['address'] }}: $STALE_ID"
+          for id in $STALE_ID; do
+            ctr -n k8s.io tasks exec --exec-id etcd-rm "$ETCD_CID" \
+              etcdctl member remove "$id" \
+              --endpoints=https://127.0.0.1:2379 \
+              --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+              --cert=/etc/kubernetes/pki/etcd/server.crt \
+              --key=/etc/kubernetes/pki/etcd/server.key 2>&1
+          done
+        else
+          echo "No stale etcd member found at {{ ansible_facts['default_ipv4']['address'] }}"
+        fi
+      delegate_to: "{{ etcd_delegate }}"
+      register: stale_etcd_cleanup
+      changed_when: "'Removing stale' in stale_etcd_cleanup.stdout"
+
+    - name: Display stale etcd cleanup result
+      ansible.builtin.debug:
+        msg: "{{ stale_etcd_cleanup.stdout_lines }}"
+
     - name: Upload control plane certificates on first control plane
       ansible.builtin.shell: |
         kubeadm init phase upload-certs --upload-certs 2>/dev/null | grep -E '^[a-f0-9]{64}$'
