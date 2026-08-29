@@ -136,20 +136,31 @@
     - name: Apply etcd client cert Secret to the monitoring namespace
       # kubectl create secret tls --dry-run=client -o yaml | kubectl apply -f -
       # is the idempotent declarative apply pattern used elsewhere in this repo
-      # (kubernetes.core collection is not installed).
+      # (kubernetes.core collection is not installed). -n monitoring is required
+      # on BOTH commands: the dry-run render emits no namespace, so the apply
+      # would otherwise land in the invoking namespace (default).
       ansible.builtin.shell: |
         set -o pipefail
-        kubectl --kubeconfig /etc/kubernetes/admin.conf create secret tls {{ etcd_client_cert_secret_name }} \
+        kubectl --kubeconfig /etc/kubernetes/admin.conf -n monitoring create secret tls {{ etcd_client_cert_secret_name }} \
           --cert=/etc/kubernetes/pki/etcd/healthcheck-client.crt \
           --key=/etc/kubernetes/pki/etcd/healthcheck-client.key \
           --dry-run=client -o yaml \
-          | kubectl --kubeconfig /etc/kubernetes/admin.conf apply -f -
+          | kubectl --kubeconfig /etc/kubernetes/admin.conf -n monitoring apply -f -
       args:
         executable: /bin/bash
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: etcd_secret_apply
       changed_when: "'configured' in etcd_secret_apply.stdout or 'created' in etcd_secret_apply.stdout"
+      no_log: true
+
+    - name: Remove stray etcd-client-cert Secret from the default namespace if present
+      # A previous revision of the create task omitted -n monitoring, leaving a
+      # stray copy (etcd client key material) in the default namespace. This
+      # task converges that drift: delete only if it exists there.
+      ansible.builtin.command: kubectl --kubeconfig /etc/kubernetes/admin.conf delete secret {{ etcd_client_cert_secret_name }} -n default --ignore-not-found
+      register: etcd_stray_secret_cleanup
+      changed_when: "'deleted' in etcd_stray_secret_cleanup.stdout"
       no_log: true
 
     - name: Add etcd CA certificate to the etcd-client-cert Secret
