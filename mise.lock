@@ -431,6 +431,7 @@ checksum = "sha256:b9efa09f551470f8d664a2e040754d14993293e45dc08a69df4a9df782bbd
 url = "https://github.com/jdx/fnox/releases/download/v1.34.1/fnox-aarch64-apple-darwin.tar.gz"
 url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/531310160"
 provenance = "github-attestations"
+provenance_verified = true
 
 [tools.fnox."platforms.macos-x64"]
 checksum = "sha256:0fb69eeeface42801dc2a6f8f3266b1b6876f21f5d9951105506cbd539058f0a"
@@ -1043,11 +1044,8 @@ conda_deps = [
 version = "6.3.3"
 backend = "core:swift"
 
-[tools.swift.options]
-swift_platform = "ubuntu24.04"
-
-[tools.swift."platforms.linux-x64"]
-checksum = "blake3:59936ad2e0cf9b5b0127c605d24182b2209d4e13ae2c652bfbab25a8c0a5b886"
+[tools.swift."platforms.macos-arm64"]
+checksum = "blake3:2a9e6afeb9f796a60fb8183f4063960c2ff683476f5cf94464332586a9e86cd3"
 
 [[tools.swiftlint]]
 version = "0.65.0"

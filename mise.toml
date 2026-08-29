@@ -36,7 +36,15 @@ ruby = { version = "latest", os = ["macos"] }
 # declare targets/components here as tool options. `mise install` adds any
 # missing targets/components on every run. Do NOT add a rust-toolchain.toml —
 # it would be dead weight (RUSTUP_TOOLCHAIN env var takes precedence).
-rust = { version = "nightly", targets = ["wasm32-unknown-unknown", "x86_64-unknown-linux-musl"], components = ["rustfmt", "clippy", "rust-src", "rust-analyzer"] }
+rust = { version = "nightly", targets = [
+  "wasm32-unknown-unknown",
+  "x86_64-unknown-linux-musl",
+], components = [
+  "rustfmt",
+  "clippy",
+  "rust-src",
+  "rust-analyzer",
+] }
 sops = "latest"
 sqlite = "latest"
 swift = { version = "latest", os = ["macos"] }
@@ -173,9 +181,6 @@ elif [ -f ~/.kube/config ]; then
 else
   echo '  ⚠ Vault password file not found — skipping kubeconfig extraction'
 fi
-
-rustup install
-rustup update
 '''
 
 [tasks.ansible-vault-decrypt]
