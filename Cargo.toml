@@ -1,7 +1,6 @@
 [workspace]
 resolver = "3"
 members = [
-  "apps/leptos-tutorial-builder-syntax",
   "apps/my-website",
   "apps/off-chain-agent",
   "apps/yral-auth",
