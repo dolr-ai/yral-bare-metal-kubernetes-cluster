@@ -874,7 +874,7 @@ checksum = "sha256:ecee2d072a14f2d14347dd56dfd8fe5c3130abf5117bfaacbda0f4ef9cc42
 url = "https://cache.ruby-lang.org/pub/ruby/3.4/ruby-3.4.10.tar.gz"
 
 [[tools.rust]]
-version = "nightly-2026-08-18"
+version = "nightly-2026-08-16"
 backend = "core:rust"
 
 [tools.rust.options]
@@ -1039,6 +1039,16 @@ conda_deps = [
     "vc14_runtime-14.51.36247-habf1de7_41",
     "vcomp14-14.51.36247-habf1de7_41",
 ]
+
+[[tools.swift]]
+version = "6.3.3"
+backend = "core:swift"
+
+[tools.swift.options]
+swift_platform = "ubuntu24.04"
+
+[tools.swift."platforms.linux-x64"]
+checksum = "blake3:59936ad2e0cf9b5b0127c605d24182b2209d4e13ae2c652bfbab25a8c0a5b886"
 
 [[tools.swiftlint]]
 version = "0.65.0"

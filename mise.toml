@@ -39,6 +39,7 @@ ruby = { version = "latest", os = ["macos"] }
 rust = { version = "nightly", targets = ["wasm32-unknown-unknown", "x86_64-unknown-linux-musl"], components = ["rustfmt", "clippy", "rust-src", "rust-analyzer"] }
 sops = "latest"
 sqlite = "latest"
+swift = "latest"
 swiftlint = { version = "latest", os = ["macos"] }
 
 # System packages — project-specific build dependencies (apt on Debian/Ubuntu).
@@ -47,6 +48,12 @@ swiftlint = { version = "latest", os = ["macos"] }
 # Machine-baseline packages (build-essential, curl, git, etc.) live in ~/.dotfiles/mise.linux.toml.
 [bootstrap.packages]
 "apt:bind9-dnsutils" = "latest"
+# Swift toolchain: swift.org publishes no Ubuntu 26.04 builds, so mise falls
+# back to the ubuntu24.04 toolchain, whose binaries link against the narrow
+# libncurses.so.6. Ubuntu 26.04 ships only libncursesw6 by default, so without
+# this package `swift --version` fails with "libncurses.so.6: cannot open
+# shared object file" (exit 127) and mise rolls back the swift install.
+"apt:libncurses6" = "latest"
 "apt:libssl-dev" = "latest"
 "apt:musl-tools" = "latest"
 "apt:pkg-config" = "latest"
