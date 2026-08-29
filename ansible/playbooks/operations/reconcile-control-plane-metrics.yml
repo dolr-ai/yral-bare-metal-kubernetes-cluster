@@ -1,0 +1,32 @@
+---
+# Reconcile control-plane metrics endpoints with the declarative kubeadm
+# ClusterConfiguration (control-plane-metrics role).
+#
+# Fixes: TargetDown (kube-controller-manager/kube-scheduler), etcdMembersDown,
+# etcdInsufficientMembers, KubeProxyDown false-positive alerts — components are
+# healthy, but their metrics endpoints bind to loopback by default and the
+# nodes have no private network (public IPs only).
+#
+# Usage:
+#   All control planes (one at a time, default):
+#     ansible-playbook ansible/playbooks/operations/reconcile-control-plane-metrics.yml
+#
+#   Canary on a single node first:
+#     ansible-playbook ansible/playbooks/operations/reconcile-control-plane-metrics.yml -e target_host=node-1
+#
+#   Then roll out to the rest:
+#     ansible-playbook ansible/playbooks/operations/reconcile-control-plane-metrics.yml -e target_host=node-2
+#     ... (node-3 through node-7)
+
+- name: Reconcile control plane metrics endpoints
+  hosts: "{{ target_host | default('control_plane') }}"
+  gather_facts: true
+  serial: 1
+
+  pre_tasks:
+    - name: Determine if this is the first control plane
+      ansible.builtin.set_fact:
+        is_first_control_plane: "{{ ansible_facts['hostname'] == groups['control_plane'][0] }}"
+
+  roles:
+    - role: control-plane-metrics

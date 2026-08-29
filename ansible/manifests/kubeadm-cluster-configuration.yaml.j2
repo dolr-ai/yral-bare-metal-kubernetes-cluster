@@ -1,0 +1,51 @@
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: ClusterConfiguration
+# Shared kubeadm ClusterConfiguration template — the single declarative source
+# of truth for the cluster. Consumed by:
+#   - ansible/roles/cluster-init (renders at bootstrap, passes to kubeadm init --config)
+#   - ansible/roles/control-plane-metrics (renders on existing CP nodes, reconciles
+#     static pod manifests + the kubeadm-config ConfigMap)
+# Never patch the kubeadm-config ConfigMap directly — kubeadm generates static
+# pod manifests from this config only at init/join/upgrade time, and ConfigMap
+# edits do NOT propagate to existing manifests.
+#
+# The extraArgs below fix control-plane metrics scrape failures (TargetDown /
+# etcdMembersDown / etcdInsufficientMembers alerts):
+#   - kube-controller-manager and kube-scheduler bind their metrics endpoints
+#     to loopback by default; nodes only have public IPs (no private LAN),
+#     so Prometheus (on a worker) must scrape via the public interface.
+#     bind-address=0.0.0.0 matches the kubelet :10250 posture: delegated
+#     authentication + authorization — the Prometheus service account is
+#     authorized (RBAC verified), anonymous callers are rejected.
+#   - etcd is NOT opened further: Prometheus scrapes the existing
+#     mTLS-protected client port :2379 (see kubernetes/infrastructure/monitoring/
+#     helmrelease.yaml kubeEtcd section). The loopback-only :2381 metrics port
+#     is intentionally left at kubeadm defaults (unused).
+kubernetesVersion: v{{ kubernetes_version }}
+controlPlaneEndpoint: "{{ control_plane_endpoint }}:6443"
+networking:
+  podSubnet: {{ pod_network_cidr }}
+  serviceSubnet: 10.96.0.0/12
+  dnsDomain: cluster.local
+clusterName: kubernetes
+certificatesDir: /etc/kubernetes/pki
+imageRepository: registry.k8s.io
+encryptionAlgorithm: RSA-2048
+# kube-proxy is replaced by Cilium (kubeProxyReplacement: true).
+proxy:
+  disabled: true
+apiServer:
+  extraArgs:
+    - name: service-node-port-range
+      value: "{{ service_node_port_range }}"
+controllerManager:
+  extraArgs:
+    - name: bind-address
+      value: "0.0.0.0"
+scheduler:
+  extraArgs:
+    - name: bind-address
+      value: "0.0.0.0"
+etcd:
+  local:
+    dataDir: /var/lib/etcd

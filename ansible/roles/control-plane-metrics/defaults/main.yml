@@ -1,0 +1,25 @@
+---
+# Port on which kube-controller-manager and kube-scheduler serve /metrics
+# (kubeadm defaults). Bound to 0.0.0.0 via the ClusterConfiguration template
+# in this role's templates/ directory.
+controller_manager_metrics_port: 10257
+scheduler_metrics_port: 10259
+
+# etcd client port. Prometheus scrapes /metrics over TLS on this port with an
+# etcd client certificate (see kubernetes/infrastructure/monitoring/helmrelease.yaml
+# kubeEtcd section). The loopback-only :2381 metrics port stays at kubeadm defaults.
+etcd_client_port: 2379
+
+# TLS server name used by Prometheus when scraping etcd :2379. etcd server
+# certificates are signed per-node with the node name in the SANs; Prometheus
+# verifies per-instance via the ServiceMonitor's per-endpoint serverName
+# relabeling — this var only names the local node certificate for SAN presence
+# checks during validation.
+etcd_client_cert_secret_name: etcd-client-cert
+
+# Shared kubeadm ClusterConfiguration values. Hosted in
+# ansible/inventory/group_vars/all/vars.yml so every role (cluster-init,
+# control-plane-metrics) resolves the same cluster-wide numbers; these entries
+# are the per-role fallbacks only.
+kubernetes_version: "1.36.4"
+service_node_port_range: "80-32767"

@@ -3,11 +3,42 @@
 # The Flux HelmRelease at kubernetes/infrastructure/monitoring/helmrelease.yaml
 # is the source of truth for production. If you change retention/storage there,
 # sync the values here so bootstrap matches production.
-#
+
+# kube-proxy is replaced by Cilium (kubeProxyReplacement: true). No kube-proxy
+# DaemonSet exists — the default Service/ServiceMonitor/KubeProxyDown rule
+# would fire forever on empty endpoints. Matches the Flux HelmRelease.
+kubeProxy:
+  enabled: false
+defaultRules:
+  rules:
+    kubeProxy: false
+
+# etcd scraping: nodes have public IPs only (no private LAN), so the
+# loopback-only :2381 metrics port is unreachable from Prometheus. Scrape the
+# existing mTLS-protected client port :2379 instead. The etcd-client-cert
+# Secret is created by the control-plane-metrics role. serverName empty:
+# Prometheus verifies against the scrape URL host (node IP), which kubeadm
+# includes in every etcd server cert's SANs. Matches the Flux HelmRelease.
+kubeEtcd:
+  service:
+    port: 2379
+    targetPort: 2379
+  serviceMonitor:
+    scheme: https
+    insecureSkipVerify: false
+    serverName: ""
+    caFile: /etc/prometheus/secrets/etcd-client-cert/ca.crt
+    certFile: /etc/prometheus/secrets/etcd-client-cert/tls.crt
+    keyFile: /etc/prometheus/secrets/etcd-client-cert/tls.key
+
 # Prometheus
 prometheus:
   enabled: true
   prometheusSpec:
+    # etcd client certificate for scraping etcd :2379 (see kubeEtcd above).
+    # Mounted at /etc/prometheus/secrets/etcd-client-cert/.
+    secrets:
+      - etcd-client-cert
     # Single replica (matches Flux HelmRelease). Longhorn provides durability.
     replicas: 1
     # 15-day retention, matches Flux HelmRelease.

@@ -1,0 +1,182 @@
+---
+# control-plane-metrics — make kube-controller-manager / kube-scheduler metrics
+# reachable by Prometheus and reconcile the kubeadm-config ConfigMap with the
+# declarative ClusterConfiguration in this role's templates/ directory.
+#
+# Why this role exists: kubeadm generates static pod manifests only at
+# init/join/upgrade time. ExtraArgs added to the ClusterConfiguration (or a
+# kubectl-patched kubeadm-config ConfigMap) do NOT propagate to already-running
+# static pods. This role regenerates the manifests on each control plane node
+# with the supported kubeadm phase commands, one node at a time (playbook uses
+# serial: 1), verifying health before moving to the next node.
+#
+# Idempotent: re-running regenerates identical manifests (no-op) and re-checks
+# the ConfigMap/Secret state.
+
+- name: Render kubeadm ClusterConfiguration from shared declarative template
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/../../manifests/kubeadm-cluster-configuration.yaml.j2"
+    dest: /etc/kubernetes/kubeadm-control-plane-metrics.yaml
+    mode: "0600"
+  register: kubeadm_config_rendered
+
+- name: Check current kube-controller-manager bind-address in static manifest
+  ansible.builtin.command: grep -q -- '--bind-address=0.0.0.0' /etc/kubernetes/manifests/kube-controller-manager.yaml
+  register: controller_manager_bind_check
+  changed_when: false
+  failed_when: false
+
+- name: Check current kube-scheduler bind-address in static manifest
+  ansible.builtin.command: grep -q -- '--bind-address=0.0.0.0' /etc/kubernetes/manifests/kube-scheduler.yaml
+  register: scheduler_bind_check
+  changed_when: false
+  failed_when: false
+
+- name: Determine whether static pod manifests need regeneration
+  ansible.builtin.set_fact:
+    control_plane_metrics_manifests_stale: "{{ (controller_manager_bind_check.rc != 0) or (scheduler_bind_check.rc != 0) }}"
+
+- name: Display regeneration plan
+  ansible.builtin.debug:
+    msg:
+      - "Node: {{ ansible_facts['hostname'] }}"
+      - "Static pod manifests stale: {{ control_plane_metrics_manifests_stale }}"
+
+- name: Regenerate static pod manifests with kubeadm phases
+  when: control_plane_metrics_manifests_stale
+  block:
+    # Regenerate ONLY the controller-manager and scheduler subphases — minimal
+    # blast radius. The apiserver manifest needs no change (its metrics port is
+    # already scraped via the kubernetes service endpoint) and regenerating it
+    # would restart the API server needlessly. The etcd manifest needs no change
+    # either (we scrape the already-listening mTLS client port :2379; its args
+    # are untouched by this role).
+    - name: Regenerate kube-controller-manager static pod manifest
+      ansible.builtin.command: kubeadm init phase control-plane controller-manager --config /etc/kubernetes/kubeadm-control-plane-metrics.yaml
+      register: kubeadm_phase_controller_manager
+      changed_when: control_plane_metrics_manifests_stale
+
+    - name: Display kubeadm controller-manager phase output
+      ansible.builtin.debug:
+        msg: "{{ kubeadm_phase_controller_manager.stdout_lines + kubeadm_phase_controller_manager.stderr_lines }}"
+
+    - name: Regenerate kube-scheduler static pod manifest
+      ansible.builtin.command: kubeadm init phase control-plane scheduler --config /etc/kubernetes/kubeadm-control-plane-metrics.yaml
+      register: kubeadm_phase_scheduler
+      changed_when: control_plane_metrics_manifests_stale
+
+    - name: Display kubeadm scheduler phase output
+      ansible.builtin.debug:
+        msg: "{{ kubeadm_phase_scheduler.stdout_lines + kubeadm_phase_scheduler.stderr_lines }}"
+
+    - name: Wait for kube-controller-manager static pod to be ready on this node
+      ansible.builtin.command: >
+        kubectl --kubeconfig /etc/kubernetes/admin.conf wait --for=condition=ready
+        pod -n kube-system kube-controller-manager-{{ ansible_facts['hostname'] }} --timeout=300s
+      register: controller_manager_ready
+      retries: 6
+      delay: 10
+      changed_when: false
+
+    - name: Wait for kube-scheduler static pod to be ready on this node
+      ansible.builtin.command: >
+        kubectl --kubeconfig /etc/kubernetes/admin.conf wait --for=condition=ready
+        pod -n kube-system kube-scheduler-{{ ansible_facts['hostname'] }} --timeout=300s
+      register: scheduler_ready
+      retries: 6
+      delay: 10
+      changed_when: false
+
+- name: Verify metrics endpoints are reachable on this node
+  block:
+    - name: Probe kube-controller-manager metrics endpoint
+      ansible.builtin.wait_for:
+        host: "{{ ansible_facts['default_ipv4']['address'] }}"
+        port: "{{ controller_manager_metrics_port }}"
+        timeout: 120
+
+    - name: Probe kube-scheduler metrics endpoint
+      ansible.builtin.wait_for:
+        host: "{{ ansible_facts['default_ipv4']['address'] }}"
+        port: "{{ scheduler_metrics_port }}"
+        timeout: 120
+
+- name: Verify etcd member is healthy and serving TLS on the client port
+  block:
+    # etcdctl is not installed on the host (it lives inside the etcd container);
+    # a successful TLS handshake on the mTLS client port proves the endpoint
+    # Prometheus will scrape is alive. Client-certificate authentication is
+    # exercised by the Prometheus scrape itself after rollout.
+    - name: TLS handshake check against etcd client port
+      ansible.builtin.command: >
+        openssl s_client -connect {{ ansible_facts['default_ipv4']['address'] }}:{{ etcd_client_port }} -brief
+      register: etcd_tls_probe
+      changed_when: false
+      failed_when: false
+
+    - name: Assert etcd is serving TLS on the public client port
+      ansible.builtin.assert:
+        that:
+          - "'Protocol' in etcd_tls_probe.stderr or 'Protocol' in etcd_tls_probe.stdout"
+        fail_msg: "etcd is not answering TLS handshakes on {{ ansible_facts['default_ipv4']['address'] }}:{{ etcd_client_port }}"
+        success_msg: "etcd serving TLS on :{{ etcd_client_port }}"
+
+# The etcd client certificate for Prometheus is a cluster-wide resource used by
+# the Prometheus pod — it is created once (on the first control plane node only)
+# and applied to the monitoring namespace. Idempotent via kubectl apply/patch.
+- name: Create etcd client certificate Secret for Prometheus (first CP node only)
+  when: is_first_control_plane | default(false)
+  block:
+    - name: Read etcd CA certificate
+      ansible.builtin.slurp:
+        src: /etc/kubernetes/pki/etcd/ca.crt
+      register: etcd_ca_certificate_content
+      no_log: true
+
+    - name: Apply etcd client cert Secret to the monitoring namespace
+      # kubectl create secret tls --dry-run=client -o yaml | kubectl apply -f -
+      # is the idempotent declarative apply pattern used elsewhere in this repo
+      # (kubernetes.core collection is not installed).
+      ansible.builtin.shell: |
+        set -o pipefail
+        kubectl --kubeconfig /etc/kubernetes/admin.conf create secret tls {{ etcd_client_cert_secret_name }} \
+          --cert=/etc/kubernetes/pki/etcd/healthcheck-client.crt \
+          --key=/etc/kubernetes/pki/etcd/healthcheck-client.key \
+          --dry-run=client -o yaml \
+          | kubectl --kubeconfig /etc/kubernetes/admin.conf apply -f -
+      args:
+        executable: /bin/bash
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: etcd_secret_apply
+      changed_when: "'configured' in etcd_secret_apply.stdout or 'created' in etcd_secret_apply.stdout"
+      no_log: true
+
+    - name: Add etcd CA certificate to the etcd-client-cert Secret
+      # create secret tls does not include the CA; patch it in from this node's
+      # etcd CA (identical across all CP nodes — one etcd CA per kubeadm
+      # cluster). Patch output is compared to detect change.
+      ansible.builtin.command: >
+        kubectl --kubeconfig /etc/kubernetes/admin.conf patch secret {{ etcd_client_cert_secret_name }}
+        -n monitoring --type merge
+        -p '{"stringData":{"ca.crt": {{ etcd_ca_certificate_content['content'] | b64decode | to_json }}}}'
+      register: etcd_ca_patch
+      changed_when: "'(no change)' not in etcd_ca_patch.stdout"
+      no_log: true
+
+- name: Reconcile kubeadm-config ConfigMap with the declarative ClusterConfiguration
+  # Upload the rendered config so the live ConfigMap matches git. Uses the
+  # supported upload-config phase (equivalent to what init/join does) instead
+  # of a kubectl patch. Safe to re-run.
+  ansible.builtin.command: kubeadm init phase upload-config kubeadm --config /etc/kubernetes/kubeadm-control-plane-metrics.yaml
+  register: kubeadm_upload_config
+  changed_when: false
+
+- name: Display reconciliation summary
+  ansible.builtin.debug:
+    msg:
+      - "✅ Control plane metrics endpoints verified on {{ ansible_facts['hostname'] }}"
+      - "  - kube-controller-manager :{{ controller_manager_metrics_port }} (bind-address 0.0.0.0)"
+      - "  - kube-scheduler          :{{ scheduler_metrics_port }} (bind-address 0.0.0.0)"
+      - "  - etcd                    :{{ etcd_client_port }} (existing mTLS client port, no new exposure)"
+      - "  - kubeadm-config ConfigMap reconciled with declarative ClusterConfiguration"

@@ -58,15 +58,20 @@
 - name: Initialize first control plane node
   when: not kubeconfig_stat_after_reset.stat.exists
   block:
-    - name: Run kubeadm init with CLI flags
+    - name: Render shared kubeadm ClusterConfiguration template
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../../manifests/kubeadm-cluster-configuration.yaml.j2"
+        dest: /etc/kubernetes/kubeadm-cluster-configuration.yaml
+        mode: "0600"
+
+    - name: Run kubeadm init with declarative config
       ansible.builtin.command: >
         kubeadm init
-        --control-plane-endpoint={{ control_plane_endpoint }}:6443
-        --pod-network-cidr={{ pod_network_cidr }}
-        --apiserver-extra-args=service-node-port-range={{ service_node_port_range }}
+        --config /etc/kubernetes/kubeadm-cluster-configuration.yaml
         --skip-phases=addon/kube-proxy
         --upload-certs
       register: kubeadm_init
+      changed_when: true
 
     - name: Display kubeadm init output
       ansible.builtin.debug:
@@ -119,6 +124,7 @@
           - "✅ Control plane endpoint: {{ control_plane_endpoint }}:6443"
           - "✅ Pod network CIDR: {{ pod_network_cidr }}"
           - "✅ kube-proxy skipped (Cilium will replace it)"
+          - "✅ Controller-manager/scheduler metrics bind 0.0.0.0 (declarative extraArgs)"
           - ""
           - "Join commands saved to /root/kubeadm-join-commands.txt"
           - ""

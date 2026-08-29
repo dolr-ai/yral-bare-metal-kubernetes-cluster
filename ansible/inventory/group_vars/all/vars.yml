@@ -3,6 +3,12 @@
 # This file contains plaintext configuration values and indirection for vault secrets.
 # Vault variables (prefixed with vault_) are loaded in pre_tasks before roles execute.
 
+# Kubernetes cluster configuration (cluster-wide kubeadm ClusterConfiguration
+# values — single source of truth, consumed by the cluster-init and
+# control-plane-metrics roles' kubeadm config template)
+kubernetes_version: "1.36.4"
+service_node_port_range: "80-32767"
+
 # Hetzner Robot API credentials
 hetzner_robot_api_user: "#ws+hEJX77Pr"
 hetzner_robot_api_password: "{{ vault_hetzner_robot_api_password }}"  # Indirection to vault

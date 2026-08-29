@@ -21,6 +21,37 @@ spec:
     remediation:
       retries: 3
   values:
+    # kube-proxy is replaced by Cilium (kubeProxyReplacement: true,
+    # kubeadm --skip-phases=addon/kube-proxy). There is no kube-proxy
+    # DaemonSet and never will be — the chart's default kube-proxy Service/
+    # ServiceMonitor/KubeProxyDown rule would fire forever (empty endpoints).
+    kubeProxy:
+      enabled: false
+    defaultRules:
+      rules:
+        kubeProxy: false
+
+    # etcd scraping: the loopback-only :2381 metrics port is unreachable from
+    # Prometheus (nodes have public IPs only, no private LAN). Scrape the
+    # existing mTLS-protected client port :2379 instead — the same surface the
+    # API servers already use. TLS material comes from the etcd-client-cert
+    # Secret (kubernetes.io/tls type with ca.crt/tls.crt/tls.key), created by
+    # the control-plane-metrics Ansible role from kubeadm's healthcheck client
+    # certificate. serverName stays empty: Prometheus then verifies the
+    # presented cert against the scrape URL host (the node IP), which kubeadm
+    # includes in every etcd server cert's SANs.
+    kubeEtcd:
+      service:
+        port: 2379
+        targetPort: 2379
+      serviceMonitor:
+        scheme: https
+        insecureSkipVerify: false
+        serverName: ""
+        caFile: /etc/prometheus/secrets/etcd-client-cert/ca.crt
+        certFile: /etc/prometheus/secrets/etcd-client-cert/tls.crt
+        keyFile: /etc/prometheus/secrets/etcd-client-cert/tls.key
+
     grafana:
       # Inject Google Chat webhook URL as an env var so the alerting
       # provisioning ConfigMap can reference it as $GOOGLE_CHAT_WEBHOOK_URL.
@@ -101,6 +132,10 @@ spec:
 
     prometheus:
       prometheusSpec:
+        # etcd client certificate for scraping etcd :2379 (see kubeEtcd above).
+        # Mounted at /etc/prometheus/secrets/etcd-client-cert/.
+        secrets:
+          - etcd-client-cert
         # 15-day retention, matches default; adjust as needed.
         retention: 15d
         # Hard size cap: discard oldest blocks before hitting the filesystem
