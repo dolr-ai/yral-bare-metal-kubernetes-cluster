@@ -17,7 +17,8 @@ struct CelebrationView: View {
     private let flakes: [ConfettiFlake]
 
     /// The system "party horn" sound. 1104 is the short celebratory
-    /// horn; played once at creation.
+    /// horn; played once at creation. NOT muted in previews — the
+    /// operator wants to hear exactly what ships.
     private let playsPartyHorn: Bool
 
     init(playsPartyHorn: Bool = true) {
@@ -123,7 +124,7 @@ struct ConfettiFlake {
 #Preview {
     ZStack {
         Color.black.ignoresSafeArea()
-        CelebrationView(playsPartyHorn: false)
+        CelebrationView()
         VStack(spacing: 16) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 48))

@@ -117,6 +117,15 @@ documentation.
   accessibility) for free. An earlier custom `SystemColors` helper was
   created and deleted same-day for exactly this reason.
 
+- **Previews for every screen (Hard Rule).** Every screen/view ships with a
+  `#Preview` in the same file, covering its meaningful variants (idle,
+  working, empty, error — whatever applies; named variants via
+  `#Preview("name")`). Previews use the REAL view and realistic fixture
+  data (`.constant` bindings where needed), never stripped-down stand-ins —
+  the operator previews each screen in Xcode's canvas to check exactly what
+  ships. Sound-producing previews play their sound (do not mute them in
+  previews). A new screen without a preview is incomplete.
+
 ## Workflow (VS Code-first)
 
 Day-to-day coding happens in VS Code with the Swift extension against

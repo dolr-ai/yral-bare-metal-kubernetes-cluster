@@ -152,12 +152,15 @@ struct AIAccountCreationView: View {
                 flowTask = Task { await generateMetadata() }
             }
         case .reviewProfile, .creating:
-            if let profile = draft.profileUnderReview {
+            if let profileUnderReview = draft.profileUnderReview {
                 ProfileReviewForm(
-                    profile: profile,
+                    profile: Binding(
+                        get: { draft.profileUnderReview ?? profileUnderReview },
+                        set: { draft.profileUnderReview = $0 }
+                    ),
                     isWorking: draft.step.isWorking
                 ) {
-                    flowTask = Task { await createAccount(profile: profile) }
+                    flowTask = Task { await createAccount(profile: draft.profileUnderReview ?? profileUnderReview) }
                 }
             }
         case .done:

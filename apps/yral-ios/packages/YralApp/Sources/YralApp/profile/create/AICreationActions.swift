@@ -87,10 +87,12 @@ extension AIAccountCreationView {
     func createAccount(profile: AIProfileDetails) async {
         errorMessage = nil
         draft.step = .creating
-        // Resume an in-flight creation for the SAME profile if a previous
-        // attempt failed midway (Kotlin BotCreationProgress semantics).
-        if draft.creationProgress?.profileKey != profile.profileKey {
-            draft.creationProgress = AICreationProgress(profileKey: profile.profileKey)
+        // Resume the in-flight creation for the SAME PERSONA if a
+        // previous attempt failed midway (Kotlin BotCreationProgress
+        // semantics). Keyed on the persona (instructions + avatar), NOT
+        // the name — a name-collision edit retries without re-minting.
+        if draft.creationProgress?.personaKey != profile.personaKey {
+            draft.creationProgress = AICreationProgress(personaKey: profile.personaKey)
         }
         guard var progress = draft.creationProgress else { return }
         do {
@@ -115,7 +117,7 @@ extension AIAccountCreationView {
                 // Reset clears the draft — never resurrect the profile.
                 // A pull-down keeps it: restore the review form so a
                 // retry resumes the pipeline where it stopped.
-                if draft.profileUnderReview?.profileKey == profile.profileKey {
+                if draft.profileUnderReview?.personaKey == profile.personaKey {
                     draft.creationProgress = progress
                     draft.step = .reviewProfile
                 }

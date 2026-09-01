@@ -5,7 +5,7 @@ import SwiftUI
 /// the form stays put and the button becomes a spinner (inline
 /// loading); a retry resumes where the pipeline stopped.
 struct ProfileReviewForm: View {
-    let profile: AIProfileDetails
+    @Binding var profile: AIProfileDetails
     let isWorking: Bool
     let onCreate: () -> Void
 
@@ -18,9 +18,6 @@ struct ProfileReviewForm: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(spacing: 12) {
-                Text(profile.displayName)
-                    .font(.title2.weight(.semibold))
-
                 if let avatarURL = URL(string: profile.avatarURL) {
                     AsyncImage(url: avatarURL) { image in
                         image.resizable().scaledToFill()
@@ -32,6 +29,37 @@ struct ProfileReviewForm: View {
                 }
             }
             .frame(maxWidth: .infinity)
+
+            // EDITABLE USERNAME — the account handle is the one field
+            // the backend OWNS uniqueness on ("Name … already taken");
+            // a collision means: hit back, edit it, retry — the retry
+            // resumes the same creation (no re-mint) with the new name.
+            VStack(alignment: .leading, spacing: 4) {
+                Text("@\(profile.name)")
+                    .font(.title2.weight(.semibold))
+                TextField("username", text: $profile.name)
+                    .font(.subheadline)
+                    .padding(10)
+                    .background(
+                        Color.gray.opacity(0.2),
+                        in: RoundedRectangle(cornerRadius: 8)
+                    )
+                    .disabled(isWorking)
+                    .onChange(of: profile.name) { _, newValue in
+                        // Usernames are lowercase alphanumeric +
+                        // underscore; spaces and uppercase are stripped
+                        // as typed (server enforces the format too).
+                        let sanitized = newValue
+                            .lowercased()
+                            .filter { $0.isLetter || $0.isNumber || $0 == "_" }
+                        if sanitized != newValue {
+                            profile.name = sanitized
+                        }
+                    }
+                Text(profile.displayName)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(profile.description)
@@ -67,17 +95,19 @@ struct ProfileReviewForm: View {
 #if DEBUG
 #Preview("idle") {
     ProfileReviewForm(
-        profile: AIProfileDetails(
-            systemInstructions: "You are a witty travel photographer…",
-            name: "wander_lens",
-            displayName: "Wander Lens",
-            description: "A witty travel photographer sharing hidden gems and offbeat stories from the road.",
-            avatarURL: "https://images.yral.com/avatar.png",
-            initialGreeting: "Hey! Ready for hidden gems?",
-            suggestedMessages: ["Show me a hidden gem", "What's your funniest travel fail?"],
-            personalityTraits: ["wit": "high"],
-            category: "travel",
-            isNSFW: false
+        profile: .constant(
+            AIProfileDetails(
+                systemInstructions: "You are a witty travel photographer…",
+                name: "wander_lens",
+                displayName: "Wander Lens",
+                description: "A witty travel photographer sharing hidden gems and offbeat stories from the road.",
+                avatarURL: "https://images.yral.com/avatar.png",
+                initialGreeting: "Hey! Ready for hidden gems?",
+                suggestedMessages: ["Show me a hidden gem", "What's your funniest travel fail?"],
+                personalityTraits: ["wit": "high"],
+                category: "travel",
+                isNSFW: false
+            )
         ),
         isWorking: false,
         onCreate: {}
@@ -89,17 +119,19 @@ struct ProfileReviewForm: View {
 
 #Preview("working (inline spinner)") {
     ProfileReviewForm(
-        profile: AIProfileDetails(
-            systemInstructions: "You are a witty travel photographer…",
-            name: "wander_lens",
-            displayName: "Wander Lens",
-            description: "A witty travel photographer sharing hidden gems.",
-            avatarURL: "https://images.yral.com/avatar.png",
-            initialGreeting: "Hey!",
-            suggestedMessages: [],
-            personalityTraits: [:],
-            category: "travel",
-            isNSFW: false
+        profile: .constant(
+            AIProfileDetails(
+                systemInstructions: "You are a witty travel photographer…",
+                name: "wander_lens",
+                displayName: "Wander Lens",
+                description: "A witty travel photographer sharing hidden gems.",
+                avatarURL: "https://images.yral.com/avatar.png",
+                initialGreeting: "Hey!",
+                suggestedMessages: [],
+                personalityTraits: [:],
+                category: "travel",
+                isNSFW: false
+            )
         ),
         isWorking: true,
         onCreate: {}

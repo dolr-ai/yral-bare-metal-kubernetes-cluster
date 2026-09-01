@@ -20,7 +20,10 @@ import Foundation
 /// commented out — it just normalizes and returns `updated = true`), so
 /// this port normalizes only, matching shipped behavior.
 struct AICreationProgress {
-    let profileKey: String
+    /// The persona being created (AIProfileDetails.personaKey) — NOT the
+    /// username: a name-collision edit retries the same creation
+    /// without re-minting the AI account.
+    let personaKey: String
     var aiPrincipal: String?
     var ownerRegistered = false
     var registrationAccepted = false
@@ -300,8 +303,14 @@ struct AIProfileDetails {
     var category: String
     var isNSFW: Bool
 
-    /// Kotlin progressKey — identity of the creation attempt for resume.
-    var profileKey: String {
-        "\(name)|\(displayName)|\(description.hashValue)"
+    /// Identity of the PERSONA being created — instructions + avatar,
+    /// deliberately EXCLUDING the name: pipeline steps 1–4 (mint,
+    /// attach, profile) are name-independent, so a user editing the
+    /// username after a "Name … already taken" collision retries the
+    /// SAME creation (no re-mint) and only steps 5–6 re-run with the
+    /// new name. Keying on the name would wrongly discard the progress
+    /// record and mint a SECOND AI account on every name edit.
+    var personaKey: String {
+        "\(systemInstructions.hashValue)|\(avatarURL)"
     }
 }
