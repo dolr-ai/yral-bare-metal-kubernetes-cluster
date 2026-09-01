@@ -26,27 +26,29 @@ documentation.
   - Prefer deleting a wrapper over adding one when its body is a single
     expression repeated a few times.
 
-- **Colocate logic beside its caller (Hard Rule).** Feature code (views,
-  view models, data sources) lives in the SAME flat folder as everything
-  else — `Sources/YralApp/` has NO nested feature/core directories.
-  Feature grouping happens by filename convention (e.g. `SignInView.swift`
-  sits beside `YralAuthDataSource.swift`). A file graduates to no special
-  location — promotion is a non-event; a second feature simply imports it
-  where it already lives. Do NOT create `Core/`, `Features/`, or
-  `Features/<Feature>/` directories ahead of or even after consumers exist.
-  Rationale: deep nesting complicates following code for human reviewers.
+- **Folder per top-level screen/feature (Hard Rule).** Sources live under
+  `Sources/YralApp/<feature>/` — ONE folder per top-level screen/feature
+  (currently `authentication/`, `settings/`), with the logic that screen
+  uses colocated INSIDE the folder (view + browser session + data source
+  + validator together — no per-layer folders within a feature). Files
+  that don't fit an existing feature stay at the ROOT (`Sources/YralApp/`)
+  — cross-feature infrastructure (Session, AppConfiguration, NetworkError,
+  ProfilePicture, Spacetime trio, AppRoot/RootScene) — until a feature
+  owns them or a new feature folder earns its place. Do NOT create a
+  feature folder ahead of its first real screen, and do NOT pre-create
+  `Core/`/`Features/` trees — a new folder appears when its screen does.
 
-- **Tests mirror their subjects by filename (Hard Rule).** SPM requires one
-  directory per target — a test file CANNOT live inside `Sources/YralApp/`
-  alongside its subject (unlike Rust's `#[cfg(test)] mod tests`). The
-  canonical Swift answer is the standard `Tests/YralAppTests/` layout, kept
-  as a disciplined FLAT MIRROR of the source tree: ONE test file per tested
-  source file, named after it (`PKCEAndJWTParserTests.swift` tests
-  `PKCE.swift` + `JWTParser`; `SpacetimePositionalDecoderTests.swift`
-  tests `SpacetimePositionalDecoder.swift` + the models it decodes). A test
-  file covering two subjects splits when either grows. Struct name == file
-  name. No shared-helpers file — test fixtures live beside the tests that
-  use them. When porting a Kotlin test file, its tests land in the mirror
+- **Tests mirror their subjects by filename AND folder (Hard Rule).** SPM
+  requires one directory per target — a test file CANNOT live inside
+  `Sources/YralApp/` alongside its subject (unlike Rust's
+  `#[cfg(test)] mod tests`). The canonical Swift answer is the standard
+  `Tests/YralAppTests/` layout, kept as a disciplined MIRROR of the source
+  tree: ONE test file per tested source file, in the SAME subfolder as its
+  subject, named after it (`authentication/PKCEAndJWTParserTests.swift`
+  tests `authentication/PKCE.swift` + `JWTParser`). A test file covering
+  two subjects splits when either grows. Struct name == file name. No
+  shared-helpers file — test fixtures live beside the tests that use
+  them. When porting a Kotlin test file, its tests land in the mirror
   file of the Swift file that now holds the ported code.
 
 - **No Yral prefix on types (Hard Rule).** The `YralApp` module already
@@ -66,9 +68,9 @@ documentation.
   pbxproj uses folder-synchronized groups: adding a file under `iosApp/`
   or the SPM package requires **zero** pbxproj edits.
 - **Single SPM package** (`packages/YralApp/`) — ALL product code. One target
-  (`YralApp`), sources FLAT in `Sources/YralApp/` (see colocation rule
-  above). No multi-package split until a concrete need emerges (build
-  times, team boundaries).
+  (`YralApp`), one folder per top-level screen/feature under
+  `Sources/YralApp/` (see the folder rule above). No multi-package split
+  until a concrete need emerges (build times, team boundaries).
 - One target, one bundle id (`com.yral.iosApp`). TestFlight and App Store are
   distribution channels on the same App Store Connect app record — not
   separate apps. Version numbers continue past the legacy app (3.4.5/24).

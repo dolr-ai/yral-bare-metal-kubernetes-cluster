@@ -4,12 +4,13 @@
 // Conventions (see apps/yral-ios/AGENTS.md):
 //   - ALL product code lives in this package; the committed iosApp.xcodeproj
 //     is a thin shell (targets + signing + assets) with no product code.
-//   - Sources are FLAT in Sources/YralApp/ — no nested feature/core folders.
-//     Feature grouping is by filename (SignInView.swift beside its data
-//     sources). SPM requires one directory per target, so test files cannot
-//     share the source folder; instead Tests/YralAppTests/ is a FLAT mirror
-//     of the source tree with one test file per tested file, named after it
-//     (e.g. YralPKCETests.swift tests YralPKCE.swift).
+//   - One folder per top-level screen/feature under Sources/YralApp/
+//     (authentication/, settings/…), logic colocated inside the feature
+//     folder; cross-feature infrastructure stays at the root. SPM
+//     requires one directory per target, so test files cannot share the
+//     source folder; instead Tests/YralAppTests/ mirrors the source
+//     tree's folders with one test file per tested file, named after it
+//     (e.g. authentication/PKCEAndJWTParserTests.swift tests PKCE.swift).
 //   - Day-to-day editing happens in VS Code via the Swift extension.
 //   - Third-party dependencies are declared HERE, not in the Xcode project.
 //
