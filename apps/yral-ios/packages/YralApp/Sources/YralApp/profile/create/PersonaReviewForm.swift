@@ -28,16 +28,14 @@ struct PersonaReviewForm: View {
                 .disabled(isWorking)
 
             Button(action: onContinue) {
-                Group {
+                HStack(spacing: 8) {
                     if isWorking {
                         ProgressView()
-                            .frame(maxWidth: .infinity)
-                    } else {
-                        Text("Generate profile")
-                            .frame(maxWidth: .infinity)
                     }
+                    Text(isWorking ? "Writing your AI's profile…" : "Generate profile")
                 }
                 .font(.headline)
+                .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
             }
             .buttonStyle(.borderedProminent)

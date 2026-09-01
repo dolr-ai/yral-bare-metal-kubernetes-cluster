@@ -16,6 +16,11 @@ struct MainTabView: View {
     let sessionStore: SessionStore
 
     @State private var selectedTab: Tab = .home
+    /// The create wizard's draft — owned HERE, outside the sheet, so
+    /// pulling down to leave never loses it: tapping Create again
+    /// resumes exactly where the user left off (operator request
+    /// 2026-09-01). Reset inside the sheet is the explicit clear.
+    @State private var creationDraft = AICreationDraft()
 
     enum Tab: Hashable {
         case home, chat, create, profile, menu
@@ -53,14 +58,17 @@ struct MainTabView: View {
             )
         ) {
             NavigationStack {
-                AIAccountCreationView(authClient: authClient, sessionStore: sessionStore)
+                AIAccountCreationView(
+                    authClient: authClient,
+                    sessionStore: sessionStore,
+                    draft: $creationDraft
+                )
             }
             .presentationDetents([.large])
-            // The system grabber — the visible pull cue (operator request
-            // 2026-09-01). AIAccountCreationView disables the pull-down
-            // gesture whenever the wizard holds content, so the grabber
-            // never silently discards progress — its Cancel (with the
-            // discard confirmation) is the single exit.
+            // The system grabber — the visible pull cue. Pulling down
+            // LEAVES without losing anything: the draft lives in
+            // MainTabView (outside the sheet) and resumes on the next
+            // Create tap. Reset inside the sheet is the explicit clear.
             .presentationDragIndicator(.visible)
         }
     }

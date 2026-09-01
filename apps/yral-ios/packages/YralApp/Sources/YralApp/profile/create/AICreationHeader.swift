@@ -1,13 +1,13 @@
 import SwiftUI
 
-/// The creation wizard's own chrome — Cancel (and chevron-back when an
-/// earlier step exists). The sheet's grabber handle (see MainTabView's
-/// `.presentationDragIndicator`) is the pull-down cue; this header is
-/// the explicit back/cancel affordance on every interactive step.
+/// The creation wizard's own chrome — Reset (and chevron-back when an
+/// earlier step exists). Reset is the explicit clear of the whole draft
+/// (confirmed when it holds anything); pulling down just LEAVES — the
+/// draft lives in MainTabView and resumes on the next Create tap.
 struct AICreationHeader: View {
     let showsBackButton: Bool
     let onBack: () -> Void
-    let onCancel: () -> Void
+    let onReset: () -> Void
 
     var body: some View {
         HStack {
@@ -19,7 +19,7 @@ struct AICreationHeader: View {
                 }
             }
             Spacer()
-            Button("Cancel", action: onCancel)
+            Button("Reset", action: onReset)
         }
     }
 }

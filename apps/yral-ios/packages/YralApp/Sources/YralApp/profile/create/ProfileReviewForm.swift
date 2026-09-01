@@ -38,16 +38,14 @@ struct ProfileReviewForm: View {
             }
 
             Button(action: onCreate) {
-                Group {
+                HStack(spacing: 8) {
                     if isWorking {
                         ProgressView()
-                            .frame(maxWidth: .infinity)
-                    } else {
-                        Text("Create AI account")
-                            .frame(maxWidth: .infinity)
                     }
+                    Text(isWorking ? "Creating your AI account…" : "Create AI account")
                 }
                 .font(.headline)
+                .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
             }
             .buttonStyle(.borderedProminent)

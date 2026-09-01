@@ -36,16 +36,14 @@ struct DescriptionEntryForm: View {
             .disabled(isWorking)
 
             Button(action: onContinue) {
-                Group {
+                HStack(spacing: 8) {
                     if isWorking {
                         ProgressView()
-                            .frame(maxWidth: .infinity)
-                    } else {
-                        Text("Continue")
-                            .frame(maxWidth: .infinity)
                     }
+                    Text(isWorking ? "Your AI is thinking…" : "Continue")
                 }
                 .font(.headline)
+                .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
             }
             .buttonStyle(.borderedProminent)
