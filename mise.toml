@@ -159,11 +159,9 @@ description = "Create .venv, install Python tooling, and extract infra SSH key f
 run = '''
 python -m venv .venv && ./.venv/bin/pip install --upgrade pip && ./.venv/bin/pip install ansible-core ansible-lint yamllint && ./.venv/bin/ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections
 
-# Initialize git submodules (app source repos)
-git submodule update --init --recursive
-
 # Extract infra SSH private key from Ansible vault → ./.yral-infra-ed25519 (repo-local, gitignored)
-# Used by fnox (age provider) to decrypt secrets. Idempotent — skips if already present.
+# Used by fnox (age provider) and ansible.cfg (private_key_file), and installed
+# as the machine's default SSH identity below. Idempotent — skips if already present.
 if [ -f ansible/.vault_pass ] && [ ! -f .yral-infra-ed25519 ]; then
   export ANSIBLE_VAULT_PASSWORD_FILE=ansible/.vault_pass
   ./.venv/bin/ansible-vault view ansible/inventory/group_vars/all/vault.yml --vault-password-file ansible/.vault_pass | \
@@ -176,6 +174,26 @@ elif [ -f .yral-infra-ed25519 ]; then
 else
   echo '  ⚠ Vault password file not found at ansible/.vault_pass — skipping infra SSH key extraction'
 fi
+
+# Install the infra SSH key as the machine's DEFAULT identity (~/.ssh/id_ed25519),
+# deliberately OVERWRITING any existing key (operator decision 2026-09-01: this
+# vault key is the adopted identity for everything — GitHub + Hetzner nodes; see
+# ansible/inventory/group_vars/all/vars.yml "single key for everything"). ssh,
+# git, and ansible then pick it up automatically — locally AND on the CI runner,
+# which is what lets the submodule clone below authenticate with no CI-specific
+# setup.
+if [ -f .yral-infra-ed25519 ]; then
+  mkdir -p ~/.ssh && chmod 700 ~/.ssh
+  cp .yral-infra-ed25519 ~/.ssh/id_ed25519
+  chmod 600 ~/.ssh/id_ed25519
+  echo '  ✓ Installed infra SSH key as ~/.ssh/id_ed25519 (default machine identity)'
+fi
+
+# Initialize git submodules (app source repos). SSH URLs (git@github.com:...)
+# resolve via the default identity installed above. accept-new handles a fresh
+# CI runner (github.com not yet in known_hosts) while still refusing CHANGED
+# host keys (TOFU).
+GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" git submodule update --init --recursive
 
 # Extract kubeconfig from Ansible vault → ~/.kube/config (idempotent — skips if already present)
 if [ -f ansible/.vault_pass ] && [ ! -f ~/.kube/config ]; then

@@ -32,8 +32,9 @@ age_private_key: "{{ vault_age_private_key }}"  # Indirection to vault
 # Infrastructure SSH keypair — used for all node access (Hetzner)
 # AND for git operations against GitHub (single key for everything).
 # Private key is secret (vault); public key is plaintext (safe to commit).
-# scripts/setup-local-env.sh extracts the private key to ~/.ssh/id_ed25519
-# (the default SSH identity), so ssh, git, and ansible all pick it up automatically.
+# `mise run bootstrap` extracts the private key to ./.yral-infra-ed25519 (fnox +
+# ansible.cfg use it) AND installs it as ~/.ssh/id_ed25519 (the default SSH
+# identity), so ssh, git, and ansible all pick it up automatically.
 # To get the public key: ssh-keygen -y -f ~/.ssh/id_ed25519
 github_actions_ssh_private_key: "{{ vault_github_actions_ssh_private_key }}"  # Indirection to vault
 github_actions_ssh_pub_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIM/H7Jp2RgC1xtg1nyzpmhzOTmUz3n+PQPsk83BzUskg github-actions@yral.com"  # Plaintext — derived from private key via: ssh-keygen -y -f ~/.ssh/id_ed25519
