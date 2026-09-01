@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import YralApp
 
-struct PKCEAndJWTTests {
+struct YralPKCEAndJWTParserTests {
 
     // MARK: - PKCE
 
@@ -111,32 +111,5 @@ struct PKCEAndJWTTests {
         #expect(throws: YralAuthError.malformedJWT(reason: "expected 3 segments, got 2")) {
             _ = try YralJWTParser.parsePayload(of: "two.segments")
         }
-    }
-
-    // MARK: - Redirect URI construction
-
-    @Test("redirect URI is scheme://oauth/callback")
-    func redirectURI() {
-        #expect(YralAuthDataSource.redirectURI(scheme: "com.yral.iosApp") == "com.yral.iosApp://oauth/callback")
-    }
-
-    // MARK: - Keychain round-trip (host-side: in-memory only via UserDefaults
-    // would be better; Keychain IS available in macOS test hosts, so exercise it)
-
-    @Test("keychain set/get/remove round-trips")
-    func keychainRoundTrip() {
-        let store = YralKeychainStore(service: "yral-tests-\(UUID().uuidString)")
-        defer { store.removeAll() }
-
-        #expect(store.string(forKey: .idToken) == nil)
-        store.setString("token-1", forKey: .idToken)
-        #expect(store.string(forKey: .idToken) == "token-1")
-
-        // Upsert replaces.
-        store.setString("token-2", forKey: .idToken)
-        #expect(store.string(forKey: .idToken) == "token-2")
-
-        store.removeValue(forKey: .idToken)
-        #expect(store.string(forKey: .idToken) == nil)
     }
 }

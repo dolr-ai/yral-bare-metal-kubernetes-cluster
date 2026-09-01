@@ -63,13 +63,16 @@ public struct YralKeychainStore: Sendable {
         SecItemDelete(baseQuery(for: key) as CFDictionary)
     }
 
-    /// Removes every value stored by this service (logout).
+    /// Removes every value stored by this service (logout). Apple's
+    /// documented delete-by-class pattern: `SecItemDelete` with only the
+    /// class + service attributes removes ONE item per call — loop until
+    /// `errSecItemNotFound` so duplicates and all accounts are gone.
     public func removeAll() {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service
         ]
-        SecItemDelete(query as CFDictionary)
+        while SecItemDelete(query as CFDictionary) == errSecSuccess {}
     }
 
     /// Common Keychain query attributes.

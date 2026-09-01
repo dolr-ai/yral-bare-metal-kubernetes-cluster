@@ -1,14 +1,16 @@
 // swift-tools-version:6.2
 // YralApp — the single SPM package holding all Yral iOS app code.
 //
-// Conventions (see apps/yral-ios/README.md):
-//   - ALL product code lives in this package; the committed YralApp.xcodeproj is
-//     a thin shell (targets + signing + assets) with no product code of its own.
-//   - Day-to-day editing happens in VS Code via the Swift extension against this
-//     package. Xcode is used only for UI previews, signing, and asset work.
-//   - Feature namespacing is by folder (Sources/YralApp/Features/<Feature>),
-//     not by separate SPM targets. Refactor into multiple packages only when a
-//     concrete need (build times, team boundaries) emerges.
+// Conventions (see apps/yral-ios/AGENTS.md):
+//   - ALL product code lives in this package; the committed iosApp.xcodeproj
+//     is a thin shell (targets + signing + assets) with no product code.
+//   - Sources are FLAT in Sources/YralApp/ — no nested feature/core folders.
+//     Feature grouping is by filename (SignInView.swift beside its data
+//     sources). SPM requires one directory per target, so test files cannot
+//     share the source folder; instead Tests/YralAppTests/ is a FLAT mirror
+//     of the source tree with one test file per tested file, named after it
+//     (e.g. YralPKCETests.swift tests YralPKCE.swift).
+//   - Day-to-day editing happens in VS Code via the Swift extension.
 //   - Third-party dependencies are declared HERE, not in the Xcode project.
 //
 // Dependency policy: exact-pinned versions. Bump deliberately; never floating.

@@ -5,7 +5,7 @@ import Foundation
 /// Wire fixtures for the SpacetimeDB positional decoder — built from the
 /// documented wire shapes (the Kotlin module had NO decoder tests; these
 /// encode the server contract so regressions surface immediately).
-struct SpacetimeDecoderTests {
+struct SpacetimePositionalDecoderTests {
 
     // MARK: - Option<T> response decoding
 

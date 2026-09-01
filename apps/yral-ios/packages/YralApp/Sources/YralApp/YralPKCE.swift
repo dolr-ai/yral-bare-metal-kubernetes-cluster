@@ -201,6 +201,11 @@ public enum YralAuthError: Error, Equatable {
     case malformedJWT(reason: String)
     case missingRequiredClaim(String)
     case malformedClaim(key: String, reason: String)
+    /// OAuth callback `state` did not match the in-flight code challenge —
+    /// possible CSRF (Kotlin: SecurityException).
+    case stateMismatch
+    /// OAuth/phone flow failed at any step after URL construction.
+    case oauthFailed(errorDescription: String)
 }
 
 extension String {

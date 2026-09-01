@@ -27,22 +27,37 @@ documentation.
     expression repeated a few times.
 
 - **Colocate logic beside its caller (Hard Rule).** Feature code (views,
-  data sources, models) lives together in `Sources/YralApp/Features/<Feature>/`
-  — NOT in a parallel `Core/` tree. The current `Core/` files are scaffolding
-  created before any feature UI existed; as Phase 2+ features land, move each
-  data source into the feature that owns it (auth client → `FeatureAuth/`,
-  feed client → `FeatureVideoFeed/`…). Promote a piece to a shared location
-  ONLY when a second feature consumes it — and ask first. Do not pre-create
-  shared/core modules ahead of their first consumer.
+  view models, data sources) lives in the SAME flat folder as everything
+  else — `Sources/YralApp/` has NO nested feature/core directories.
+  Feature grouping happens by filename convention (e.g. `SignInView.swift`
+  sits beside `YralAuthDataSource.swift`). A file graduates to no special
+  location — promotion is a non-event; a second feature simply imports it
+  where it already lives. Do NOT create `Core/`, `Features/`, or
+  `Features/<Feature>/` directories ahead of or even after consumers exist.
+  Rationale: deep nesting complicates following code for human reviewers.
+
+- **Tests mirror their subjects by filename (Hard Rule).** SPM requires one
+  directory per target — a test file CANNOT live inside `Sources/YralApp/`
+  alongside its subject (unlike Rust's `#[cfg(test)] mod tests`). The
+  canonical Swift answer is the standard `Tests/YralAppTests/` layout, kept
+  as a disciplined FLAT MIRROR of the source tree: ONE test file per tested
+  source file, named after it (`YralPKCEAndJWTParserTests.swift` tests
+  `YralPKCE.swift` + `YralJWTParser` from `YralPKCE.swift`;
+  `SpacetimePositionalDecoderTests.swift` tests
+  `SpacetimePositionalDecoder.swift` + the models it decodes). A test file
+  covering two subjects splits when either grows. Struct name == file name.
+  No shared-helpers file — test fixtures live beside the tests that use
+  them. When porting a Kotlin test file, its tests land in the mirror file
+  of the Swift file that now holds the ported code.
 
 - **Thin Xcode shell** (`iosApp.xcodeproj`) — targets, signing, assets, and
   the Crashlytics dSYM build phase only. Contains no product code. The
   pbxproj uses folder-synchronized groups: adding a file under `iosApp/`
   or the SPM package requires **zero** pbxproj edits.
 - **Single SPM package** (`packages/YralApp/`) — ALL product code. One target
-  (`YralApp`), feature namespacing by folder
-  (`Sources/YralApp/Features/<Feature>`). No multi-package split until a
-  concrete need emerges (build times, team boundaries).
+  (`YralApp`), sources FLAT in `Sources/YralApp/` (see colocation rule
+  above). No multi-package split until a concrete need emerges (build
+  times, team boundaries).
 - One target, one bundle id (`com.yral.iosApp`). TestFlight and App Store are
   distribution channels on the same App Store Connect app record — not
   separate apps. Version numbers continue past the legacy app (3.4.5/24).
@@ -137,7 +152,7 @@ every Release build (path resolution documented in `project.pbxproj`).
 ## Phase status
 
 - [x] Phase 0 — scaffold + CI/distribution + Crashlytics
-- [ ] Phase 1 — core foundation (config, SpacetimeDB client, networking, auth client, analytics providers)
+- [x] Phase 1 — core foundation (config, SpacetimeDB client, networking, auth client, analytics providers)
 - [ ] Phase 2 — auth + account/settings + deep links + push
 - [ ] Phase 3 — video feed
 - [ ] Phase 4+ — profile, chat, upload/videogen, wallet, ai-influencer, subscriptions
