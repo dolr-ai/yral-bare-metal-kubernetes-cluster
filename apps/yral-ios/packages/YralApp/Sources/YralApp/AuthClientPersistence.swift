@@ -1,15 +1,15 @@
 import Foundation
 
-/// Cached-session persistence for `YralAuthClient` — Kotlin
+/// Cached-session persistence for `AuthClient` — Kotlin
 /// `DefaultAuthClient`'s `getCachedSession`/`cacheSession`/
 /// `resetCachedCanisterData`/`saveTokens`/`updateYralSession`/`postLogin`,
 /// kept as an extension of the same class (not a layer).
-extension YralAuthClient {
+extension AuthClient {
 
     /// Rebuilds the cached session — Kotlin `getCachedSession` verbatim
     /// (single-slot cache: PROFILE_PIC/USERNAME are trusted only when
     /// USER_PRINCIPAL == LAST_ACTIVE_PRINCIPAL).
-    func cachedSession() -> YralSession? {
+    func cachedSession() -> Session? {
         let mainPrincipal = keychain.string(forKey: .mainPrincipal)
         let lastActivePrincipal = keychain.string(forKey: .lastActivePrincipal)
 
@@ -35,11 +35,11 @@ extension YralAuthClient {
         } ?? false
 
         guard let canisterID, let userPrincipal, let profilePic else { return nil }
-        return YralSession(
+        return Session(
             canisterID: canisterID,
             userPrincipal: userPrincipal,
             profilePic: profilePic,
-            username: YralUsernameGenerator.resolveUsername(
+            username: UsernameGenerator.resolveUsername(
                 preferred: username, principal: userPrincipal
             ),
             isCreatedFromServiceCanister: isCreatedFromServiceCanister,
@@ -55,9 +55,9 @@ extension YralAuthClient {
     ) -> String? {
         let cached = defaults.string(forKey: CachedSessionKey.profilePic.rawValue)
         guard preferredPrincipal == userPrincipal else {
-            return userPrincipal.map { YralProfilePicture.url(fromPrincipal: $0) }
+            return userPrincipal.map { ProfilePicture.url(fromPrincipal: $0) }
         }
-        return cached ?? userPrincipal.map { YralProfilePicture.url(fromPrincipal: $0) }
+        return cached ?? userPrincipal.map { ProfilePicture.url(fromPrincipal: $0) }
     }
 
     /// Kotlin `getCachedUsername`: cached username trusted only when the
@@ -84,7 +84,7 @@ extension YralAuthClient {
         defaults.set(canisterID, forKey: CachedSessionKey.canisterID.rawValue)
         defaults.set(userPrincipal, forKey: CachedSessionKey.userPrincipal.rawValue)
         defaults.set(profilePic, forKey: CachedSessionKey.profilePic.rawValue)
-        let resolvedUsername = YralUsernameGenerator.resolveUsername(
+        let resolvedUsername = UsernameGenerator.resolveUsername(
             preferred: username, principal: userPrincipal
         )
         if let resolvedUsername {
@@ -142,7 +142,7 @@ extension YralAuthClient {
     }
 
     /// Kotlin `updateYralSession` — fire-and-forget registration call.
-    func updateYralSession(_ session: YralSession) async {
+    func updateYralSession(_ session: Session) async {
         guard let idToken = keychain.string(forKey: .idToken),
               let canisterID = session.canisterID,
               let userPrincipal = session.userPrincipal

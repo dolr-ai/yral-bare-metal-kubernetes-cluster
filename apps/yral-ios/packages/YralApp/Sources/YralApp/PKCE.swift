@@ -10,7 +10,7 @@ import CryptoKit
 ///   - `state` is NOT a separate random value in this app — the auth flow
 ///     always sets `state == codeChallenge` and the callback check compares
 ///     against the stored challenge.
-public enum YralPKCE {
+public enum PKCE {
 
     /// Random bytes per count, via `SecRandomCopyBytes` (cryptographically
     /// secure — same source as Kotlin's kSecRandomDefault).
@@ -20,7 +20,7 @@ public enum YralPKCE {
             SecRandomCopyBytes(kSecRandomDefault, count, buffer.baseAddress!)
         }
         guard status == errSecSuccess else {
-            throw YralAuthError.randomGenerationFailed(status: Int(status))
+            throw AuthError.randomGenerationFailed(status: Int(status))
         }
         return bytes
     }
@@ -47,7 +47,7 @@ public enum YralPKCE {
 
 /// JWT claim payload — port of Kotlin `TokenClaims`. Payload-only parsing
 /// (NO signature verification — token trust is established server-side).
-public struct YralTokenClaims: Equatable {
+public struct TokenClaims: Equatable {
     /// `aud` — audience (client id). Absent → empty, single string → 1-item,
     /// array → as-is (polymorphic, matching `parseAudience`).
     public let audience: [String]
@@ -79,7 +79,7 @@ public struct YralTokenClaims: Equatable {
 /// Decoding: split on ".", require exactly 3 segments, base64url-decode
 /// segment 1 with `=` re-padding to a multiple of 4, UTF-8 JSON object.
 /// Required claims (throw when missing): `exp`, `iat`, `iss`, `sub`.
-public enum YralJWTParser {
+public enum JWTParser {
 
     /// Claim keys (mirroring the Kotlin constants).
     private enum ClaimKey {
@@ -95,7 +95,7 @@ public enum YralJWTParser {
     }
 
     /// Parses the JWT payload into typed claims.
-    public static func parsePayload(of token: String) throws -> YralTokenClaims {
+    public static func parsePayload(of token: String) throws -> TokenClaims {
         let payloadJSON = try decodePayloadObject(token)
 
         let audience = parseAudience(payloadJSON[ClaimKey.audience])
@@ -108,7 +108,7 @@ public enum YralJWTParser {
         let email = optionalString(payloadJSON[ClaimKey.email])
         let botAccountIds = parseStringList(payloadJSON[ClaimKey.botAccountIds])
 
-        return YralTokenClaims(
+        return TokenClaims(
             audience: audience,
             expiry: expiry,
             issuedAtTime: issuedAt,
@@ -125,7 +125,7 @@ public enum YralJWTParser {
     private static func decodePayloadObject(_ token: String) throws -> [String: Any] {
         let segments = token.split(separator: ".", omittingEmptySubsequences: false)
         guard segments.count == 3 else {
-            throw YralAuthError.malformedJWT(reason: "expected 3 segments, got \(segments.count)")
+            throw AuthError.malformedJWT(reason: "expected 3 segments, got \(segments.count)")
         }
         let encodedPayload = String(segments[1])
         let paddedLength = (4 - encodedPayload.count % 4) % 4
@@ -137,7 +137,7 @@ public enum YralJWTParser {
               let object = try? JSONSerialization.jsonObject(with: payloadData),
               let payloadJSON = object as? [String: Any]
         else {
-            throw YralAuthError.malformedJWT(reason: "payload is not a JSON object")
+            throw AuthError.malformedJWT(reason: "payload is not a JSON object")
         }
         return payloadJSON
     }
@@ -159,25 +159,25 @@ public enum YralJWTParser {
     /// content.toLong()`).
     private static func requireLongClaim(_ json: [String: Any], _ key: String) throws -> Int64 {
         guard let value = json[key] else {
-            throw YralAuthError.missingRequiredClaim(key)
+            throw AuthError.missingRequiredClaim(key)
         }
         switch value {
         case let number as NSNumber:
             if let integer = number.int64ValueExact { return integer }
-            throw YralAuthError.malformedClaim(key: key, reason: "not an integer")
+            throw AuthError.malformedClaim(key: key, reason: "not an integer")
         case let string as String:
             guard let integer = Int64(string) else {
-                throw YralAuthError.malformedClaim(key: key, reason: "unparseable number")
+                throw AuthError.malformedClaim(key: key, reason: "unparseable number")
             }
             return integer
         default:
-            throw YralAuthError.malformedClaim(key: key, reason: "unexpected type")
+            throw AuthError.malformedClaim(key: key, reason: "unexpected type")
         }
     }
 
     private static func requireStringClaim(_ json: [String: Any], _ key: String) throws -> String {
         guard let value = json[key] as? String, !value.isEmpty else {
-            throw YralAuthError.missingRequiredClaim(key)
+            throw AuthError.missingRequiredClaim(key)
         }
         return value
     }
@@ -196,7 +196,7 @@ public enum YralJWTParser {
 }
 
 /// Auth-domain failures.
-public enum YralAuthError: Error, Equatable {
+public enum AuthError: Error, Equatable {
     case randomGenerationFailed(status: Int)
     case malformedJWT(reason: String)
     case missingRequiredClaim(String)

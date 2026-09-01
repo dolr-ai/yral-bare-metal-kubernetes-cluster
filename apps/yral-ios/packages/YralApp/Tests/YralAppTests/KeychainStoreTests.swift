@@ -2,13 +2,13 @@ import Testing
 import Foundation
 @testable import YralApp
 
-/// Tests for `YralKeychainStore` — the macOS test host has a real Keychain,
+/// Tests for `KeychainStore` — the macOS test host has a real Keychain,
 /// so these exercise the actual SecItem round-trip (not a stub).
-struct YralKeychainStoreTests {
+struct KeychainStoreTests {
 
     @Test("set/get/remove round-trips")
     func roundTrip() {
-        let store = YralKeychainStore(service: "yral-tests-\(UUID().uuidString)")
+        let store = KeychainStore(service: "yral-tests-\(UUID().uuidString)")
         defer { store.removeAll() }
 
         #expect(store.string(forKey: .idToken) == nil)
@@ -25,7 +25,7 @@ struct YralKeychainStoreTests {
 
     @Test("removeAll clears every key")
     func removeAll() {
-        let store = YralKeychainStore(service: "yral-tests-\(UUID().uuidString)")
+        let store = KeychainStore(service: "yral-tests-\(UUID().uuidString)")
         defer { store.removeAll() }
         store.setString("id", forKey: .idToken)
         store.setString("access", forKey: .accessToken)

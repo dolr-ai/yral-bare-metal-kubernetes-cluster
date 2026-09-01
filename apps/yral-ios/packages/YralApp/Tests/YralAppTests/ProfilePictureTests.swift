@@ -2,34 +2,34 @@ import Testing
 import Foundation
 @testable import YralApp
 
-/// Tests for `YralProfilePicture` (propic URL + CRC32 with the Kotlin
-/// signed-remainder trap) and `YralUsernameGenerator` (deterministic
+/// Tests for `ProfilePicture` (propic URL + CRC32 with the Kotlin
+/// signed-remainder trap) and `UsernameGenerator` (deterministic
 /// fallback names) — ported and expanded from Kotlin
 /// `UsernameUtilsTest.kt` / propic expectations.
-struct YralProfilePictureTests {
+struct ProfilePictureTests {
 
     // MARK: - GobGob avatar URL
 
     @Test("avatar URL is prefix + index + .png")
     func avatarURL() {
-        let url = YralProfilePicture.url(fromPrincipal: "auth0|user-77")
-        let index = YralProfilePicture.avatarIndex("auth0|user-77")
+        let url = ProfilePicture.url(fromPrincipal: "auth0|user-77")
+        let index = ProfilePicture.avatarIndex("auth0|user-77")
         #expect(url == "https://prakash-yral.hel1.your-objectstorage.com/gobgob/gob.\(index).png")
-        #expect(url.hasPrefix(YralProfilePicture.gobgobURLPrefix))
+        #expect(url.hasPrefix(ProfilePicture.gobgobURLPrefix))
         #expect(url.hasSuffix(".png"))
     }
 
     @Test("CRC32 is IEEE 802.3 — reference vector \"123456789\"")
     func crc32ReferenceVector() {
         // Canonical CRC-32/ISO-HDLC check value (IEEE 802.3).
-        #expect(YralProfilePicture.crc32IEEE(Data("123456789".utf8)) == 0xCBF4_3926)
+        #expect(ProfilePicture.crc32IEEE(Data("123456789".utf8)) == 0xCBF4_3926)
     }
 
     @Test("CRC32 is deterministic and case-sensitive")
     func crc32Deterministic() {
-        let firstHash = YralProfilePicture.crc32IEEE(Data("auth0|user-77".utf8))
-        #expect(firstHash == YralProfilePicture.crc32IEEE(Data("auth0|user-77".utf8)))
-        #expect(firstHash != YralProfilePicture.crc32IEEE(Data("AUTH0|USER-77".utf8)))
+        let firstHash = ProfilePicture.crc32IEEE(Data("auth0|user-77".utf8))
+        #expect(firstHash == ProfilePicture.crc32IEEE(Data("auth0|user-77".utf8)))
+        #expect(firstHash != ProfilePicture.crc32IEEE(Data("AUTH0|USER-77".utf8)))
     }
 
     @Test("avatar index reproduces Kotlin's signed-remainder trap")
@@ -40,9 +40,9 @@ struct YralProfilePictureTests {
         var foundNegativePath = false
         for index in 0..<1000 {
             let principal = "principal-\(index)"
-            let hash = YralProfilePicture.crc32IEEE(Data(principal.utf8))
+            let hash = ProfilePicture.crc32IEEE(Data(principal.utf8))
             if Int32(bitPattern: hash) < 0 {
-                let avatarIndex = YralProfilePicture.avatarIndex(principal)
+                let avatarIndex = ProfilePicture.avatarIndex(principal)
                 let kotlinIndex = Int(Int32(bitPattern: hash) % Int32(18_557)) + 1
                 #expect(avatarIndex == kotlinIndex)
                 #expect(avatarIndex <= 0)
@@ -54,8 +54,8 @@ struct YralProfilePictureTests {
 
     @Test("avatar index is deterministic per principal")
     func avatarIndexDeterministic() {
-        #expect(YralProfilePicture.avatarIndex("p") == YralProfilePicture.avatarIndex("p"))
-        #expect(YralProfilePicture.avatarIndex("p") != YralProfilePicture.avatarIndex("q"))
+        #expect(ProfilePicture.avatarIndex("p") == ProfilePicture.avatarIndex("p"))
+        #expect(ProfilePicture.avatarIndex("p") != ProfilePicture.avatarIndex("q"))
     }
 
     // MARK: - Username generation
@@ -71,15 +71,15 @@ struct YralProfilePictureTests {
     @Test("username generation is deterministic for the same principal")
     func usernameDeterminism() {
         #expect(
-            YralUsernameGenerator.username(fromPrincipal: "test-principal")
-                == YralUsernameGenerator.username(fromPrincipal: "test-principal")
+            UsernameGenerator.username(fromPrincipal: "test-principal")
+                == UsernameGenerator.username(fromPrincipal: "test-principal")
         )
     }
 
     @Test("generated usernames are letters-only, 3–15 chars, two modifiers + noun")
     func usernameShape() {
         for index in 0..<200 {
-            let username = YralUsernameGenerator.username(fromPrincipal: "principal-\(index)")
+            let username = UsernameGenerator.username(fromPrincipal: "principal-\(index)")
             #expect(username.count >= 3)
             #expect(username.count <= 15)
             #expect(username.allSatisfy { $0.isLetter })
@@ -129,10 +129,10 @@ struct YralProfilePictureTests {
 
     @Test("resolveUsername prefers trimmed non-empty preferred; falls back per principal")
     func resolveUsername() {
-        #expect(YralUsernameGenerator.resolveUsername(preferred: "  saikat  ", principal: "p") == "  saikat  ")
-        #expect(YralUsernameGenerator.resolveUsername(preferred: "", principal: "p") != nil)
-        #expect(YralUsernameGenerator.resolveUsername(preferred: nil, principal: "p") != nil)
-        #expect(YralUsernameGenerator.resolveUsername(preferred: nil, principal: nil) == nil)
+        #expect(UsernameGenerator.resolveUsername(preferred: "  saikat  ", principal: "p") == "  saikat  ")
+        #expect(UsernameGenerator.resolveUsername(preferred: "", principal: "p") != nil)
+        #expect(UsernameGenerator.resolveUsername(preferred: nil, principal: "p") != nil)
+        #expect(UsernameGenerator.resolveUsername(preferred: nil, principal: nil) == nil)
     }
 
     @Test("unsafe words are absent from the username pools")

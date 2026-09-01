@@ -2,14 +2,14 @@ import Testing
 import Foundation
 @testable import YralApp
 
-/// Tests for `YralSessionStore` (the @Observable session machine) —
+/// Tests for `SessionStore` (the @Observable session machine) —
 /// Kotlin `SessionManager` behavior contracts.
 @MainActor
-struct YralSessionTests {
+struct SessionTests {
 
     @Test("signed-in accessors read the session; updateState resets properties")
     func signedInAccessorsAndPropertyReset() {
-        let store = YralSessionStore()
+        let store = SessionStore()
 
         // Initial state.
         #expect(store.state == .initial)
@@ -18,7 +18,7 @@ struct YralSessionTests {
         #expect(store.isBotAccount == nil)
 
         // Signed in with properties set.
-        let session = YralSession(
+        let session = Session(
             canisterID: "canister-1",
             userPrincipal: "auth0|user-77",
             profilePic: "https://example.com/pic.png",
@@ -49,8 +49,8 @@ struct YralSessionTests {
 
     @Test("resetSessionProperties zeroes balance and clears social sign-in")
     func resetSessionProperties() {
-        let store = YralSessionStore()
-        let session = YralSession(userPrincipal: "p", profilePic: "pic")
+        let store = SessionStore()
+        let session = Session(userPrincipal: "p", profilePic: "pic")
         store.updateState(.signedIn(session))
         store.updateCoinBalance(99)
         store.updateSocialSignInStatus(true)
@@ -65,7 +65,7 @@ struct YralSessionTests {
 
     @Test("firebase login state tracks independently of session state")
     func firebaseLoginState() {
-        let store = YralSessionStore()
+        let store = SessionStore()
         #expect(store.properties.isFirebaseLoggedIn == false)
         store.updateFirebaseLoginState(true)
         #expect(store.properties.isFirebaseLoggedIn == true)

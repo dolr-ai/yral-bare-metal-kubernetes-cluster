@@ -9,8 +9,8 @@ import Foundation
 ///     session properties, return to `.initial`.
 ///   - Token pipeline: `handleToken` → claims-based session or refresh.
 ///
-/// Social/phone sign-in flows live in `YralAuthClient+SignIn.swift`;
-/// cached-session persistence in `YralAuthClient+Persistence.swift` —
+/// Social/phone sign-in flows live in `AuthClient+SignIn.swift`;
+/// cached-session persistence in `AuthClient+Persistence.swift` —
 /// the Kotlin god class (917 lines) split across files by concern for the
 /// 400-line lint limit. They are the SAME class (extensions), not layers.
 ///
@@ -18,7 +18,7 @@ import Foundation
 ///   - No analytics/telemetry dependency (Firebase Analytics wiring lands
 ///     with the analytics phase; call sites are documented inline).
 ///   - Token storage is the Keychain (not NSUserDefaults) via
-///     `YralKeychainStore` — see its header comment.
+///     `KeychainStore` — see its header comment.
 ///   - Bot-identity persistence (`ext_ai_account_ids` merge) lands with
 ///     the account-switcher phase that consumes it.
 ///
@@ -30,22 +30,22 @@ import Foundation
 ///     IS_CREATED_FROM_SERVICE_CANISTER, PHONE_NUMBER,
 ///     SOCIAL_SIGN_IN_SUCCESSFUL.
 @MainActor @Observable
-public final class YralAuthClient {
+public final class AuthClient {
 
     /// Auth data source (yral-auth + metadata + off-chain endpoints).
-    let authDataSource: YralAuthDataSource
+    let authDataSource: AuthDataSource
 
     /// Redirect scheme (from Info.plist via the app shell).
     let redirectScheme: String
 
     /// Keychain-backed token cache.
-    let keychain: YralKeychainStore
+    let keychain: KeychainStore
 
     /// Cached session display fields (non-secret) — Kotlin's Preferences.
     let defaults: UserDefaults
 
     /// Session state (the app's observable session).
-    let sessionStore: YralSessionStore
+    let sessionStore: SessionStore
 
     /// PKCE verifier of the in-flight flow — needed at code exchange
     /// (Kotlin holds it on `AuthRepositoryImpl`).
@@ -56,11 +56,11 @@ public final class YralAuthClient {
     var currentCodeChallenge: String?
 
     /// Provider of the in-flight social flow (callback handling + analytics).
-    var currentProvider: YralSocialProvider?
+    var currentProvider: SocialProvider?
 
     /// Most recent token-expiry logout cause (nil after a user logout) —
     /// test hook mirroring Kotlin's telemetry cause parameter.
-    public private(set) var lastLogoutCause: YralAuthExpiryCause?
+    public private(set) var lastLogoutCause: AuthExpiryCause?
 
     /// Session-storage keys in UserDefaults for the cached session fields.
     enum CachedSessionKey: String {
@@ -74,11 +74,11 @@ public final class YralAuthClient {
     }
 
     public init(
-        authDataSource: YralAuthDataSource,
+        authDataSource: AuthDataSource,
         redirectScheme: String,
-        keychain: YralKeychainStore = YralKeychainStore(),
+        keychain: KeychainStore = KeychainStore(),
         defaults: UserDefaults = .standard,
-        sessionStore: YralSessionStore
+        sessionStore: SessionStore
     ) {
         self.authDataSource = authDataSource
         self.redirectScheme = redirectScheme
@@ -155,7 +155,7 @@ public final class YralAuthClient {
     }
 
     func isTokenValid(_ token: String, now: Int64) -> Bool {
-        guard let claims = try? YralJWTParser.parsePayload(of: token) else { return false }
+        guard let claims = try? JWTParser.parsePayload(of: token) else { return false }
         return claims.isValid(currentTimeInEpochSeconds: now)
     }
 
@@ -221,7 +221,7 @@ public final class YralAuthClient {
             )
         }
 
-        guard let tokenClaims = try? YralJWTParser.parsePayload(of: idToken),
+        guard let tokenClaims = try? JWTParser.parsePayload(of: idToken),
               tokenClaims.isValid(currentTimeInEpochSeconds: currentEpochSeconds)
         else {
             guard let refreshToken = keychain.string(forKey: .refreshToken),
@@ -250,7 +250,7 @@ public final class YralAuthClient {
     /// token's principal differs, the cached MAIN session is restored
     /// instead (a stale token for another account must not hijack the
     /// active session).
-    private func handleTokenClaims(_ tokenClaims: YralTokenClaims) {
+    private func handleTokenClaims(_ tokenClaims: TokenClaims) {
         let storedMainPrincipal = keychain.string(forKey: .mainPrincipal)
         let lastActivePrincipal = keychain.string(forKey: .lastActivePrincipal)
         let principal = tokenClaims.principal
@@ -266,7 +266,7 @@ public final class YralAuthClient {
             return
         }
 
-        let profilePic = YralProfilePicture.url(fromPrincipal: principal)
+        let profilePic = ProfilePicture.url(fromPrincipal: principal)
         cacheSession(
             canisterID: principal,
             userPrincipal: principal,
@@ -275,11 +275,11 @@ public final class YralAuthClient {
             isBotAccount: false
         )
 
-        let session = YralSession(
+        let session = Session(
             canisterID: principal,
             userPrincipal: principal,
             profilePic: profilePic,
-            username: YralUsernameGenerator.resolveUsername(
+            username: UsernameGenerator.resolveUsername(
                 preferred: nil, principal: principal
             ),
             isCreatedFromServiceCanister: true,
@@ -300,7 +300,7 @@ public final class YralAuthClient {
 
     /// Kotlin `trackAndLogoutForTokenExpiry` — the token-expiry logout
     /// path with its cause (analytics event lands with the analytics phase).
-    func trackAndLogoutForTokenExpiry(cause: YralAuthExpiryCause) async {
+    func trackAndLogoutForTokenExpiry(cause: AuthExpiryCause) async {
         lastLogoutCause = cause
         await logoutInternal()
     }
@@ -368,7 +368,7 @@ public final class YralAuthClient {
 // MARK: - Supporting types
 
 /// Social providers — port of Kotlin `SocialProvider`.
-public enum YralSocialProvider: String, Sendable {
+public enum SocialProvider: String, Sendable {
     case google
     case apple
     case phone
@@ -389,7 +389,7 @@ public enum YralSocialProvider: String, Sendable {
 
 /// Token-expiry logout causes — Kotlin `AuthSessionCause` (the analytics
 /// event lands with the analytics phase; tests assert on the cause).
-public enum YralAuthExpiryCause: String, Sendable {
+public enum AuthExpiryCause: String, Sendable {
     case refreshTokenMissing = "REFRESH_TOKEN_MISSING"
     case refreshTokenExpiredOrInvalid = "REFRESH_TOKEN_EXPIRED_OR_INVALID"
     case refreshAccessTokenFailed = "REFRESH_ACCESS_TOKEN_FAILED"

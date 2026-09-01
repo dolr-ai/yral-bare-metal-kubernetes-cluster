@@ -268,12 +268,12 @@ public struct SpacetimeDBRemoteDataSource: Sendable {
     ) async throws -> String {
         let token = idTokenProvider()
         if requiresToken && token == nil {
-            throw YralNetworkError.notAuthenticated(
+            throw NetworkError.notAuthenticated(
                 description: "Not authenticated — no ID token available for \(name)"
             )
         }
-        let url = URL(string: "https://\(YralAppConfiguration.spacetimeDBBaseURL)")!
-            .appending(path: "v1/database/\(YralAppConfiguration.spacetimeDBDatabaseName)/call/\(name)")
+        let url = URL(string: "https://\(AppConfiguration.spacetimeDBBaseURL)")!
+            .appending(path: "v1/database/\(AppConfiguration.spacetimeDBDatabaseName)/call/\(name)")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -285,13 +285,13 @@ public struct SpacetimeDBRemoteDataSource: Sendable {
         do {
             (data, response) = try await session.data(for: request)
         } catch {
-            throw YralNetworkError.transport(underlying: "\(error)")
+            throw NetworkError.transport(underlying: "\(error)")
         }
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw YralNetworkError.transport(underlying: "Non-HTTP response")
+            throw NetworkError.transport(underlying: "Non-HTTP response")
         }
         guard (200..<300).contains(httpResponse.statusCode) else {
-            throw YralNetworkError.http(
+            throw NetworkError.http(
                 statusCode: httpResponse.statusCode,
                 body: String(data: data, encoding: .utf8)
             )

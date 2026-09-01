@@ -5,7 +5,7 @@ import Foundation
 /// `cancelled` and `timedOut` are produced by the browser-auth session
 /// (user dismisses the sheet / the 5-minute callback window elapses), not
 /// by URL parsing.
-public enum YralOAuthResult: Equatable, Sendable {
+public enum OAuthResult: Equatable, Sendable {
     /// The redirect carried a valid `code` + `state` pair.
     case success(code: String, state: String)
     /// The redirect carried an `error` (+ optional description).
@@ -21,7 +21,7 @@ public enum YralOAuthResult: Equatable, Sendable {
 /// `<scheme>://oauth/callback` with `error`/`error_description` or
 /// `code`+`state` query parameters. Non-matching URLs (some other app or
 /// universal link) map to nil — ignored, not an error.
-public enum YralOAuthCallbackParser {
+public enum OAuthCallbackParser {
 
     /// Parses a callback URL string. Returns nil when the URL doesn't match
     /// the expected scheme/host/path (or is not a valid URL).
@@ -30,7 +30,7 @@ public enum YralOAuthCallbackParser {
         redirectScheme: String,
         redirectHost: String = "oauth",
         redirectPath: String = "/callback"
-    ) -> YralOAuthResult? {
+    ) -> OAuthResult? {
         guard let url = URL(string: callbackURL) else { return nil }
         return parse(
             callbackURL: url,
@@ -46,7 +46,7 @@ public enum YralOAuthCallbackParser {
         redirectScheme: String,
         redirectHost: String = "oauth",
         redirectPath: String = "/callback"
-    ) -> YralOAuthResult? {
+    ) -> OAuthResult? {
         guard callbackURL.scheme == redirectScheme,
               callbackURL.host == redirectHost,
               callbackURL.path == redirectPath

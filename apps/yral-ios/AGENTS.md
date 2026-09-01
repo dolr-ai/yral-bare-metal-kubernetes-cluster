@@ -41,14 +41,25 @@ documentation.
   alongside its subject (unlike Rust's `#[cfg(test)] mod tests`). The
   canonical Swift answer is the standard `Tests/YralAppTests/` layout, kept
   as a disciplined FLAT MIRROR of the source tree: ONE test file per tested
-  source file, named after it (`YralPKCEAndJWTParserTests.swift` tests
-  `YralPKCE.swift` + `YralJWTParser` from `YralPKCE.swift`;
-  `SpacetimePositionalDecoderTests.swift` tests
-  `SpacetimePositionalDecoder.swift` + the models it decodes). A test file
-  covering two subjects splits when either grows. Struct name == file name.
-  No shared-helpers file — test fixtures live beside the tests that use
-  them. When porting a Kotlin test file, its tests land in the mirror file
-  of the Swift file that now holds the ported code.
+  source file, named after it (`PKCEAndJWTParserTests.swift` tests
+  `PKCE.swift` + `JWTParser`; `SpacetimePositionalDecoderTests.swift`
+  tests `SpacetimePositionalDecoder.swift` + the models it decodes). A test
+  file covering two subjects splits when either grows. Struct name == file
+  name. No shared-helpers file — test fixtures live beside the tests that
+  use them. When porting a Kotlin test file, its tests land in the mirror
+  file of the Swift file that now holds the ported code.
+
+- **No Yral prefix on types (Hard Rule).** The `YralApp` module already
+  namespaces everything — `YralAuthClient`, `YralSession`, `YralPKCE` are
+  redundant (`YralApp.AuthClient` is unambiguous). Types are bare:
+  `AuthClient`, `Session`, `SessionStore`, `PKCE`, `PhoneValidator`,
+  `OAuthCallbackParser`, `NetworkError`… matching the Kotlin originals
+  (`SocialProvider`, `SessionState`, `TokenClaims` were never
+  `YralSocialProvider` there either). The ONLY Yral names allowed:
+  the package/module (`YralApp`), the app-shell entry points
+  (`YralAppRoot`), and file-scoped test struct names mirroring their
+  test files. Filenames follow their type (`AuthClient.swift`,
+  `Session.swift`).
 
 - **Thin Xcode shell** (`iosApp.xcodeproj`) — targets, signing, assets, and
   the Crashlytics dSYM build phase only. Contains no product code. The

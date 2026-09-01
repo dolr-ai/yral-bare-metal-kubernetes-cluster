@@ -78,7 +78,7 @@ final class RefreshCounter: @unchecked Sendable {
     }
 }
 
-/// Cold-start + token-expiry contracts for `YralAuthClient` — ports of the
+/// Cold-start + token-expiry contracts for `AuthClient` — ports of the
 /// three verified `DefaultAuthClientTest.kt` cases. HTTP is stubbed via
 /// `URLProtocol` (Apple-canonical seam) driving the real data source; the
 /// Keychain/UserDefaults use isolated per-test instances.
@@ -87,9 +87,9 @@ final class RefreshCounter: @unchecked Sendable {
 /// (each test installs its own); parallel execution would race on it.
 @Suite(.serialized)
 @MainActor
-struct YralAuthClientTests {
+struct AuthClientTests {
 
-    /// JWT fixture builder — real JWTs so `YralJWTParser` exercises its
+    /// JWT fixture builder — real JWTs so `JWTParser` exercises its
     /// actual decode path (the Kotlin test faked the parser; here the
     /// parser is the code under test too).
     static func makeJWT(claims: [String: Any]) -> String {
@@ -116,7 +116,7 @@ struct YralAuthClientTests {
     /// Kotlin `storeCachedBotSession` — cached bot session + tokens.
     @discardableResult
     func storeCachedBotSession(
-        keychain: YralKeychainStore,
+        keychain: KeychainStore,
         defaults: UserDefaults,
         idToken: String,
         refreshToken: String
@@ -134,14 +134,14 @@ struct YralAuthClientTests {
     }
 
     func makeClient(
-        keychain: YralKeychainStore,
+        keychain: KeychainStore,
         defaults: UserDefaults
-    ) -> (client: YralAuthClient, sessionStore: YralSessionStore) {
+    ) -> (client: AuthClient, sessionStore: SessionStore) {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [RecordingURLProtocol.self]
-        let dataSource = YralAuthDataSource(session: URLSession(configuration: configuration))
-        let sessionStore = YralSessionStore()
-        let client = YralAuthClient(
+        let dataSource = AuthDataSource(session: URLSession(configuration: configuration))
+        let sessionStore = SessionStore()
+        let client = AuthClient(
             authDataSource: dataSource,
             redirectScheme: "com.yral.iosApp",
             keychain: keychain,
@@ -174,7 +174,7 @@ struct YralAuthClientTests {
 
     @Test("cached bot cold start with valid id token skips refresh")
     func cachedBotValidIDTokenSkipsRefresh() async throws {
-        let keychain = YralKeychainStore(service: "yral-tests-\(UUID().uuidString)")
+        let keychain = KeychainStore(service: "yral-tests-\(UUID().uuidString)")
         defer { keychain.removeAll() }
         let defaults = freshDefaults()
 
@@ -239,7 +239,7 @@ struct YralAuthClientTests {
 
     @Test("cached bot cold start with expired id token refreshes with valid refresh token")
     func cachedBotExpiredIDTokenRefreshes() async throws {
-        let keychain = YralKeychainStore(service: "yral-tests-\(UUID().uuidString)")
+        let keychain = KeychainStore(service: "yral-tests-\(UUID().uuidString)")
         defer { keychain.removeAll() }
         let defaults = freshDefaults()
 
@@ -283,7 +283,7 @@ struct YralAuthClientTests {
 
     @Test("cached bot cold start with expired refresh token logs out")
     func cachedBotExpiredRefreshTokenLogsOut() async throws {
-        let keychain = YralKeychainStore(service: "yral-tests-\(UUID().uuidString)")
+        let keychain = KeychainStore(service: "yral-tests-\(UUID().uuidString)")
         defer { keychain.removeAll() }
         let defaults = freshDefaults()
 
@@ -317,12 +317,12 @@ struct YralAuthClientTests {
 
     @Test("OAuth callback with mismatched state throws (CSRF guard)")
     func callbackStateMismatchThrows() async throws {
-        let keychain = YralKeychainStore(service: "yral-tests-\(UUID().uuidString)")
+        let keychain = KeychainStore(service: "yral-tests-\(UUID().uuidString)")
         defer { keychain.removeAll() }
         let (client, _) = makeClient(keychain: keychain, defaults: freshDefaults())
 
         _ = try client.socialAuthorizationURL(provider: .google)
-        await #expect(throws: YralAuthError.stateMismatch) {
+        await #expect(throws: AuthError.stateMismatch) {
             try await client.handleOAuthCallbackResult(
                 .success(code: "auth-code", state: "attacker-state")
             )
@@ -333,7 +333,7 @@ struct YralAuthClientTests {
 
     @Test("social authorization URL carries PKCE + provider + client id")
     func socialAuthorizationURL() throws {
-        let keychain = YralKeychainStore(service: "yral-tests-\(UUID().uuidString)")
+        let keychain = KeychainStore(service: "yral-tests-\(UUID().uuidString)")
         defer { keychain.removeAll() }
         let (client, _) = makeClient(keychain: keychain, defaults: freshDefaults())
 
@@ -347,7 +347,7 @@ struct YralAuthClientTests {
             components.queryItems?.first(where: { $0.name == name })?.value
         }
         #expect(query("provider") == "apple")
-        #expect(query("client_id") == YralAuthDataSource.clientID)
+        #expect(query("client_id") == AuthDataSource.clientID)
         #expect(query("response_type") == "code")
         #expect(query("response_mode") == "form_post")
         #expect(query("redirect_uri") == "com.yral.iosApp://oauth/callback")

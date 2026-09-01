@@ -4,7 +4,7 @@ import Foundation
 /// `HTTPResponseStatus` taxonomy. Every transport in this package throws
 /// these — call sites inline their own URLSession status checks and funnel
 /// failures into these cases.
-public enum YralNetworkError: Error, Equatable {
+public enum NetworkError: Error, Equatable {
     /// Any transport-level failure (connection, TLS, timeout, decoding).
     case transport(underlying: String)
     /// Non-success HTTP status (Ktor `expectSuccess = true` equivalent).

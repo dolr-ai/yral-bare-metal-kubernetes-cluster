@@ -11,7 +11,7 @@ import CryptoKit
 /// `Int32` is frequently negative — so the shipped production behavior can
 /// produce index ≤ 0. We reproduce that deliberately: byte-identical URLs
 /// with production avatars matter more than "fixing" the hash here.
-enum YralProfilePicture {
+enum ProfilePicture {
 
     /// Total GobGob avatar count (server asset pool).
     static let gobgobTotalCount: Int = 18_557
@@ -59,7 +59,7 @@ enum YralProfilePicture {
 /// seeds a byte-stream PRNG that picks two distinct modifiers + one noun;
 /// retries up to 128 times for a ≤ 15-char result, falling back to
 /// "cutekindpanda". Used when no server username exists.
-enum YralUsernameGenerator {
+enum UsernameGenerator {
 
     /// Maximum allowed username length (USERNAME_MAX_LENGTH).
     static let maximumUsernameLength = 15
@@ -152,7 +152,7 @@ enum YralUsernameGenerator {
 private extension [String] {
     /// Kotlin `randomOrDefault`: index by PRNG, or the fallback if empty.
     func randomOrDefault(
-        generator: inout YralUsernameGenerator.SeededGenerator,
+        generator: inout UsernameGenerator.SeededGenerator,
         fallback: String
     ) -> String {
         isEmpty ? fallback : self[generator.nextInt(bound: count)]
@@ -162,7 +162,7 @@ private extension [String] {
     /// index by drawing in `0..count-2` and shifting ≥ the excluded index up
     /// by one.
     func randomDistinctOrDefault(
-        generator: inout YralUsernameGenerator.SeededGenerator,
+        generator: inout UsernameGenerator.SeededGenerator,
         excluded: String,
         fallback: String
     ) -> String {

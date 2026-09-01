@@ -11,7 +11,7 @@ import Security
 /// One decision differs from the legacy app by design: no migration from
 /// NSUserDefaults — users re-authenticate once at first launch of the new
 /// app (per the Phase 0 plan decision).
-public struct YralKeychainStore: Sendable {
+public struct KeychainStore: Sendable {
 
     /// Keychain service name (scoping all entries to this app).
     private let service: String

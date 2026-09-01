@@ -17,7 +17,7 @@ import Foundation
 ///   - `update_session_as_registered` is fire-and-forget (status NOT checked).
 ///   - `verify_phone_auth` returns a 2-string JSON ARRAY on 200 —
 ///     `[id_token_code, redirect_uri]` — not an object.
-public struct YralAuthDataSource: Sendable {
+public struct AuthDataSource: Sendable {
 
     /// Default URLSession — no custom client needed (Kotlin's 30s timeout
     /// policy matches URLSession's own default; per-endpoint overrides set
@@ -44,7 +44,7 @@ public struct YralAuthDataSource: Sendable {
     // MARK: - Token endpoint (all three grants)
 
     /// `client_credentials` grant → anonymous identity tokens.
-    public func obtainAnonymousIdentity() async throws -> YralTokenResponse {
+    public func obtainAnonymousIdentity() async throws -> TokenResponse {
         let formData = [
             "grant_type=client_credentials",
             "client_id=\(Self.clientID)"
@@ -57,7 +57,7 @@ public struct YralAuthDataSource: Sendable {
         code: String,
         codeVerifier: String,
         redirectScheme: String
-    ) async throws -> YralTokenResponse {
+    ) async throws -> TokenResponse {
         let formData = [
             "grant_type=authorization_code",
             "client_id=\(Self.clientID)",
@@ -69,7 +69,7 @@ public struct YralAuthDataSource: Sendable {
     }
 
     /// `refresh_token` grant.
-    public func refreshToken(_ refreshToken: String) async throws -> YralTokenResponse {
+    public func refreshToken(_ refreshToken: String) async throws -> TokenResponse {
         let formData = [
             "grant_type=refresh_token",
             "refresh_token=\(refreshToken)",
@@ -79,25 +79,25 @@ public struct YralAuthDataSource: Sendable {
     }
 
     /// Shared POST to `oauth/token` (form-urlencoded). Inline status check —
-    /// non-2xx throws `YralNetworkError.http` (the Kotlin `expectSuccess =
+    /// non-2xx throws `NetworkError.http` (the Kotlin `expectSuccess =
     /// true` semantic).
-    private func postTokenEndpoint(formData: String) async throws -> YralTokenResponse {
+    private func postTokenEndpoint(formData: String) async throws -> TokenResponse {
         var request = URLRequest(
-            url: URL(string: "https://\(YralAppConfiguration.oauthBaseURL)/oauth/token")!)
+            url: URL(string: "https://\(AppConfiguration.oauthBaseURL)/oauth/token")!)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.httpBody = Data(formData.utf8)
         let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw YralNetworkError.transport(underlying: "Non-HTTP response")
+            throw NetworkError.transport(underlying: "Non-HTTP response")
         }
         guard (200..<300).contains(httpResponse.statusCode) else {
-            throw YralNetworkError.http(
+            throw NetworkError.http(
                 statusCode: httpResponse.statusCode,
                 body: String(data: data, encoding: .utf8)
             )
         }
-        return try YralTokenResponse.fromJSONBody(String(data: data, encoding: .utf8) ?? "")
+        return try TokenResponse.fromJSONBody(String(data: data, encoding: .utf8) ?? "")
     }
 
     // MARK: - Phone OTP
@@ -108,7 +108,7 @@ public struct YralAuthDataSource: Sendable {
         phoneNumber: String,
         codeChallenge: String,
         redirectScheme: String
-    ) async throws -> YralPhoneAuthLoginOutcome {
+    ) async throws -> PhoneAuthLoginOutcome {
         let request = try phoneAuthBaseRequest(
             path: "api/phone_auth_login",
             phoneNumber: phoneNumber,
@@ -120,7 +120,7 @@ public struct YralAuthDataSource: Sendable {
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200
         else {
-            return .error(try YralAuthErrorPayload.fromJSONBody(
+            return .error(try AuthErrorPayload.fromJSONBody(
                 String(data: data, encoding: .utf8) ?? ""
             ))
         }
@@ -134,9 +134,9 @@ public struct YralAuthDataSource: Sendable {
         phoneNumber: String,
         code: String,
         clientState: String
-    ) async throws -> YralPhoneAuthVerifyOutcome {
+    ) async throws -> PhoneAuthVerifyOutcome {
         var request = URLRequest(
-            url: URL(string: "https://\(YralAppConfiguration.oauthBaseURL)/api/verify_phone_auth")!)
+            url: URL(string: "https://\(AppConfiguration.oauthBaseURL)/api/verify_phone_auth")!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let bodyObject: [String: [String: String]] = [
@@ -151,7 +151,7 @@ public struct YralAuthDataSource: Sendable {
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200
         else {
-            return .error(try YralAuthErrorPayload.fromJSONBody(
+            return .error(try AuthErrorPayload.fromJSONBody(
                 String(data: data, encoding: .utf8) ?? ""
             ))
         }
@@ -159,7 +159,7 @@ public struct YralAuthDataSource: Sendable {
             array.count == 2
         else {
             return .error(
-                YralAuthErrorPayload(
+                AuthErrorPayload(
                     error: "Missing all required keys",
                     errorDescription: String(data: data, encoding: .utf8) ?? ""
                 ))
@@ -174,7 +174,7 @@ public struct YralAuthDataSource: Sendable {
         redirectScheme: String
     ) throws -> URLRequest {
         var request = URLRequest(
-            url: URL(string: "https://\(YralAppConfiguration.oauthBaseURL)/\(path)")!)
+            url: URL(string: "https://\(AppConfiguration.oauthBaseURL)/\(path)")!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let bodyObject: [String: Any] = [
@@ -202,7 +202,7 @@ public struct YralAuthDataSource: Sendable {
         idToken: String
     ) async throws -> String {
         var request = URLRequest(
-            url: URL(string: "https://\(YralAppConfiguration.oauthBaseURL)/api/create_ai_account")!)
+            url: URL(string: "https://\(AppConfiguration.oauthBaseURL)/api/create_ai_account")!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
@@ -212,12 +212,12 @@ public struct YralAuthDataSource: Sendable {
         guard let httpResponse = response as? HTTPURLResponse,
             (200..<300).contains(httpResponse.statusCode)
         else {
-            throw YralNetworkError.http(
+            throw NetworkError.http(
                 statusCode: (response as? HTTPURLResponse)?.statusCode ?? 0,
                 body: String(data: data, encoding: .utf8)
             )
         }
-        return try JSONDecoder().decode(YralCreateAiAccountResponse.self, from: data).aiAccountId
+        return try JSONDecoder().decode(CreateAiAccountResponse.self, from: data).aiAccountId
     }
 
     // MARK: - Registration side effects
@@ -233,7 +233,7 @@ public struct YralAuthDataSource: Sendable {
         var request = URLRequest(
             url: URL(
                 string:
-                    "https://\(YralAppConfiguration.metadataBaseURL)/v2/update_session_as_registered"
+                    "https://\(AppConfiguration.metadataBaseURL)/v2/update_session_as_registered"
             )!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -251,7 +251,7 @@ public struct YralAuthDataSource: Sendable {
     /// Deletes the account via off-chain-agent.
     public func deleteAccount(idToken: String) async throws {
         var request = URLRequest(
-            url: URL(string: "https://\(YralAppConfiguration.offChainBaseURL)/api/v1/user")!)
+            url: URL(string: "https://\(AppConfiguration.offChainBaseURL)/api/v1/user")!)
         request.httpMethod = "DELETE"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
@@ -261,7 +261,7 @@ public struct YralAuthDataSource: Sendable {
         guard let httpResponse = response as? HTTPURLResponse,
             (200..<300).contains(httpResponse.statusCode)
         else {
-            throw YralNetworkError.http(
+            throw NetworkError.http(
                 statusCode: (response as? HTTPURLResponse)?.statusCode ?? 0,
                 body: String(data: data, encoding: .utf8)
             )
@@ -273,7 +273,7 @@ public struct YralAuthDataSource: Sendable {
 
 /// `create_ai_account` response — `{"ai_account_id": "…"}`.
 /// File-scope (not nested in the data source) per the nesting lint rule.
-private struct YralCreateAiAccountResponse: Decodable {
+private struct CreateAiAccountResponse: Decodable {
     let aiAccountId: String
     private enum CodingKeys: String, CodingKey {
         case aiAccountId = "ai_account_id"
@@ -281,7 +281,7 @@ private struct YralCreateAiAccountResponse: Decodable {
 }
 
 /// `TokenResponseDto` — exact key names from the yral-auth token endpoint.
-public struct YralTokenResponse: Equatable, Sendable {
+public struct TokenResponse: Equatable, Sendable {
     public let idToken: String
     public let accessToken: String
     public let expiresIn: Int64
@@ -290,22 +290,22 @@ public struct YralTokenResponse: Equatable, Sendable {
 
     /// JSON key mapping: `id_token`, `access_token`, `expires_in`,
     /// `refresh_token`, `token_type`.
-    static func fromJSONBody(_ body: String) throws -> YralTokenResponse {
+    static func fromJSONBody(_ body: String) throws -> TokenResponse {
         let data = Data(body.utf8)
         guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else {
-            throw YralNetworkError.transport(underlying: "Token response is not JSON: \(body)")
+            throw NetworkError.transport(underlying: "Token response is not JSON: \(body)")
         }
         func requireString(_ key: String) throws -> String {
             guard let value = object[key] as? String, !value.isEmpty else {
-                throw YralNetworkError.transport(underlying: "Token response missing '\(key)'")
+                throw NetworkError.transport(underlying: "Token response missing '\(key)'")
             }
             return value
         }
         guard let expiresIn = (object["expires_in"] as? NSNumber)?.int64ValueExact else {
-            throw YralNetworkError.transport(underlying: "Token response missing 'expires_in'")
+            throw NetworkError.transport(underlying: "Token response missing 'expires_in'")
         }
-        return YralTokenResponse(
+        return TokenResponse(
             idToken: try requireString("id_token"),
             accessToken: try requireString("access_token"),
             expiresIn: expiresIn,
@@ -316,18 +316,18 @@ public struct YralTokenResponse: Equatable, Sendable {
 }
 
 /// `{"error": "…", "error_description": "…"}` error payload shape.
-public struct YralAuthErrorPayload: Equatable, Sendable {
+public struct AuthErrorPayload: Equatable, Sendable {
     public let error: String
     public let errorDescription: String
 
-    static func fromJSONBody(_ body: String) throws -> YralAuthErrorPayload {
+    static func fromJSONBody(_ body: String) throws -> AuthErrorPayload {
         let data = Data(body.utf8)
         guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
             let error = object["error"] as? String
         else {
-            return YralAuthErrorPayload(error: "unknown_error", errorDescription: body)
+            return AuthErrorPayload(error: "unknown_error", errorDescription: body)
         }
-        return YralAuthErrorPayload(
+        return AuthErrorPayload(
             error: error,
             errorDescription: object["error_description"] as? String ?? ""
         )
@@ -335,13 +335,13 @@ public struct YralAuthErrorPayload: Equatable, Sendable {
 }
 
 /// `phone_auth_login` outcome (unit success or typed error).
-public enum YralPhoneAuthLoginOutcome: Equatable, Sendable {
+public enum PhoneAuthLoginOutcome: Equatable, Sendable {
     case success
-    case error(YralAuthErrorPayload)
+    case error(AuthErrorPayload)
 }
 
 /// `verify_phone_auth` outcome — success carries the auth code + redirect URI.
-public enum YralPhoneAuthVerifyOutcome: Equatable, Sendable {
+public enum PhoneAuthVerifyOutcome: Equatable, Sendable {
     case success(idTokenCode: String, redirectURI: String)
-    case error(YralAuthErrorPayload)
+    case error(AuthErrorPayload)
 }

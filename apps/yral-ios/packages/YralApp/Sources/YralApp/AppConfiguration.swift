@@ -6,7 +6,7 @@ import Foundation
 /// (apps/yral-mobile/shared/core/.../AppConfigurations.kt). Hostnames only —
 /// the shared `HttpClientFactory` forces HTTPS for all of these; keep that
 /// invariant when constructing URLs in Swift.
-public enum YralAppConfiguration {
+public enum AppConfiguration {
 
     /// Legacy upload-AI-video host.
     public static let anonymousIdentityBaseURL = "yral.com"

@@ -5,7 +5,7 @@ import Observation
 /// `canisterID == userPrincipal` in the JWT-only world (no IC canisters);
 /// the field exists because the rest of the app (profile URLs, balance
 /// calls) keys off it.
-public struct YralSession: Equatable, Sendable {
+public struct Session: Equatable, Sendable {
     public var canisterID: String?
     public var userPrincipal: String?
     public var profilePic: String?
@@ -34,21 +34,21 @@ public struct YralSession: Equatable, Sendable {
 }
 
 /// Auth lifecycle — port of Kotlin `SessionState`.
-public enum YralSessionState: Equatable, Sendable {
+public enum SessionState: Equatable, Sendable {
     case initial
     case loading
-    case signedIn(YralSession)
+    case signedIn(Session)
 }
 
 /// Session-adjacent state — port of Kotlin `SessionProperties`. Fields whose
 /// consumers land in later phases (follow sets, pro details, mandatory
 /// login) are added with their phases.
-public struct YralSessionProperties: Equatable, Sendable {
+public struct SessionProperties: Equatable, Sendable {
     public var coinBalance: Int64?
     public var isSocialSignIn: Bool?
     public var profileVideosCount: Int?
     public var botCount: Int?
-    public var accountDirectory: YralAccountDirectory?
+    public var accountDirectory: AccountDirectory?
     public var emailID: String?
     public var isFirebaseLoggedIn: Bool
     public var phoneNumber: String?
@@ -59,7 +59,7 @@ public struct YralSessionProperties: Equatable, Sendable {
         isSocialSignIn: Bool? = nil,
         profileVideosCount: Int? = nil,
         botCount: Int? = nil,
-        accountDirectory: YralAccountDirectory? = nil,
+        accountDirectory: AccountDirectory? = nil,
         emailID: String? = nil,
         isFirebaseLoggedIn: Bool = false,
         phoneNumber: String? = nil,
@@ -78,7 +78,7 @@ public struct YralSessionProperties: Equatable, Sendable {
 }
 
 /// Pro subscription snapshot — port of Kotlin `ProDetails`.
-public struct YralProDetails: Equatable, Sendable {
+public struct ProDetails: Equatable, Sendable {
     public static let defaultTotalCredits = 30
 
     public var isProPurchased: Bool
@@ -88,7 +88,7 @@ public struct YralProDetails: Equatable, Sendable {
     public init(
         isProPurchased: Bool = false,
         availableCredits: Int = 0,
-        totalCredits: Int = YralProDetails.defaultTotalCredits
+        totalCredits: Int = ProDetails.defaultTotalCredits
     ) {
         self.isProPurchased = isProPurchased
         self.availableCredits = availableCredits
@@ -98,9 +98,9 @@ public struct YralProDetails: Equatable, Sendable {
 
 /// Main + bot accounts for the account switcher — port of Kotlin
 /// `AccountDirectory`/`AccountDirectoryProfile` (consumed by the switcher
-/// phase; the type ships now because `YralSessionProperties` holds it and
+/// phase; the type ships now because `SessionProperties` holds it and
 /// Kotlin's `updateState` preserves it across session resets).
-public struct YralAccountDirectoryProfile: Codable, Equatable, Sendable {
+public struct AccountDirectoryProfile: Codable, Equatable, Sendable {
     public var principal: String
     public var username: String
     public var avatarURL: String
@@ -114,15 +114,15 @@ public struct YralAccountDirectoryProfile: Codable, Equatable, Sendable {
     }
 }
 
-public struct YralAccountDirectory: Codable, Equatable, Sendable {
+public struct AccountDirectory: Codable, Equatable, Sendable {
     public var mainPrincipal: String?
     public var botPrincipals: [String]
-    public var profilesByPrincipal: [String: YralAccountDirectoryProfile]
+    public var profilesByPrincipal: [String: AccountDirectoryProfile]
 
     public init(
         mainPrincipal: String?,
         botPrincipals: [String],
-        profilesByPrincipal: [String: YralAccountDirectoryProfile]
+        profilesByPrincipal: [String: AccountDirectoryProfile]
     ) {
         self.mainPrincipal = mainPrincipal
         self.botPrincipals = botPrincipals
@@ -135,10 +135,10 @@ public struct YralAccountDirectory: Codable, Equatable, Sendable {
 /// Kotlin's VideoGenerationTracker reset in `updateState` lands with the
 /// video phase.
 @MainActor @Observable
-public final class YralSessionStore {
+public final class SessionStore {
 
-    public private(set) var state: YralSessionState = .initial
-    public private(set) var properties = YralSessionProperties()
+    public private(set) var state: SessionState = .initial
+    public private(set) var properties = SessionProperties()
 
     public init() {}
 
@@ -173,9 +173,9 @@ public final class YralSessionStore {
 
     /// Replaces the session state and resets per-session properties
     /// (preserving device-level values, exactly as Kotlin does).
-    public func updateState(_ newState: YralSessionState) {
+    public func updateState(_ newState: SessionState) {
         state = newState
-        properties = YralSessionProperties(
+        properties = SessionProperties(
             botCount: properties.botCount,
             accountDirectory: properties.accountDirectory,
             isYralProAvailable: properties.isYralProAvailable
@@ -206,7 +206,7 @@ public final class YralSessionStore {
     /// `resetSessionProperties` (coin balance 0, counts cleared, social
     /// sign-in off; pro availability is device-level and survives).
     public func resetSessionProperties() {
-        properties = YralSessionProperties(
+        properties = SessionProperties(
             coinBalance: 0,
             isSocialSignIn: false,
             profileVideosCount: 0,
