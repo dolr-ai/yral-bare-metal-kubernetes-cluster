@@ -1,9 +1,12 @@
 import SwiftUI
 
-/// Step 1 — describe the AI account (Kotlin DescriptionEntry).
+/// Step 1 — describe the AI account (Kotlin DescriptionEntry). While
+/// the persona generates, the form stays put and Continue becomes a
+/// spinner (inline loading — no full-screen waiting step).
 struct DescriptionEntryForm: View {
     @Binding var descriptionText: String
     let characterLimit: Int
+    let isWorking: Bool
     let onContinue: () -> Void
 
     var body: some View {
@@ -30,16 +33,24 @@ struct DescriptionEntryForm: View {
                     descriptionText = String(newValue.prefix(characterLimit))
                 }
             }
+            .disabled(isWorking)
 
             Button(action: onContinue) {
-                Text("Continue")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
+                Group {
+                    if isWorking {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Text("Continue")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .font(.headline)
+                .padding(.vertical, 14)
             }
             .buttonStyle(.borderedProminent)
             .tint(.pink)
-            .disabled(descriptionText.isBlank)
+            .disabled(isWorking || descriptionText.isBlank)
         }
     }
 }

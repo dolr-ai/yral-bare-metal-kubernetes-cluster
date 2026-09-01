@@ -10,11 +10,18 @@ import SwiftUI
 /// `AIInfluencerDataSource` (persona LLM) and `AIAccountCreator` (the
 /// creation pipeline) directly.
 ///
-/// Navigation chrome: the header's Cancel leaves the sheet (with a
-/// discard confirmation once anything is typed/generated), the
-/// chevron-back reworks earlier steps, and the loading step's Cancel
-/// STOPS the in-flight call (swipe-down is disabled while it runs).
-/// The sheet's grabber (see MainTabView) signals pullability.
+/// Navigation chrome: the header's Cancel is the single exit — while a
+/// step runs it stops the in-flight call (nothing lost; a retry resumes
+/// where it stopped), otherwise it leaves the sheet (with a discard
+/// confirmation once anything is typed/generated). The chevron-back
+/// reworks earlier steps. The sheet's grabber (see MainTabView) stays
+/// visible, but the pull-down gesture is disabled whenever the wizard
+/// holds content — pulling down can never silently discard progress.
+///
+/// Loading is inline, Apple-style: no full-screen waiting step — the
+/// form stays put and its button swaps to a spinner while the call
+/// runs (the nearest native equivalent of Apple Pay's inline button
+/// progress; the exact left-to-right green sweep is private API).
 struct AIAccountCreationView: View {
 
     // TODO(create-offline-resumability): persist the wizard state across
@@ -65,25 +72,38 @@ struct AIAccountCreationView: View {
             }
 
             switch step {
-            case .descriptionEntry:
+            case .descriptionEntry, .generatingPersona:
                 DescriptionEntryForm(
                     descriptionText: $descriptionText,
-                    characterLimit: promptCharacterLimit
+                    characterLimit: promptCharacterLimit,
+                    isWorking: step.isWorking
                 ) {
                     flowTask = Task { await generatePersona() }
                 }
-            case .generatingPersona, .generatingMetadata, .creating:
-                loading
-            case .personaReview:
-                PersonaReviewForm(instructionsText: $instructionsText) {
+            case .personaReview, .generatingMetadata:
+                PersonaReviewForm(
+                    instructionsText: $instructionsText,
+                    isWorking: step.isWorking
+                ) {
                     flowTask = Task { await generateMetadata() }
                 }
-            case let .reviewProfile(profile):
-                ProfileReviewForm(profile: profile) {
+            case let .reviewProfile(profile), let .creating(profile):
+                ProfileReviewForm(
+                    profile: profile,
+                    isWorking: step.isWorking
+                ) {
                     flowTask = Task { await createAccount(profile: profile) }
                 }
             case .done:
                 doneView
+            }
+
+            if let workingStatusText = step.workingStatusText {
+                Text(workingStatusText)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 16)
             }
 
             if let errorMessage {
@@ -99,10 +119,12 @@ struct AIAccountCreationView: View {
         .padding(.bottom, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.black)
-        // Swipe-down while a generation/creation runs would silently kill
-        // an in-flight pipeline — the gesture is disabled then, and the
-        // loading step's own Cancel button is the way out.
-        .interactiveDismissDisabled(step.isGenerationInFlight)
+        // Pull-down can never discard progress: the gesture is disabled
+        // whenever the wizard holds content (typed text, a generated
+        // persona, an in-flight call) — Cancel, with its discard
+        // confirmation, is the single exit. A blank first screen and the
+        // done screen keep the gesture (nothing to lose).
+        .interactiveDismissDisabled(hasWizardContent)
         .confirmationDialog(
             "Discard this AI?",
             isPresented: $isDiscardDialogShown,
@@ -118,21 +140,27 @@ struct AIAccountCreationView: View {
         #endif
     }
 
-    /// Anything worth a discard confirmation? A blank first screen
-    /// dismisses immediately; typed text or a generated persona asks.
+    /// Anything the wizard holds that pull-down or Cancel must not
+    /// silently discard? A blank first screen (and the done screen)
+    /// has nothing to lose; every other step does.
     private var hasWizardContent: Bool {
         switch step {
         case .descriptionEntry:
             return !descriptionText.isBlank
-        case .personaReview, .reviewProfile:
+        case .personaReview, .reviewProfile,
+             .generatingPersona, .generatingMetadata, .creating:
             return true
-        case .generatingPersona, .generatingMetadata, .creating, .done:
+        case .done:
             return false
         }
     }
 
     private func requestDismiss() {
-        if hasWizardContent {
+        // While a step runs, Cancel stops the in-flight call (a retry
+        // resumes where it stopped) instead of discarding the wizard.
+        if step.isWorking {
+            flowTask?.cancel()
+        } else if hasWizardContent {
             isDiscardDialogShown = true
         } else {
             dismiss()
@@ -144,8 +172,9 @@ struct AIAccountCreationView: View {
         case .personaReview:
             step = .descriptionEntry
         case .reviewProfile:
-            step = .personaReview(instructions: instructionsText)
-        case .descriptionEntry, .generatingPersona, .generatingMetadata, .creating, .done:
+            step = .personaReview
+        case .descriptionEntry, .generatingPersona, .generatingMetadata,
+             .creating, .done:
             break
         }
     }
@@ -156,25 +185,7 @@ struct AIAccountCreationView: View {
         error is CancellationError || (error as? URLError)?.code == .cancelled
     }
 
-    // MARK: - Loading + done
-
-    private var loading: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .controlSize(.large)
-            Text("Your AI is thinking…")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            // Actually stops the in-flight call (cancellation propagates
-            // into the task's URLSession awaits); the step's catch returns
-            // to the previous screen without an error message.
-            Button("Cancel") {
-                flowTask?.cancel()
-            }
-            .font(.subheadline)
-        }
-        .padding(.top, 120)
-    }
+    // MARK: - Done
 
     private var doneView: some View {
         VStack(spacing: 16) {
@@ -206,7 +217,7 @@ struct AIAccountCreationView: View {
                 idToken: idToken
             )
             instructionsText = instructions
-            step = .personaReview(instructions: instructions)
+            step = .personaReview
         } catch {
             step = .descriptionEntry
             if !isUserCancellation(error) {
@@ -217,7 +228,7 @@ struct AIAccountCreationView: View {
 
     private func generateMetadata() async {
         errorMessage = nil
-        step = .generatingMetadata(instructions: instructionsText)
+        step = .generatingMetadata
         do {
             guard let idToken = authClient.idToken else {
                 throw AuthError.oauthFailed(errorDescription: "Not signed in")
@@ -231,7 +242,7 @@ struct AIAccountCreationView: View {
                   let displayName = metadata.displayName,
                   let avatarURL = metadata.avatarURL
             else {
-                step = .personaReview(instructions: instructionsText)
+                step = .personaReview
                 errorMessage = metadata.validationReason ?? "The AI's instructions were rejected — edit and retry."
                 return
             }
@@ -249,7 +260,7 @@ struct AIAccountCreationView: View {
             )
             step = .reviewProfile(profile)
         } catch {
-            step = .personaReview(instructions: instructionsText)
+            step = .personaReview
             if !isUserCancellation(error) {
                 errorMessage = errorText(of: error)
             }
@@ -258,7 +269,7 @@ struct AIAccountCreationView: View {
 
     private func createAccount(profile: AIProfileDetails) async {
         errorMessage = nil
-        step = .creating
+        step = .creating(profile)
         // Resume an in-flight creation for the SAME profile if a previous
         // attempt failed midway (Kotlin BotCreationProgress semantics).
         if creationProgress?.profileKey != profile.profileKey {
@@ -305,39 +316,58 @@ struct AIAccountCreationView: View {
 private enum FlowStep {
     case descriptionEntry
     case generatingPersona
-    case personaReview(instructions: String)
-    case generatingMetadata(instructions: String)
+    case personaReview
+    case generatingMetadata
     case reviewProfile(AIProfileDetails)
-    case creating
+    case creating(AIProfileDetails)
     case done
 
-    /// Header on the three interactive steps only — loading steps carry
-    /// their own Cancel, and Done dismisses.
+    /// The header shows on every step (its Cancel is the single exit);
+    /// only the done screen drops it for its own Done button.
     var showsHeader: Bool {
         switch self {
-        case .descriptionEntry, .personaReview, .reviewProfile:
-            return true
-        case .generatingPersona, .generatingMetadata, .creating, .done:
+        case .done:
             return false
+        case .descriptionEntry, .generatingPersona, .personaReview,
+             .generatingMetadata, .reviewProfile, .creating:
+            return true
         }
     }
 
+    /// No reworking steps while a call runs — Cancel stops it first.
     var showsBackButton: Bool {
         switch self {
         case .personaReview, .reviewProfile:
             return true
-        case .descriptionEntry, .generatingPersona, .generatingMetadata, .creating, .done:
+        case .descriptionEntry, .generatingPersona, .generatingMetadata,
+             .creating, .done:
             return false
         }
     }
 
-    /// True while a network step runs — swipe-down is disabled then.
-    var isGenerationInFlight: Bool {
+    /// True while a step's network call runs — its form stays on screen
+    /// with the button spinner; the header's Cancel stops the call.
+    var isWorking: Bool {
         switch self {
         case .generatingPersona, .generatingMetadata, .creating:
             return true
         case .descriptionEntry, .personaReview, .reviewProfile, .done:
             return false
+        }
+    }
+
+    /// Reassurance under the spinning button for the long LLM calls
+    /// (the metadata call can legitimately run to its 90s timeout).
+    var workingStatusText: String? {
+        switch self {
+        case .generatingPersona:
+            return "Your AI is thinking…"
+        case .generatingMetadata:
+            return "Writing your AI's profile…"
+        case .creating:
+            return "Creating your AI account…"
+        case .descriptionEntry, .personaReview, .reviewProfile, .done:
+            return nil
         }
     }
 }

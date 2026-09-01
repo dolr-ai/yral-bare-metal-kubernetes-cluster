@@ -1,9 +1,12 @@
 import SwiftUI
 
 /// Step 3 — review the generated profile before committing to the
-/// creation pipeline (Kotlin ProfileReview).
+/// creation pipeline (Kotlin ProfileReview). While the pipeline runs,
+/// the form stays put and the button becomes a spinner (inline
+/// loading); a retry resumes where the pipeline stopped.
 struct ProfileReviewForm: View {
     let profile: AIProfileDetails
+    let isWorking: Bool
     let onCreate: () -> Void
 
     var body: some View {
@@ -35,13 +38,21 @@ struct ProfileReviewForm: View {
             }
 
             Button(action: onCreate) {
-                Text("Create AI account")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
+                Group {
+                    if isWorking {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Text("Create AI account")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .font(.headline)
+                .padding(.vertical, 14)
             }
             .buttonStyle(.borderedProminent)
             .tint(.pink)
+            .disabled(isWorking)
         }
     }
 }
