@@ -51,15 +51,50 @@ enum BrowserAuthSession {
     /// The browser session — Kotlin `IosOAuthUtils.startSession`:
     /// `prefersEphemeralWebBrowserSession = true`, callback scheme =
     /// the app's redirect scheme. Cancel (user dismissed) surfaces as
-    /// an `ASWebAuthenticationSessionError` with code
-    /// `.canceledLogin` — mapped here to `.cancelled`.
+    /// `ASWebAuthenticationSessionError.canceledLogin`.
+    ///
+    /// Resume discipline (the crash fix): the completion handler can fire
+    /// SYNCHRONOUSLY when start fails — observed on iOS 18 — so both the
+    /// handler and the `start() == false` branch guard on `hasResumed`
+    /// before touching the continuation. Resuming twice traps with
+    /// "SWIFT TASK CONTINUATION MISUSE".
+    ///
+    /// The session is held for the flow's duration (the Kotlin code kept
+    /// it in `authSession`) — a released session cancels its sheet.
+    /// The browser session held for the flow's duration (the Kotlin code
+    /// kept it in `authSession`) — a released session cancels its sheet.
+    /// @MainActor-isolated: the entire flow (create, start, completion,
+    /// release) runs on the main actor — ASWebAuthenticationSession's
+    /// completion is delivered on the main queue — so no cross-actor access
+    /// exists; this is concurrency-safe without a lock.
+    @MainActor private static var retainedSession: ASWebAuthenticationSession?
+
     @MainActor
     private static func runSession(authorizationURL: URL) async throws -> URL {
-        try await withCheckedThrowingContinuation { continuation in
+        // Local (not static) resume flag — captured by both the handler and
+        // the start() branch; both run on the main actor, so plain captured
+        // var access is race-free.
+        final class ResumeFlag: @unchecked Sendable {
+            private let lock = NSLock()
+            private var value = false
+            var hasResumed: Bool {
+                lock.lock(); defer { lock.unlock() }
+                return value
+            }
+            func setResumed() {
+                lock.lock(); defer { lock.unlock() }
+                value = true
+            }
+        }
+        let resumeFlag = ResumeFlag()
+        return try await withCheckedThrowingContinuation { continuation in
             let session = ASWebAuthenticationSession(
                 url: authorizationURL,
                 callbackURLScheme: "com.yral.iosApp"
             ) { callbackURL, error in
+                guard !resumeFlag.hasResumed else { return }
+                resumeFlag.setResumed()
+                Self.retainedSession = nil
                 if let callbackURL {
                     continuation.resume(returning: callbackURL)
                 } else if let error {
@@ -75,10 +110,13 @@ enum BrowserAuthSession {
             }
             session.presentationContextProvider = PresentationAnchorProvider()
             session.prefersEphemeralWebBrowserSession = true
-            if !session.start() {
-                // start() failing means the completion handler will never
-                // fire — resume the continuation here (Kotlin's
-                // "session_start_failed" error path).
+            Self.retainedSession = session
+            if !session.start() && !resumeFlag.hasResumed {
+                // The handler did NOT fire synchronously — start genuinely
+                // failed without a callback. This is the ONLY additional
+                // resume path (Kotlin's "session_start_failed").
+                resumeFlag.setResumed()
+                Self.retainedSession = nil
                 continuation.resume(
                     throwing: AuthError.oauthFailed(
                         errorDescription: "Unable to launch the browser auth session"
