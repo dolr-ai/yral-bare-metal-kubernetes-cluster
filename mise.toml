@@ -144,6 +144,18 @@ KAFKA_BRIDGE_URL = "https://kafka-bridge.yral.com"
 # These improve build performance and reliability.
 GRADLE_OPTS = "-Dorg.gradle.daemon=true -Dorg.gradle.caching=true"
 
+# ── yral-ios (App Store Connect identifiers — not secret) ─────────────────
+# yral-ios TestFlight/App Store upload path: xcodebuild archive →
+# xcodebuild -exportArchive → xcrun altool. Secrets for this chain live in
+# fnox.toml [secrets]; only these non-secret identifiers live here.
+# Key GT9767YMH6: created 2026-09-01 (old key J52D7789G2 revoked
+YRAL_ASC_KEY_ID = "GT9767YMH6"
+YRAL_ASC_ISSUER_ID = "6ddd2cf0-9212-47e6-9f69-69cb16412c45"
+# Apple Developer team (same as the legacy app's manual signing).
+YRAL_APPLE_TEAM_ID = "2UL556KNXC"
+# Bundle id is fixed: com.yral.iosApp (TestFlight and App Store are channels
+# on the same ASC app record).
+
 [tasks.bootstrap]
 description = "Create .venv, install Python tooling, and extract infra SSH key from vault"
 run = '''
@@ -570,52 +582,155 @@ FIRST_POD=$(kubectl -n off-chain-agent get pods -l app=off-chain-agent -o jsonpa
 kubectl -n off-chain-agent logs "$FIRST_POD" --tail=20
 '''
 
-# ── yral-mobile ──────────────────────────────────────────────────────────────
-# Kotlin Multiplatform (Android + iOS). Tasks use `dir` to run from the submodule.
+# ── yral-ios ────────────────────────────────────────────────────────────────
+# Native Swift/SwiftUI iOS app (single SPM package + thin Xcode shell).
+# Apple-canonical tooling only: xcodebuild + xcrun altool. No CocoaPods, no
+# fastlane, no Ruby gems. The legacy KMP app (apps/yral-mobile) is frozen —
+# it keeps building via its own CI in the submodule repo.
 # Prerequisites (not managed by mise — system-level):
-#   - Android SDK (set ANDROID_HOME or sdk.dir in local.properties)
-#   - Xcode + Command Line Tools (macOS only, for iOS targets)
-#   - Android emulator (API 35, Google APIs, 12 GB disk)
-#   - iOS simulator (iPhone, any recent iOS)
-# First-time setup:  mise install && mise run yral-mobile-setup
+#   - Xcode 26 (iOS 18 deployment target; simulator + device)
+# First-time setup:  mise install && mise run yral-ios-setup
+# Signing secrets (dist cert p12, provisioning profile, cert password, ASC
+# p8) live in fnox.toml [secrets] — same source for local and CI (CI runs
+# `mise run bootstrap` to extract the age key, then everything flows from
+# fnox exactly like local).
 
-[tasks.yral-mobile-setup]
-description = "Install Ruby gems (fastlane) and run CocoaPods install for iOS"
-dir = "apps/yral-mobile"
+[tasks.yral-ios-setup]
+description = "Resolve SPM dependencies for the YralApp package"
+dir = "apps/yral-ios/packages/YralApp"
+run = "swift package resolve"
+
+[tasks.yral-ios-build]
+description = "Build the iosApp target for the iOS Simulator (Debug, unsigned)"
+dir = "apps/yral-ios"
 run = '''
-bundle install
-cd iosApp && pod install
+xcodebuild build \
+  -project iosApp.xcodeproj \
+  -scheme iosApp \
+  -destination 'generic/platform=iOS Simulator' \
+  -configuration Debug \
+  CODE_SIGNING_ALLOWED=NO \
+  -quiet
 '''
 
-[tasks.yral-mobile-checks]
-description = "CI-equivalent full check suite (lint + unit tests + iOS xcodebuild + Android/iOS e2e)"
-dir = "apps/yral-mobile"
+[tasks.yral-ios-test]
+description = "Run the YralApp SPM package unit tests (Swift Testing)"
+dir = "apps/yral-ios/packages/YralApp"
+run = "swift test"
+
+[tasks.yral-ios-lint]
+description = "Lint apps/yral-ios with SwiftLint (strict)"
+dir = "apps/yral-ios"
+run = "swiftlint lint --strict"
+
+[tasks.yral-ios-checks]
+description = "CI-equivalent check suite: lint + package tests + simulator build (same task local and CI run)"
+depends = ["yral-ios-lint", "yral-ios-test", "yral-ios-build"]
+run = "echo 'yral-ios checks: all green'"
+
+[tasks.yral-ios-clean]
+description = "Clean SPM and Xcode build outputs"
+dir = "apps/yral-ios"
 run = '''
-./gradlew
-
-./gradlew ktlintFormat
-./gradlew ktlintCheck
-./gradlew detekt --continue
-
-./gradlew allChecks
-./gradlew :iosSharedUmbrella:podPublishDebugXCFramework
-
-# Auth tests: only run Android/JVM unit tests (commonTest tests are platform-agnostic).
-# iOS test linking (allTests → linkDebugTestIosSimulatorArm64) fails due to a
-# Kotlin/Native CocoaPods issue: the Kotlin/Native linker doesn't search Apple's
-# SubFrameworks/ dir, so GoogleAppMeasurement's auto-linked UIUtilities.framework
-# can't be resolved. This is a known limitation of KMM + CocoaPods that will be
-# resolved by migrating to Swift Package Manager. The commonTest tests pass on
-# Android — no iOS-specific tests exist.
-./gradlew :shared:features:auth:testDebugUnitTest
-./gradlew test
-
+swift package --package-path packages/YralApp clean
+rm -rf packages/YralApp/.build build
+rm -rf iosApp.xcodeproj/xcuserdata
 '''
 
-[tasks.yral-mobile-clean]
-description = "Clean all Gradle build outputs"
-dir = "apps/yral-mobile"
-run = "./gradlew clean"
+# Upload task is wrapped with `fnox exec --` so the four signing secrets in
+# fnox.toml are injected into the script's environment (same mechanism as
+# yral-auth-test; see fnox.toml [secrets] for the key names). mise [env]
+# provides the non-secret identifiers (ASC key/issuer, Apple team id).
+[tasks.yral-ios-upload-testflight]
+description = "Archive (Release, App Store signing) and upload to TestFlight via altool (secrets via fnox)"
+dir = "apps/yral-ios"
+depends = ["yral-ios-checks"]
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Inside fnox exec: YRAL_IOS_DIST_CERT_P12_BASE64, YRAL_IOS_DIST_PROFILE_BASE64,
+# YRAL_IOS_CERT_PASSWORD, APP_STORE_CONNECT_API_KEY_BASE64 (fnox.toml),
+# YRAL_ASC_KEY_ID, YRAL_ASC_ISSUER_ID, YRAL_APPLE_TEAM_ID (mise [env]).
+
+WORKDIR="build/signing"
+mkdir -p "$WORKDIR" ~/Library/MobileDevice/Provisioning\ Profiles
+
+echo "${YRAL_IOS_DIST_CERT_P12_BASE64}" | base64 --decode > "$WORKDIR/Yral-Dist.p12"
+echo "${YRAL_IOS_DIST_PROFILE_BASE64}" | base64 --decode > "$WORKDIR/Yral-Distribution.mobileprovision"
+cp "$WORKDIR/Yral-Distribution.mobileprovision" ~/Library/MobileDevice/Provisioning\ Profiles/
+
+# Build keychain: isolated, auto-unlocked for this session, no partition-list
+# prompts (CI-standard form; mirrors the legacy repo's steps).
+security create-keychain -p "" yralios-build.keychain || true
+security import "$WORKDIR/Yral-Dist.p12" -k ~/Library/Keychains/yralios-build.keychain -P "$YRAL_IOS_CERT_PASSWORD" -A
+security list-keychains -s ~/Library/Keychains/yralios-build.keychain
+security set-keychain-settings -lut 21600s ~/Library/Keychains/yralios-build.keychain
+security unlock-keychain -p "" ~/Library/Keychains/yralios-build.keychain
+security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" yralios-build.keychain
+
+rm -rf build/YralApp.xcarchive build/ipa
+xcodebuild archive \
+  -project iosApp.xcodeproj \
+  -scheme iosApp \
+  -destination 'generic/platform=iOS' \
+  -archivePath build/YralApp.xcarchive \
+  -configuration Release \
+  -allowProvisioningUpdates \
+  CODE_SIGN_STYLE=Manual \
+  PROVISIONING_PROFILE_SPECIFIER="Yral-Distribution" \
+  CODE_SIGN_IDENTITY="Apple Distribution" \
+  DEVELOPMENT_TEAM="$YRAL_APPLE_TEAM_ID"
+
+cat > build/ExportOptions.plist <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>method</key>
+  <string>app-store</string>
+  <key>teamID</key>
+  <string>$YRAL_APPLE_TEAM_ID</string>
+  <key>signingCertificate</key>
+  <string>Apple Distribution</string>
+  <key>provisioningProfiles</key>
+  <dict>
+    <key>com.yral.iosApp</key>
+    <string>Yral-Distribution</string>
+  </dict>
+</dict>
+</plist>
+EOF
+
+xcodebuild -exportArchive \
+  -archivePath build/YralApp.xcarchive \
+  -exportOptionsPlist build/ExportOptions.plist \
+  -exportPath build/ipa
+
+# altool resolves the ASC API key by file convention:
+# ./private_keys/AuthKey_<KEY_ID>.p8 (also ~/.private_keys etc.)
+mkdir -p private_keys
+echo "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "private_keys/AuthKey_${YRAL_ASC_KEY_ID}.p8"
+
+IPA_PATH=$(ls -t build/ipa/*.ipa | head -n 1)
+echo "Uploading $IPA_PATH via altool"
+xcrun altool --upload-app \
+  --type ios \
+  --file "$IPA_PATH" \
+  --apiKey "$YRAL_ASC_KEY_ID" \
+  --apiIssuer "$YRAL_ASC_ISSUER_ID"
+
+# Upload dSYMs to Crashlytics from the archive (upload-symbols ships inside the
+# SPM checkout of the firebase-ios-sdk, resolved during the archive).
+UPLOAD_SYMBOLS_SCRIPT=$(ls -t "$HOME"/Library/Developer/Xcode/DerivedData/*/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/upload-symbols 2>/dev/null | head -n 1)
+if [[ -n "$UPLOAD_SYMBOLS_SCRIPT" && -f "$UPLOAD_SYMBOLS_SCRIPT" && -d build/YralApp.xcarchive/dSYMs ]]; then
+  "$UPLOAD_SYMBOLS_SCRIPT" -gsp iosApp/GoogleService-Info.plist -p ios build/YralApp.xcarchive/dSYMs
+else
+  echo '  ⚠ Crashlytics upload-symbols script or dSYMs not found — skipping dSYM upload' >&2
+fi
+'''
+# NOTE: to inject fnox secrets, run via: fnox exec -- mise run yral-ios-upload-testflight
+# (fnox exec wraps any command; mise runs the script with its [env] applied).
 
 # ─── my-website (Leptos SSR app, islands architecture) ────────────────────────
 

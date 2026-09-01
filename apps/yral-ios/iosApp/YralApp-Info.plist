@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- This plist is the SINGLE source of truth for app-level Info keys.
+	     GENERATE_INFOPLIST_FILE = YES in the target build settings auto-adds
+	     only the mechanical keys (bundle id/version/executable/package type);
+	     everything else lives here. Keys that CAN be expressed via
+	     INFOPLIST_KEY_* build settings are deliberately NOT duplicated there.
+	     CFBundleDisplayName: shown on the home screen. -->
+	<key>CFBundleDisplayName</key>
+	<string>Yral</string>
+	<!-- Launch screen: empty dict = system default launch (full-screen,
+	     no storyboard). Required for modern-resolution rendering. -->
+	<key>UILaunchScreen</key>
+	<dict/>
+	<!-- SwiftUI App lifecycle: single scene, no scene manifest needed, but
+	     explicit false matches the legacy app and silences UIKit scene
+	     restoration queries. -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+	</dict>
+	<!-- Portrait-only, full-screen (matches the legacy Yral app). -->
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UIRequiresFullScreen</key>
+	<true/>
+	<!-- Dark appearance (matches the legacy app). -->
+	<key>UIUserInterfaceStyle</key>
+	<string>Dark</string>
+	<!-- App URL schemes: the yral-auth OAuth redirect
+	     (YRAL_REDIRECT_URI = com.yral.iosApp://oauth/callback) and the
+	     generic `yral` scheme used by Branch deep links. CFBundleURLTypes
+	     cannot be expressed via INFOPLIST_KEY_* build settings, so it lives
+	     here. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.yral.iosApp</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.yral.iosApp</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.yral.iosApp</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>yral</string>
+			</array>
+		</dict>
+	</array>
+	<!-- Yral-auth OAuth redirect config (read by the YralAuth code in
+	     Phase 1; mirrored here from the legacy app's Info.plist). -->
+	<key>YRAL_REDIRECT_URI</key>
+	<string>com.yral.iosApp://oauth/callback</string>
+	<key>YRAL_REDIRECT_URI_SCHEME</key>
+	<string>com.yral.iosApp</string>
+	<!-- Firebase Cloud Messaging functions base URL (push phases). -->
+	<key>FIREBASE_CLOUD_BASE_URL</key>
+	<string>https://us-central1-yral-mobile.cloudfunctions.net/</string>
+	<!-- Privacy usage descriptions. Only camera/mic/photo are expected to be
+	     exercised in later feature phases; NSUserTrackingUsageDescription is
+	     included for parity with the legacy app's ATT prompt. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Yral requires camera access to allow you to record and upload videos. Your camera will only be used when you choose to create a new video.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Yral requires microphone access to capture audio while recording videos and chat voice messages. Your microphone will only be used when you choose to record.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Yral needs permission to save downloaded videos and photos to your photo library.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Yral needs access to your photo library so you can choose a profile picture.</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Your permission lets Yral measure how well our ads perform and show you more relevant ads. Your data will not be sold.</string>
+</dict>
+</plist>

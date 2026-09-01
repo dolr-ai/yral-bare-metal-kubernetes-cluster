@@ -1,0 +1,8 @@
+# SwiftLint for apps/yral-ios. Excludes build artifacts and the committed Xcode
+# shell — all product code lives in the YralApp SPM package (see README.md).
+excluded:
+  - .build
+  - DerivedData
+  - YralApp.xcodeproj
+  - packages/YralApp/.build
+  - fastlane

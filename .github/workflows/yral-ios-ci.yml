@@ -1,0 +1,97 @@
+name: Yral iOS CI
+
+# Single workflow for the native iOS app (apps/yral-ios). Local and CI run
+# the SAME mise tasks — CI needs only: a working mise + the Ansible vault
+# password (the root repo's pre-existing GitHub secret). `mise run bootstrap`
+# extracts the age key from the vault; fnox decrypts the signing secrets from
+# fnox.toml. No repo-scoped iOS secrets, no fastlane, no CocoaPods.
+#
+#   pull_request          → mise run yral-ios-checks (lint + tests + sim build)
+#   push/merge to main   → checks, then fnox exec -- mise run yral-ios-upload-testflight
+on:
+  pull_request:
+    paths:
+      - "apps/yral-ios/**"
+      - ".github/workflows/yral-ios-ci.yml"
+      - "fnox.toml"
+      - "mise.toml"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/yral-ios/**"
+      - ".github/workflows/yral-ios-ci.yml"
+      - "fnox.toml"
+      - "mise.toml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # PR runs cancel freely; main deploys serialize (one TestFlight upload at a time).
+  group: yral-ios-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  checks:
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # mise-action installs the toolchain declared in mise.toml. Xcode itself
+      # is pinned below (preinstalled on the runner image).
+      - name: Set up mise + project tools
+        uses: jdx/mise-action@v2
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Run checks (lint + package tests + simulator build)
+        run: mise run yral-ios-checks
+
+  upload-testflight:
+    needs: checks
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up mise + project tools
+        uses: jdx/mise-action@v2
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      # Bootstrap: write the vault password, extract the age key
+      # (.yral-infra-ed25519) that decrypts fnox secrets. Identical to local
+      # `mise run bootstrap` — this is the ONLY repo secret the runner needs
+      # beyond mise itself.
+      - name: Bootstrap (vault → age key → fnox)
+        env:
+          ANSIBLE_VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
+        run: |
+          echo "$ANSIBLE_VAULT_PASSWORD" > ansible/.vault_pass
+          chmod 600 ansible/.vault_pass
+          [ -s ansible/.vault_pass ] || { echo "ERROR: vault password empty"; exit 1; }
+          mise run bootstrap
+
+      # The upload task reads its four signing secrets via fnox exec (see the
+      # task in mise.toml) — same command a developer runs locally.
+      - name: Archive + upload to TestFlight
+        run: fnox exec -- mise run yral-ios-upload-testflight
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: yral-ios-build-logs
+          path: apps/yral-ios/build
+          retention-days: 5
+          if-no-files-found: ignore
