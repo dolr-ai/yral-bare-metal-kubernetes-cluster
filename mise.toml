@@ -599,22 +599,11 @@ dir = "apps/yral-ios/packages/YralApp"
 run = "swift package resolve"
 
 # The Firebase config plist is GITIGNORED (it contains the project's Google
-# Cloud API key — flagged by secret scanning when committed). Every build
-# path injects it from fnox first. Run standalone via fnox exec (the task
-# needs FNOX secrets in scope):
-#   fnox exec -- mise run yral-ios-inject-firebase-plist
-[tasks.yral-ios-inject-firebase-plist]
-description = "Materialize GoogleService-Info.plist from fnox (secrets via fnox exec)"
-dir = "apps/yral-ios"
-run = '''
-if [ -z "$YRAL_IOS_FIREBASE_PLIST_BASE64" ]; then
-  echo 'ERROR: YRAL_IOS_FIREBASE_PLIST_BASE64 not set — run via: fnox exec -- mise run yral-ios-inject-firebase-plist' >&2
-  exit 1
-fi
-printf '%s' "$YRAL_IOS_FIREBASE_PLIST_BASE64" | base64 -d > iosApp/GoogleService-Info.plist
-plutil -lint iosApp/GoogleService-Info.plist
-'''
-
+# Cloud API key — flagged by secret scanning when committed). The yral-ios-build
+# and yral-ios-upload-testflight tasks inject it inline from the fnox secret
+# (YRAL_IOS_FIREBASE_PLIST_BASE64) when run under `fnox exec --`.
+# Rotate the API key: rotate in GCP console → update the fnox secret
+# (exact command documented on the secret's fnox.toml entry).
 [tasks.yral-ios-build]
 description = "Build the iosApp target for the iOS Simulator (Debug, unsigned). Requires the Firebase plist (fnox exec -- mise run yral-ios-build)"
 dir = "apps/yral-ios"

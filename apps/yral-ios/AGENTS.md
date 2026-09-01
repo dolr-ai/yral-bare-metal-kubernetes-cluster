@@ -79,6 +79,15 @@ mise run yral-ios-clean   # clean build outputs
 
 ## CI / Distribution
 
+**Deploy flow: local-first, CI-parity.** Once a CI push has been validated
+green at least once for a given workflow shape, subsequent TestFlight
+deploys run LOCALLY (`fnox exec -- mise run yral-ios-upload-testflight`) —
+local and CI run the identical mise tasks, so both are expected to behave
+the same, and local is much faster (~2 min vs ~20 min cold-cache runner).
+Use CI pushes when: (a) a workflow/task changed and needs one parity
+validation, (b) PR checks, or (c) periodic confirmation. Watch any CI push
+to completion before declaring done (post-push validation rule).
+
 **Local and CI run the SAME mise tasks** (single source of truth). CI needs
 only a working mise + the root repo's pre-existing `ANSIBLE_VAULT_PASSWORD`
 GitHub secret; `mise run bootstrap` extracts the age key from the vault and
