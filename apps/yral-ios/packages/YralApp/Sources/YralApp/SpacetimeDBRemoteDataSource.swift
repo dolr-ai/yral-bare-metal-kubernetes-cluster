@@ -172,7 +172,7 @@ public struct SpacetimeDBRemoteDataSource: Sendable {
     }
 
     /// `accept_new_user_registration` — used for both owner registration
-    /// (`mainAccountText = nil` → `[1, []]`) and bot attachment (`Some(v)` →
+    /// (`mainAccountText = nil` → `[1, []]`) and AI account attachment (`Some(v)` →
     /// `[0, v]` — ARG-form sum encoding, payload inlined).
     public func acceptNewUserRegistration(
         newPrincipalText: String,

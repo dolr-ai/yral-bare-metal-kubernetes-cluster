@@ -27,7 +27,7 @@ public struct KeychainStore: Sendable {
         case idToken = "ID_TOKEN"
         case accessToken = "ACCESS_TOKEN"
         case refreshToken = "REFRESH_TOKEN"
-        /// OAuth subject of the active (possibly bot) identity.
+        /// OAuth subject of the active (possibly AI account) identity.
         case lastActivePrincipal = "LAST_ACTIVE_PRINCIPAL"
         /// OAuth subject of the main (human) account.
         case mainPrincipal = "MAIN_PRINCIPAL"

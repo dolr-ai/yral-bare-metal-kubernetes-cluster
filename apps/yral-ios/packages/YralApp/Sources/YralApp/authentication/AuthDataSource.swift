@@ -193,9 +193,9 @@ public struct AuthDataSource: Sendable {
         return request
     }
 
-    // MARK: - AI account creation (bot identity)
+    // MARK: - AI account creation (AI identity)
 
-    /// Mints a delegated bot identity under the caller. No Bearer header —
+    /// Mints a delegated AI identity under the caller. No Bearer header —
     /// the Kotlin client sends the user id in the body only.
     public func createAiAccount(
         userID: String,

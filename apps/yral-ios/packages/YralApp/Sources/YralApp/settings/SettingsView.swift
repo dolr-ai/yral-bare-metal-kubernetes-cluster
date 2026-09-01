@@ -4,7 +4,7 @@ import SwiftUI
 /// Kotlin `AccountScreen` (the menu the profile opens): account header,
 /// notification-alerts toggle, logout, and delete account with a
 /// confirmation sheet. Pro subscription cards, the account switcher, and
-/// help-link lists land with their phases (subscription, bots, settings
+/// help-link lists land with their phases (subscription, AI accounts, settings
 /// links respectively) — this slice gives logout its proper home and
 /// wires the already-ported delete endpoint.
 ///
@@ -128,6 +128,13 @@ struct SettingsView: View {
 
     private var dangerSection: some View {
         Section {
+            NavigationLink {
+                AIAccountCreationView(authClient: authClient, sessionStore: sessionStore)
+            } label: {
+                Text("Create AI account")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
             Button {
                 isAccountSwitcherShown = true
             } label: {
@@ -163,8 +170,8 @@ struct SettingsView: View {
 
     /// Kotlin `AccountsViewModel.deleteAccount` (main-account path): call
     /// the off-chain delete endpoint via the auth client, then logout
-    /// (the client method handles both). Bot accounts need the
-    /// soft-delete-on-bot-server path — that lands with the bots phase.
+    /// (the client method handles both). AI account accounts need the
+    /// soft-delete-on-AI account-server path — that lands with the AI accounts phase.
     private func deleteAccount() async {
         isDeletingAccount = true
         defer { isDeletingAccount = false }

@@ -3,7 +3,7 @@ import Foundation
 /// Auth session machine — port of Kotlin `DefaultAuthClient`.
 ///
 /// Responsibilities (faithful to the Kotlin contract):
-///   - `initialize()`: cold-start decision tree (restore cached bot session /
+///   - `initialize()`: cold-start decision tree (restore cached AI account session /
 ///     validate ID token / refresh / anonymous identity).
 ///   - `logout()`: clear tokens + cached session + principal prefs, reset
 ///     session properties, return to `.initial`.
@@ -19,7 +19,7 @@ import Foundation
 ///     with the analytics phase; call sites are documented inline).
 ///   - Token storage is the Keychain (not NSUserDefaults) via
 ///     `KeychainStore` — see its header comment.
-///   - Bot-identity persistence (`ext_ai_account_ids` merge) lands with
+///   - AI account-identity persistence (`ext_ai_account_ids` merge) lands with
 ///     the account-switcher phase that consumes it.
 ///
 /// Storage layout (Kotlin `PrefKeys` split by secrecy):
@@ -92,8 +92,8 @@ public final class AuthClient {
 
     /// Restores or obtains a session. Decision tree, Kotlin-faithful:
     ///
-    ///  1. lastActive == cached bot (≠ main) → restore immediately, then
-    ///     validate/refresh bot tokens.
+    ///  1. lastActive == cached AI account (≠ main) → restore immediately, then
+    ///     validate/refresh AI account tokens.
     ///  2. ID token present → validate; if expired use the refresh token
     ///     (valid refresh → refresh; else logout with cause).
     ///  3. Nothing cached → anonymous identity.
@@ -106,7 +106,7 @@ public final class AuthClient {
         let lastActivePrincipal = keychain.string(forKey: .lastActivePrincipal)
         let mainPrincipal = keychain.string(forKey: .mainPrincipal)
 
-        // 1. Bot (or non-main) last-active → restore from cache directly.
+        // 1. AI account (or non-main) last-active → restore from cache directly.
         if let lastActivePrincipal, lastActivePrincipal != mainPrincipal {
             if let cached = cachedSession(),
                cached.userPrincipal == lastActivePrincipal {
@@ -134,7 +134,7 @@ public final class AuthClient {
         await obtainAnonymousIdentity()
     }
 
-    /// Bot cold-start token hygiene — Kotlin
+    /// AI account cold-start token hygiene — Kotlin
     /// `refreshBotColdStartTokensIfNeeded` verbatim.
     private func refreshBotColdStartTokensIfNeeded() async {
         let now = currentEpochSeconds
@@ -273,7 +273,7 @@ public final class AuthClient {
             userPrincipal: principal,
             profilePic: profilePic,
             username: nil,
-            isBotAccount: false
+            isAIAccount: false
         )
 
         let session = Session(
@@ -284,7 +284,7 @@ public final class AuthClient {
                 preferred: nil, principal: principal
             ),
             isCreatedFromServiceCanister: true,
-            isBotAccount: false
+            isAIAccount: false
         )
         sessionStore.updateCoinBalance(0)
         sessionStore.updateState(.signedIn(session))
@@ -315,7 +315,7 @@ public final class AuthClient {
     }
 
     /// Kotlin `refreshTokens` — manual refresh used by account-management
-    /// flows (bot deletion). Missing refresh token → no-op; refresh failure
+    /// flows (AI account deletion). Missing refresh token → no-op; refresh failure
     /// → logged-only no-op (Kotlin parity: it never throws).
     public func refreshTokens() async {
         guard let refreshToken = keychain.string(forKey: .refreshToken),

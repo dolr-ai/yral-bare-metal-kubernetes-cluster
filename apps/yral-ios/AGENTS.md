@@ -28,15 +28,18 @@ documentation.
 
 - **Folder per top-level screen/feature (Hard Rule).** Sources live under
   `Sources/YralApp/<feature>/` — ONE folder per top-level screen/feature
-  (currently `authentication/`, `settings/`), with the logic that screen
-  uses colocated INSIDE the folder (view + browser session + data source
-  + validator together — no per-layer folders within a feature). Files
-  that don't fit an existing feature stay at the ROOT (`Sources/YralApp/`)
-  — cross-feature infrastructure (Session, AppConfiguration, NetworkError,
-  ProfilePicture, Spacetime trio, AppRoot/RootScene) — until a feature
-  owns them or a new feature folder earns its place. Do NOT create a
-  feature folder ahead of its first real screen, and do NOT pre-create
-  `Core/`/`Features/` trees — a new folder appears when its screen does.
+  (currently `authentication/`, `profile/`, `settings/`), with the logic
+  that screen uses colocated INSIDE the folder (view + browser session +
+  data source + validator together — no per-layer folders). A feature may
+  have ROUTE subfolders named after its screens (`profile/create/`,
+  `profile/list/`, later `profile/detail/` — one per screen, code
+  colocated in each). Files that don't fit an existing feature stay at
+  the ROOT (`Sources/YralApp/`) — cross-feature infrastructure (Session,
+  AppConfiguration, NetworkError, ProfilePicture, Spacetime trio,
+  AppRoot/RootScene) — until a feature owns them or a new feature folder
+  earns its place. Do NOT create a feature folder ahead of its first
+  real screen, and do NOT pre-create route subfolders with no code in
+  them (profile/detail/ appears when the detail screen does).
 
 - **Tests mirror their subjects by filename AND folder (Hard Rule).** SPM
   requires one directory per target — a test file CANNOT live inside

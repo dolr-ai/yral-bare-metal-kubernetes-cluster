@@ -12,7 +12,7 @@ public struct Session: Equatable, Sendable {
     public var username: String?
     public var bio: String?
     public var isCreatedFromServiceCanister: Bool
-    public var isBotAccount: Bool
+    public var isAIAccount: Bool
 
     public init(
         canisterID: String? = nil,
@@ -21,7 +21,7 @@ public struct Session: Equatable, Sendable {
         username: String? = nil,
         bio: String? = nil,
         isCreatedFromServiceCanister: Bool = true,
-        isBotAccount: Bool = false
+        isAIAccount: Bool = false
     ) {
         self.canisterID = canisterID
         self.userPrincipal = userPrincipal
@@ -29,7 +29,7 @@ public struct Session: Equatable, Sendable {
         self.username = username
         self.bio = bio
         self.isCreatedFromServiceCanister = isCreatedFromServiceCanister
-        self.isBotAccount = isBotAccount
+        self.isAIAccount = isAIAccount
     }
 }
 
@@ -96,7 +96,7 @@ public struct ProDetails: Equatable, Sendable {
     }
 }
 
-/// Main + bot accounts for the account switcher — port of Kotlin
+/// Main + AI account accounts for the account switcher — port of Kotlin
 /// `AccountDirectory`/`AccountDirectoryProfile` (consumed by the switcher
 /// phase; the type ships now because `SessionProperties` holds it and
 /// Kotlin's `updateState` preserves it across session resets).
@@ -164,8 +164,8 @@ public final class SessionStore {
         return nil
     }
 
-    public var isBotAccount: Bool? {
-        if case let .signedIn(session) = state { return session.isBotAccount }
+    public var isAIAccount: Bool? {
+        if case let .signedIn(session) = state { return session.isAIAccount }
         return nil
     }
 

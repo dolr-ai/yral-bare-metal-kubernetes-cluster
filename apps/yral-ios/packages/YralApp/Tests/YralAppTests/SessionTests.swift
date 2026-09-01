@@ -15,7 +15,7 @@ struct SessionTests {
         #expect(store.state == .initial)
         #expect(store.userPrincipal == nil)
         #expect(store.profilePic == nil)
-        #expect(store.isBotAccount == nil)
+        #expect(store.isAIAccount == nil)
 
         // Signed in with properties set.
         let session = Session(
@@ -24,7 +24,7 @@ struct SessionTests {
             profilePic: "https://example.com/pic.png",
             username: "sunnyotter",
             isCreatedFromServiceCanister: true,
-            isBotAccount: false
+            isAIAccount: false
         )
         store.updateState(.signedIn(session))
         store.updateCoinBalance(250)
@@ -35,7 +35,7 @@ struct SessionTests {
         #expect(store.userPrincipal == "auth0|user-77")
         #expect(store.profilePic == "https://example.com/pic.png")
         #expect(store.username == "sunnyotter")
-        #expect(store.isBotAccount == false)
+        #expect(store.isAIAccount == false)
         #expect(store.properties.coinBalance == 250)
         #expect(store.properties.isSocialSignIn == true)
         #expect(store.properties.phoneNumber == "+15551234567")

@@ -35,8 +35,8 @@ struct AccountSwitcherView: View {
                 if !entries.mainAccount.isPlaceholder {
                     section(title: "Main Profile", accounts: [entries.mainAccount])
                 }
-                if !entries.botAccounts.isEmpty {
-                    section(title: "AI Influencer profiles", accounts: entries.botAccounts)
+                if !entries.aiAccounts.isEmpty {
+                    section(title: "AI Influencer profiles", accounts: entries.aiAccounts)
                 }
             } else {
                 Text("No other accounts")
@@ -118,7 +118,7 @@ struct AccountSwitcherView: View {
 /// The switcher's data — Kotlin `AccountDialogInfo`/`AccountUi`.
 struct AccountSwitcherEntries: Equatable, Sendable {
     var mainAccount: AccountSwitcherEntry
-    var botAccounts: [AccountSwitcherEntry]
+    var aiAccounts: [AccountSwitcherEntry]
 }
 
 struct AccountSwitcherEntry: Equatable, Identifiable, Sendable {

@@ -65,8 +65,8 @@ public struct TokenClaims: Equatable {
     public let isAnonymous: Bool
     /// `email` — optional.
     public let email: String?
-    /// `ext_ai_account_ids` — bot account ids; null elements dropped.
-    public let botAccountIds: [String]?
+    /// `ext_ai_account_ids` — AI account ids; null elements dropped.
+    public let aiAccountIds: [String]?
 
     /// Matches Kotlin `TokenClaims.isValid`: expiry strictly greater than now.
     public func isValid(currentTimeInEpochSeconds: Int64) -> Bool {
@@ -90,7 +90,7 @@ public enum JWTParser {
         static let subject = "sub"
         static let nonce = "nonce"
         static let isAnonymous = "ext_is_anonymous"
-        static let botAccountIds = "ext_ai_account_ids"
+        static let aiAccountIds = "ext_ai_account_ids"
         static let email = "email"
     }
 
@@ -106,7 +106,7 @@ public enum JWTParser {
         let nonce = optionalString(payloadJSON[ClaimKey.nonce])
         let isAnonymous = (payloadJSON[ClaimKey.isAnonymous] as? Bool) ?? false
         let email = optionalString(payloadJSON[ClaimKey.email])
-        let botAccountIds = parseStringList(payloadJSON[ClaimKey.botAccountIds])
+        let aiAccountIds = parseStringList(payloadJSON[ClaimKey.aiAccountIds])
 
         return TokenClaims(
             audience: audience,
@@ -117,7 +117,7 @@ public enum JWTParser {
             nonce: nonce,
             isAnonymous: isAnonymous,
             email: email,
-            botAccountIds: botAccountIds
+            aiAccountIds: aiAccountIds
         )
     }
 

@@ -1,5 +1,6 @@
-import Testing
 import Foundation
+import Testing
+
 @testable import YralApp
 
 /// Routes every request through a per-test handler. FILE SCOPE (not
@@ -45,17 +46,20 @@ final class RefreshRecorder: @unchecked Sendable {
     private var storedLastRefreshToken: String?
 
     var refreshCalls: Int {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         return storedRefreshCalls
     }
 
     var lastRefreshToken: String? {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         return storedLastRefreshToken
     }
 
     func recordRefresh(refreshToken: String) {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         storedRefreshCalls += 1
         storedLastRefreshToken = refreshToken
     }
@@ -68,12 +72,14 @@ final class RefreshCounter: @unchecked Sendable {
     private var storedCalls = 0
 
     var calls: Int {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         return storedCalls
     }
 
     func recordCall() {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         storedCalls += 1
     }
 }
@@ -110,27 +116,27 @@ struct AuthClientTests {
     // MARK: - Fixtures
 
     static let mainPrincipal = "main-principal"
-    static let botPrincipal = "bot-principal"
+    static let aiPrincipal = "AI account-principal"
     static let now = Int64(Date.now.timeIntervalSince1970)
 
-    /// Kotlin `storeCachedBotSession` — cached bot session + tokens.
+    /// Kotlin `storeCachedBotSession` — cached AI account session + tokens.
     @discardableResult
     func storeCachedBotSession(
         keychain: KeychainStore,
         defaults: UserDefaults,
         idToken: String,
         refreshToken: String
-    ) -> (main: String, bot: String) {
+    ) -> (main: String, aiAccount: String) {
         keychain.setString(Self.mainPrincipal, forKey: .mainPrincipal)
-        keychain.setString(Self.botPrincipal, forKey: .lastActivePrincipal)
-        defaults.set("bot-canister", forKey: "CANISTER_ID")
-        defaults.set(Self.botPrincipal, forKey: "USER_PRINCIPAL")
-        defaults.set("https://example.com/bot.png", forKey: "PROFILE_PIC")
-        defaults.set("bot-user", forKey: "USERNAME")
+        keychain.setString(Self.aiPrincipal, forKey: .lastActivePrincipal)
+        defaults.set("AI account-canister", forKey: "CANISTER_ID")
+        defaults.set(Self.aiPrincipal, forKey: "USER_PRINCIPAL")
+        defaults.set("https://example.com/AI account.png", forKey: "PROFILE_PIC")
+        defaults.set("AI account-user", forKey: "USERNAME")
         defaults.set(true, forKey: "IS_CREATED_FROM_SERVICE_CANISTER")
         keychain.setString(idToken, forKey: .idToken)
         keychain.setString(refreshToken, forKey: .refreshToken)
-        return (Self.mainPrincipal, Self.botPrincipal)
+        return (Self.mainPrincipal, Self.aiPrincipal)
     }
 
     func makeClient(
@@ -158,7 +164,7 @@ struct AuthClientTests {
         return defaults
     }
 
-    // MARK: - Contract 1: cached bot + valid ID → no refresh
+    // MARK: - Contract 1: cached AI account + valid ID → no refresh
 
     /// Failing handler: counts any /oauth/token POST then errors — used by
     /// the "must NOT refresh" contracts. @Sendable: it runs on
@@ -172,7 +178,7 @@ struct AuthClientTests {
         }
     }
 
-    @Test("cached bot cold start with valid id token skips refresh")
+    @Test("cached AI account cold start with valid id token skips refresh")
     func cachedBotValidIDTokenSkipsRefresh() async throws {
         let keychain = KeychainStore(service: "yral-tests-\(UUID().uuidString)")
         defer { keychain.removeAll() }
@@ -180,7 +186,7 @@ struct AuthClientTests {
 
         let validIDToken = Self.makeJWT(claims: [
             "exp": Self.now + 3_600, "iat": Self.now - 60,
-            "iss": "auth.yral.com", "sub": Self.botPrincipal
+            "iss": "auth.yral.com", "sub": Self.aiPrincipal
         ])
         storeCachedBotSession(
             keychain: keychain, defaults: defaults,
@@ -194,8 +200,8 @@ struct AuthClientTests {
         await client.initialize()
 
         #expect(counter.calls == 0)
-        #expect(sessionStore.userPrincipal == Self.botPrincipal)
-        #expect(sessionStore.isBotAccount == true)
+        #expect(sessionStore.userPrincipal == Self.aiPrincipal)
+        #expect(sessionStore.isAIAccount == true)
         #expect(keychain.string(forKey: .idToken) == validIDToken)
     }
 
@@ -209,17 +215,19 @@ struct AuthClientTests {
     ) -> @Sendable (URLRequest) throws -> (HTTPURLResponse, Data) {
         return { request in
             guard request.url?.path == "/oauth/token",
-                  let body = request.httpBody ?? request.bodyStreamData,
-                  let form = String(data: body, encoding: .utf8)
+                let body = request.httpBody ?? request.bodyStreamData,
+                let form = String(data: body, encoding: .utf8)
             else { throw URLError(.unsupportedURL) }
             if form.contains("grant_type=refresh_token") {
-                recorder.recordRefresh(refreshToken: form
-                    .split(separator: "&")
-                    .compactMap {
-                        $0.hasPrefix("refresh_token=")
-                            ? String($0.dropFirst("refresh_token=".count)) : nil
-                    }
-                    .first ?? "")
+                recorder.recordRefresh(
+                    refreshToken:
+                        form
+                        .split(separator: "&")
+                        .compactMap {
+                            $0.hasPrefix("refresh_token=")
+                                ? String($0.dropFirst("refresh_token=".count)) : nil
+                        }
+                        .first ?? "")
             }
             let response = HTTPURLResponse(
                 url: request.url!, statusCode: 200,
@@ -237,7 +245,7 @@ struct AuthClientTests {
         }
     }
 
-    @Test("cached bot cold start with expired id token refreshes with valid refresh token")
+    @Test("cached AI account cold start with expired id token refreshes with valid refresh token")
     func cachedBotExpiredIDTokenRefreshes() async throws {
         let keychain = KeychainStore(service: "yral-tests-\(UUID().uuidString)")
         defer { keychain.removeAll() }
@@ -245,11 +253,11 @@ struct AuthClientTests {
 
         let expiredIDToken = Self.makeJWT(claims: [
             "exp": Self.now - 60, "iat": Self.now - 7_200,
-            "iss": "auth.yral.com", "sub": Self.botPrincipal
+            "iss": "auth.yral.com", "sub": Self.aiPrincipal
         ])
         let validRefreshToken = Self.makeJWT(claims: [
             "exp": Self.now + 3_600, "iat": Self.now - 60,
-            "iss": "auth.yral.com", "sub": Self.botPrincipal
+            "iss": "auth.yral.com", "sub": Self.aiPrincipal
         ])
         storeCachedBotSession(
             keychain: keychain, defaults: defaults,
@@ -258,7 +266,7 @@ struct AuthClientTests {
 
         let refreshedIDToken = Self.makeJWT(claims: [
             "exp": Self.now + 3_600, "iat": Self.now,
-            "iss": "auth.yral.com", "sub": Self.botPrincipal
+            "iss": "auth.yral.com", "sub": Self.aiPrincipal
         ])
 
         let recorder = RefreshRecorder()
@@ -272,8 +280,8 @@ struct AuthClientTests {
 
         #expect(recorder.refreshCalls == 1)
         #expect(recorder.lastRefreshToken == validRefreshToken)
-        #expect(sessionStore.userPrincipal == Self.botPrincipal)
-        #expect(sessionStore.isBotAccount == true)
+        #expect(sessionStore.userPrincipal == Self.aiPrincipal)
+        #expect(sessionStore.isAIAccount == true)
         #expect(keychain.string(forKey: .idToken) == refreshedIDToken)
         #expect(keychain.string(forKey: .refreshToken) == "refreshed-refresh-token")
         #expect(keychain.string(forKey: .accessToken) == "refreshed-access-token")
@@ -281,7 +289,7 @@ struct AuthClientTests {
 
     // MARK: - Contract 3: expired refresh → logout, no refresh call
 
-    @Test("cached bot cold start with expired refresh token logs out")
+    @Test("cached AI account cold start with expired refresh token logs out")
     func cachedBotExpiredRefreshTokenLogsOut() async throws {
         let keychain = KeychainStore(service: "yral-tests-\(UUID().uuidString)")
         defer { keychain.removeAll() }
@@ -289,11 +297,11 @@ struct AuthClientTests {
 
         let expiredIDToken = Self.makeJWT(claims: [
             "exp": Self.now - 60, "iat": Self.now - 7_200,
-            "iss": "auth.yral.com", "sub": Self.botPrincipal
+            "iss": "auth.yral.com", "sub": Self.aiPrincipal
         ])
         let expiredRefreshToken = Self.makeJWT(claims: [
             "exp": Self.now - 60, "iat": Self.now - 7_200,
-            "iss": "auth.yral.com", "sub": Self.botPrincipal
+            "iss": "auth.yral.com", "sub": Self.aiPrincipal
         ])
         storeCachedBotSession(
             keychain: keychain, defaults: defaults,

@@ -116,8 +116,8 @@ struct SpacetimePositionalDecoderTests {
     // MARK: - UserProfile (11 positional fields)
 
     /// Self-view profile: profilePicture None, follow flags None, Free plan,
-    /// MainAccount with bots.
-    @Test("UserProfile self-view decodes: None options, Free plan, MainAccount bots")
+    /// MainAccount with AI accounts.
+    @Test("UserProfile self-view decodes: None options, Free plan, MainAccount AI accounts")
     func userProfileSelfView() throws {
         let body = #"""
         [
@@ -131,7 +131,7 @@ struct SpacetimePositionalDecoderTests {
           [1, []],
           [0, []],
           false,
-          [0, [["auth0|bot-1","auth0|bot-2"]]]
+          [0, [["auth0|ai-account-1","auth0|ai-account-2"]]]
         ]
         """#
         let profile = try SpacetimeUserProfile.fromPositionalArray(
@@ -149,20 +149,20 @@ struct SpacetimePositionalDecoderTests {
         #expect(profile.userFollowsCaller == nil)
         #expect(profile.subscriptionPlan == .free)
         #expect(profile.isAiInfluencer == false)
-        guard case let .mainAccount(bots) = profile.accountType else {
+        guard case let .mainAccount(aiAccounts) = profile.accountType else {
             Issue.record("expected mainAccount")
             return
         }
-        #expect(bots == ["auth0|bot-1", "auth0|bot-2"])
+        #expect(aiAccounts == ["auth0|ai-account-1", "auth0|ai-account-2"])
     }
 
     @Test("UserProfile other-view: Pro plan, BotAccount, follow flags present")
     func userProfileOtherView() throws {
         let body = #"""
         [
-          "auth0|bot-1",
+          "auth0|AI account-1",
           [0, ["https://cdn.example.com/pic.png", [false, "0.1", "0.2", false]]],
-          "bot bio",
+          "AI account bio",
           "",
           100,
           50,

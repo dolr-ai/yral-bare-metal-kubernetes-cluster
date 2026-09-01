@@ -43,7 +43,7 @@ extension AuthClient {
                 preferred: username, principal: userPrincipal
             ),
             isCreatedFromServiceCanister: isCreatedFromServiceCanister,
-            isBotAccount: resolvedIsBotAccount
+            isAIAccount: resolvedIsBotAccount
         )
     }
 
@@ -72,14 +72,14 @@ extension AuthClient {
     }
 
     /// Persists the session fields — Kotlin `cacheSession` (writes
-    /// MAIN_PRINCIPAL/LAST_ACTIVE_PRINCIPAL only for non-bot sessions; a
-    /// bot session never overwrites the main principal).
+    /// MAIN_PRINCIPAL/LAST_ACTIVE_PRINCIPAL only for non-AI account sessions; a
+    /// AI account session never overwrites the main principal).
     func cacheSession(
         canisterID: String,
         userPrincipal: String,
         profilePic: String,
         username: String?,
-        isBotAccount: Bool
+        isAIAccount: Bool
     ) {
         defaults.set(canisterID, forKey: CachedSessionKey.canisterID.rawValue)
         defaults.set(userPrincipal, forKey: CachedSessionKey.userPrincipal.rawValue)
@@ -93,7 +93,7 @@ extension AuthClient {
             defaults.removeObject(forKey: CachedSessionKey.username.rawValue)
         }
         defaults.set(true, forKey: CachedSessionKey.isCreatedFromServiceCanister.rawValue)
-        if !isBotAccount {
+        if !isAIAccount {
             let storedMainPrincipal = keychain.string(forKey: .mainPrincipal)
             if storedMainPrincipal == nil || storedMainPrincipal == userPrincipal {
                 keychain.setString(userPrincipal, forKey: .mainPrincipal)
@@ -135,12 +135,12 @@ extension AuthClient {
             keychain.setString(accessToken, forKey: .accessToken)
         }
         // Kotlin merges the JWT's `ext_ai_account_ids` into
-        // BotIdentitiesStore here when `persistBotIdentities` is true —
-        // that list feeds the account switcher's bot section.
+        // AIIdentitiesStore here when `persistBotIdentities` is true —
+        // that list feeds the account switcher's AI section.
         if persistBotIdentities,
            let claims = try? JWTParser.parsePayload(of: idToken),
-           let botAccountIds = claims.botAccountIds {
-            BotIdentitiesStore.mergeFromTokenBotAccountIds(botAccountIds, defaults: defaults)
+           let aiAccountIds = claims.aiAccountIds {
+            AIIdentitiesStore.mergeFromTokenAIAccountIds(aiAccountIds, defaults: defaults)
         }
     }
 
@@ -160,8 +160,8 @@ extension AuthClient {
     // MARK: - Account switching (Kotlin RootViewModel.switchToAccount)
 
     /// The switcher's list — Kotlin `seedAccountDialogFromLocalData`:
-    /// main account (from MAIN_PRINCIPAL) + bot entries (from
-    /// BotIdentitiesStore), each with resolved username + propic + the
+    /// main account (from MAIN_PRINCIPAL) + AI entries (from
+    /// AIIdentitiesStore), each with resolved username + propic + the
     /// active flag. Nil when no main principal exists (signed out).
     func accountSwitcherEntries() -> AccountSwitcherEntries? {
         guard let mainPrincipal = keychain.string(forKey: .mainPrincipal) else {
@@ -176,7 +176,7 @@ extension AuthClient {
             isBot: false,
             isActive: mainPrincipal == activePrincipal
         )
-        let botEntries = BotIdentitiesStore.entries(defaults: defaults)
+        let botEntries = AIIdentitiesStore.entries(defaults: defaults)
             .filter { $0.principal != mainPrincipal }
             .map { entry in
                 AccountSwitcherEntry(
@@ -189,14 +189,14 @@ extension AuthClient {
                     isActive: entry.principal == activePrincipal
                 )
             }
-        return AccountSwitcherEntries(mainAccount: mainEntry, botAccounts: botEntries)
+        return AccountSwitcherEntries(mainAccount: mainEntry, aiAccounts: botEntries)
     }
 
     /// Switches the active account — Kotlin `switchToAccount` (CLIENT-SIDE
     /// session construction; no network): build the session directly from
     /// the principal (propic + username derived), update the store,
     /// persist the cached session fields, and set LAST_ACTIVE_PRINCIPAL.
-    /// Bot switches skip token refresh (the parent's tokens stay active);
+    /// AI switches skip token refresh (the parent's tokens stay active);
     /// switching back to main refreshes + reauthorizes.
     func switchToAccount(principal: String) {
         // No-op when already active (Kotlin returns early).
@@ -208,7 +208,7 @@ extension AuthClient {
         if principal == storedMainPrincipal {
             isBot = false
         } else {
-            let storedBots = BotIdentitiesStore.entries(defaults: defaults)
+            let storedBots = AIIdentitiesStore.entries(defaults: defaults)
             guard let match = storedBots.first(where: { $0.principal == principal }) else {
                 return
             }
@@ -225,7 +225,7 @@ extension AuthClient {
             ),
             bio: nil,
             isCreatedFromServiceCanister: true,
-            isBotAccount: isBot
+            isAIAccount: isBot
         )
         sessionStore.updateState(.signedIn(session))
         cacheSession(
@@ -233,11 +233,11 @@ extension AuthClient {
             userPrincipal: principal,
             profilePic: profilePic,
             username: botUsername,
-            isBotAccount: isBot
+            isAIAccount: isBot
         )
         keychain.setString(principal, forKey: .lastActivePrincipal)
         if isBot {
-            // Bots share the parent's tokens — do NOT overwrite the session
+            // AI accounts share the parent's tokens — do NOT overwrite the session
             // with parent-token auth state (Kotlin parity).
             sessionStore.updateFirebaseLoginState(false)
         } else {
@@ -270,9 +270,9 @@ extension AuthClient {
     }
 
     /// Delete the account via off-chain-agent (Kotlin
-    /// `DeleteAccountUseCase` main-account path) then logout. Bot
-    /// accounts additionally need the soft-delete-on-bot-server step —
-    /// that lands with the bots phase.
+    /// `DeleteAccountUseCase` main-account path) then logout. AI account
+    /// accounts additionally need the soft-delete-on-AI account-server step —
+    /// that lands with the AI accounts phase.
     public func deleteAccount() async throws {
         guard let idToken else {
             throw AuthError.oauthFailed(errorDescription: "Not signed in")

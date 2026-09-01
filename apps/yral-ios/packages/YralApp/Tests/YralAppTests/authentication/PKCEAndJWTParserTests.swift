@@ -55,7 +55,7 @@ struct PKCEAndJWTParserTests {
         let payloadJSON = #"""
         {"aud":"e1a6a7fb-8a1d-42dc-87b4-13ff94ecbe34","exp":1767225600,"iat":1767139200,
         "iss":"auth.yral.com","sub":"auth0|user-77","nonce":"n-1","ext_is_anonymous":false,
-        "email":"user@example.com","ext_ai_account_ids":["auth0|bot-1",null,"auth0|bot-2"]}
+        "email":"user@example.com","ext_ai_account_ids":["auth0|AI account-1",null,"auth0|AI account-2"]}
         """#
         let jwt = Self.makeJWT(payloadJSON: payloadJSON)
         let claims = try JWTParser.parsePayload(of: jwt)
@@ -69,7 +69,7 @@ struct PKCEAndJWTParserTests {
         #expect(claims.isAnonymous == false)
         #expect(claims.email == "user@example.com")
         // null elements in ext_ai_account_ids are dropped.
-        #expect(claims.botAccountIds == ["auth0|bot-1", "auth0|bot-2"])
+        #expect(claims.aiAccountIds == ["auth0|AI account-1", "auth0|AI account-2"])
         #expect(claims.isValid(currentTimeInEpochSeconds: 1_767_139_201))
         #expect(!claims.isValid(currentTimeInEpochSeconds: 1_767_225_600))
     }

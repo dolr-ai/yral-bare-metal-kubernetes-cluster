@@ -174,10 +174,10 @@ func parseSubscriptionPlan(_ array: [Any], at index: Int) throws -> SpacetimeSub
     }
 }
 
-/// `UserAccountType` — tag 0 `MainAccount(bots: Vec<String>)`, tag 1
+/// `UserAccountType` — tag 0 `MainAccount(aiAccounts: Vec<String>)`, tag 1
 /// `BotAccount(owner: String)`.
 public enum SpacetimeUserAccountType: Equatable, Sendable {
-    case mainAccount(bots: [String])
+    case mainAccount(aiAccounts: [String])
     case botAccount(owner: String)
 }
 
@@ -187,8 +187,8 @@ func parseUserAccountType(_ array: [Any], at index: Int) throws -> SpacetimeUser
     )
     switch variant.tag {
     case 0:
-        let bots = try SpacetimePositionalDecoder.array(variant.payload, at: 0)
-        return .mainAccount(bots: bots.compactMap { $0 as? String })
+        let aiAccounts = try SpacetimePositionalDecoder.array(variant.payload, at: 0)
+        return .mainAccount(aiAccounts: aiAccounts.compactMap { $0 as? String })
     case 1:
         return .botAccount(owner: try SpacetimePositionalDecoder.string(variant.payload, at: 0))
     default:
