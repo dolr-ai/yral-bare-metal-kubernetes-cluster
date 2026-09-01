@@ -321,14 +321,6 @@ url = "https://github.com/cargo-bins/cargo-binstall/releases/download/v1.22.0/ca
 url_api = "https://api.github.com/repos/cargo-bins/cargo-binstall/releases/assets/525164447"
 provenance = "github-attestations"
 
-[[tools."cargo:cargo-expand"]]
-version = "1.0.126"
-backend = "cargo:cargo-expand"
-
-[[tools."cargo:topcoat-cli"]]
-version = "0.6.2"
-backend = "cargo:topcoat-cli"
-
 [[tools."cargo:trunk"]]
 version = "0.21.14"
 backend = "cargo:trunk"
