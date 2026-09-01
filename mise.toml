@@ -598,10 +598,38 @@ description = "Resolve SPM dependencies for the YralApp package"
 dir = "apps/yral-ios/packages/YralApp"
 run = "swift package resolve"
 
-[tasks.yral-ios-build]
-description = "Build the iosApp target for the iOS Simulator (Debug, unsigned)"
+# The Firebase config plist is GITIGNORED (it contains the project's Google
+# Cloud API key — flagged by secret scanning when committed). Every build
+# path injects it from fnox first. Run standalone via fnox exec (the task
+# needs FNOX secrets in scope):
+#   fnox exec -- mise run yral-ios-inject-firebase-plist
+[tasks.yral-ios-inject-firebase-plist]
+description = "Materialize GoogleService-Info.plist from fnox (secrets via fnox exec)"
 dir = "apps/yral-ios"
 run = '''
+if [ -z "$YRAL_IOS_FIREBASE_PLIST_BASE64" ]; then
+  echo 'ERROR: YRAL_IOS_FIREBASE_PLIST_BASE64 not set — run via: fnox exec -- mise run yral-ios-inject-firebase-plist' >&2
+  exit 1
+fi
+printf '%s' "$YRAL_IOS_FIREBASE_PLIST_BASE64" | base64 -d > iosApp/GoogleService-Info.plist
+plutil -lint iosApp/GoogleService-Info.plist
+'''
+
+[tasks.yral-ios-build]
+description = "Build the iosApp target for the iOS Simulator (Debug, unsigned). Requires the Firebase plist (fnox exec -- mise run yral-ios-build)"
+dir = "apps/yral-ios"
+run = '''
+# GoogleService-Info.plist is gitignored and injected from fnox — it must
+# exist for the build (it's a bundle resource). Under `fnox exec --` the
+# secret materializes it; otherwise fall back to any plist left from a
+# previous inject, else fail with instructions.
+if [ -n "${YRAL_IOS_FIREBASE_PLIST_BASE64:-}" ]; then
+  printf '%s' "$YRAL_IOS_FIREBASE_PLIST_BASE64" | base64 -d > iosApp/GoogleService-Info.plist
+elif [ ! -f iosApp/GoogleService-Info.plist ]; then
+  echo 'ERROR: iosApp/GoogleService-Info.plist missing — run via: fnox exec -- mise run yral-ios-build' >&2
+  exit 1
+fi
+
 xcodebuild build \
   -project iosApp.xcodeproj \
   -scheme iosApp \
@@ -627,12 +655,13 @@ depends = ["yral-ios-lint", "yral-ios-test", "yral-ios-build"]
 run = "echo 'yral-ios checks: all green'"
 
 [tasks.yral-ios-clean]
-description = "Clean SPM and Xcode build outputs"
+description = "Clean SPM and Xcode build outputs (incl. the fnox-injected Firebase plist)"
 dir = "apps/yral-ios"
 run = '''
 swift package --package-path packages/YralApp clean
 rm -rf packages/YralApp/.build build
 rm -rf iosApp.xcodeproj/xcuserdata
+rm -f iosApp/GoogleService-Info.plist
 '''
 
 # Upload task is wrapped with `fnox exec --` so the four signing secrets in
@@ -649,7 +678,13 @@ set -euo pipefail
 
 # Inside fnox exec: YRAL_IOS_DIST_CERT_P12_BASE64, YRAL_IOS_DIST_PROFILE_BASE64,
 # YRAL_IOS_CERT_PASSWORD, APP_STORE_CONNECT_API_KEY_BASE64 (fnox.toml),
+# YRAL_IOS_FIREBASE_PLIST_BASE64 (fnox.toml — gitignored GoogleService-Info.plist),
 # YRAL_ASC_KEY_ID, YRAL_ASC_ISSUER_ID, YRAL_APPLE_TEAM_ID (mise [env]).
+
+# The Firebase plist is a required bundle resource — materialize it from
+# fnox before archiving.
+printf '%s' "$YRAL_IOS_FIREBASE_PLIST_BASE64" | base64 -d > iosApp/GoogleService-Info.plist
+plutil -lint iosApp/GoogleService-Info.plist
 
 WORKDIR="build/signing"
 mkdir -p "$WORKDIR" ~/Library/MobileDevice/Provisioning\ Profiles

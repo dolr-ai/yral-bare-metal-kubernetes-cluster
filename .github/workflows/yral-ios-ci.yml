@@ -51,7 +51,10 @@ jobs:
           xcode-version: latest-stable
 
       - name: Run checks (lint + package tests + simulator build)
-        run: mise run yral-ios-checks
+        # fnox exec injects YRAL_IOS_FIREBASE_PLIST_BASE64 — the gitignored
+        # GoogleService-Info.plist is a required bundle resource for the
+        # xcodebuild step.
+        run: fnox exec -- mise run yral-ios-checks
 
   upload-testflight:
     needs: checks

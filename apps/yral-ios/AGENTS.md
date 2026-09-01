@@ -13,6 +13,28 @@ documentation.
 
 ## Architecture rules
 
+- **Inline by default (Hard Rule).** Do not create unnecessary abstractions.
+  Most code lives inline at its call site. Introduce a
+  helper/wrapper/protocol/manager ONLY when duplication is massive AND an
+  abstraction is genuinely required — and ASK the operator before introducing
+  it. Concrete applications in Swift:
+  - No custom HTTP-client wrappers around `URLSession` — construct
+    `URLRequest` and check `URLResponse` statuses inline in each data-source
+    method.
+  - No repository/manager layers around thin API clients — the data source IS
+    the layer.
+  - Prefer deleting a wrapper over adding one when its body is a single
+    expression repeated a few times.
+
+- **Colocate logic beside its caller (Hard Rule).** Feature code (views,
+  data sources, models) lives together in `Sources/YralApp/Features/<Feature>/`
+  — NOT in a parallel `Core/` tree. The current `Core/` files are scaffolding
+  created before any feature UI existed; as Phase 2+ features land, move each
+  data source into the feature that owns it (auth client → `FeatureAuth/`,
+  feed client → `FeatureVideoFeed/`…). Promote a piece to a shared location
+  ONLY when a second feature consumes it — and ask first. Do not pre-create
+  shared/core modules ahead of their first consumer.
+
 - **Thin Xcode shell** (`iosApp.xcodeproj`) — targets, signing, assets, and
   the Crashlytics dSYM build phase only. Contains no product code. The
   pbxproj uses folder-synchronized groups: adding a file under `iosApp/`
@@ -89,12 +111,18 @@ altool resolves the API key by file convention:
 
 ## Firebase
 
-Single Firebase project (`yral-mobile` — same as the legacy app; bundle id
-unchanged). `GoogleService-Info.plist` lives in `iosApp/`. Crashlytics
-+ Analytics are initialized at launch (`YralAppRoot.configureFirebase()`),
-so every shipped build reports crashes from day one. The Crashlytics dSYM
-upload build phase runs after every Release build (path resolution documented
-in `project.pbxproj` comments).
+Single Firebase project (`yral-mobile`). **`GoogleService-Info.plist` is
+GITIGNORED** — it contains the project's Google Cloud API key, which GitHub
+secret scanning flags when committed (an earlier commit leaked it; the key
+was rotated 2026-09-01). The plist is stored in fnox
+(`YRAL_IOS_FIREBASE_PLIST_BASE64`, base64) and injected at build time:
+the `yral-ios-build` and `yral-ios-upload-testflight` tasks materialize it
+from the fnox secret when run under `fnox exec --`. Rotating the API key
+again: rotate in GCP console → update the fnox secret
+(see fnox.toml for the exact command). Crashlytics + Analytics initialize at
+launch (`YralAppRoot.configureFirebase()`), so every shipped build reports
+crashes from day one. The Crashlytics dSYM upload build phase runs after
+every Release build (path resolution documented in `project.pbxproj`).
 
 ## Phase status
 

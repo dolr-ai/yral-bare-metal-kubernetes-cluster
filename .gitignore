@@ -45,6 +45,9 @@ apps/yral-ios/iosApp.xcodeproj/project.xcworkspace/xcuserdata/
 apps/yral-ios/packages/YralApp/.build/
 apps/yral-ios/packages/YralApp/.swiftpm/
 apps/yral-ios/DerivedData/
+# Firebase config — contains the GCP API key (secret-scanning). Injected
+# from fnox at build time (YRAL_IOS_FIREBASE_PLIST_BASE64).
+apps/yral-ios/iosApp/GoogleService-Info.plist
 
 # Temporary files
 *.log
