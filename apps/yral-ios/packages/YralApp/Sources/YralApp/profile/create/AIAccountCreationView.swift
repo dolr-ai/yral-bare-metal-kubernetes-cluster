@@ -10,6 +10,16 @@ import SwiftUI
 /// creation pipeline) directly.
 struct AIAccountCreationView: View {
 
+    // TODO(create-offline-resumability): persist the wizard state across
+    // launches — descriptionText, generated instructions, the profile being
+    // reviewed, and the AICreationProgress record — so a user who leaves
+    // mid-flow (app killed, tab away, phone off) returns exactly where they
+    // were. The multi-step process + LLM latency makes abandonment likely;
+    // draft persistence (SwiftData/UserDefaults file) + the progress record's
+    // step guards give natural resumability. The pipeline steps themselves
+    // are already idempotent-guarded server-side, so only the UI state needs
+    // storing.
+
     let authClient: AuthClient
     let sessionStore: SessionStore
 

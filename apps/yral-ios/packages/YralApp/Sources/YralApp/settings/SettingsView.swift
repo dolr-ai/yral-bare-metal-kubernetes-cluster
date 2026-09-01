@@ -128,13 +128,6 @@ struct SettingsView: View {
 
     private var dangerSection: some View {
         Section {
-            NavigationLink {
-                AIAccountCreationView(authClient: authClient, sessionStore: sessionStore)
-            } label: {
-                Text("Create AI account")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
             Button {
                 isAccountSwitcherShown = true
             } label: {

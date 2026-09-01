@@ -33,9 +33,7 @@ struct RootScene: View {
             case .loading:
                 splash
             case .signedIn:
-                NavigationStack {
-                    signedInPlaceholder
-                }
+                MainTabView(authClient: authClient, sessionStore: sessionStore)
             }
         }
         .task { await authClient.initialize() }
@@ -48,39 +46,6 @@ struct RootScene: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.primary)
             ProgressView()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black)
-    }
-
-    /// Signed-in placeholder — the video-feed phase replaces this surface.
-    private var signedInPlaceholder: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 48))
-                .foregroundStyle(.primary)
-            Text("Yral")
-                .font(.largeTitle.bold())
-            Text("Signed in — feed arrives in the next phase")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            if let username = sessionStore.username {
-                Text("Hello, \(username)")
-                    .font(.headline)
-            }
-            if let principal = sessionStore.userPrincipal {
-                Text(principal)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-
-            NavigationLink {
-                SettingsView(authClient: authClient, sessionStore: sessionStore)
-            } label: {
-                Text("Settings")
-                    .font(.subheadline.weight(.semibold))
-            }
-            .padding(.top, 24)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)

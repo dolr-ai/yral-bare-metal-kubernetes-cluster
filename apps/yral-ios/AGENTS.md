@@ -77,7 +77,9 @@ documentation.
 - One target, one bundle id (`com.yral.iosApp`). TestFlight and App Store are
   distribution channels on the same App Store Connect app record — not
   separate apps. Version numbers continue past the legacy app (3.4.5/24).
-- Deployment target: iOS 18. Swift 6 language mode, `@Observable` throughout.
+- Deployment target: iOS 26. Swift 6 language mode, `@Observable` throughout.
+  iOS-only APIs used outside the test host are gated `#if canImport(UIKit)`
+  (the macOS host exists only for `swift test`).
 - Third-party deps via SPM only, exact-pinned in
   `packages/YralApp/Package.swift`. No CocoaPods, no fastlane, no Gemfile.
 - **Tooling is Apple-canonical**: `xcodebuild archive` →
@@ -91,6 +93,29 @@ documentation.
   shell is created once via Xcode GUI and stays static. Do not introduce
   XcodeGen/Tuist (third-party generator dependency for near-zero churn).
   Prefer editing the committed files directly over regenerating.
+
+## Design rules
+
+- **Native Liquid Glass everywhere (Hard Rule).** The app targets iOS 26 and
+  adopts its system look wholesale — no custom re-implementations of system
+  materials. Standard containers (`TabView`, `NavigationStack`, sheets,
+  alerts) render Liquid Glass for free; where a custom surface needs the
+  material, use the system glass effect APIs rather than hand-rolled
+  translucency. Do not build a bespoke design system on top of the native one.
+
+- **Native SwiftUI primitives over a design language (Hard Rule).** No
+  design system of our own — no custom color palette, no spacing scale, no
+  typography tokens, no custom component library. Use native colors
+  (`Color.black`, `Color.gray`, `.primary`/`.secondary`/`.tertiary`, `.pink`),
+  native fonts (`Font.system`/`.title`/`.headline`/`.caption`), and system
+  defaults inline at the call site. **If nothing matches exactly, pick the
+  NEAREST native thing** — color, size, spacing, corner radius, animation,
+  whatever — rather than inventing a custom value or a named constant for
+  it. Rationale: this kills bikeshedding over design-language adherence;
+  native primitives are inline (maximal convenience, minimum confusion),
+  and the app inherits platform evolution (new OS look, Dark Mode,
+  accessibility) for free. An earlier custom `SystemColors` helper was
+  created and deleted same-day for exactly this reason.
 
 ## Workflow (VS Code-first)
 
