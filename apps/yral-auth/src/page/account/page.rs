@@ -8,6 +8,22 @@ use crate::components::{spinner::Spinner, yral_symbol::YralSymbol};
 /// Self-service OAuth client ID (registered in the whitelist).
 pub const SELF_SERVICE_CLIENT_ID: &str = "7a2f3b8c-1d4e-4f5a-9b6c-7d8e9f0a1b2c";
 
+// TODO(account-page-all-providers, 2026-09-01): this page renders ONE
+// login button (GoogleLoginButton below) — navigating to auth.yral.com in
+// a browser lands HERE, so users only ever see "Sign in with Google".
+// The other two providers need buttons too: "Sign in with Apple"
+// (provider=apple — but first verify auth.yral.com is registered as a
+// return URL in Apple's Sign-In console; APPLE_CLIENT_ID +
+// APPLE_AUTH_KEY_PEM are already set) and "Sign in with Phone" /
+// WhatsApp (provider=phone — BLOCKED: the WhatsApp OTP pipeline is
+// broken, see src/context/message_delivery_service/mod.rs TODO; the
+// button would offer a dead flow until that token is rotated).
+// Simplest fix shape: delegate to the oauth-auth page's
+// build_login_buttons (page/auth.rs) instead of a hardcoded button.
+// ALSO fix: oauth_login_url() below pins provider=google AND sends
+// code_challenge = base64(32 ZERO bytes) — placeholder PKCE with zero
+// entropy. Generate a real verifier/challenge pair per login.
+
 // ---------------------------------------------------------------------------
 // Server functions (defined here so client stubs are available on hydrate)
 // ---------------------------------------------------------------------------

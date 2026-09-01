@@ -215,6 +215,19 @@ pub fn login_content(auth: Box<AuthQuery>) -> impl IntoView {
 
 #[cfg(any(feature = "phone-auth", feature = "google-oauth", feature = "apple-oauth"))]
 fn build_login_buttons(auth_store: StoredValue<Box<AuthQuery>>) -> Vec<AnyView> {
+    // TODO(auth-page-all-providers, 2026-09-01): navigating to
+    // auth.yral.com in a BROWSER lands on `/account` (page/account/
+    // page.rs) — the self-service account page — which renders a single
+    // hardcoded `GoogleLoginButton` (provider=google pinned in its
+    // oauth_login_url), NOT this three-button login page. This page
+    // (oauth/auth without a provider param) DOES render Continue with
+    // WhatsApp / Google / Apple (verified in the deployed WASM), but
+    // nothing links to it. Fix: add the WhatsApp + Apple buttons to the
+    // /account page too (or make /account delegate to this page's
+    // build_login_buttons instead of its own hardcoded button).
+    // ALSO: /account's self-service flow sends code_challenge =
+    // base64(32 zero bytes) — placeholder PKCE with zero entropy; give
+    // it a real verifier/challenge pair before relying on it.
     let mut login_buttons: Vec<AnyView> = Vec::new();
 
     #[cfg(feature = "phone-auth")]
