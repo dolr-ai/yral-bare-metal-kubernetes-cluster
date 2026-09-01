@@ -107,11 +107,11 @@ extension AIAccountCreationView {
                 )
             )
             // Creation succeeded — the draft is spent; a fresh wizard
-            // starts on the next Create tap. The done reveal slides
-            // forward from the profile form.
+            // starts on the next Create tap. Success stays ON THE REVIEW
+            // FORM (button flips to tick + "Go to Profile"; confetti plays
+            // over it — no separate done screen).
             previousStep = draft.step
-            draft = AICreationDraft()
-            draft.step = .done
+            draft.step = .succeeded
         } catch {
             if isUserCancellation(error) {
                 // Reset clears the draft — never resurrect the profile.

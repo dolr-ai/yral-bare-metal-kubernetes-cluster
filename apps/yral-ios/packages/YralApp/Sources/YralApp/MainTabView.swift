@@ -61,6 +61,7 @@ struct MainTabView: View {
                 AIAccountCreationView(
                     authClient: authClient,
                     sessionStore: sessionStore,
+                    onCreationCompleted: { selectedTab = .profile },
                     draft: $creationDraft
                 )
             }

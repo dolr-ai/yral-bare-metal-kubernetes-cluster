@@ -37,6 +37,9 @@ struct AIAccountCreationView: View {
 
     let authClient: AuthClient
     let sessionStore: SessionStore
+    /// Fired when the user taps "Go to Profile" after a successful
+    /// creation — MainTabView switches to the profile tab.
+    let onCreationCompleted: () -> Void
 
     // MARK: - Flow state
 
@@ -97,22 +100,22 @@ struct AIAccountCreationView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.black)
         .animation(.easeInOut(duration: 0.35), value: draft.step)
-        // The celebration overlay — confetti + party horn on the done
-        // step only (3D-accelerated via Canvas/Metal; zero hit-testing).
+        // The celebration overlay — confetti + horn over the review form
+        // on success (no separate done screen; 3D-accelerated via
+        // Canvas/Metal; zero hit-testing).
         #if canImport(UIKit)
             .overlay {
-                if draft.step == .done {
+                if draft.step == .succeeded {
                     CelebrationView()
                 }
             }
         #endif
         // Pull-down LEAVES (never discards — the draft lives in
-        // MainTabView): in-flight work is stopped here and the draft
-        // resumes on the next Create tap. A completed wizard's draft is
-        // spent, so it resets for the next run.
+        // MainTabView): in-flight work is stopped here. A SUCCEEDED
+        // wizard's draft is spent, so it resets for the next run.
         .onDisappear {
             flowTask?.cancel()
-            if draft.step == .done {
+            if draft.step == .succeeded {
                 draft = AICreationDraft()
             }
         }
@@ -151,20 +154,22 @@ struct AIAccountCreationView: View {
             ) {
                 flowTask = Task { await generateMetadata() }
             }
-        case .reviewProfile, .creating:
+        case .reviewProfile, .creating, .succeeded:
             if let profileUnderReview = draft.profileUnderReview {
                 ProfileReviewForm(
                     profile: Binding(
                         get: { draft.profileUnderReview ?? profileUnderReview },
                         set: { draft.profileUnderReview = $0 }
                     ),
-                    isWorking: draft.step.isWorking
+                    isWorking: draft.step.isWorking,
+                    hasSucceeded: draft.step == .succeeded
                 ) {
                     flowTask = Task { await createAccount(profile: draft.profileUnderReview ?? profileUnderReview) }
+                } onGoToProfile: {
+                    dismiss()
+                    onCreationCompleted()
                 }
             }
-        case .done:
-            doneView
         }
     }
 
@@ -189,7 +194,8 @@ struct AIAccountCreationView: View {
     }
 
     /// Does the draft hold anything worth confirming on Reset? A blank
-    /// first screen (and the done screen) has nothing to clear.
+    /// first screen has nothing to clear; a succeeded draft is spent
+    /// (leaving resets it anyway).
     private var hasDraftContent: Bool {
         switch draft.step {
         case .descriptionEntry:
@@ -197,7 +203,7 @@ struct AIAccountCreationView: View {
         case .personaReview, .reviewProfile,
              .generatingPersona, .generatingMetadata, .creating:
             return true
-        case .done:
+        case .succeeded:
             return false
         }
     }
@@ -227,7 +233,7 @@ struct AIAccountCreationView: View {
         case .reviewProfile:
             draft.step = .personaReview
         case .descriptionEntry, .generatingPersona, .generatingMetadata,
-             .creating, .done:
+             .creating, .succeeded:
             break
         }
     }
@@ -236,24 +242,6 @@ struct AIAccountCreationView: View {
     /// an in-flight call — surfaced as a quiet return, not an error.
     func isUserCancellation(_ error: Error) -> Bool {
         error is CancellationError || (error as? URLError)?.code == .cancelled
-    }
-
-    // MARK: - Done
-
-    private var doneView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.pink)
-            Text("Your AI account is live")
-                .font(.title2.weight(.semibold))
-            Button("Done") {
-                dismiss()
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.pink)
-        }
-        .padding(.top, 120)
     }
 
     /// Kotlin `extractServerMessage` parity — HTTP error bodies carry the
@@ -278,12 +266,13 @@ struct AIAccountCreationView: View {
             sessionStore: sessionStore
         ),
         sessionStore: sessionStore,
+        onCreationCompleted: {},
         draft: .constant(AICreationDraft())
     )
     .preferredColorScheme(.dark)
 }
 
-#Preview("wizard — done (with confetti)") {
+#Preview("wizard — done (confetti over the review form)") {
     let sessionStore = SessionStore()
     AIAccountCreationView(
         authClient: AuthClient(
@@ -292,7 +281,8 @@ struct AIAccountCreationView: View {
             sessionStore: sessionStore
         ),
         sessionStore: sessionStore,
-        draft: .constant(AICreationDraft(step: .done))
+        onCreationCompleted: {},
+        draft: .constant(AICreationDraft(step: .succeeded))
     )
     .preferredColorScheme(.dark)
 }
