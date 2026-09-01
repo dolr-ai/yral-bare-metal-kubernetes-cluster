@@ -47,8 +47,19 @@ public enum OAuthCallbackParser {
         redirectHost: String = "oauth",
         redirectPath: String = "/callback"
     ) -> OAuthResult? {
-        guard callbackURL.scheme == redirectScheme,
-              callbackURL.host == redirectHost,
+        // THE invalid_callback fix. RFC 3986: scheme (§3.1) and host (§3.2.2)
+        // are case-INSENSITIVE; the path (§3.3) is case-sensitive. Foundation's
+        // URL parser (WHATWG-based since iOS 17) lowercases the scheme while
+        // parsing, so a redirect registered as "com.yral.iosApp://…" arrives
+        // with `.scheme == "com.yral.iosapp"` while `redirectScheme` (verbatim
+        // from Info.plist) keeps the mixed case — the previous exact `==`
+        // rejected EVERY callback (the `invalid_callback` failure). The Kotlin
+        // original matched raw strings, where case survives parsing, so
+        // case-insensitive comparison is the faithful behavior here.
+        guard let scheme = callbackURL.scheme,
+              scheme.lowercased() == redirectScheme.lowercased(),
+              let host = callbackURL.host,
+              host.lowercased() == redirectHost.lowercased(),
               callbackURL.path == redirectPath
         else { return nil }
 
