@@ -56,6 +56,12 @@ struct MainTabView: View {
                 AIAccountCreationView(authClient: authClient, sessionStore: sessionStore)
             }
             .presentationDetents([.large])
+            // The system grabber — the visible cue that this sheet pulls
+            // down to dismiss (operator request 2026-09-01). While a
+            // creation step is in flight, AIAccountCreationView disables
+            // the gesture (interactiveDismissDisabled) and its Cancel
+            // button is the way out.
+            .presentationDragIndicator(.visible)
         }
     }
 }

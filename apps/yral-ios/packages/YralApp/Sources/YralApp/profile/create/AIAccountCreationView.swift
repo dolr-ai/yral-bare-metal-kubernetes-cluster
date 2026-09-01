@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 /// AI account creation — SwiftUI port of the Kotlin AiInfluencer wizard
@@ -8,6 +9,12 @@ import SwiftUI
 /// No view model — state lives HERE as @State; the flow calls
 /// `AIInfluencerDataSource` (persona LLM) and `AIAccountCreator` (the
 /// creation pipeline) directly.
+///
+/// Navigation chrome: the header's Cancel leaves the sheet (with a
+/// discard confirmation once anything is typed/generated), the
+/// chevron-back reworks earlier steps, and the loading step's Cancel
+/// STOPS the in-flight call (swipe-down is disabled while it runs).
+/// The sheet's grabber (see MainTabView) signals pullability.
 struct AIAccountCreationView: View {
 
     // TODO(create-offline-resumability): persist the wizard state across
@@ -25,21 +32,16 @@ struct AIAccountCreationView: View {
 
     // MARK: - Flow state
 
-    private enum FlowStep {
-        case descriptionEntry
-        case generatingPersona
-        case personaReview(instructions: String)
-        case generatingMetadata(instructions: String)
-        case reviewProfile(AIProfileDetails)
-        case creating
-        case done
-    }
-
     @State private var step: FlowStep = .descriptionEntry
     @State private var descriptionText = ""
     @State private var instructionsText = ""
     @State private var errorMessage: String?
     @State private var creationProgress: AICreationProgress?
+    /// The in-flight step task (persona/metadata/creation) — the loading
+    /// step's Cancel stops it; cancellation propagates into its
+    /// URLSession awaits.
+    @State private var flowTask: Task<Void, Never>?
+    @State private var isDiscardDialogShown = false
     @Environment(\.dismiss) private var dismiss
 
     /// Kotlin `PROMPT_CHAR_LIMIT`.
@@ -54,15 +56,32 @@ struct AIAccountCreationView: View {
 
     var body: some View {
         VStack(spacing: 16) {
+            if step.showsHeader {
+                AICreationHeader(
+                    showsBackButton: step.showsBackButton,
+                    onBack: goBack,
+                    onCancel: requestDismiss
+                )
+            }
+
             switch step {
             case .descriptionEntry:
-                descriptionEntry
+                DescriptionEntryForm(
+                    descriptionText: $descriptionText,
+                    characterLimit: promptCharacterLimit
+                ) {
+                    flowTask = Task { await generatePersona() }
+                }
             case .generatingPersona, .generatingMetadata, .creating:
                 loading
-            case let .personaReview(instructions):
-                personaReview(instructions)
+            case .personaReview:
+                PersonaReviewForm(instructionsText: $instructionsText) {
+                    flowTask = Task { await generateMetadata() }
+                }
             case let .reviewProfile(profile):
-                profileReview(profile)
+                ProfileReviewForm(profile: profile) {
+                    flowTask = Task { await createAccount(profile: profile) }
+                }
             case .done:
                 doneView
             }
@@ -76,75 +95,65 @@ struct AIAccountCreationView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 46)
+        .padding(.top, 20)
         .padding(.bottom, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.black)
+        // Swipe-down while a generation/creation runs would silently kill
+        // an in-flight pipeline — the gesture is disabled then, and the
+        // loading step's own Cancel button is the way out.
+        .interactiveDismissDisabled(step.isGenerationInFlight)
+        .confirmationDialog(
+            "Discard this AI?",
+            isPresented: $isDiscardDialogShown,
+            titleVisibility: .visible
+        ) {
+            Button("Discard and close", role: .destructive) { dismiss() }
+            Button("Keep creating", role: .cancel) {}
+        } message: {
+            Text("Your progress so far will be lost.")
+        }
         #if canImport(UIKit)
             .toolbar(.hidden, for: .navigationBar)
         #endif
     }
 
-    // MARK: - Step 1: describe the persona
-
-    private var descriptionEntry: some View {
-        DescriptionEntryForm(
-            descriptionText: $descriptionText,
-            characterLimit: promptCharacterLimit
-        ) {
-            Task { await generatePersona() }
+    /// Anything worth a discard confirmation? A blank first screen
+    /// dismisses immediately; typed text or a generated persona asks.
+    private var hasWizardContent: Bool {
+        switch step {
+        case .descriptionEntry:
+            return !descriptionText.isBlank
+        case .personaReview, .reviewProfile:
+            return true
+        case .generatingPersona, .generatingMetadata, .creating, .done:
+            return false
         }
     }
 
-    // MARK: - Step 2: review the generated persona
-
-    private func personaReview(_ instructions: String) -> some View {
-        PersonaReviewForm(instructionsText: $instructionsText) {
-            Task { await generateMetadata() }
+    private func requestDismiss() {
+        if hasWizardContent {
+            isDiscardDialogShown = true
+        } else {
+            dismiss()
         }
     }
 
-    // MARK: - Step 3: review the profile
-
-    private func profileReview(_ profile: AIProfileDetails) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(profile.displayName)
-                .font(.title2.weight(.semibold))
-
-            if let avatarURL = URL(string: profile.avatarURL) {
-                AsyncImage(url: avatarURL) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Color.gray.opacity(0.25)
-                }
-                .frame(width: 96, height: 96)
-                .clipShape(Circle())
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text(profile.description)
-                    .font(.subheadline)
-                if !profile.suggestedMessages.isEmpty {
-                    Text("Says things like: \(profile.suggestedMessages.prefix(3).joined(separator: " • "))")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                Text("Category: \(profile.category)")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            Button {
-                Task { await createAccount(profile: profile) }
-            } label: {
-                Text("Create AI account")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.pink)
+    private func goBack() {
+        switch step {
+        case .personaReview:
+            step = .descriptionEntry
+        case .reviewProfile:
+            step = .personaReview(instructions: instructionsText)
+        case .descriptionEntry, .generatingPersona, .generatingMetadata, .creating, .done:
+            break
         }
+    }
+
+    /// True when the error is the user's own Cancel from the loading
+    /// step — surfaced as a quiet return, not an error message.
+    private func isUserCancellation(_ error: Error) -> Bool {
+        error is CancellationError || (error as? URLError)?.code == .cancelled
     }
 
     // MARK: - Loading + done
@@ -156,9 +165,11 @@ struct AIAccountCreationView: View {
             Text("Your AI is thinking…")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+            // Actually stops the in-flight call (cancellation propagates
+            // into the task's URLSession awaits); the step's catch returns
+            // to the previous screen without an error message.
             Button("Cancel") {
-                step = .descriptionEntry
-                errorMessage = nil
+                flowTask?.cancel()
             }
             .font(.subheadline)
         }
@@ -198,7 +209,9 @@ struct AIAccountCreationView: View {
             step = .personaReview(instructions: instructions)
         } catch {
             step = .descriptionEntry
-            errorMessage = errorText(of: error)
+            if !isUserCancellation(error) {
+                errorMessage = errorText(of: error)
+            }
         }
     }
 
@@ -237,7 +250,9 @@ struct AIAccountCreationView: View {
             step = .reviewProfile(profile)
         } catch {
             step = .personaReview(instructions: instructionsText)
-            errorMessage = errorText(of: error)
+            if !isUserCancellation(error) {
+                errorMessage = errorText(of: error)
+            }
         }
     }
 
@@ -264,9 +279,13 @@ struct AIAccountCreationView: View {
             creationProgress = nil
             step = .done
         } catch {
+            // A cancelled run keeps the partially-completed progress
+            // record — a retry resumes where the pipeline stopped.
             creationProgress = progress
             step = .reviewProfile(profile)
-            errorMessage = errorText(of: error)
+            if !isUserCancellation(error) {
+                errorMessage = errorText(of: error)
+            }
         }
     }
 
@@ -280,83 +299,45 @@ struct AIAccountCreationView: View {
     }
 }
 
-/// Step 1 — describe the AI account (Kotlin DescriptionEntry).
-private struct DescriptionEntryForm: View {
-    @Binding var descriptionText: String
-    let characterLimit: Int
-    let onContinue: () -> Void
+/// The wizard's step machine — navigation semantics live ON the step
+/// (which screens show the header/back button, when the sheet's
+/// swipe-down is disabled) so the view reads them straight off `step`.
+private enum FlowStep {
+    case descriptionEntry
+    case generatingPersona
+    case personaReview(instructions: String)
+    case generatingMetadata(instructions: String)
+    case reviewProfile(AIProfileDetails)
+    case creating
+    case done
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Create your AI")
-                .font(.title2.weight(.semibold))
-            Text("Describe the AI account you want — personality, style, what it posts about.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            TextField(
-                "e.g. A witty travel photographer sharing hidden gems…",
-                text: $descriptionText,
-                axis: .vertical
-            )
-            .lineLimit(5...10)
-            .padding(12)
-            .background(
-                Color.gray.opacity(0.2),
-                in: RoundedRectangle(cornerRadius: 8)
-            )
-            .onChange(of: descriptionText) { _, newValue in
-                if newValue.count > characterLimit {
-                    descriptionText = String(newValue.prefix(characterLimit))
-                }
-            }
-
-            Button(action: onContinue) {
-                Text("Continue")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.pink)
-            .disabled(descriptionText.isBlank)
+    /// Header on the three interactive steps only — loading steps carry
+    /// their own Cancel, and Done dismisses.
+    var showsHeader: Bool {
+        switch self {
+        case .descriptionEntry, .personaReview, .reviewProfile:
+            return true
+        case .generatingPersona, .generatingMetadata, .creating, .done:
+            return false
         }
     }
-}
 
-/// Step 2 — review/edit the generated persona instructions
-/// (Kotlin PersonaReview).
-private struct PersonaReviewForm: View {
-    @Binding var instructionsText: String
-    let onContinue: () -> Void
+    var showsBackButton: Bool {
+        switch self {
+        case .personaReview, .reviewProfile:
+            return true
+        case .descriptionEntry, .generatingPersona, .generatingMetadata, .creating, .done:
+            return false
+        }
+    }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Persona")
-                .font(.title2.weight(.semibold))
-            Text("Edit the AI account's instructions, then continue to generate its profile.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            TextEditor(text: $instructionsText)
-                .font(.body)
-                .frame(maxHeight: 220)
-                .scrollContentBackground(.hidden)
-                .padding(8)
-                .background(
-                    Color.gray.opacity(0.2),
-                    in: RoundedRectangle(cornerRadius: 8)
-                )
-
-            Button(action: onContinue) {
-                Text("Generate profile")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.pink)
-            .disabled(instructionsText.isBlank)
+    /// True while a network step runs — swipe-down is disabled then.
+    var isGenerationInFlight: Bool {
+        switch self {
+        case .generatingPersona, .generatingMetadata, .creating:
+            return true
+        case .descriptionEntry, .personaReview, .reviewProfile, .done:
+            return false
         }
     }
 }
