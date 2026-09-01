@@ -40,7 +40,7 @@ jobs:
       # write` (top of this file) + persist-credentials (checkout default)
       # is GitHub's documented way to push the version bump back to main.
       - name: Check out main branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: main
 

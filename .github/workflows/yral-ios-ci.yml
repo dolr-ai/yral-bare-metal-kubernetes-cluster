@@ -39,7 +39,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # mise-action installs the toolchain declared in mise.toml. Xcode itself
       # is pinned below (preinstalled on the runner image).
@@ -82,7 +82,7 @@ jobs:
   #   runs-on: macos-latest
   #   steps:
   #     - name: Check out repository
-  #       uses: actions/checkout@v4
+  #       uses: actions/checkout@v7
   #
   #     - name: Set up mise + project tools
   #       uses: jdx/mise-action@v2
