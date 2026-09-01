@@ -208,6 +208,26 @@ public enum AuthError: Error, Equatable {
     case oauthFailed(errorDescription: String)
 }
 
+extension AuthError: LocalizedError {
+    /// Human-readable text for surfacing in the UI.
+    public var errorDescription: String? {
+        switch self {
+        case let .randomGenerationFailed(status):
+            return "Random generation failed (status \(status))"
+        case let .malformedJWT(reason):
+            return "Malformed JWT: \(reason)"
+        case let .missingRequiredClaim(claim):
+            return "Missing required JWT claim: \(claim)"
+        case let .malformedClaim(key, reason):
+            return "Malformed JWT claim \(key): \(reason)"
+        case .stateMismatch:
+            return "Session state mismatch — possible CSRF, please retry"
+        case let .oauthFailed(errorDescription):
+            return errorDescription
+        }
+    }
+}
+
 extension String {
     /// Whitespace-or-empty check (Kotlin `isBlank`).
     var isBlank: Bool { allSatisfy(\.isWhitespace) }

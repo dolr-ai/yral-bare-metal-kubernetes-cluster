@@ -37,7 +37,10 @@ enum BrowserAuthSession {
         authClient: AuthClient
     ) async throws -> OAuthResult {
         let authorizationURL = try authClient.socialAuthorizationURL(provider: provider)
-        let callbackURL = try await runSession(authorizationURL: authorizationURL)
+        let callbackURL = try await runSession(
+            authorizationURL: authorizationURL,
+            redirectScheme: authClient.redirectScheme
+        )
         return OAuthCallbackParser.parse(
             callbackURL: callbackURL,
             redirectScheme: authClient.redirectScheme
@@ -61,16 +64,29 @@ enum BrowserAuthSession {
     ///
     /// The session is held for the flow's duration (the Kotlin code kept
     /// it in `authSession`) — a released session cancels its sheet.
-    /// The browser session held for the flow's duration (the Kotlin code
-    /// kept it in `authSession`) — a released session cancels its sheet.
     /// @MainActor-isolated: the entire flow (create, start, completion,
     /// release) runs on the main actor — ASWebAuthenticationSession's
     /// completion is delivered on the main queue — so no cross-actor access
     /// exists; this is concurrency-safe without a lock.
     @MainActor private static var retainedSession: ASWebAuthenticationSession?
 
+    /// THE presentation fix: `presentationContextProvider` is a WEAK
+    /// property — the session does not retain its provider. Assigning a
+    /// temporary (`= PresentationAnchorProvider()`) lets ARC deallocate it
+    /// at the end of that very statement, leaving the session with no
+    /// presentation context: `start()` then fails with
+    /// `ASWebAuthenticationSessionError.presentationContextNotProvided`
+    /// (on iOS 18 the completion fires synchronously — the start-failure
+    /// path the resume flag guards against). This permanently-retained,
+    /// stateless singleton provides the strong reference; the anchor
+    /// window is resolved dynamically at presentation time.
+    @MainActor private static let anchorProvider = PresentationAnchorProvider()
+
     @MainActor
-    private static func runSession(authorizationURL: URL) async throws -> URL {
+    private static func runSession(
+        authorizationURL: URL,
+        redirectScheme: String
+    ) async throws -> URL {
         // Local (not static) resume flag — captured by both the handler and
         // the start() branch; both run on the main actor, so plain captured
         // var access is race-free.
@@ -90,7 +106,11 @@ enum BrowserAuthSession {
         return try await withCheckedThrowingContinuation { continuation in
             let session = ASWebAuthenticationSession(
                 url: authorizationURL,
-                callbackURLScheme: "com.yral.iosApp"
+                // Must be the SAME scheme the authorize URL's redirect_uri
+                // and the parser use: yral-auth redirects to
+                // `<redirectScheme>://oauth/callback`, and the session only
+                // intercepts a matching callbackURLScheme.
+                callbackURLScheme: redirectScheme
             ) { callbackURL, error in
                 guard !resumeFlag.hasResumed else { return }
                 resumeFlag.setResumed()
@@ -108,7 +128,7 @@ enum BrowserAuthSession {
                     )
                 }
             }
-            session.presentationContextProvider = PresentationAnchorProvider()
+            session.presentationContextProvider = Self.anchorProvider
             session.prefersEphemeralWebBrowserSession = true
             Self.retainedSession = session
             if !session.start() && !resumeFlag.hasResumed {
@@ -142,7 +162,10 @@ enum BrowserAuthSession {
     #else
     /// macOS test host — the browser session is iOS-only; tests drive
     /// `handleOAuthCallbackResult` directly with fabricated results.
-    private static func runSession(authorizationURL: URL) async throws -> URL {
+    private static func runSession(
+        authorizationURL: URL,
+        redirectScheme: String
+    ) async throws -> URL {
         throw AuthError.oauthFailed(
             errorDescription: "Browser auth unavailable on this platform"
         )

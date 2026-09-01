@@ -295,8 +295,16 @@ public struct SignInView: View {
             )
             try await authClient.handleOAuthCallbackResult(result)
         } catch {
-            socialAuthError = "Sign-in failed — please try again."
+            // Surface the underlying reason — a generic copy hides the
+            // actual cause while testing.
+            socialAuthError = "Sign-in failed: \(errorText(of: error))"
         }
+    }
+
+    /// Short human text for sign-in errors (LocalizedError text for typed
+    /// AuthErrors; description for anything else).
+    private func errorText(of error: Error) -> String {
+        (error as? LocalizedError)?.errorDescription ?? String(describing: error)
     }
 }
 
