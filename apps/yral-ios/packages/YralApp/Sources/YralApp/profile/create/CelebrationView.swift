@@ -9,16 +9,27 @@ import UIKit
 /// via Metal, so hundreds of flakes cost nothing — no per-frame Swift
 /// object churn, no stutters). One deterministic burst at the done step.
 ///
-/// The party horn plays in sync (system sound 1104, AudioServices — no
-/// audio session juggling for a one-shot effect).
+/// The sound plays in sync (AudioServices system sound — no audio
+/// session juggling for a one-shot effect).
 struct CelebrationView: View {
     /// Confetti flakes, seeded once — pure value structs, updated by
     /// elapsed time inside the Canvas draw (no @State churn per frame).
     private let flakes: [ConfettiFlake]
 
-    /// The system "party horn" sound. 1104 is the short celebratory
-    /// horn; played once at creation. NOT muted in previews — the
-    /// operator wants to hear exactly what ships.
+    // TODO(party-horn-sound): 1104 is NOT a party horn — it's
+    // "Submarine" (a sonar bubble). AudioServicesPlaySystemSound IDs
+    // are UNDOCUMENTED by Apple: there is no official catalogue page
+    // and no official audition app. To audition: on a DEVICE, the files
+    // live at /System/Library/Audio/UISounds/ (list + play them via a
+    // playground on a dev unit); the classic low IDs map to the Mac's
+    // /System/Library/Sounds (Basso, Blow, Bottle, Frog, Funk, Glass,
+    // Hero, Morse, Pop, Purr, Sosumi, Submarine, Tink — audition with
+    // `afplay /System/Library/Sounds/<name>.aiff`) — none is a real
+    // party horn. Options: (a) audition the device UISounds folder and
+    // pick a verified ID, or (b) bundle our own horn asset and play it
+    // with AVAudioPlayer. Until then the preview (unmuted, per the
+    // previews rule) plays 1104 so the operator hears exactly what
+    /// ships.
     private let playsPartyHorn: Bool
 
     init(playsPartyHorn: Bool = true) {
@@ -60,8 +71,8 @@ struct CelebrationView: View {
         .ignoresSafeArea()
         .task {
             if playsPartyHorn {
-                // System party-horn sound (AudioServices one-shot — no
-                // session configuration needed for a UI sound).
+                // See the party-horn-sound TODO above: 1104 = Submarine
+                // (NOT a horn) — placeholder until a proper sound is picked.
                 AudioServicesPlaySystemSound(1104)
             }
         }

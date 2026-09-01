@@ -24,7 +24,7 @@ struct ProfileReviewForm: View {
                     } placeholder: {
                         Color.gray.opacity(0.25)
                     }
-                    .frame(width: 140, height: 140)
+                    .frame(width: 240, height: 240)
                     .clipShape(Circle())
                 }
             }
