@@ -46,12 +46,11 @@ struct RootScene: View {
         VStack(spacing: 16) {
             Image(systemName: "sparkles")
                 .font(.system(size: 48))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
             ProgressView()
-                .tint(.white)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(red: 0.04, green: 0.04, blue: 0.06))
+        .background(Color.black)
     }
 
     /// Signed-in placeholder — the video-feed phase replaces this surface.
@@ -59,22 +58,20 @@ struct RootScene: View {
         VStack(spacing: 16) {
             Image(systemName: "sparkles")
                 .font(.system(size: 48))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
             Text("Yral")
                 .font(.largeTitle.bold())
-                .foregroundStyle(.white)
             Text("Signed in — feed arrives in the next phase")
                 .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(.secondary)
             if let username = sessionStore.username {
                 Text("Hello, \(username)")
                     .font(.headline)
-                    .foregroundStyle(.white)
             }
             if let principal = sessionStore.userPrincipal {
                 Text(principal)
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.4))
+                    .foregroundStyle(.tertiary)
             }
 
             NavigationLink {
@@ -82,12 +79,11 @@ struct RootScene: View {
             } label: {
                 Text("Settings")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
             }
             .padding(.top, 24)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(red: 0.04, green: 0.04, blue: 0.06))
+        .background(Color.black)
     }
 }
 

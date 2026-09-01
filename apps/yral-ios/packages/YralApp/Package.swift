@@ -23,9 +23,13 @@ let firebaseAppleSdkVersion: Version = "12.18.0"
 let package = Package(
     name: "YralApp",
     platforms: [
-        .iOS(.v18),
+        // iOS 26: adopt the native Liquid Glass look (system chrome
+        // renders glass automatically; custom styles dropped in favor of
+        // system materials). Pre-launch, so dropping iOS 18–25 devices
+        // costs nothing.
+        .iOS(.v26),
         // macOS is declared ONLY so `swift test` can run on the host (Swift
-        // Testing executes on macOS). The app ships iOS 18 exclusively; the
+        // Testing executes on macOS). The app ships iOS 26 exclusively; the
         // macOS floor exists to satisfy Firebase's minimum. iOS-only code must
         // be gated with `#if canImport(UIKit)` so host-side tests keep working.
         .macOS(.v15)

@@ -42,11 +42,10 @@ public struct SignInView: View {
                 VStack(spacing: 8) {
                     Text("Continue to sign up for free")
                         .font(.title2.weight(.semibold))
-                        .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
                     Text("Create your account to start watching and earning")
                         .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
@@ -61,7 +60,7 @@ public struct SignInView: View {
                 if let socialAuthError {
                     Text(socialAuthError)
                         .font(.footnote)
-                        .foregroundStyle(Color(red: 1.0, green: 0.45, blue: 0.6))
+                        .foregroundStyle(.pink)
                         .multilineTextAlignment(.center)
                         .padding(.top, 8)
                 }
@@ -69,7 +68,7 @@ public struct SignInView: View {
             .padding(.horizontal, 16)
             .padding(.top, 46)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .background(Color(red: 0.04, green: 0.04, blue: 0.06))
+            .background(Color.black)
             #if canImport(UIKit)
                 .toolbar(.hidden, for: .navigationBar)
             #endif
@@ -142,7 +141,7 @@ public struct SignInView: View {
             if let validationError = phoneValidationError {
                 Text(validationError)
                     .font(.footnote)
-                    .foregroundStyle(Color(red: 1.0, green: 0.45, blue: 0.6))
+                    .foregroundStyle(.pink)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
@@ -155,7 +154,7 @@ public struct SignInView: View {
                     .padding(.vertical, 14)
             }
             .buttonStyle(.borderedProminent)
-            .tint(Color(red: 0.95, green: 0.25, blue: 0.55))
+            .tint(.pink)
             .disabled(isRequestingOTP)
         }
     }
@@ -238,9 +237,9 @@ public struct SignInView: View {
 
     private var termsOfServiceText: some View {
         (Text("By continuing, you agree to our ")
-            + Text("Terms of Service").underline().foregroundStyle(.white))
+            + Text("Terms of Service").underline().foregroundStyle(.pink))
             .font(.footnote)
-            .foregroundStyle(.white.opacity(0.6))
+            .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
             .onTapGesture {
@@ -256,9 +255,9 @@ public struct SignInView: View {
 
     private var orDivider: some View {
         HStack(spacing: 12) {
-            Rectangle().fill(Color(white: 0.28)).frame(height: 1)
-            Text("or").font(.subheadline).foregroundStyle(.white.opacity(0.5))
-            Rectangle().fill(Color(white: 0.28)).frame(height: 1)
+            Rectangle().fill(.separator).frame(height: 1)
+            Text("or").font(.subheadline).foregroundStyle(.tertiary)
+            Rectangle().fill(.separator).frame(height: 1)
         }
         .padding(.vertical, 8)
     }
@@ -284,9 +283,9 @@ public struct SignInView: View {
         } label: {
             ZStack {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(white: 0.12))
+                    .fill(Color.gray.opacity(0.2))
                     .frame(height: 52)
-                icon.foregroundStyle(.white)
+                icon.foregroundStyle(.primary)
             }
         }
         .buttonStyle(.plain)
@@ -323,24 +322,26 @@ private struct CountryPickerButton: View {
                     AsyncImage(url: flagURL) { image in
                         image.resizable().scaledToFit()
                     } placeholder: {
-                        Color(white: 0.2)
+                        Color.gray.opacity(0.25)
                     }
                     .frame(width: 24, height: 16)
                     .clipShape(RoundedRectangle(cornerRadius: 2))
                 }
                 Text(country?.dialCode ?? "+1")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
                 Image(systemName: "chevron.down")
                     .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 12)
             .frame(height: 44)
-            .background(Color(white: 0.13), in: RoundedRectangle(cornerRadius: 8))
+            .background(
+                Color.gray.opacity(0.2),
+                in: RoundedRectangle(cornerRadius: 8)
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color(white: 0.28), lineWidth: 1)
+                    .stroke(Color.gray.opacity(0.35), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -358,7 +359,6 @@ private struct PhoneInputRow: View {
         HStack(spacing: 8) {
             Text(selectedCountry?.dialCode ?? "+1")
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white)
             TextField("Enter mobile number", text: Binding(
                 get: { nationalNumber },
                 set: { newValue in
@@ -371,18 +371,18 @@ private struct PhoneInputRow: View {
             #if canImport(UIKit)
             .keyboardType(.numberPad)
             #endif
-            .foregroundStyle(.white)
         }
         .padding(.horizontal, 12)
         .frame(height: 44)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(white: 0.13), in: RoundedRectangle(cornerRadius: 8))
+        .background(
+            Color.gray.opacity(0.2),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .stroke(
-                    isError
-                        ? Color(red: 1.0, green: 0.45, blue: 0.6)
-                        : Color(white: 0.28),
+                    isError ? Color.pink : Color.gray.opacity(0.35),
                     lineWidth: 1
                 )
         )

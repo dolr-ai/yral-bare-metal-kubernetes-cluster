@@ -52,7 +52,7 @@ struct SettingsView: View {
             #endif
             .scrollContentBackground(.hidden)
         }
-        .background(Color(red: 0.04, green: 0.04, blue: 0.06))
+        .background(Color.black)
         #if canImport(UIKit)
             .toolbar(.hidden, for: .navigationBar)
         #endif
@@ -76,7 +76,6 @@ struct SettingsView: View {
         ZStack {
             Text("Settings")
                 .font(.title3.bold())
-                .foregroundStyle(.white)
         }
         .padding(.vertical, 12)
     }
@@ -90,7 +89,7 @@ struct SettingsView: View {
                     AsyncImage(url: URL(string: profilePicURL)) { image in
                         image.resizable().scaledToFill()
                     } placeholder: {
-                        Color(white: 0.2)
+                        Color.gray.opacity(0.25)
                     }
                     .frame(width: 44, height: 44)
                     .clipShape(Circle())
@@ -98,15 +97,13 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(sessionStore.username ?? "Anonymous")
                         .font(.headline)
-                        .foregroundStyle(.white)
                     Text(sessionStore.userPrincipal ?? "")
                         .font(.caption)
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
             }
-            .listRowBackground(Color(white: 0.13))
         }
     }
 
@@ -116,10 +113,8 @@ struct SettingsView: View {
         Section {
             Toggle(isOn: $isAlertsEnabled) {
                 Text("Notifications")
-                    .foregroundStyle(.white)
             }
-            .tint(Color(red: 0.95, green: 0.25, blue: 0.55))
-            .listRowBackground(Color(white: 0.13))
+            .tint(.pink)
             .onChange(of: isAlertsEnabled) { _, enabled in
                 UserDefaults.standard.set(enabled, forKey: alertsDefaultsKey)
             }
@@ -137,10 +132,8 @@ struct SettingsView: View {
                 isAccountSwitcherShown = true
             } label: {
                 Text("Switch account")
-                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .listRowBackground(Color(white: 0.13))
             .sheet(isPresented: $isAccountSwitcherShown) {
                 AccountSwitcherView(authClient: authClient)
             }
@@ -149,25 +142,21 @@ struct SettingsView: View {
                 Task { await authClient.logout() }
             } label: {
                 Text("Sign out")
-                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .listRowBackground(Color(white: 0.13))
 
             Button {
                 isDeleteSheetShown = true
             } label: {
                 Text("Delete account")
-                    .foregroundStyle(Color(red: 1.0, green: 0.45, blue: 0.6))
+                    .foregroundStyle(.pink)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .listRowBackground(Color(white: 0.13))
 
             if let actionError {
                 Text(actionError)
                     .font(.footnote)
-                    .foregroundStyle(Color(red: 1.0, green: 0.45, blue: 0.6))
-                    .listRowBackground(Color(white: 0.13))
+                    .foregroundStyle(.pink)
             }
         }
     }

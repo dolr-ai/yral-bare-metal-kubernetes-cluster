@@ -17,16 +17,15 @@ struct AccountSwitcherView: View {
             HStack {
                 Text("Switch account")
                     .font(.headline)
-                    .foregroundStyle(.white)
                 Spacer()
                 Button {
                     dismiss()
                 } label: {
                     Image(systemName: "xmark")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(.secondary)
                         .padding(8)
-                        .background(Color(white: 0.18), in: Circle())
+                        .background(Color.gray.opacity(0.25), in: Circle())
                 }
                 .accessibilityLabel("Close")
             }
@@ -42,7 +41,7 @@ struct AccountSwitcherView: View {
             } else {
                 Text("No other accounts")
                     .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(.secondary)
                     .padding(.top, 12)
             }
 
@@ -51,7 +50,8 @@ struct AccountSwitcherView: View {
         .padding(.horizontal, 16)
         .padding(.bottom, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Color(red: 0.04, green: 0.04, blue: 0.06))
+        .presentationDetents([.medium])
+        .background(Color.black)
         .onAppear { entries = authClient.accountSwitcherEntries() }
     }
 
@@ -61,16 +61,18 @@ struct AccountSwitcherView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white)
             VStack(spacing: 0) {
                 ForEach(Array(accounts.enumerated()), id: \.element.principal) { index, account in
                     accountRow(account)
                     if index < accounts.count - 1 {
-                        Divider().overlay(Color(white: 0.28))
+                        Divider()
                     }
                 }
             }
-            .background(Color(white: 0.13), in: RoundedRectangle(cornerRadius: 12))
+            .background(
+                Color.gray.opacity(0.2),
+                in: RoundedRectangle(cornerRadius: 12)
+            )
         }
     }
 
@@ -86,14 +88,13 @@ struct AccountSwitcherView: View {
                 AsyncImage(url: URL(string: account.avatarURL)) { image in
                     image.resizable().scaledToFill()
                 } placeholder: {
-                    Color(white: 0.2)
+                    Color.gray.opacity(0.25)
                 }
                 .frame(width: 36, height: 36)
                 .clipShape(Circle())
 
                 Text(account.username)
                     .font(.subheadline)
-                    .foregroundStyle(.white)
                     .lineLimit(1)
                     .truncationMode(.middle)
 
@@ -102,7 +103,7 @@ struct AccountSwitcherView: View {
                 if account.isActive {
                     Image(systemName: "checkmark")
                         .font(.subheadline.weight(.bold))
-                        .foregroundStyle(Color(red: 0.95, green: 0.25, blue: 0.55))
+                        .foregroundStyle(.pink)
                 }
             }
             .padding(.horizontal, 12)

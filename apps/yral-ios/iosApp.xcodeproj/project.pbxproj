@@ -14,32 +14,26 @@
 		11D9260E3045F61B008548D5 /* iosApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iosApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		11D926213045F679008548D5 /* Exceptions for "iosApp" folder in "iosApp" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"YralApp-Info.plist",
+			);
+			target = 11D9260D3045F61B008548D5 /* iosApp */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		11D926103045F61B008548D5 /* iosApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				11D926213045F679008548D5 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+				11D926213045F679008548D5 /* Exceptions for "iosApp" folder in "iosApp" target */,
 			);
 			path = iosApp;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
-
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-/* Excludes the Info.plist and entitlements from the target's Copy Bundle
-   Resources phase: both live inside the synchronized iosApp/ folder (so
-   they version with the sources), but they are consumed as INFOPLIST_FILE /
-   CODE_SIGN_ENTITLEMENTS build settings — bundling them as resources would
-   duplicate them in the .app. */
-		11D926213045F679008548D5 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				YralApp-Info.plist,
-				YralApp.entitlements,
-			);
-			target = 11D9260D3045F61B008548D5 /* iosApp */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		11D9260B3045F61B008548D5 /* Frameworks */ = {
@@ -133,12 +127,17 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		11D9260C3045F61B008548D5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXShellScriptBuildPhase section */
-/* Firebase Crashlytics dSYM upload — Firebase's canonical SPM integration
-   (the upload script ships inside the SPM checkout of firebase-ios-sdk;
-   path form is Firebase's documented BUILD_DIR-derived location). Runs after
-   the build so every Release build shipped to TestFlight/App Store has
-   symbolicated crash reports. */
 		11D926203045F679008548D5 /* Crashlytics dSYM Upload */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -157,16 +156,6 @@
 			shellScript = "if [ \"$ENABLE_DEBUG_DSYM\" == \"YES\" ]; then\n  \"${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
-
-/* Begin PBXResourcesBuildPhase section */
-		11D9260C3045F61B008548D5 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		11D9260A3045F61B008548D5 /* Sources */ = {
@@ -232,7 +221,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -290,7 +279,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -312,6 +301,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iosApp/YralApp-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -335,18 +325,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = iosApp/YralApp.entitlements;
-				/* Manual signing on Release only (Debug stays Automatic for local
-				   dev). Set per-target here — NOT as xcodebuild CLI overrides, which
-				   propagate to every target in the graph and make SPM package
-				   targets fail with "does not support provisioning profiles". */
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				PROVISIONING_PROFILE_SPECIFIER = Yral-Distribution;
 				CURRENT_PROJECT_VERSION = 25;
 				DEVELOPMENT_TEAM = 2UL556KNXC;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iosApp/YralApp-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -354,6 +340,7 @@
 				MARKETING_VERSION = 4.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.yral.iosApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "Yral-Distribution";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;

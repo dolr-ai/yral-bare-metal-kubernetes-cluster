@@ -38,7 +38,7 @@ struct CountrySelectorView: View {
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
         }
-        .background(Color(red: 0.04, green: 0.04, blue: 0.06))
+        .background(Color.black)
         #if canImport(UIKit)
             .toolbar(.hidden, for: .navigationBar)
         #endif
@@ -50,7 +50,6 @@ struct CountrySelectorView: View {
         ZStack {
             Text("Country")
                 .font(.title3.bold())
-                .foregroundStyle(.white)
             HStack {
                 Button {
                     onBack()
@@ -58,7 +57,6 @@ struct CountrySelectorView: View {
                 } label: {
                     Image(systemName: "chevron.left")
                         .font(.headline)
-                        .foregroundStyle(.white)
                 }
                 Spacer()
             }
@@ -72,9 +70,8 @@ struct CountrySelectorView: View {
     private var searchField: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .foregroundStyle(.white.opacity(0.5))
+                .foregroundStyle(.secondary)
             TextField("Search by country name", text: $searchQuery)
-                .foregroundStyle(.white)
                 #if canImport(UIKit)
                     .autocapitalization(.none)
                     .autocorrectionDisabled()
@@ -82,7 +79,10 @@ struct CountrySelectorView: View {
         }
         .padding(.horizontal, 12)
         .frame(height: 44)
-        .background(Color(white: 0.13), in: RoundedRectangle(cornerRadius: 8))
+        .background(
+            Color.gray.opacity(0.2),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
     }
@@ -97,21 +97,20 @@ private struct CountryRow: View {
             AsyncImage(url: country.flagURL) { image in
                 image.resizable().scaledToFill()
             } placeholder: {
-                Color(white: 0.2)
+                Color.gray.opacity(0.25)
             }
             .frame(width: 32, height: 23)
             .clipShape(RoundedRectangle(cornerRadius: 4))
 
             Text(country.name)
-                .foregroundStyle(.white)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(country.dialCode)
-                .foregroundStyle(.white.opacity(0.55))
+                .foregroundStyle(.secondary)
         }
         .padding(.vertical, 8)
-        .listRowBackground(Color(red: 0.04, green: 0.04, blue: 0.06))
-        .listRowSeparatorTint(Color(white: 0.28))
+        .listRowBackground(Color.black)
+        .listRowSeparatorTint(Color.gray.opacity(0.35))
     }
 }
 

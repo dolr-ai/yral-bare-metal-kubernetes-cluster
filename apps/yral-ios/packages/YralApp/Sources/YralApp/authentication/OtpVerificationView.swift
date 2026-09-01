@@ -43,7 +43,7 @@ public struct OtpVerificationView: View {
 
             Text("Enter the code sent to \(sentToPhoneNumber)")
                 .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.8))
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
             OtpInputField(
@@ -57,7 +57,7 @@ public struct OtpVerificationView: View {
             if let otpErrorMessage {
                 Text(otpErrorMessage)
                     .font(.footnote)
-                    .foregroundStyle(Color(red: 1.0, green: 0.45, blue: 0.6))
+                    .foregroundStyle(.pink)
                     .multilineTextAlignment(.center)
             }
 
@@ -70,13 +70,13 @@ public struct OtpVerificationView: View {
                     .padding(.vertical, 14)
             }
             .buttonStyle(.borderedProminent)
-            .tint(Color(red: 0.95, green: 0.25, blue: 0.55))
+            .tint(.pink)
             .disabled(isVerifying)
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Color(red: 0.04, green: 0.04, blue: 0.06))
+        .background(Color.black)
         #if canImport(UIKit)
         .navigationBarBackButtonHidden(true)
         .toolbar {
@@ -85,7 +85,6 @@ public struct OtpVerificationView: View {
                     dismiss()
                 } label: {
                     Image(systemName: "chevron.left")
-                        .foregroundStyle(.white)
                 }
             }
         }
@@ -120,14 +119,13 @@ public struct OtpVerificationView: View {
         if let secondsLeft = resendTimerSeconds {
             Text("Resend OTP in \(Self.remainingTimeText(secondsLeft))")
                 .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.5))
+                .foregroundStyle(.tertiary)
         } else {
             Button {
                 Task { await onResend() }
             } label: {
                 Text("Resend OTP")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
             }
         }
     }
@@ -173,15 +171,15 @@ private struct OtpInputField: View {
                 ForEach(0..<6, id: \.self) { index in
                     Text(digit(at: index))
                         .font(.title2.weight(.semibold))
-                        .foregroundStyle(.white)
                         .frame(width: 44, height: 52)
-                        .background(Color(white: 0.13), in: RoundedRectangle(cornerRadius: 8))
+                        .background(
+                            Color.gray.opacity(0.2),
+                            in: RoundedRectangle(cornerRadius: 8)
+                        )
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(
-                                    isActive(index)
-                                        ? Color(red: 1.0, green: 0.45, blue: 0.6)
-                                        : Color(white: 0.28),
+                                    isActive(index) ? Color.pink : Color.gray.opacity(0.35),
                                     lineWidth: isActive(index) ? 2 : 1
                                 )
                         )
