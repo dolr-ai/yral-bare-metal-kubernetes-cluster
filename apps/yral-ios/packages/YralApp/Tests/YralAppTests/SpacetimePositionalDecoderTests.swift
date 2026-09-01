@@ -273,25 +273,28 @@ struct SpacetimePositionalDecoderTests {
 
     // MARK: - Argument encoding (transport)
 
-    @Test("accept_new_user_registration arg encoding: Some inlines payload, None is [1,[]]")
-    func registrationArgEncoding() {
-        let some = SpacetimeArgumentJSON
-            .array([.number("0"), .string("auth0|owner")])
-        #expect(some.encodingDescription == #"[0,"auth0|owner"]"#)
+    @Test("accept_new_user_registration arg encoding: Some inlines payload, None is null")
+    func registrationArgEncoding() throws {
+        let some = try JSONEncoder().encode(
+            SpacetimeOption("auth0|owner")
+        )
+        #expect(String(data: some, encoding: .utf8) == #"[0,"auth0|owner"]"#)
 
-        let none = SpacetimeArgumentJSON
-            .array([.number("1"), .array([])])
-        #expect(none.encodingDescription == "[1,[]]")
+        let none = try JSONEncoder().encode(
+            SpacetimeOption<String>(nil)
+        )
+        #expect(String(data: none, encoding: .utf8) == "null")
     }
 
     @Test("positional args body is a compact JSON array")
-    func argumentsBodyEncoding() {
-        let arguments: [SpacetimeArgument] = [
-            .string("auth0|user-77"),
-            .unsignedInteger(25),
-            .boolean(true)
-        ]
-        let encoded = encodeSpacetimeArguments(arguments)
-        #expect(encoded == #"["auth0|user-77",25,true]"#)
+    func argumentsBodyEncoding() throws {
+        let encoded = try JSONEncoder().encode(
+            GetPostsOfUserByPrincipalArguments(
+                creatorOauthSubject: "auth0|user-77",
+                offset: 25,
+                limit: 20
+            )
+        )
+        #expect(String(data: encoded, encoding: .utf8) == #"["auth0|user-77",25,20]"#)
     }
 }
