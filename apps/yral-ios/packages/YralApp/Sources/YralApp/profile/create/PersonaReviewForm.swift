@@ -44,3 +44,27 @@ struct PersonaReviewForm: View {
         }
     }
 }
+
+#if DEBUG
+#Preview("idle") {
+    PersonaReviewForm(
+        instructionsText: .constant("You are a witty travel photographer…"),
+        isWorking: false,
+        onContinue: {}
+    )
+    .padding(16)
+    .background(Color.black)
+    .preferredColorScheme(.dark)
+}
+
+#Preview("working (inline spinner)") {
+    PersonaReviewForm(
+        instructionsText: .constant("You are a witty travel photographer…"),
+        isWorking: true,
+        onContinue: {}
+    )
+    .padding(16)
+    .background(Color.black)
+    .preferredColorScheme(.dark)
+}
+#endif

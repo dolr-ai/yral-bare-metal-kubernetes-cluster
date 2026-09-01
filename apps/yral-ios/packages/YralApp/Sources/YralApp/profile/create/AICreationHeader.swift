@@ -23,3 +23,31 @@ struct AICreationHeader: View {
         }
     }
 }
+
+#if DEBUG
+#Preview("back shown") {
+    VStack {
+        AICreationHeader(
+            showsBackButton: true,
+            onBack: {},
+            onReset: {}
+        )
+        Spacer()
+    }
+    .padding(.horizontal, 16)
+    .preferredColorScheme(.dark)
+}
+
+#Preview("first step (no back)") {
+    VStack {
+        AICreationHeader(
+            showsBackButton: false,
+            onBack: {},
+            onReset: {}
+        )
+        Spacer()
+    }
+    .padding(.horizontal, 16)
+    .preferredColorScheme(.dark)
+}
+#endif

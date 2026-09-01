@@ -63,3 +63,49 @@ struct ProfileReviewForm: View {
         }
     }
 }
+
+#if DEBUG
+#Preview("idle") {
+    ProfileReviewForm(
+        profile: AIProfileDetails(
+            systemInstructions: "You are a witty travel photographer…",
+            name: "wander_lens",
+            displayName: "Wander Lens",
+            description: "A witty travel photographer sharing hidden gems and offbeat stories from the road.",
+            avatarURL: "https://images.yral.com/avatar.png",
+            initialGreeting: "Hey! Ready for hidden gems?",
+            suggestedMessages: ["Show me a hidden gem", "What's your funniest travel fail?"],
+            personalityTraits: ["wit": "high"],
+            category: "travel",
+            isNSFW: false
+        ),
+        isWorking: false,
+        onCreate: {}
+    )
+    .padding(16)
+    .background(Color.black)
+    .preferredColorScheme(.dark)
+}
+
+#Preview("working (inline spinner)") {
+    ProfileReviewForm(
+        profile: AIProfileDetails(
+            systemInstructions: "You are a witty travel photographer…",
+            name: "wander_lens",
+            displayName: "Wander Lens",
+            description: "A witty travel photographer sharing hidden gems.",
+            avatarURL: "https://images.yral.com/avatar.png",
+            initialGreeting: "Hey!",
+            suggestedMessages: [],
+            personalityTraits: [:],
+            category: "travel",
+            isNSFW: false
+        ),
+        isWorking: true,
+        onCreate: {}
+    )
+    .padding(16)
+    .background(Color.black)
+    .preferredColorScheme(.dark)
+}
+#endif

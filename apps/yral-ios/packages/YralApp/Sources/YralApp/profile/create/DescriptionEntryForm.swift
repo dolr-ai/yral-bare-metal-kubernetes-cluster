@@ -72,3 +72,29 @@ struct DescriptionEntryForm: View {
         }
     }
 }
+
+#if DEBUG
+#Preview("idle") {
+    DescriptionEntryForm(
+        descriptionText: .constant("A witty travel photographer sharing hidden gems"),
+        characterLimit: 400,
+        isWorking: false,
+        onContinue: {}
+    )
+    .padding(16)
+    .background(Color.black)
+    .preferredColorScheme(.dark)
+}
+
+#Preview("working (inline spinner)") {
+    DescriptionEntryForm(
+        descriptionText: .constant("A witty travel photographer"),
+        characterLimit: 400,
+        isWorking: true,
+        onContinue: {}
+    )
+    .padding(16)
+    .background(Color.black)
+    .preferredColorScheme(.dark)
+}
+#endif

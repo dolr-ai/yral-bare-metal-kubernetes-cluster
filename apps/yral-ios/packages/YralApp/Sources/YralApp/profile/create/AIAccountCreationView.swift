@@ -46,18 +46,21 @@ struct AIAccountCreationView: View {
     @Binding var draft: AICreationDraft
 
     /// Transient, view-local feedback (never resumed).
-    @State private var errorMessage: String?
+    @State var errorMessage: String?
     /// The in-flight step task — Reset and sheet dismissal stop it;
     /// cancellation propagates into its URLSession awaits.
-    @State private var flowTask: Task<Void, Never>?
+    @State var flowTask: Task<Void, Never>?
     @State private var isResetDialogShown = false
+    /// The last recorded step — the step change drives the directional
+    /// slide transition (forward → left, back → right).
+    @State var previousStep: FlowStep = .descriptionEntry
     @Environment(\.dismiss) private var dismiss
 
     /// Kotlin `PROMPT_CHAR_LIMIT`.
     private let promptCharacterLimit = 400
 
-    private let influencerDataSource = AIInfluencerDataSource()
-    private var spacetime: SpacetimeDBRemoteDataSource {
+    let influencerDataSource = AIInfluencerDataSource()
+    var spacetime: SpacetimeDBRemoteDataSource {
         SpacetimeDBRemoteDataSource(idTokenProvider: { [weak authClient] in
             authClient?.idToken
         })
@@ -73,34 +76,12 @@ struct AIAccountCreationView: View {
                 )
             }
 
-            switch draft.step {
-            case .descriptionEntry, .generatingPersona:
-                DescriptionEntryForm(
-                    descriptionText: $draft.descriptionText,
-                    characterLimit: promptCharacterLimit,
-                    isWorking: draft.step.isWorking
-                ) {
-                    flowTask = Task { await generatePersona() }
-                }
-            case .personaReview, .generatingMetadata:
-                PersonaReviewForm(
-                    instructionsText: $draft.instructionsText,
-                    isWorking: draft.step.isWorking
-                ) {
-                    flowTask = Task { await generateMetadata() }
-                }
-            case .reviewProfile, .creating:
-                if let profile = draft.profileUnderReview {
-                    ProfileReviewForm(
-                        profile: profile,
-                        isWorking: draft.step.isWorking
-                    ) {
-                        flowTask = Task { await createAccount(profile: profile) }
-                    }
-                }
-            case .done:
-                doneView
-            }
+            stepContent
+                // Identity per FORM (not per step): working steps keep
+                // the form mounted (no re-identify, no flicker); only
+                // cross-form moves re-identify → slide.
+                .id(draft.step.formIdentity)
+                .transition(stepTransition)
 
             if let errorMessage {
                 Text(errorMessage)
@@ -115,6 +96,16 @@ struct AIAccountCreationView: View {
         .padding(.bottom, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.black)
+        .animation(.easeInOut(duration: 0.35), value: draft.step)
+        // The celebration overlay — confetti + party horn on the done
+        // step only (3D-accelerated via Canvas/Metal; zero hit-testing).
+        #if canImport(UIKit)
+            .overlay {
+                if draft.step == .done {
+                    CelebrationView()
+                }
+            }
+        #endif
         // Pull-down LEAVES (never discards — the draft lives in
         // MainTabView): in-flight work is stopped here and the draft
         // resumes on the next Create tap. A completed wizard's draft is
@@ -138,6 +129,60 @@ struct AIAccountCreationView: View {
         #if canImport(UIKit)
             .toolbar(.hidden, for: .navigationBar)
         #endif
+    }
+
+    /// The step forms — extracted so the transition modifier wraps the
+    /// whole step (header excluded: it stays put while forms slide).
+    @ViewBuilder
+    private var stepContent: some View {
+        switch draft.step {
+        case .descriptionEntry, .generatingPersona:
+            DescriptionEntryForm(
+                descriptionText: $draft.descriptionText,
+                characterLimit: promptCharacterLimit,
+                isWorking: draft.step.isWorking
+            ) {
+                flowTask = Task { await generatePersona() }
+            }
+        case .personaReview, .generatingMetadata:
+            PersonaReviewForm(
+                instructionsText: $draft.instructionsText,
+                isWorking: draft.step.isWorking
+            ) {
+                flowTask = Task { await generateMetadata() }
+            }
+        case .reviewProfile, .creating:
+            if let profile = draft.profileUnderReview {
+                ProfileReviewForm(
+                    profile: profile,
+                    isWorking: draft.step.isWorking
+                ) {
+                    flowTask = Task { await createAccount(profile: profile) }
+                }
+            }
+        case .done:
+            doneView
+        }
+    }
+
+    /// The directional slide: forward progress → new step slides in
+    /// from the RIGHT while the old slides LEFT; the back chevron → the
+    /// reverse (like a navigation push/pop, operator request 2026-09-01).
+    private var stepTransition: AnyTransition {
+        switch FlowStep.transition(from: previousStep, to: draft.step) {
+        case .forward:
+            return .asymmetric(
+                insertion: .move(edge: .trailing).combined(with: .opacity),
+                removal: .move(edge: .leading).combined(with: .opacity)
+            )
+        case .backward:
+            return .asymmetric(
+                insertion: .move(edge: .leading).combined(with: .opacity),
+                removal: .move(edge: .trailing).combined(with: .opacity)
+            )
+        case nil:
+            return .opacity
+        }
     }
 
     /// Does the draft hold anything worth confirming on Reset? A blank
@@ -166,11 +211,13 @@ struct AIAccountCreationView: View {
     /// and the resumable creation record — back to a blank first screen.
     private func resetDraft() {
         flowTask?.cancel()
+        previousStep = draft.step
         draft = AICreationDraft()
         errorMessage = nil
     }
 
     private func goBack() {
+        previousStep = draft.step
         switch draft.step {
         case .personaReview:
             draft.step = .descriptionEntry
@@ -184,7 +231,7 @@ struct AIAccountCreationView: View {
 
     /// True when the error is the user's own Reset/dismissal stopping
     /// an in-flight call — surfaced as a quiet return, not an error.
-    private func isUserCancellation(_ error: Error) -> Bool {
+    func isUserCancellation(_ error: Error) -> Bool {
         error is CancellationError || (error as? URLError)?.code == .cancelled
     }
 
@@ -208,7 +255,7 @@ struct AIAccountCreationView: View {
 
     /// Kotlin `extractServerMessage` parity — HTTP error bodies carry the
     /// user-facing server message.
-    private func errorText(of error: Error) -> String {
+    func errorText(of error: Error) -> String {
         if case let NetworkError.http(_, body) = error, let body, !body.isEmpty {
             return body
         }
@@ -216,140 +263,34 @@ struct AIAccountCreationView: View {
     }
 }
 
-// MARK: - Generation actions — cached per input; a stopped run never
-// resurrects a Reset draft.
+// MARK: - Previews
 
-private extension AIAccountCreationView {
-
-    func generatePersona() async {
-        errorMessage = nil
-        // Unchanged description → reuse this draft's earlier generation;
-        // the API is hit only when the input changed.
-        if draft.personaSourceDescription == draft.descriptionText {
-            draft.step = .personaReview
-            return
-        }
-        draft.step = .generatingPersona
-        do {
-            guard let idToken = authClient.idToken else {
-                throw AuthError.oauthFailed(errorDescription: "Not signed in")
-            }
-            let instructions = try await influencerDataSource.generatePrompt(
-                prompt: draft.descriptionText,
-                idToken: idToken
-            )
-            draft.instructionsText = instructions
-            draft.personaSourceDescription = draft.descriptionText
-            draft.step = .personaReview
-        } catch {
-            // Reset/dismissal stopped the run — restoring the form is
-            // idempotent with a Reset draft, and correct for a resume.
-            draft.step = .descriptionEntry
-            if !isUserCancellation(error) {
-                errorMessage = errorText(of: error)
-            }
-        }
-    }
-
-    func generateMetadata() async {
-        errorMessage = nil
-        let sourceInstructions = draft.instructionsText
-        // Unchanged instructions → reuse this draft's earlier profile;
-        // the API is hit only when the input changed.
-        if draft.profileSourceInstructions == sourceInstructions,
-           draft.profileUnderReview != nil {
-            draft.step = .reviewProfile
-            return
-        }
-        draft.step = .generatingMetadata
-        do {
-            guard let idToken = authClient.idToken else {
-                throw AuthError.oauthFailed(errorDescription: "Not signed in")
-            }
-            let metadata = try await influencerDataSource.validateAndGenerateMetadata(
-                systemInstructions: sourceInstructions,
-                idToken: idToken
-            )
-            guard metadata.isValid,
-                  let name = metadata.name,
-                  let displayName = metadata.displayName,
-                  let avatarURL = metadata.avatarURL
-            else {
-                draft.step = .personaReview
-                errorMessage = metadata.validationReason ?? "The AI's instructions were rejected — edit and retry."
-                return
-            }
-            let profile = AIProfileDetails(
-                systemInstructions: sourceInstructions,
-                name: name,
-                displayName: displayName,
-                description: metadata.description ?? "",
-                avatarURL: avatarURL,
-                initialGreeting: metadata.initialGreeting ?? "",
-                suggestedMessages: metadata.suggestedMessages,
-                personalityTraits: metadata.personalityTraits,
-                category: metadata.category ?? "general",
-                isNSFW: metadata.isNSFW
-            )
-            draft.profileUnderReview = profile
-            draft.profileSourceInstructions = sourceInstructions
-            draft.step = .reviewProfile
-        } catch {
-            if isUserCancellation(error) {
-                // Reset clears the draft — never resurrect it. A pull-down
-                // leaves the instructions intact, so restore the form for
-                // the next resume.
-                if draft.instructionsText == sourceInstructions {
-                    draft.step = .personaReview
-                }
-                return
-            }
-            draft.step = .personaReview
-            errorMessage = errorText(of: error)
-        }
-    }
-
-    func createAccount(profile: AIProfileDetails) async {
-        errorMessage = nil
-        draft.step = .creating
-        // Resume an in-flight creation for the SAME profile if a previous
-        // attempt failed midway (Kotlin BotCreationProgress semantics).
-        if draft.creationProgress?.profileKey != profile.profileKey {
-            draft.creationProgress = AICreationProgress(profileKey: profile.profileKey)
-        }
-        guard var progress = draft.creationProgress else { return }
-        do {
-            _ = try await AIAccountCreator.create(
-                profile: profile,
-                progress: &progress,
-                context: AIAccountCreator.CreationContext(
-                    authClient: authClient,
-                    sessionStore: sessionStore,
-                    influencerDataSource: influencerDataSource,
-                    spacetime: spacetime
-                )
-            )
-            // Creation succeeded — the draft is spent; a fresh wizard
-            // starts on the next Create tap.
-            draft = AICreationDraft()
-            draft.step = .done
-        } catch {
-            if isUserCancellation(error) {
-                // Reset clears the draft — never resurrect the profile.
-                // A pull-down keeps it: restore the review form so a
-                // retry resumes the pipeline where it stopped.
-                if draft.profileUnderReview?.profileKey == profile.profileKey {
-                    draft.creationProgress = progress
-                    draft.step = .reviewProfile
-                }
-                return
-            }
-            // A failed run keeps the partially-completed progress
-            // record — a retry resumes where the pipeline stopped.
-            draft.creationProgress = progress
-            draft.profileUnderReview = profile
-            draft.step = .reviewProfile
-            errorMessage = errorText(of: error)
-        }
-    }
+#if DEBUG
+#Preview("wizard — describe your AI") {
+    let sessionStore = SessionStore()
+    AIAccountCreationView(
+        authClient: AuthClient(
+            authDataSource: AuthDataSource(),
+            redirectScheme: "com.yral.iosApp",
+            sessionStore: sessionStore
+        ),
+        sessionStore: sessionStore,
+        draft: .constant(AICreationDraft())
+    )
+    .preferredColorScheme(.dark)
 }
+
+#Preview("wizard — done (with confetti)") {
+    let sessionStore = SessionStore()
+    AIAccountCreationView(
+        authClient: AuthClient(
+            authDataSource: AuthDataSource(),
+            redirectScheme: "com.yral.iosApp",
+            sessionStore: sessionStore
+        ),
+        sessionStore: sessionStore,
+        draft: .constant(AICreationDraft(step: .done))
+    )
+    .preferredColorScheme(.dark)
+}
+#endif

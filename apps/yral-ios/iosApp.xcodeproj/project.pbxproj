@@ -301,6 +301,15 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iosApp/YralApp-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Yral;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Yral requires camera access to allow you to record and upload videos. Your camera will only be used when you choose to create a new video.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Yral requires microphone access to capture audio while recording videos and chat voice messages. Your microphone will only be used when you choose to record.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Yral needs permission to save downloaded videos and photos to your photo library.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Yral needs access to your photo library so you can choose a profile picture.";
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = "Your permission lets Yral measure how well our ads perform and show you more relevant ads. Your data will not be sold.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -332,6 +341,15 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iosApp/YralApp-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Yral;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Yral requires camera access to allow you to record and upload videos. Your camera will only be used when you choose to create a new video.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Yral requires microphone access to capture audio while recording videos and chat voice messages. Your microphone will only be used when you choose to record.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Yral needs permission to save downloaded videos and photos to your photo library.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Yral needs access to your photo library so you can choose a profile picture.";
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = "Your permission lets Yral measure how well our ads perform and show you more relevant ads. Your data will not be sold.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

@@ -37,6 +37,26 @@ enum FlowStep: Equatable {
     case creating
     case done
 
+    /// Which FORM owns this step — the wizard's step-content identity:
+    /// working steps keep the same form mounted (inline spinner), so
+    /// only cross-form changes re-identify and slide.
+    var formIdentity: Int {
+        switch self {
+        case .descriptionEntry, .generatingPersona: return 0
+        case .personaReview, .generatingMetadata: return 1
+        case .reviewProfile, .creating: return 2
+        case .done: return 3
+        }
+    }
+
+    /// Ordering for the directional slide transition: forward moves
+    /// LEFT (progress), back moves RIGHT (retreat). Nil = no slide
+    /// (working steps keep the form mounted; done is a modal reveal).
+    static func transition(from oldStep: FlowStep, to newStep: FlowStep) -> StepTransitionDirection? {
+        guard oldStep.formIdentity != newStep.formIdentity else { return nil }
+        return newStep.formIdentity > oldStep.formIdentity ? .forward : .backward
+    }
+
     /// The header shows on every step (its Reset clears the draft);
     /// only the done screen drops it for its own Done button.
     var showsHeader: Bool {
@@ -70,4 +90,12 @@ enum FlowStep: Equatable {
             return false
         }
     }
+}
+
+/// The direction a step change slides — forward progress moves the
+/// content LEFT (like a nav push), the back chevron moves it RIGHT
+/// (like a nav pop). Operator request 2026-09-01.
+enum StepTransitionDirection {
+    case forward
+    case backward
 }
