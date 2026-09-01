@@ -76,55 +76,24 @@ struct ProfilePictureTests {
         )
     }
 
-    @Test("generated usernames are letters-only, 3–15 chars, two modifiers + noun")
+    @Test("generated usernames are hyphenated: modifier-modifier-noun, 3–15 chars")
     func usernameShape() {
         for index in 0..<200 {
             let username = UsernameGenerator.username(fromPrincipal: "principal-\(index)")
             #expect(username.count >= 3)
             #expect(username.count <= 15)
-            #expect(username.allSatisfy { $0.isLetter })
+            // Lowercase letters + hyphens only.
+            #expect(username.allSatisfy { $0.isLetter || $0 == "-" })
 
-            // Decompose: first word from modifiers, second from modifiers
-            // (≠ first), remainder a noun — Kotlin's
-            // "modifier modifier animal" contract.
-            let composition = decompose(username)
-            #expect(composition != nil, "username \(username) failed to decompose")
-            guard let composition else { continue }
-            #expect(composition.firstModifier != composition.secondModifier)
-            #expect(yralUsernameNouns.contains(composition.noun))
+            // Exactly three words: modifier, distinct modifier, noun.
+            let words = username.split(separator: "-").map(String.init)
+            #expect(words.count == 3, "username \(username) is not 3 words")
+            guard words.count == 3 else { continue }
+            #expect(yralUsernameModifiers.contains(words[0]))
+            #expect(yralUsernameModifiers.contains(words[1]))
+            #expect(words[0] != words[1])
+            #expect(yralUsernameNouns.contains(words[2]))
         }
-    }
-
-    /// Kotlin `findUsernameComposition`'s `UsernameComposition`: two distinct
-    /// modifiers + a noun.
-    struct UsernameComposition {
-        let firstModifier: String
-        let secondModifier: String
-        let noun: String
-    }
-
-    /// Kotlin `findUsernameComposition`: try each modifier prefix, then each
-    /// distinct second modifier, remainder must be a noun.
-    private func decompose(_ username: String) -> UsernameComposition? {
-        for firstModifier in yralUsernameModifiers
-        where username.hasPrefix(firstModifier) {
-            let afterFirstModifier = String(username.dropFirst(firstModifier.count))
-            for secondModifier in yralUsernameModifiers
-            where secondModifier != firstModifier
-                && afterFirstModifier.hasPrefix(secondModifier) {
-                let noun = String(
-                    afterFirstModifier.dropFirst(secondModifier.count)
-                )
-                if yralUsernameNouns.contains(noun) {
-                    return UsernameComposition(
-                        firstModifier: firstModifier,
-                        secondModifier: secondModifier,
-                        noun: noun
-                    )
-                }
-            }
-        }
-        return nil
     }
 
     @Test("resolveUsername prefers trimmed non-empty preferred; falls back per principal")

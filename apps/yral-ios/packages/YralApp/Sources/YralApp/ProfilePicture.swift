@@ -54,11 +54,14 @@ enum ProfilePicture {
     }
 }
 
-/// Deterministic display-name fallback — 1:1 port of Kotlin
+/// Deterministic display-name fallback — port of Kotlin
 /// `generateUsernameFromPrincipal` (UsernameUtils.kt). SHA-256(principal)
 /// seeds a byte-stream PRNG that picks two distinct modifiers + one noun;
-/// retries up to 128 times for a ≤ 15-char result, falling back to
-/// "cutekindpanda". Used when no server username exists.
+/// retries up to 128 times for a ≤ 15-char result. Words are HYPHENATED
+/// (cute-kind-panda) — a deliberate deviation from Kotlin's squished
+/// `firstModifier + secondModifier + noun`: the new app has no production
+/// usernames yet, and the hyphenated form is readable. Used when no
+/// server username exists.
 enum UsernameGenerator {
 
     /// Maximum allowed username length (USERNAME_MAX_LENGTH).
@@ -67,8 +70,9 @@ enum UsernameGenerator {
     /// Generation attempts before falling back (USERNAME_GENERATION_ATTEMPTS).
     static let generationAttempts = 128
 
-    /// The shipped fallback when all attempts exceed the length limit.
-    static let fallbackUsername = "cutekindpanda"
+    /// The shipped fallback when all attempts exceed the length limit —
+    /// hyphenated, matching the generated format.
+    static let fallbackUsername = "cute-kind-panda"
 
     /// Kotlin `resolveUsername`: preferred (trimmed, non-empty) wins, else
     /// the generated name; nil principal with no preferred → nil.
@@ -96,7 +100,9 @@ enum UsernameGenerator {
             let noun = yralUsernameNouns.randomOrDefault(
                 generator: &generator, fallback: "panda"
             )
-            let username = firstModifier + secondModifier + noun
+            // Hyphenated: modifier-modifier-noun. Two hyphens cost 2 chars of
+            // the 15-char budget — the retry loop handles the rest.
+            let username = firstModifier + "-" + secondModifier + "-" + noun
             if username.count <= maximumUsernameLength {
                 return username
             }

@@ -1,5 +1,11 @@
 # SwiftLint for apps/yral-ios. Excludes build artifacts and the committed Xcode
 # shell — all product code lives in the YralApp SPM package (see README.md).
+disabled_rules:
+  # `todo`: TODOs are the operator-requested tracking mechanism for
+  # follow-up work (e.g. the two native auth implementations) —
+  # banning them would erase the record instead of resolving it.
+  - todo
+
 excluded:
   - .build
   - DerivedData

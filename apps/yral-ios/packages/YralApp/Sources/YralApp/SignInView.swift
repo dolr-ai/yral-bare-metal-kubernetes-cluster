@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
+import AuthenticationServices
+#endif
 
 /// Sign-up / sign-in screen — SwiftUI port of Kotlin `SignupView` in its
 /// default `LoginMode.BOTH` shape: headline, phone section (country
@@ -19,6 +22,7 @@ public struct SignInView: View {
     @State private var sentToPhoneNumber: String?
     @State private var resendTimerSeconds: Int?
     @State private var resendTimerTask: Task<Void, Never>?
+    @State private var socialAuthError: String?
 
     @Environment(\.openURL) private var openURL
 
@@ -51,6 +55,14 @@ public struct SignInView: View {
                     termsOfServiceText
                     orDivider
                     socialSection
+                }
+
+                if let socialAuthError {
+                    Text(socialAuthError)
+                        .font(.footnote)
+                        .foregroundStyle(Color(red: 1.0, green: 0.45, blue: 0.6))
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 8)
                 }
             }
             .padding(.horizontal, 16)
@@ -106,36 +118,10 @@ public struct SignInView: View {
     private var phoneSection: some View {
         VStack(spacing: 12) {
             HStack(spacing: 8) {
-                Button {
+                CountryPickerButton(country: selectedCountry) {
                     // Country selector screen: Phase 2 continues after the
                     // sign-in slice ships; the button is inert until then.
-                } label: {
-                    HStack(spacing: 6) {
-                        if let flagURL = selectedCountry?.flagURL {
-                            AsyncImage(url: flagURL) { image in
-                                image.resizable().scaledToFit()
-                            } placeholder: {
-                                Color(white: 0.2)
-                            }
-                            .frame(width: 24, height: 16)
-                            .clipShape(RoundedRectangle(cornerRadius: 2))
-                        }
-                        Text(selectedCountry?.dialCode ?? "+1")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.white)
-                        Image(systemName: "chevron.down")
-                            .font(.caption2)
-                            .foregroundStyle(.white.opacity(0.6))
-                    }
-                    .padding(.horizontal, 12)
-                    .frame(height: 44)
-                    .background(Color(white: 0.13), in: RoundedRectangle(cornerRadius: 8))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color(white: 0.28), lineWidth: 1)
-                    )
                 }
-                .buttonStyle(.plain)
 
                 PhoneInputRow(
                     nationalNumber: $phoneNumber,
@@ -269,6 +255,10 @@ public struct SignInView: View {
     }
 
     // MARK: - Social section (Kotlin SocialSignupSection — icon tiles)
+    //
+    // TODO(auth-native-google) and TODO(auth-native-apple) — the two
+    // NATIVE implementations that replace this browser flow — live in
+    // BrowserAuthSession.swift beside this screen.
 
     private var socialSection: some View {
         HStack(spacing: 12) {
@@ -281,11 +271,7 @@ public struct SignInView: View {
         _ provider: SocialProvider, icon: some View
     ) -> some View {
         Button {
-            // Social sign-in: build the authorization URL, open the browser
-            // session, route the callback through the auth client. The
-            // ASWebAuthenticationSession wrapper is the next slice; the
-            // tile stays inert until it lands (no partial flow).
-            _ = provider
+            Task { await startSocialSignIn(provider: provider) }
         } label: {
             ZStack {
                 RoundedRectangle(cornerRadius: 12)
@@ -293,6 +279,59 @@ public struct SignInView: View {
                     .frame(height: 52)
                 icon.foregroundStyle(.white)
             }
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Social sign-in — the browser flow lives in `BrowserAuthSession`
+    /// (built there, colocated beside this screen): authorization URL →
+    /// ephemeral browser session → callback parse → auth client.
+    private func startSocialSignIn(provider: SocialProvider) async {
+        socialAuthError = nil
+        do {
+            let result = try await BrowserAuthSession.signIn(
+                provider: provider,
+                authClient: authClient
+            )
+            try await authClient.handleOAuthCallbackResult(result)
+        } catch {
+            socialAuthError = "Sign-in failed — please try again."
+        }
+    }
+}
+
+/// Country picker button — Kotlin `CountryPickerButton`: flag + dial code
+/// + chevron. The action is a no-op until the selector screen lands.
+private struct CountryPickerButton: View {
+    let country: Country?
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                if let flagURL = country?.flagURL {
+                    AsyncImage(url: flagURL) { image in
+                        image.resizable().scaledToFit()
+                    } placeholder: {
+                        Color(white: 0.2)
+                    }
+                    .frame(width: 24, height: 16)
+                    .clipShape(RoundedRectangle(cornerRadius: 2))
+                }
+                Text(country?.dialCode ?? "+1")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                Image(systemName: "chevron.down")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.6))
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 44)
+            .background(Color(white: 0.13), in: RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color(white: 0.28), lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
     }
