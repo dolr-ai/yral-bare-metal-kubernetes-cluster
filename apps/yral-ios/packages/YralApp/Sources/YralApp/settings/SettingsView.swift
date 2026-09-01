@@ -126,6 +126,12 @@ struct SettingsView: View {
 
     // MARK: - Logout + delete (Kotlin HelpLinks logout row + delete sheet)
 
+    // TODO(bury-delete-account): "Delete account" is far too exposed as
+    // a top-level row here — one mistaken tap on the most destructive
+    // action in the app. Restructure: Menu gets a "Settings" top-level
+    // entry, and Delete account moves into a submenu under it (e.g.
+    // Menu → Settings → Account → Delete account) so it takes
+    // deliberate navigation to reach. Sign out stays a top-level row.
     private var dangerSection: some View {
         Section {
             Button {

@@ -177,10 +177,15 @@ enum AIAccountCreator {
             imageBase64: avatarBytes.base64EncodedString(),
             idToken: idToken
         )
+        // `update_as_ai_account_id` = the new AI principal — WITHOUT it the
+        // reducer edits the CALLER's (owner's) profile instead of the bot's
+        // (see the reducer's doc comment in user_info.rs). Ownership is
+        // checked server-side (step 3 attached the bot to the owner above).
         try await context.spacetime.updateProfileDetails(
             bio: profile.description,
             websiteURL: nil,
-            profilePictureURL: hostedAvatarURL
+            profilePictureURL: hostedAvatarURL,
+            updateAsAIAccountID: aiPrincipal
         )
         progress.profileUpdated = true
         progress.hostedAvatarURL = hostedAvatarURL

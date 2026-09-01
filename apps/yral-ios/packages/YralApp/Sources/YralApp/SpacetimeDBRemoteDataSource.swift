@@ -108,7 +108,7 @@ public struct SpacetimeDBRemoteDataSource: Sendable {
             arguments: [
                 .string(oauthSubject),
                 .unsignedInteger(limit),
-                cursor.map { Argument.string($0) } ?? .jsonAny(.null)
+                cursor.map { SpacetimeArgument.string($0) } ?? .jsonAny(.null)
             ],
             requiresToken: false
         )
@@ -128,7 +128,7 @@ public struct SpacetimeDBRemoteDataSource: Sendable {
             arguments: [
                 .string(oauthSubject),
                 .unsignedInteger(limit),
-                cursor.map { Argument.string($0) } ?? .jsonAny(.null)
+                cursor.map { SpacetimeArgument.string($0) } ?? .jsonAny(.null)
             ],
             requiresToken: false
         )
@@ -154,20 +154,32 @@ public struct SpacetimeDBRemoteDataSource: Sendable {
         try await callReducer(name: "register_new_user", arguments: [])
     }
 
-    /// `update_profile_details` — plain `null` encodes each `None` option
-    /// (only struct-carrying sum args need the `[tag, payload]` form).
+    /// `update_profile_details` — live reducer signature (4 params, per the
+    /// generated bindings in apps/yral-database-spacetime):
+    ///   (bio: Option<String>, website_url: Option<String>,
+    ///    profile_picture: Option<ProfilePictureData>,
+    ///    update_as_ai_account_id: Option<String>)
+    /// `ProfilePictureData` is a STRUCT {url, nsfw_info} — wire-encoded as a
+    /// positional array `[url, [is_nsfw, nsfw_ec, nsfw_gore, csam_detected]]`.
+    /// `update_as_ai_account_id` is REQUIRED when editing an AI account's
+    /// profile — without it the details land on the OWNER's profile (see the
+    /// reducer's doc comment in src/user_info.rs). The old 3-arg wire shape
+    /// (pre-migration Kotlin) failed arg validation with "invalid arguments
+    /// for reducer" — pinned by SpacetimeDBRemoteDataSourceTests.
     public func updateProfileDetails(
         bio: String?,
         websiteURL: String?,
-        profilePictureURL: String?
+        profilePictureURL: String?,
+        updateAsAIAccountID: String?
     ) async throws {
         try await callReducer(
             name: "update_profile_details",
-            arguments: [
-                bio.map { .string($0) } ?? .jsonAny(.null),
-                websiteURL.map { .string($0) } ?? .jsonAny(.null),
-                profilePictureURL.map { .string($0) } ?? .jsonAny(.null)
-            ]
+            arguments: updateProfileDetailsArguments(
+                bio: bio,
+                websiteURL: websiteURL,
+                profilePictureURL: profilePictureURL,
+                updateAsAIAccountID: updateAsAIAccountID
+            )
         )
     }
 
@@ -179,15 +191,13 @@ public struct SpacetimeDBRemoteDataSource: Sendable {
         authenticated: Bool,
         mainAccountText: String?
     ) async throws {
-        let mainAccount: SpacetimeArgumentJSON
-        if let mainAccountText {
-            mainAccount = .array([.number("0"), .string(mainAccountText)])
-        } else {
-            mainAccount = .array([.number("1"), .array([])])
-        }
         try await callReducer(
             name: "accept_new_user_registration",
-            arguments: [.string(newPrincipalText), .boolean(authenticated), .jsonAny(mainAccount)]
+            arguments: acceptNewUserRegistrationArguments(
+                newPrincipalText: newPrincipalText,
+                authenticated: authenticated,
+                mainAccountText: mainAccountText
+            )
         )
     }
 
@@ -211,59 +221,13 @@ public struct SpacetimeDBRemoteDataSource: Sendable {
         try await callReducer(name: "update_user_last_access_time", arguments: [])
     }
 
-    // MARK: - Argument encoding
-
-    /// A single positional procedure argument.
-    public enum Argument {
-        case string(String)
-        case unsignedInteger(UInt64)
-        case boolean(Bool)
-        case jsonAny(SpacetimeArgumentJSON)
-
-        /// Encoded JSON form.
-        var encodingDescription: String {
-            switch self {
-            case let .string(value): return "\"\(value)\""
-            case let .unsignedInteger(value): return "\(value)"
-            case let .boolean(value): return value ? "true" : "false"
-            case let .jsonAny(value): return value.encodingDescription
-            }
-        }
-    }
-
-    /// JSON fragment for nested args (Vec args, sum-type arg encodings).
-    public enum SpacetimeArgumentJSON: Sendable {
-        case string(String)
-        case number(String)
-        case bool(Bool)
-        case null
-        indirect case array([SpacetimeArgumentJSON])
-
-        var encodingDescription: String {
-            switch self {
-            case let .string(value): return "\"\(value)\""
-            case let .number(value): return value
-            case let .bool(value): return value ? "true" : "false"
-            case .null: return "null"
-            case let .array(elements):
-                return "[\(elements.map(\.encodingDescription).joined(separator: ","))]"
-            }
-        }
-    }
-
-    /// Builds the request body: a JSON array of positional arguments
-    /// (compact — matches Kotlin's kotlinx serialization output).
-    private static func encodeArguments(_ arguments: [Argument]) -> String {
-        "[\(arguments.map(\.encodingDescription).joined(separator: ","))]"
-    }
-
     // MARK: - Transport
 
     /// POSTs `{base}/v1/database/{db}/call/{name}` and returns the raw body.
     /// The response body IS the return value (no wrapper array).
     private func callProcedure(
         name: String,
-        arguments: [Argument],
+        arguments: [SpacetimeArgument],
         requiresToken: Bool
     ) async throws -> String {
         let token = idTokenProvider()
@@ -280,7 +244,7 @@ public struct SpacetimeDBRemoteDataSource: Sendable {
         if let token {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
-        request.httpBody = Data(Self.encodeArguments(arguments).utf8)
+        request.httpBody = Data(encodeSpacetimeArguments(arguments).utf8)
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await session.data(for: request)
@@ -300,7 +264,7 @@ public struct SpacetimeDBRemoteDataSource: Sendable {
     }
 
     /// Calls a reducer (write) — JWT required; the unit-return body is discarded.
-    private func callReducer(name: String, arguments: [Argument]) async throws {
+    private func callReducer(name: String, arguments: [SpacetimeArgument]) async throws {
         _ = try await callProcedure(name: name, arguments: arguments, requiresToken: true)
     }
 
@@ -310,7 +274,7 @@ public struct SpacetimeDBRemoteDataSource: Sendable {
     /// `[0, [postArray]]` for Some, `[1, []]` for None.
     private func callReturningOptionPost(
         _ name: String,
-        arguments: [Argument]
+        arguments: [SpacetimeArgument]
     ) async throws -> SpacetimePostDetails? {
         let responseBody = try await callProcedure(name: name, arguments: arguments, requiresToken: false)
         guard let payload = try SpacetimePositionalDecoder.optionPayload(
@@ -322,7 +286,7 @@ public struct SpacetimeDBRemoteDataSource: Sendable {
     /// The response BODY is the `Option<UserProfileDetails>` sum variant.
     private func callReturningOptionProfile(
         _ name: String,
-        arguments: [Argument]
+        arguments: [SpacetimeArgument]
     ) async throws -> SpacetimeUserProfile? {
         let responseBody = try await callProcedure(name: name, arguments: arguments, requiresToken: false)
         guard let payload = try SpacetimePositionalDecoder.optionPayload(
@@ -334,7 +298,7 @@ public struct SpacetimeDBRemoteDataSource: Sendable {
     /// The response BODY is the struct directly: `[[post, post, …]]`.
     private func callReturningPostList(
         _ name: String,
-        arguments: [Argument]
+        arguments: [SpacetimeArgument]
     ) async throws -> SpacetimePostListOffset {
         let responseBody = try await callProcedure(name: name, arguments: arguments, requiresToken: false)
         return try SpacetimePostListOffset.fromPositionalArray(

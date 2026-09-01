@@ -275,23 +275,23 @@ struct SpacetimePositionalDecoderTests {
 
     @Test("accept_new_user_registration arg encoding: Some inlines payload, None is [1,[]]")
     func registrationArgEncoding() {
-        let some = SpacetimeDBRemoteDataSource.SpacetimeArgumentJSON
+        let some = SpacetimeArgumentJSON
             .array([.number("0"), .string("auth0|owner")])
         #expect(some.encodingDescription == #"[0,"auth0|owner"]"#)
 
-        let none = SpacetimeDBRemoteDataSource.SpacetimeArgumentJSON
+        let none = SpacetimeArgumentJSON
             .array([.number("1"), .array([])])
         #expect(none.encodingDescription == "[1,[]]")
     }
 
     @Test("positional args body is a compact JSON array")
     func argumentsBodyEncoding() {
-        let arguments: [SpacetimeDBRemoteDataSource.Argument] = [
+        let arguments: [SpacetimeArgument] = [
             .string("auth0|user-77"),
             .unsignedInteger(25),
             .boolean(true)
         ]
-        let encoded = "[\(arguments.map(\.encodingDescription).joined(separator: ","))]"
+        let encoded = encodeSpacetimeArguments(arguments)
         #expect(encoded == #"["auth0|user-77",25,true]"#)
     }
 }

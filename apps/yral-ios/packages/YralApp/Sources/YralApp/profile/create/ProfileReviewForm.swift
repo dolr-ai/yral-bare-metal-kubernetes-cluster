@@ -9,20 +9,29 @@ struct ProfileReviewForm: View {
     let isWorking: Bool
     let onCreate: () -> Void
 
+    // TODO(static-placeholder-avatars): ship ~20 static avatar images
+    // IN THE BUNDLE and assign one to each profile deterministically
+    // (index = hash(name) % 20 or similar — same profile → same image,
+    // no network dependency at all). The metadata API's remote
+    // avatarURL (fetched via AsyncImage here) is a stopgap: it depends
+    // on the avatar service being up and the URL staying valid.
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(profile.displayName)
-                .font(.title2.weight(.semibold))
+            VStack(spacing: 12) {
+                Text(profile.displayName)
+                    .font(.title2.weight(.semibold))
 
-            if let avatarURL = URL(string: profile.avatarURL) {
-                AsyncImage(url: avatarURL) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Color.gray.opacity(0.25)
+                if let avatarURL = URL(string: profile.avatarURL) {
+                    AsyncImage(url: avatarURL) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Color.gray.opacity(0.25)
+                    }
+                    .frame(width: 140, height: 140)
+                    .clipShape(Circle())
                 }
-                .frame(width: 96, height: 96)
-                .clipShape(Circle())
             }
+            .frame(maxWidth: .infinity)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(profile.description)
