@@ -69,10 +69,9 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      # Bootstrap: write the vault password, extract the age key
-      # (.yral-infra-ed25519) that decrypts fnox secrets. Identical to local
-      # `mise run bootstrap` — this is the ONLY repo secret the runner needs
-      # beyond mise itself.
+      # Bootstrap: write the vault password, then run the SAME bootstrap task
+      # as local (Ansible venv + submodules + age key + kubeconfig). This is
+      # the ONLY repo secret the runner needs beyond mise itself.
       - name: Bootstrap (vault → age key → fnox)
         env:
           ANSIBLE_VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
