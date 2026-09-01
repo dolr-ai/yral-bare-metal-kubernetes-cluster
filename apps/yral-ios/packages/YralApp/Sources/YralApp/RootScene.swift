@@ -69,6 +69,20 @@ struct RootScene: View {
                     .font(.headline)
                     .foregroundStyle(.white)
             }
+            if let principal = sessionStore.userPrincipal {
+                Text(principal)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.4))
+            }
+
+            Button {
+                Task { await authClient.logout() }
+            } label: {
+                Text("Sign out")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+            }
+            .padding(.top, 24)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(red: 0.04, green: 0.04, blue: 0.06))
