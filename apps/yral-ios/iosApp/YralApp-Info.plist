@@ -32,6 +32,15 @@
 	<!-- Dark appearance (matches the legacy app). -->
 	<key>UIUserInterfaceStyle</key>
 	<string>Dark</string>
+	<!-- Export compliance (App Store Connect asks this per build otherwise):
+	     the app uses ONLY Apple OS-provided crypto (HTTPS/TLS via
+	     URLSession, Keychain token storage, CryptoKit SHA-256 for PKCE)
+	     — no proprietary or bundled encryption. false = "no NON-EXEMPT
+	     encryption" (the standard, honest declaration for such apps; NOT
+	     a claim of "no encryption"). Pre-answers ASC's question for every
+	     future build — no per-upload prompt, no documentation needed. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<!-- App URL schemes: the yral-auth OAuth redirect
 	     (YRAL_REDIRECT_URI = com.yral.iosApp://oauth/callback) and the
 	     generic `yral` scheme used by Branch deep links. CFBundleURLTypes
