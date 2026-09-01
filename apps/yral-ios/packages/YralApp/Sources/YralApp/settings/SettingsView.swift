@@ -18,6 +18,7 @@ struct SettingsView: View {
     @State private var isAlertsEnabled = false
     @State private var isDeleteSheetShown = false
     @State private var isDeletingAccount = false
+    @State private var isAccountSwitcherShown = false
     @State private var actionError: String?
     @Environment(\.openURL) private var openURL
 
@@ -123,6 +124,18 @@ struct SettingsView: View {
 
     private var dangerSection: some View {
         Section {
+            Button {
+                isAccountSwitcherShown = true
+            } label: {
+                Text("Switch account")
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .listRowBackground(Color(white: 0.13))
+            .sheet(isPresented: $isAccountSwitcherShown) {
+                AccountSwitcherView(authClient: authClient)
+            }
+
             Button {
                 Task { await authClient.logout() }
             } label: {

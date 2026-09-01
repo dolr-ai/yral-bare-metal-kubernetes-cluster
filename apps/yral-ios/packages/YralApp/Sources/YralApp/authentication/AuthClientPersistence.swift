@@ -134,11 +134,14 @@ extension AuthClient {
         if !accessToken.isEmpty {
             keychain.setString(accessToken, forKey: .accessToken)
         }
-        // Kotlin merges JWT `ext_ai_account_ids` into BotIdentitiesStore
-        // here when `persistBotIdentities` is true; that store is consumed
-        // by the account-switcher phase, which will add its persistence
-        // alongside its UI.
-        _ = persistBotIdentities
+        // Kotlin merges the JWT's `ext_ai_account_ids` into
+        // BotIdentitiesStore here when `persistBotIdentities` is true —
+        // that list feeds the account switcher's bot section.
+        if persistBotIdentities,
+           let claims = try? JWTParser.parsePayload(of: idToken),
+           let botAccountIds = claims.botAccountIds {
+            BotIdentitiesStore.mergeFromTokenBotAccountIds(botAccountIds, defaults: defaults)
+        }
     }
 
     /// Kotlin `updateYralSession` — fire-and-forget registration call.
@@ -152,6 +155,97 @@ extension AuthClient {
             canisterID: canisterID,
             userPrincipal: userPrincipal
         )
+    }
+
+    // MARK: - Account switching (Kotlin RootViewModel.switchToAccount)
+
+    /// The switcher's list — Kotlin `seedAccountDialogFromLocalData`:
+    /// main account (from MAIN_PRINCIPAL) + bot entries (from
+    /// BotIdentitiesStore), each with resolved username + propic + the
+    /// active flag. Nil when no main principal exists (signed out).
+    func accountSwitcherEntries() -> AccountSwitcherEntries? {
+        guard let mainPrincipal = keychain.string(forKey: .mainPrincipal) else {
+            return nil
+        }
+        let activePrincipal = sessionStore.userPrincipal
+        let mainEntry = AccountSwitcherEntry(
+            principal: mainPrincipal,
+            username: mainPrincipal,
+            avatarURL: sessionStore.profilePic
+                ?? ProfilePicture.url(fromPrincipal: mainPrincipal),
+            isBot: false,
+            isActive: mainPrincipal == activePrincipal
+        )
+        let botEntries = BotIdentitiesStore.entries(defaults: defaults)
+            .filter { $0.principal != mainPrincipal }
+            .map { entry in
+                AccountSwitcherEntry(
+                    principal: entry.principal,
+                    username: UsernameGenerator.resolveUsername(
+                        preferred: entry.username, principal: entry.principal
+                    ) ?? entry.principal,
+                    avatarURL: ProfilePicture.url(fromPrincipal: entry.principal),
+                    isBot: true,
+                    isActive: entry.principal == activePrincipal
+                )
+            }
+        return AccountSwitcherEntries(mainAccount: mainEntry, botAccounts: botEntries)
+    }
+
+    /// Switches the active account — Kotlin `switchToAccount` (CLIENT-SIDE
+    /// session construction; no network): build the session directly from
+    /// the principal (propic + username derived), update the store,
+    /// persist the cached session fields, and set LAST_ACTIVE_PRINCIPAL.
+    /// Bot switches skip token refresh (the parent's tokens stay active);
+    /// switching back to main refreshes + reauthorizes.
+    func switchToAccount(principal: String) {
+        // No-op when already active (Kotlin returns early).
+        guard sessionStore.userPrincipal != principal else { return }
+
+        let storedMainPrincipal = keychain.string(forKey: .mainPrincipal)
+        var isBot = true
+        var botUsername: String?
+        if principal == storedMainPrincipal {
+            isBot = false
+        } else {
+            let storedBots = BotIdentitiesStore.entries(defaults: defaults)
+            guard let match = storedBots.first(where: { $0.principal == principal }) else {
+                return
+            }
+            botUsername = match.username
+        }
+
+        let profilePic = ProfilePicture.url(fromPrincipal: principal)
+        let session = Session(
+            canisterID: principal,
+            userPrincipal: principal,
+            profilePic: profilePic,
+            username: UsernameGenerator.resolveUsername(
+                preferred: botUsername, principal: principal
+            ),
+            bio: nil,
+            isCreatedFromServiceCanister: true,
+            isBotAccount: isBot
+        )
+        sessionStore.updateState(.signedIn(session))
+        cacheSession(
+            canisterID: principal,
+            userPrincipal: principal,
+            profilePic: profilePic,
+            username: botUsername,
+            isBotAccount: isBot
+        )
+        keychain.setString(principal, forKey: .lastActivePrincipal)
+        if isBot {
+            // Bots share the parent's tokens — do NOT overwrite the session
+            // with parent-token auth state (Kotlin parity).
+            sessionStore.updateFirebaseLoginState(false)
+        } else {
+            Task {
+                await refreshTokens()
+                sessionStore.updateFirebaseLoginState(true)
+            }
+        }
     }
 
     /// Kotlin `postLogin` — notification-token registration; the push
