@@ -37,11 +37,13 @@ pitchfork.local.toml
 # mise local overrides (secrets, machine-specific)
 mise.local.toml
 
-# yral-ios — Xcode build artifacts (never commit)
+# yral-ios — Xcode build artifacts and per-user IDE state (never commit)
 apps/yral-ios/build/
 apps/yral-ios/private_keys/
 apps/yral-ios/iosApp.xcodeproj/xcuserdata/
+apps/yral-ios/iosApp.xcodeproj/project.xcworkspace/xcuserdata/
 apps/yral-ios/packages/YralApp/.build/
+apps/yral-ios/packages/YralApp/.swiftpm/
 apps/yral-ios/DerivedData/
 
 # Temporary files
