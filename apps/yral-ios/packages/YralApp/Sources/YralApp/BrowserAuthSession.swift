@@ -6,9 +6,9 @@ import UIKit
 
 /// Browser-based social sign-in — the yral-auth server-side OIDC flow.
 /// Builds the PKCE authorization URL via `AuthClient`, runs
-/// `ASWebAuthenticationSession` (ephemeral — no shared cookie state,
-/// matching the legacy app), and maps the redirect through
-/// `OAuthCallbackParser` into an `OAuthResult` for
+/// `ASWebAuthenticationSession` (SHARED Safari cookie state — see the
+/// `prefersEphemeralWebBrowserSession` note below), and maps the
+/// redirect through `OAuthCallbackParser` into an `OAuthResult` for
 /// `AuthClient.handleOAuthCallbackResult`.
 ///
 /// Port of Kotlin `IosOAuthUtils` (`openOAuth`/`handleSessionCompletion`)
@@ -51,10 +51,10 @@ enum BrowserAuthSession {
     }
 
     #if canImport(UIKit)
-    /// The browser session — Kotlin `IosOAuthUtils.startSession`:
-    /// `prefersEphemeralWebBrowserSession = true`, callback scheme =
-    /// the app's redirect scheme. Cancel (user dismissed) surfaces as
-    /// `ASWebAuthenticationSessionError.canceledLogin`.
+    /// The browser session — Kotlin `IosOAuthUtils.startSession`, with the
+    /// ephemeral flag flipped to false (see the call site for why):
+    /// callback scheme = the app's redirect scheme. Cancel (user
+    /// dismissed) surfaces as `ASWebAuthenticationSessionError.canceledLogin`.
     ///
     /// Resume discipline (the crash fix): the completion handler can fire
     /// SYNCHRONOUSLY when start fails — observed on iOS 18 — so both the
@@ -129,7 +129,12 @@ enum BrowserAuthSession {
                 }
             }
             session.presentationContextProvider = Self.anchorProvider
-            session.prefersEphemeralWebBrowserSession = true
+            // Share Safari cookies (NOT ephemeral): Google/Apple recognize
+            // the existing session — one-tap account chooser instead of a
+            // full login every time. Deliberate deviation from the legacy
+            // Kotlin app, which set ephemeral=true (private-browsing mode —
+            // the reason logins never stuck).
+            session.prefersEphemeralWebBrowserSession = false
             Self.retainedSession = session
             if !session.start() && !resumeFlag.hasResumed {
                 // The handler did NOT fire synchronously — start genuinely
