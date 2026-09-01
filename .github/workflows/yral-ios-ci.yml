@@ -50,6 +50,19 @@ jobs:
         with:
           xcode-version: latest-stable
 
+      # Same bootstrap as local: fnox exec (used by the checks step for the
+      # gitignored GoogleService-Info.plist) requires the age key to decrypt
+      # fnox secrets. Without this, fnox exec fails resolving the first
+      # secret with identity_read_failed.
+      - name: Bootstrap (vault → age key → fnox)
+        env:
+          ANSIBLE_VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
+        run: |
+          echo "$ANSIBLE_VAULT_PASSWORD" > ansible/.vault_pass
+          chmod 600 ansible/.vault_pass
+          [ -s ansible/.vault_pass ] || { echo "ERROR: vault password empty"; exit 1; }
+          mise run bootstrap
+
       - name: Run checks (lint + package tests + simulator build)
         # fnox exec injects YRAL_IOS_FIREBASE_PLIST_BASE64 — the gitignored
         # GoogleService-Info.plist is a required bundle resource for the
