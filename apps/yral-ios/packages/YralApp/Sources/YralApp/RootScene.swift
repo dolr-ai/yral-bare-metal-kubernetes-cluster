@@ -33,7 +33,9 @@ struct RootScene: View {
             case .loading:
                 splash
             case .signedIn:
-                signedInPlaceholder
+                NavigationStack {
+                    signedInPlaceholder
+                }
             }
         }
         .task { await authClient.initialize() }
@@ -75,10 +77,10 @@ struct RootScene: View {
                     .foregroundStyle(.white.opacity(0.4))
             }
 
-            Button {
-                Task { await authClient.logout() }
+            NavigationLink {
+                SettingsView(authClient: authClient, sessionStore: sessionStore)
             } label: {
-                Text("Sign out")
+                Text("Settings")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
             }

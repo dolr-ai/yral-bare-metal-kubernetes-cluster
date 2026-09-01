@@ -161,4 +161,53 @@ extension AuthClient {
     var currentEpochSeconds: Int64 {
         Int64(Date.now.timeIntervalSince1970)
     }
+
+    // MARK: - Logout + account deletion
+
+    /// User-initiated logout.
+    public func logout() async {
+        await logoutInternal()
+    }
+
+    /// Current ID token, or nil when signed out — settings flows (delete
+    /// account) need it for the Bearer-authenticated off-chain call.
+    public var idToken: String? {
+        keychain.string(forKey: .idToken)
+    }
+
+    /// Delete the account via off-chain-agent (Kotlin
+    /// `DeleteAccountUseCase` main-account path) then logout. Bot
+    /// accounts additionally need the soft-delete-on-bot-server step —
+    /// that lands with the bots phase.
+    public func deleteAccount() async throws {
+        guard let idToken else {
+            throw AuthError.oauthFailed(errorDescription: "Not signed in")
+        }
+        try await authDataSource.deleteAccount(idToken: idToken)
+        await logoutInternal()
+    }
+
+    /// Kotlin `trackAndLogoutForTokenExpiry` — the token-expiry logout
+    /// path with its cause (analytics event lands with the analytics phase).
+    func trackAndLogoutForTokenExpiry(cause: AuthExpiryCause) async {
+        lastLogoutCause = cause
+        await logoutInternal()
+    }
+
+    func logoutInternal() async {
+        keychain.removeValue(forKey: .refreshToken)
+        keychain.removeValue(forKey: .accessToken)
+        keychain.removeValue(forKey: .idToken)
+        defaults.removeObject(forKey: CachedSessionKey.socialSignInSuccessful.rawValue)
+        defaults.removeObject(forKey: CachedSessionKey.username.rawValue)
+        defaults.removeObject(forKey: CachedSessionKey.phoneNumber.rawValue)
+
+        // Kotlin also deregisters the push token here; the push phase adds
+        // deregister_notification_token when Firebase Messaging lands.
+
+        resetCachedCanisterData()
+        sessionStore.resetSessionProperties()
+        sessionStore.updateFirebaseLoginState(false)
+        sessionStore.updateState(.initial)
+    }
 }

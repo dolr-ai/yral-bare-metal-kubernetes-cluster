@@ -59,8 +59,9 @@ public final class AuthClient {
     var currentProvider: SocialProvider?
 
     /// Most recent token-expiry logout cause (nil after a user logout) —
-    /// test hook mirroring Kotlin's telemetry cause parameter.
-    public private(set) var lastLogoutCause: AuthExpiryCause?
+    /// test hook mirroring Kotlin's telemetry cause parameter. Internal:
+    /// tests read it via @testable; the persistence extension writes it.
+    internal var lastLogoutCause: AuthExpiryCause?
 
     /// Session-storage keys in UserDefaults for the cached session fields.
     enum CachedSessionKey: String {
@@ -289,37 +290,6 @@ public final class AuthClient {
         sessionStore.updateState(.signedIn(session))
         sessionStore.updateFirebaseLoginState(true)
         postLogin()
-    }
-
-    // MARK: - Logout
-
-    /// User-initiated logout.
-    public func logout() async {
-        await logoutInternal()
-    }
-
-    /// Kotlin `trackAndLogoutForTokenExpiry` — the token-expiry logout
-    /// path with its cause (analytics event lands with the analytics phase).
-    func trackAndLogoutForTokenExpiry(cause: AuthExpiryCause) async {
-        lastLogoutCause = cause
-        await logoutInternal()
-    }
-
-    private func logoutInternal() async {
-        keychain.removeValue(forKey: .refreshToken)
-        keychain.removeValue(forKey: .accessToken)
-        keychain.removeValue(forKey: .idToken)
-        defaults.removeObject(forKey: CachedSessionKey.socialSignInSuccessful.rawValue)
-        defaults.removeObject(forKey: CachedSessionKey.username.rawValue)
-        defaults.removeObject(forKey: CachedSessionKey.phoneNumber.rawValue)
-
-        // Kotlin also deregisters the push token here; the push phase adds
-        // deregister_notification_token when Firebase Messaging lands.
-
-        resetCachedCanisterData()
-        sessionStore.resetSessionProperties()
-        sessionStore.updateFirebaseLoginState(false)
-        sessionStore.updateState(.initial)
     }
 
     // MARK: - Manual token refresh (Kotlin refreshTokens)
