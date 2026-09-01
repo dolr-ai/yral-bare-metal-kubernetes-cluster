@@ -79,30 +79,31 @@ mise run yral-ios-clean   # clean build outputs
 
 ## CI / Distribution
 
-**Deploy flow: local-first, CI-parity.** Once a CI push has been validated
-green at least once for a given workflow shape, subsequent TestFlight
-deploys run LOCALLY (`fnox exec -- mise run yral-ios-upload-testflight`) —
-local and CI run the identical mise tasks, so both are expected to behave
-the same, and local is much faster (~2 min vs ~20 min cold-cache runner).
-Use CI pushes when: (a) a workflow/task changed and needs one parity
-validation, (b) PR checks, or (c) periodic confirmation. Watch any CI push
-to completion before declaring done (post-push validation rule).
+**Deploys run LOCALLY: `fnox exec -- mise run yral-ios-upload-testflight`.**
+The CI deploy job is DISABLED (2026-09-01): the free public macOS runner pool
+queues 1h+ and starved the deploy job entirely; a local deploy (~2.5 min)
+is the iteration loop. CI runs CHECKS ONLY (lint + tests + simulator build)
+— the identical `yral-ios-checks` mise task both places. The deploy job is
+kept as a commented block in `yral-ios-ci.yml` for easy re-enabling.
 
-**Local and CI run the SAME mise tasks** (single source of truth). CI needs
-only a working mise + the root repo's pre-existing `ANSIBLE_VAULT_PASSWORD`
-GitHub secret; `mise run bootstrap` extracts the age key from the vault and
-fnox decrypts the signing secrets from `fnox.toml` — exactly like local.
-No repo-scoped iOS GitHub secrets, no fastlane, no CocoaPods.
+**Checks parity:** CI needs only a working mise + the root repo's
+pre-existing `ANSIBLE_VAULT_PASSWORD` GitHub secret; `mise run bootstrap`
+extracts the age key from the vault and fnox decrypts the Firebase plist +
+signing secrets from `fnox.toml` — exactly like local. No repo-scoped iOS
+GitHub secrets, no fastlane, no CocoaPods.
 
-- `.github/workflows/yral-ios-ci.yml` — PR: `mise run yral-ios-checks`.
-  Push/merge to main: checks, then `fnox exec -- mise run
-  yral-ios-upload-testflight` (archive → export → altool → dSYMs).
+- `.github/workflows/yral-ios-ci.yml` — checks only (lint + package tests
+  + simulator build). The TestFlight deploy job is commented out — deploys
+  run locally via `fnox exec -- mise run yral-ios-upload-testflight`.
 - `.github/workflows/yral-ios-app-store.yml` — release tags containing
   `iOS`: sets `MARKETING_VERSION` (Apple's fixed build-setting name for the
   user-facing version, `CFBundleShortVersionString`) from the tag, runs the
   same upload task, commits the version bump back to main via the default
   `GITHUB_TOKEN` (`permissions: contents: write` + checkout's persisted
-  credentials — GitHub's documented pattern; no deploy key).
+  credentials — GitHub's documented pattern; no deploy key). NOTE: this
+  workflow's macOS-runner dependency makes it subject to the same queue
+  starvation as CI deploys — if it proves unreliable, run the upload task
+  locally against the release tag instead (same mise task).
 
 ### Signing secrets (fnox.toml — set once via `fnox set <KEY> --provider age`)
 
