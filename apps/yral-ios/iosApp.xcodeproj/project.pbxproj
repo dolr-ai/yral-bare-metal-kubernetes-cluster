@@ -335,7 +335,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = iosApp/YralApp.entitlements;
-				CODE_SIGN_STYLE = Automatic;
+				/* Manual signing on Release only (Debug stays Automatic for local
+				   dev). Set per-target here — NOT as xcodebuild CLI overrides, which
+				   propagate to every target in the graph and make SPM package
+				   targets fail with "does not support provisioning profiles". */
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
+				PROVISIONING_PROFILE_SPECIFIER = Yral-Distribution;
 				CURRENT_PROJECT_VERSION = 25;
 				DEVELOPMENT_TEAM = 2UL556KNXC;
 				ENABLE_PREVIEWS = YES;

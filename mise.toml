@@ -661,26 +661,32 @@ echo "${YRAL_IOS_DIST_PROFILE_BASE64}" | base64 --decode > "$WORKDIR/Yral-Distri
 cp "$WORKDIR/Yral-Distribution.mobileprovision" ~/Library/MobileDevice/Provisioning\ Profiles/
 
 # Build keychain: isolated, auto-unlocked for this session, no partition-list
-# prompts (CI-standard form; mirrors the legacy repo's steps).
+# prompts (CI-standard form). The p12 stored in fnox is already in the
+# legacy PKCS12 format macOS `security import` requires — see the secret's
+# entry in fnox.toml for how to recreate it correctly.
 security create-keychain -p "" yralios-build.keychain || true
 security import "$WORKDIR/Yral-Dist.p12" -k ~/Library/Keychains/yralios-build.keychain -P "$YRAL_IOS_CERT_PASSWORD" -A
-security list-keychains -s ~/Library/Keychains/yralios-build.keychain
+# Append the build keychain to the search list WITHOUT dropping the system
+# ones — `-s` rewrites the whole list, so name the standard keychains
+# explicitly (login + System). Dropping login breaks cert-chain trust
+# (errSecInternalComponent: "unable to build chain to self-signed root").
+security list-keychains -s ~/Library/Keychains/yralios-build.keychain ~/Library/Keychains/login.keychain-db /Library/Keychains/System.keychain
 security set-keychain-settings -lut 21600s ~/Library/Keychains/yralios-build.keychain
 security unlock-keychain -p "" ~/Library/Keychains/yralios-build.keychain
 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" yralios-build.keychain
 
 rm -rf build/YralApp.xcarchive build/ipa
+# No CODE_SIGN_* / PROVISIONING_PROFILE_* CLI overrides here: CLI overrides
+# propagate to EVERY target in the graph and make SPM package targets fail
+# with "does not support provisioning profiles". Manual signing lives on the
+# iosApp target's Release configuration in project.pbxproj (see that file).
 xcodebuild archive \
   -project iosApp.xcodeproj \
   -scheme iosApp \
   -destination 'generic/platform=iOS' \
   -archivePath build/YralApp.xcarchive \
   -configuration Release \
-  -allowProvisioningUpdates \
-  CODE_SIGN_STYLE=Manual \
-  PROVISIONING_PROFILE_SPECIFIER="Yral-Distribution" \
-  CODE_SIGN_IDENTITY="Apple Distribution" \
-  DEVELOPMENT_TEAM="$YRAL_APPLE_TEAM_ID"
+  -quiet
 
 cat > build/ExportOptions.plist <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
