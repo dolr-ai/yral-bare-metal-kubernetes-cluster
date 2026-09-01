@@ -23,6 +23,7 @@ public struct SignInView: View {
     @State private var resendTimerSeconds: Int?
     @State private var resendTimerTask: Task<Void, Never>?
     @State private var socialAuthError: String?
+    @State private var isCountrySelectorShown = false
 
     @Environment(\.openURL) private var openURL
 
@@ -92,6 +93,15 @@ public struct SignInView: View {
                     )
                 }
             }
+            .navigationDestination(isPresented: $isCountrySelectorShown) {
+                CountrySelectorView(
+                    onSelect: { country in
+                        selectedCountry = country
+                        isCountrySelectorShown = false
+                    },
+                    onBack: { isCountrySelectorShown = false }
+                )
+            }
         }
         .onAppear(perform: detectDefaultCountry)
     }
@@ -119,8 +129,7 @@ public struct SignInView: View {
         VStack(spacing: 12) {
             HStack(spacing: 8) {
                 CountryPickerButton(country: selectedCountry) {
-                    // Country selector screen: Phase 2 continues after the
-                    // sign-in slice ships; the button is inert until then.
+                    isCountrySelectorShown = true
                 }
 
                 PhoneInputRow(
@@ -284,32 +293,25 @@ public struct SignInView: View {
     }
 
     /// Social sign-in — the browser flow lives in `BrowserAuthSession`
-    /// (built there, colocated beside this screen): authorization URL →
-    /// ephemeral browser session → callback parse → auth client.
+    /// (colocated beside this screen). The underlying error reason is
+    /// surfaced (a generic copy hides the actual cause while testing).
     private func startSocialSignIn(provider: SocialProvider) async {
         socialAuthError = nil
         do {
             let result = try await BrowserAuthSession.signIn(
-                provider: provider,
-                authClient: authClient
+                provider: provider, authClient: authClient
             )
             try await authClient.handleOAuthCallbackResult(result)
         } catch {
-            // Surface the underlying reason — a generic copy hides the
-            // actual cause while testing.
-            socialAuthError = "Sign-in failed: \(errorText(of: error))"
+            let reason = (error as? LocalizedError)?.errorDescription
+                ?? String(describing: error)
+            socialAuthError = "Sign-in failed: \(reason)"
         }
-    }
-
-    /// Short human text for sign-in errors (LocalizedError text for typed
-    /// AuthErrors; description for anything else).
-    private func errorText(of error: Error) -> String {
-        (error as? LocalizedError)?.errorDescription ?? String(describing: error)
     }
 }
 
 /// Country picker button — Kotlin `CountryPickerButton`: flag + dial code
-/// + chevron. The action is a no-op until the selector screen lands.
+/// + chevron; navigates to `CountrySelectorView`.
 private struct CountryPickerButton: View {
     let country: Country?
     let action: () -> Void
