@@ -6,8 +6,15 @@ import SwiftUI
 /// Root entry surface of the Yral iOS app package.
 ///
 /// All product code lives in the `YralApp` SPM package; the committed
-/// `YralApp.xcodeproj` is a thin shell with no product code of its own.
+/// `iosApp.xcodeproj` is a thin shell with no product code of its own.
 /// The shell's `AppDelegate` calls these entry points at launch.
+///
+/// TODO(deep-links): Branch SDK wiring (the legacy app used
+/// ios-branch-sdk-spm + the `yral://` scheme + applinks:link.yral.com
+/// already in the entitlements) — deferred pending research on the
+/// dependency; the Branch key lives in the legacy Info.plist
+/// (branch_key) when we get there. Also note the native-auth TODOs on
+/// BrowserAuthSession.
 public enum YralAppRoot {
 
     /// Creates the root SwiftUI scene content for the app.

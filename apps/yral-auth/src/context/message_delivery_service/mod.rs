@@ -1,5 +1,25 @@
 use thiserror::Error;
 
+// TODO(whatsapp-api-broken, 2026-09-01): the WHATSAPP_API_KEY in
+// kubernetes/apps/yral-auth/secrets.sops.yaml is BLOCKED/expired —
+// Meta returns `{"error": {"message": "API access blocked.", "code": 200,
+// "type": "OAuthException"}}` for every send (verified by calling the
+// Cloud API directly with the deployed token). Until the token is
+// rotated, ALL phone OTP logins fail (both the new iOS app and the
+// legacy one). This blocks fixing EITHER of the two defects below
+// meaningfully visible:
+//   1. Rotate the token (needs Meta Business console access): mint a new
+//      permanent System User token for the WhatsApp app (phone-number ID
+//      940408239151860, template `yral_auth`), update WHATSAPP_API_KEY
+//      in the SOPS secret, push (Flux redeploys).
+//   2. Fix the error mapping below: HTTP 400 is blanket-mapped to
+//      InvalidRecipient → the app shows "Invalid phone number" for a
+//      credentials failure. Read the response BODY and map precisely
+//      (recipient errors vs auth/permission errors), and LOG the body on
+//      failure so the real cause is visible in pod logs.
+// Decision pending (operator): fix the token, or REMOVE phone login
+// from the product entirely.
+
 #[async_trait::async_trait]
 pub trait MessageDeliveryService: Send + Sync {
     async fn send_message(

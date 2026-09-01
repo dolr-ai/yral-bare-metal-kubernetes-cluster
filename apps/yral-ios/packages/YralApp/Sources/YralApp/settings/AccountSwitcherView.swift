@@ -14,10 +14,23 @@ struct AccountSwitcherView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("Switch account")
-                .font(.headline)
-                .foregroundStyle(.white)
-                .padding(.top, 26)
+            HStack {
+                Text("Switch account")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.6))
+                        .padding(8)
+                        .background(Color(white: 0.18), in: Circle())
+                }
+                .accessibilityLabel("Close")
+            }
+            .padding(.top, 26)
 
             if let entries {
                 if !entries.mainAccount.isPlaceholder {

@@ -27,6 +27,15 @@ struct SettingsView: View {
     /// phase; the toggle is stored now so it controls that flow later).
     private let alertsDefaultsKey = "NOTIFICATION_ALERTS_ENABLED"
 
+    // TODO(push-notifications): wire APNS → Firebase Messaging → the
+    // SpacetimeDB register_notification_token reducer on sign-in
+    // (AuthClient.postLogin stub), and deregister on logout. Requires
+    // pinning the FirebaseMessaging product of the already-pinned
+    // firebase-ios-sdk in Package.swift + the aps-environment entitlement
+    // (already present: development) + server-side APNS key upload to
+    // Firebase console. HOLD: research pending before committing to the
+    // dependency set.
+
     var body: some View {
         VStack(spacing: 0) {
             header
