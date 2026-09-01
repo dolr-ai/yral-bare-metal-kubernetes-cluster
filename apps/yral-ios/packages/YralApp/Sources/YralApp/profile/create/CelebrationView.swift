@@ -26,10 +26,14 @@ struct CelebrationView: View {
     // Hero, Morse, Pop, Purr, Sosumi, Submarine, Tink — audition with
     // `afplay /System/Library/Sounds/<name>.aiff`) — none is a real
     // party horn. Options: (a) audition the device UISounds folder and
-    // pick a verified ID, or (b) bundle our own horn asset and play it
-    // with AVAudioPlayer. Until then the preview (unmuted, per the
-    // previews rule) plays 1104 so the operator hears exactly what
-    /// ships.
+    // pick a verified ID, or (b) bundle our own horn asset — and play
+    // it through the SAME Audio Services API (AudioServicesCreate-
+    // SystemSoundID with the file URL → AudioServicesPlaySystemSound);
+    // no AVAudioPlayer or audio session needed (System Sound Services
+    // plays ≤30s files; one at a time; respects the silent switch).
+    // Docs: https://developer.apple.com/documentation/audiotoolbox/audio-services
+    // Until then the preview (unmuted, per the previews rule) plays
+    /// 1104 so the operator hears exactly what ships.
     private let playsPartyHorn: Bool
 
     init(playsPartyHorn: Bool = true) {
