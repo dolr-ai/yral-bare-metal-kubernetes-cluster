@@ -1,0 +1,156 @@
+---
+- name: Check if system is Debian/Ubuntu
+  fail:
+    msg: "This role is designed for Debian/Ubuntu systems only"
+  when: ansible_os_family != "Debian"
+
+- name: Check if Docker is installed
+  command: docker --version
+  register: docker_check
+  failed_when: false
+  changed_when: false
+
+- name: Fail if Docker is not installed
+  fail:
+    msg: "Docker is not installed. Please run the docker role first."
+  when: docker_check.rc != 0
+
+- name: Display Docker version
+  debug:
+    msg: "Docker version: {{ docker_check.stdout }}"
+
+- name: Check if docker-compose.yml exists
+  stat:
+    path: "{{ docker_compose_path }}"
+  register: compose_file
+
+- name: Create docker-compose.yml if it doesn't exist
+  copy:
+    dest: "{{ docker_compose_path }}"
+    content: |
+      version: "3.8"
+      services:
+    mode: "0644"
+  when: not compose_file.stat.exists
+
+- name: Display compose file status
+  debug:
+    msg: "docker-compose.yml {{ 'already exists' if compose_file.stat.exists else 'was created' }}"
+
+- name: Check if beszel_agent_token is defined
+  fail:
+    msg: |
+      beszel_agent_token is not defined for host {{ inventory_hostname }}.
+      Set vault_beszel_agent_token in group_vars/all/vault.yml for the universal token,
+      or in host_vars/{{ inventory_hostname }}/vault.yml for a per-host token.
+  when: beszel_agent_token is not defined or beszel_agent_token == ""
+
+- name: Create backup of docker-compose.yml
+  copy:
+    src: "{{ docker_compose_path }}"
+    dest: "{{ docker_compose_path }}.backup-{{ ansible_date_time.epoch }}"
+    remote_src: yes
+
+- name: Remove existing Ansible-managed beszel-agent block
+  blockinfile:
+    path: "{{ docker_compose_path }}"
+    marker: "  # {mark} ANSIBLE MANAGED BLOCK - BESZEL AGENT"
+    state: absent
+  register: block_removed
+
+- name: Copy beszel cleanup script to remote
+  copy:
+    src: cleanup_beszel.py
+    dest: /tmp/cleanup_beszel.py
+    mode: "0755"
+  changed_when: false
+
+- name: Remove any remaining non-managed beszel-agent entries
+  command: python3 /tmp/cleanup_beszel.py
+  changed_when: false
+
+- name: Clean up temporary script
+  file:
+    path: /tmp/cleanup_beszel.py
+    state: absent
+  changed_when: false
+
+- name: Ensure docker-compose.yml has beszel-agent service
+  blockinfile:
+    path: "{{ docker_compose_path }}"
+    marker: "  # {mark} ANSIBLE MANAGED BLOCK - BESZEL AGENT"
+    insertafter: "^services:"
+    state: present
+    block: |2
+        # ┌─────────────────────────────────────────────────────────────────┐
+        # │  MANAGED BY ANSIBLE — DO NOT EDIT OR REMOVE THIS SECTION       │
+        # │                                                                 │
+        # │  This block is required for Beszel system monitoring to work.  │
+        # │  It is automatically maintained by the beszel_agent Ansible     │
+        # │  role. Any manual changes will be overwritten on the next run.  │
+        # │                                                                 │
+        # │  To update configuration, edit the Ansible role variables:     │
+        # │    ansible/inventory/group_vars/all/vars.yml                   │
+        # └─────────────────────────────────────────────────────────────────┘
+        beszel-agent:
+          image: henrygd/beszel-agent
+          container_name: beszel-agent
+          restart: unless-stopped
+          network_mode: host
+          volumes:
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+            - ./beszel_agent_data:/var/lib/beszel-agent
+            - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:ro
+          environment:
+            LISTEN: {{ beszel_listen_port }}
+            KEY: "{{ beszel_ssh_key }}"
+            TOKEN: {{ beszel_agent_token }}
+            HUB_URL: {{ beszel_hub_url }}
+          security_opt:
+            - apparmor:unconfined
+  register: compose_updated
+
+- name: Display update status
+  debug:
+    msg: "Beszel agent service was {{ 'updated' if compose_updated.changed else 'already configured' }}"
+
+- name: Validate docker-compose.yml syntax
+  command: docker compose -f {{ docker_compose_path }} config --quiet
+  args:
+    chdir: /root
+  register: compose_validation
+  failed_when: compose_validation.rc != 0
+  changed_when: false
+
+- name: Display validation result
+  debug:
+    msg: "docker-compose.yml syntax is valid"
+
+- name: Pull latest beszel-agent image and start container
+  command: docker compose -f {{ docker_compose_path }} up -d --pull always beszel-agent
+  args:
+    chdir: /root
+  when: compose_updated.changed
+  register: docker_compose_up
+
+- name: Display container status
+  debug:
+    msg: "Beszel agent container {{ 'started/updated' if compose_updated.changed else 'no changes needed' }}"
+
+- name: Wait for beszel-agent container to be healthy
+  command: "docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' beszel-agent"
+  register: container_status
+  until: container_status.stdout == "running"
+  retries: 10
+  delay: 3
+  changed_when: false
+  when: compose_updated.changed
+
+- name: Display final container status
+  command: "docker ps --filter name=beszel-agent --format 'table {{ '{{' }}.Names{{ '}}' }}\t{{ '{{' }}.Status{{ '}}' }}\t{{ '{{' }}.Ports{{ '}}' }}'"
+  register: container_info
+  changed_when: false
+
+- name: Show beszel-agent container info
+  debug:
+    msg: "{{ container_info.stdout_lines }}"

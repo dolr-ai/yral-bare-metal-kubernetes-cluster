@@ -1,0 +1,15 @@
+---
+# Grant temporary SSH access to a team member on one or more hosts.
+# Access is automatically revoked on the next weekly-update run (ssh_security role
+# resets authorized_keys to the canonical set).
+#
+# Usage:
+#   ansible-playbook ansible/playbooks/ssh-access.yml --limit <hostname|group> -e team_member_name=<name>
+#
+# Available names: see team_members in ansible/inventory/group_vars/all/vars.yml
+
+- name: Grant temporary SSH access to team member
+  hosts: "{{ target | default('all') }}"
+  gather_facts: true
+  roles:
+    - role: ssh_key_grant

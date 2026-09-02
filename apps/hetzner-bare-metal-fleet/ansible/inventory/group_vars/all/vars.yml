@@ -1,0 +1,46 @@
+---
+# Ansible Variables - References to Vault Secrets
+# This file is unencrypted and references encrypted values from vault.yml
+#
+# All sensitive values are stored in vault.yml and referenced here
+
+# Hetzner Robot API credentials
+hetzner_robot_user: "{{ vault_hetzner_robot_user }}"
+hetzner_robot_password: "{{ vault_hetzner_robot_password }}"
+
+# GitHub Actions SSH key
+github_actions_ssh_private_key: "{{ vault_github_actions_ssh_private_key }}"
+
+# Beszel monitoring configuration
+beszel_hub_url: "https://beszel.yral.com"
+beszel_listen_port: 45876
+beszel_ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINkmr8wZEhKAk3UALLB+3AnQsSgkgGjxoiqJ5Zv8glh9"
+# Universal token (from /settings/tokens on the Beszel hub) — allows agents to
+# auto-register without needing a per-system token. Per-host vault values in
+# host_vars/*/vault.yml take precedence over this if both are defined.
+beszel_agent_token: "{{ vault_beszel_agent_token }}"
+
+# Team member SSH keys for temporary access
+team_members:
+  ansuman:
+    email: "ansuman@gobazzinga.io"
+    ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILGb2pAXEJeBmrfgkIKU9egGb5a0bDIYqpazZGnxLV4J ansuman@gobazzinga.io"
+  naitik:
+    email: "naitik@gobazzinga.io"
+    ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEiXkPkZghjS+QfvScVTFRsUZCh7ibH80bb/ls4ddJHs naitik@gobazzinga.io"
+  prakash:
+    email: "prakash@gobazzinga.io"
+    ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICetWiHXjTBs+Xw7k024xV5YGaIxtQiAk6O+Ge2OZ0kU prakash@gobazzinga.io"
+  sarvesh:
+    email: "sarvesh@gobazzinga.io"
+    ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGPshcyPLqPEHcHnb3cM2VC9NDj+UYNwKlIDqtlsBGNR sarvesh@gobazzinga.io"
+  rishi:
+    email: "rishi@gobazzinga.io"
+    ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE6RhsV0UkNgy/ngh2IyW4DOmnsyo3GgBvq/2eM8RLP9 rishi@gobazzinga.io"
+
+# Canonical SSH keys (always included)
+canonical_ssh_keys:
+  - name: "github-actions@yral.com"
+    key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIM/H7Jp2RgC1xtg1nyzpmhzOTmUz3n+PQPsk83BzUskg github-actions@yral.com"
+  - name: "saikatdas0790@gmail.com"
+    key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEk4PvXhngz7NQRu/OYThH+gH/BLRzncjiAMNo16NCHV saikatdas0790@gmail.com"

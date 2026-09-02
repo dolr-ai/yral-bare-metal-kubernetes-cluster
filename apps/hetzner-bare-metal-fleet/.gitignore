@@ -1,0 +1,31 @@
+# Ansible vault password files (the fleet uses the parent repo's
+# ansible/.vault_pass — but ignore a stray local copy just in case)
+ansible/.vault_pass
+.vault_pass
+
+# Ansible logs
+ansible/ansible.log
+
+# Ansible retry files
+ansible/retry/*.retry
+*.retry
+
+# Python (fleet .venv — created by `mise run fleet-bootstrap`)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+env/
+venv/
+.venv
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Ansible collections installed by `mise run fleet-bootstrap`
+ansible/collections/
+
+build/

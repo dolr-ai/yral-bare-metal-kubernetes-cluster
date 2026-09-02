@@ -1,0 +1,92 @@
+---
+# Weekly maintenance playbook.
+# Runs in order:
+#   1. Full apt upgrade + beszel agent refresh on all bare metal hosts (parallel)
+#   2. Rolling reboot of any host that has /var/run/reboot-required set (serial: 1)
+#   3. Reset authorized_keys to canonical set on all bare metal hosts
+#
+# The Beszel hub is no longer managed by this playbook — it now runs on the
+# yral-bare-metal-kubernetes-cluster as a Flux-managed Deployment. The hub URL
+# (https://beszel.yral.com) is unchanged; agents connect to the k8s-hosted hub.
+#
+# Usage:
+#   ansible-playbook ansible/playbooks/weekly-update.yml
+#   ansible-playbook ansible/playbooks/weekly-update.yml --limit <hostname>
+#   ansible-playbook ansible/playbooks/weekly-update.yml -e enable_reboot=false  # suppress reboots
+
+# ── Play 1: apt upgrade + beszel agent refresh (parallel) ───────────────────
+- name: System update and beszel agent refresh
+  hosts: bare_metal
+  max_fail_percentage: 50
+  gather_facts: true
+  roles:
+    - role: system_update
+      vars:
+        enable_reboot: false   # reboots handled separately in play 2
+    - role: beszel_agent
+
+# ── Play 2: Rolling reboot of hosts that require it ─────────────────────────
+# One host at a time (serial: 1). After each reboot we (a) wait until the node
+# is genuinely reachable again, then (b) hold for a settle period before touching
+# the next host -- so quorum clusters that share this flat inventory (Postgres
+# rishi-4/5/6, Vault vault-1/2/3, ...) never lose more than one member at once.
+# On 2026-08-10 three DB nodes rebooted within ~35s and Patroni could not elect a
+# leader -> full v2 outage: the reboot step was returning early (SSH ControlPersist
+# keeps a stale socket alive), so the `changed`-gated pause was skipped and there
+# was no real stagger. The explicit wait_for_connection + the settle gated on
+# "reboot was required" fix that.
+- name: Reboot hosts that require it (rolling)
+  hosts: bare_metal
+  serial: 1
+  max_fail_percentage: 50     # with serial:1 a single node that fails to return
+                              # aborts the rollout -- never reboot into a failure
+  gather_facts: false
+  tasks:
+    - name: Check if reboot is required
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_required_file
+
+    - name: Reboot if required
+      reboot:
+        msg: "Rebooting after package upgrades (kernel or critical libraries updated)"
+        reboot_timeout: 900          # bare-metal POST can take several minutes
+        connect_timeout: 20
+        post_reboot_delay: 30        # let the OS settle before we probe it
+        test_command: uptime
+      when:
+        - reboot_required_file.stat.exists
+        - enable_reboot | default(true) | bool
+      register: reboot_result
+
+    - name: Re-verify the node is truly back (guard against an early reboot return)
+      # delay / sleep / timeout are all in SECONDS: wait 30s, then re-check every
+      # 5s for up to 15 min. Blocks until the node is actually reachable even if
+      # the reboot module returned before the host had gone down.
+      wait_for_connection:
+        delay: 30
+        sleep: 5
+        timeout: 900
+      when:
+        - reboot_required_file.stat.exists
+        - enable_reboot | default(true) | bool
+
+    - name: Let the node settle before the next host reboots
+      # Gated on "a reboot was required" (stat.exists), NOT on reboot_result.changed
+      # -- the latter was being skipped, which is why there was no stagger on
+      # 2026-08-10. Default 60s; raise with -e reboot_pause_seconds=300 if a slower
+      # service (e.g. a large DB) needs longer to fully rejoin its cluster.
+      pause:
+        seconds: "{{ reboot_pause_seconds | default(60) }}"
+      when:
+        - reboot_required_file.stat.exists
+        - enable_reboot | default(true) | bool
+
+# ── Play 3: Reset SSH authorized_keys to canonical set on all hosts ─────────
+- name: Reset SSH authorized_keys to canonical set
+  hosts: bare_metal
+  gather_facts: false
+  become: true
+  max_fail_percentage: 50
+  roles:
+    - role: ssh_security

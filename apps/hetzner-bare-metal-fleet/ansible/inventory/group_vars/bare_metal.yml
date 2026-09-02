@@ -1,0 +1,10 @@
+---
+# Common connection settings for all bare metal hosts
+# The infra SSH key is shared with the parent repo: extracted from the fleet
+# vault by `mise run fleet-bootstrap` (or the parent's root `mise run bootstrap`)
+# to .yral-infra-ed25519 at the repo root (gitignored). inventory_dir is
+# apps/hetzner-bare-metal-fleet/ansible/inventory, so the repo root is 4 levels up.
+ansible_user: root
+ansible_ssh_private_key_file: "{{ inventory_dir }}/../../../../.yral-infra-ed25519"
+ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=15 -o ServerAliveCountMax=20"
+ansible_python_interpreter: /usr/bin/python3

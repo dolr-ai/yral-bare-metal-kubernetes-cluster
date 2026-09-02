@@ -1,0 +1,89 @@
+name: Fleet Maintenance
+
+# Weekly maintenance for the Hetzner bare-metal fleet (apps/hetzner-bare-metal-fleet —
+# in-repo directory since 2026-09-02; previously a submodule whose GitHub workflows
+# stopped running when the standalone repo was archived).
+#
+# Runs the same mise task as a local operator run:
+#   apt full-upgrade → beszel agent refresh → rolling reboot (serial: 1 with
+#   stagger — protects shared quorum clusters) → authorized_keys reset.
+#
+# This is the ONLY fleet GitHub workflow — provisioning (fleet-provision) and
+# temporary SSH-access grants (fleet-ssh-access) are mise tasks in the root
+# mise.toml, run locally by an operator.
+on:
+  workflow_dispatch:
+    inputs:
+      target_hosts:
+        description: "Target hosts (specific hostname, group, or 'all'). Defaults to all bare_metal hosts."
+        required: false
+        default: "bare_metal"
+        type: string
+      enable_reboot:
+        description: "Allow automatic reboot after system update if required"
+        required: false
+        default: true
+        type: boolean
+  schedule:
+    - cron: "30 3 * * 1"  # Mondays at 9 AM IST (3:30 AM UTC)
+
+env:
+  ANSIBLE_HOST_KEY_CHECKING: False
+  ANSIBLE_FORCE_COLOR: True
+
+permissions:
+  contents: read
+
+jobs:
+  maintenance:
+    name: Run Fleet Maintenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup mise + project tools
+        uses: jdx/mise-action@v2
+        with:
+          experimental: true
+
+      - name: Run fleet maintenance
+        env:
+          ANSIBLE_VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
+        run: |
+          set -e
+
+          # Set up vault password (parent repo's vault — shared with the fleet).
+          # The fleet's ansible.cfg resolves it via its relative
+          # vault_password_file (apps/hetzner-bare-metal-fleet → ../../ansible/.vault_pass).
+          echo "$ANSIBLE_VAULT_PASSWORD" > ansible/.vault_pass
+          chmod 600 ansible/.vault_pass
+
+          # Validate vault password file
+          [ -s ansible/.vault_pass ] || { echo "ERROR: Vault password file is empty - GitHub secret may not be set"; exit 1; }
+          echo "✓ Vault password file created ($(wc -c < ansible/.vault_pass) bytes)"
+
+          # Cleanup function to remove temporary credentials
+          cleanup() {
+            rm -f .yral-infra-ed25519
+            rm -f ansible/.vault_pass
+          }
+          trap cleanup EXIT
+
+          # Determine target (scheduled runs always hit all bare_metal hosts)
+          TARGET="${{ inputs.target_hosts }}"
+          [ -z "$TARGET" ] && TARGET="bare_metal"
+
+          # fleet-maintenance depends on fleet-bootstrap, which creates the fleet
+          # .venv and extracts the infra SSH key from the fleet vault →
+          # ./.yral-infra-ed25519; the playbook runs with cwd = apps/hetzner-bare-metal-fleet.
+          #
+          # inputs.enable_reboot is empty string on scheduled runs (no inputs context),
+          # which Ansible's | bool filter evaluates as false. Fall back to 'true' so
+          # scheduled runs reboot as intended; explicit false from workflow_dispatch is
+          # still honoured because non-empty 'false' is truthy in GHA expressions.
+          mise run fleet-maintenance -- \
+            --limit "$TARGET" \
+            --extra-vars "enable_reboot=${{ inputs.enable_reboot || 'true' }}"

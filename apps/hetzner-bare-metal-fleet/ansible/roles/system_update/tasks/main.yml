@@ -1,0 +1,77 @@
+---
+- name: Wait for system to be ready
+  wait_for_connection:
+    timeout: 60
+    delay: "{{ retry_delay }}"
+  retries: "{{ retry_count }}"
+  register: connection_result
+  until: connection_result is succeeded
+
+- name: Gather facts
+  setup:
+
+- name: Check if system is Debian/Ubuntu
+  fail:
+    msg: "This role is designed for Debian/Ubuntu systems only"
+  when: ansible_os_family != "Debian"
+
+- name: Update apt package cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  register: apt_update_result
+  retries: 3
+  delay: 10
+  until: apt_update_result is succeeded
+
+- name: Check for available package upgrades
+  shell: apt list --upgradable 2>/dev/null | grep -c upgradable || true
+  register: upgradable_packages
+  changed_when: false
+
+- name: Display number of upgradable packages
+  debug:
+    msg: "{{ upgradable_packages.stdout }} packages are available for upgrade"
+
+- name: Perform full system upgrade
+  apt:
+    upgrade: full
+    autoremove: yes
+    autoclean: yes
+  register: upgrade_result
+  when: upgradable_packages.stdout | int > 0
+
+- name: Remove unnecessary packages
+  apt:
+    autoremove: yes
+    purge: yes
+
+- name: Clean apt cache
+  apt:
+    autoclean: yes
+
+- name: Display upgrade summary
+  debug:
+    msg: |
+      Upgrade Summary:
+      - Packages upgraded: {{ upgrade_result.stdout_lines | length if upgrade_result is defined and upgrade_result.stdout_lines is defined else 0 }}
+  when: upgrade_result is defined
+
+- name: Check if system reboot is required
+  stat:
+    path: /var/run/reboot-required
+  register: reboot_required_file
+
+- name: Display reboot requirement status
+  debug:
+    msg: "System reboot is {{ 'REQUIRED' if reboot_required_file.stat.exists else 'NOT required' }}"
+
+- name: Reboot system if required
+  reboot:
+    msg: "Rebooting system after package upgrades (kernel or critical system libraries updated)"
+    reboot_timeout: 300
+    connect_timeout: 20
+    test_command: uptime
+  when:
+    - reboot_required_file.stat.exists
+    - enable_reboot | default(false) | bool

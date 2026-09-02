@@ -829,6 +829,111 @@ FIRST_POD=$(kubectl -n my-website get pods -l app=my-website -o jsonpath='{.item
 kubectl -n my-website logs "$FIRST_POD" --tail=20
 '''
 
+# ── hetzner-bare-metal-fleet ────────────────────────────────────────────────
+# Bare-metal fleet automation (apps/hetzner-bare-metal-fleet) — Ansible for the
+# standalone Hetzner servers (provisioning, weekly maintenance, temporary team
+# SSH access). This is an in-repo directory (NOT a submodule) since 2026-09-02.
+# The fleet shares the parent repo's Ansible vault (same password, same infra
+# SSH key material): the fleet's ansible.cfg points at ../../ansible/.vault_pass
+# and the connection key at ../../.yral-infra-ed25519 (the fleet dir is 2 levels
+# below the repo root), both created by `mise run bootstrap` (this file's root
+# bootstrap task). The weekly maintenance cron also runs as a GitHub workflow
+# (.github/workflows/fleet-maintenance.yml) — provisioning and SSH-access grants
+# are mise tasks ONLY (local operator actions).
+#
+# All fleet tasks run with cwd = apps/hetzner-bare-metal-fleet so the fleet's
+# own ansible.cfg (inventory, roles_path, vault password) is picked up by Ansible
+# automatically. Extra args after `--` are forwarded to ansible-playbook
+# (e.g. `mise run fleet-maintenance -- --limit rishi-1`).
+# The .venv is created on demand: every fleet-* task depends on fleet-bootstrap.
+
+[tasks.fleet-bootstrap]
+description = "Create the fleet .venv, install Ansible, and extract the infra SSH key (idempotent)"
+dir = "apps/hetzner-bare-metal-fleet"
+# sources/outputs are relative to the task's dir (the fleet subdirectory) and may
+# use ".." to reach the parent repo root (see mise docs on task sources/outputs).
+# ../../ansible/.vault_pass in sources re-triggers when the vault password changes.
+sources = ["ansible/requirements.yml", "../../ansible/.vault_pass"]
+outputs = [".venv", "../../.yral-infra-ed25519"]
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Create the fleet venv and install Python tooling (idempotent — venv module updates in place)
+python -m venv .venv && ./.venv/bin/pip install --upgrade pip && ./.venv/bin/pip install ansible-core ansible-lint && ./.venv/bin/ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections
+
+# Extract the infra SSH private key from the fleet's Ansible vault → ../../.yral-infra-ed25519
+# (the parent repo root, gitignored). Same key material as the parent vault — the root
+# `bootstrap` task extracts the same key when run; this block makes fleet-bootstrap
+# self-sufficient (CI runs only fleet tasks, never the full root bootstrap).
+# Idempotent — skips if the key already exists. Resilient to a missing/wrong vault
+# password — prints a warning instead of failing.
+if [ ! -f ../../.yral-infra-ed25519 ]; then
+  if ./.venv/bin/ansible-vault view ansible/inventory/group_vars/all/vault.yml --vault-password-file ../../ansible/.vault_pass 2>/dev/null | \
+     ./.venv/bin/python -c "import sys, yaml; print(yaml.safe_load(sys.stdin)['vault_github_actions_ssh_private_key'])" \
+     > ../../.yral-infra-ed25519 2>/dev/null; then
+    chmod 600 ../../.yral-infra-ed25519
+    echo '  ✓ Extracted infra SSH key to ../../.yral-infra-ed25519'
+  else
+    rm -f ../../.yral-infra-ed25519
+    echo '  ⚠ Vault decryption failed — check ../../ansible/.vault_pass (parent repo: mise run setup)'
+  fi
+else
+  echo '  ✓ Infra SSH key already at ../../.yral-infra-ed25519'
+fi
+'''
+
+[tasks.fleet-maintenance]
+description = "Weekly fleet maintenance (usage: mise run fleet-maintenance -- --limit <host|bare_metal> [-e enable_reboot=false])"
+dir = "apps/hetzner-bare-metal-fleet"
+depends = ["fleet-bootstrap"]
+run = "./.venv/bin/ansible-playbook ansible/playbooks/weekly-update.yml"
+
+[tasks.fleet-provision]
+description = "Provision a bare-metal host (usage: mise run fleet-provision -- --limit <host> [-e force_provision=true] [-e skip_rescue_activation=true])"
+dir = "apps/hetzner-bare-metal-fleet"
+depends = ["fleet-bootstrap"]
+run = "./.venv/bin/ansible-playbook ansible/playbooks/provision.yml"
+
+[tasks.fleet-ssh-access]
+description = "Grant temporary SSH access (usage: mise run fleet-ssh-access -- --limit <host|group> -e team_member_name=<name>)"
+dir = "apps/hetzner-bare-metal-fleet"
+depends = ["fleet-bootstrap"]
+run = "./.venv/bin/ansible-playbook ansible/playbooks/ssh-access.yml"
+
+[tasks.fleet-lint]
+description = "Lint the fleet Ansible playbooks and roles with ansible-lint"
+dir = "apps/hetzner-bare-metal-fleet"
+depends = ["fleet-bootstrap"]
+run = "./.venv/bin/ansible-lint ansible/"
+
+[tasks.fleet-validate]
+description = "Validate the fleet inventory decrypts and hosts resolve (read-only)"
+dir = "apps/hetzner-bare-metal-fleet"
+depends = ["fleet-bootstrap"]
+run = "./.venv/bin/ansible-inventory --graph"
+
+[tasks.fleet-vault-decrypt]
+description = "Decrypt the fleet Ansible vault (apps/hetzner-bare-metal-fleet) for editing"
+dir = "apps/hetzner-bare-metal-fleet"
+depends = ["fleet-bootstrap"]
+run = "./.venv/bin/ansible-vault decrypt ansible/inventory/group_vars/all/vault.yml"
+
+[tasks.fleet-vault-encrypt]
+description = "Re-encrypt the fleet Ansible vault after editing"
+dir = "apps/hetzner-bare-metal-fleet"
+depends = ["fleet-bootstrap"]
+run = "./.venv/bin/ansible-vault encrypt ansible/inventory/group_vars/all/vault.yml"
+
+[tasks.fleet-vault-view]
+description = "View a value from the fleet Ansible vault (usage: mise run fleet-vault-view -- <yaml key>)"
+dir = "apps/hetzner-bare-metal-fleet"
+depends = ["fleet-bootstrap"]
+run = '''
+./.venv/bin/ansible-vault view ansible/inventory/group_vars/all/vault.yml | \
+  ./.venv/bin/python -c "import sys, yaml; print(yaml.safe_load(sys.stdin)[sys.argv[1]])" "$@"
+'''
+
 # ── Dev: local SpacetimeDB + yral-auth + yral-web ────────────────────────
 # These tasks build the binaries and start all dev servers via pitchfork.
 # The pitchfork `dev` group manages the daemons with dependency ordering:

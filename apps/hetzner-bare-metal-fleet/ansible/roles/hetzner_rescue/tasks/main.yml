@@ -1,0 +1,106 @@
+---
+- name: Validate required variables
+  assert:
+    that:
+      - hetzner_robot_user is defined
+      - hetzner_robot_password is defined
+      - ansible_host is defined
+    fail_msg: "Required variables not defined. Ensure Hetzner credentials and ansible_host are set."
+
+- name: Fetch all SSH keys from Hetzner API
+  uri:
+    url: "{{ hetzner_api_url }}/key"
+    method: GET
+    user: "{{ hetzner_robot_user }}"
+    password: "{{ hetzner_robot_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  register: hetzner_keys_response
+  delegate_to: localhost
+
+- name: Build list of canonical key names to match
+  set_fact:
+    canonical_key_names: "{{ canonical_ssh_keys | map(attribute='name') | list }}"
+  delegate_to: localhost
+
+- name: Filter and extract fingerprints for canonical keys only
+  set_fact:
+    hetzner_key_fingerprints: >-
+      {{
+        hetzner_keys_response.json
+        | selectattr('key.name', 'defined')
+        | selectattr('key.name', 'in', canonical_key_names)
+        | map(attribute='key.fingerprint')
+        | list
+      }}
+  delegate_to: localhost
+
+- name: Display SSH keys to be added to rescue mode
+  debug:
+    msg: "Adding {{ hetzner_key_fingerprints | length }} canonical SSH key(s) to rescue mode: {{ canonical_key_names | join(', ') }}"
+  delegate_to: localhost
+
+- name: Build form data with multiple authorized_key fields
+  set_fact:
+    rescue_form_body: >-
+      os={{ rescue_os }}&arch={{ rescue_arch }}{% for fp in hetzner_key_fingerprints %}&authorized_key[]={{ fp }}{% endfor %}
+  delegate_to: localhost
+
+- name: Activate rescue mode via Hetzner Robot API
+  uri:
+    url: "{{ hetzner_api_url }}/boot/{{ ansible_host }}/rescue"
+    method: POST
+    user: "{{ hetzner_robot_user }}"
+    password: "{{ hetzner_robot_password }}"
+    force_basic_auth: yes
+    body: "{{ rescue_form_body }}"
+    headers:
+      Content-Type: "application/x-www-form-urlencoded"
+    status_code: 200
+  register: rescue_activation
+  delegate_to: localhost
+
+- name: Display rescue mode activation result
+  debug:
+    msg: "Rescue mode activated. Root password: {{ rescue_activation.json.rescue.password | default('N/A') }}"
+
+- name: Reboot server into rescue mode via Hetzner Robot API
+  uri:
+    url: "{{ hetzner_api_url }}/reset/{{ ansible_host }}"
+    method: POST
+    user: "{{ hetzner_robot_user }}"
+    password: "{{ hetzner_robot_password }}"
+    force_basic_auth: yes
+    body_format: form-urlencoded
+    body:
+      type: "hw"
+    status_code: 200
+  register: reboot_result
+  delegate_to: localhost
+
+- name: Wait for server to go down
+  wait_for:
+    host: "{{ ansible_host }}"
+    port: 22
+    state: stopped
+    timeout: 60
+  delegate_to: localhost
+  failed_when: false
+
+- name: Wait for server to come back up in rescue mode
+  wait_for:
+    host: "{{ ansible_host }}"
+    port: 22
+    state: started
+    delay: 30
+    timeout: 300
+  delegate_to: localhost
+
+- name: Verify rescue mode is active
+  shell: |
+    if [ ! -f /root/.oldroot/nfs/install/installimage ]; then
+      echo "ERROR: Not in rescue mode!"
+      exit 1
+    fi
+    echo "Rescue mode confirmed"
+  changed_when: false

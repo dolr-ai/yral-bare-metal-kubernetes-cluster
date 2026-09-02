@@ -1,0 +1,3 @@
+---
+provision_marker: "/root/.provisioned"
+force_provision: false

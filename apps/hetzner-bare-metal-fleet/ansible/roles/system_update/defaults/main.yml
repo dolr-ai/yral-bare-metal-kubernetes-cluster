@@ -1,0 +1,6 @@
+---
+retry_count: 3
+retry_delay: 10
+# Reboot when the OS signals it is required (new kernel, libc, etc.).
+# Set to false to suppress reboots at call time: -e enable_reboot=false
+enable_reboot: true

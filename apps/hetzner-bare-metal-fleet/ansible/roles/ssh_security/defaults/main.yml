@@ -1,0 +1,4 @@
+---
+ssh_authorized_keys_file: /root/.ssh/authorized_keys
+retry_count: 3
+retry_delay: 10

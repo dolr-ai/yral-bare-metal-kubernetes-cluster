@@ -1,0 +1,38 @@
+---
+# Idempotent bare-metal provisioning playbook.
+# Runs: rescue activation → OS install → system update → ssh security → docker → beszel agent
+#
+# Usage:
+#   ansible-playbook ansible/playbooks/provision.yml --limit <hostname>
+#   ansible-playbook ansible/playbooks/provision.yml --limit <hostname> -e skip_rescue_activation=true
+#   ansible-playbook ansible/playbooks/provision.yml --limit <hostname> -e force_provision=true
+#   ansible-playbook ansible/playbooks/provision.yml --limit <hostname> -e skip_rescue_activation=false -e force_provision=true
+#
+# Variables:
+#   skip_rescue_activation  (bool, default false) — skip Hetzner rescue API call if already in rescue mode
+#   force_provision         (bool, default false) — re-provision even if marker file exists (DESTRUCTIVE)
+
+# ── Play 1: Activate rescue mode via Hetzner Robot API ──────────────────────
+- name: Activate Hetzner rescue mode
+  hosts: "{{ target | default('all') }}"
+  gather_facts: false
+  roles:
+    - role: hetzner_rescue
+      when: not (skip_rescue_activation | default(false) | bool)
+
+# ── Play 2: Install OS from rescue system ───────────────────────────────────
+- name: Provision bare metal server
+  hosts: "{{ target | default('all') }}"
+  gather_facts: false
+  roles:
+    - role: bare_metal_provision
+
+# ── Play 3: Initial setup on freshly installed OS ───────────────────────────
+- name: Initial host setup (update → ssh → docker → monitoring)
+  hosts: "{{ target | default('all') }}"
+  gather_facts: true
+  roles:
+    - role: system_update
+    - role: ssh_security
+    - role: docker
+    - role: beszel_agent

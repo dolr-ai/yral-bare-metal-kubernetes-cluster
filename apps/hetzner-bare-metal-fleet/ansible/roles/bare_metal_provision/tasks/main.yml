@@ -1,0 +1,237 @@
+---
+- name: Check if server is already provisioned
+  ansible.builtin.raw: "test -f {{ provision_marker }} && echo 'provisioned' || echo 'not_provisioned'"
+  register: provision_check
+  changed_when: false
+  failed_when: false
+  ignore_errors: true
+
+- name: Fail if already provisioned (unless force_provision is true)
+  ansible.builtin.fail:
+    msg: |
+      ⚠️  Server {{ inventory_hostname }} is already provisioned!
+
+      The provision marker file {{ provision_marker }} exists, indicating this server
+      has already been provisioned. Re-provisioning will DESTROY all data on the server.
+
+      If you want to re-provision this server anyway, run the playbook with:
+        -e force_provision=true
+
+      This will wipe the server and install a fresh Ubuntu 26.04 system.
+  when:
+    - provision_check.stdout is defined
+    - provision_check.stdout | trim == 'provisioned'
+    - not (force_provision | bool)
+
+- name: Warning - Force provisioning enabled
+  ansible.builtin.debug:
+    msg: |
+      ⚠️  WARNING: Force provisioning is ENABLED!
+      Server {{ inventory_hostname }} will be re-provisioned.
+      ALL DATA WILL BE DESTROYED!
+  when:
+    - provision_check.stdout is defined
+    - provision_check.stdout | trim == 'provisioned'
+    - force_provision | bool
+
+- name: Check if in rescue system
+  ansible.builtin.raw: "test -f /root/.oldroot/nfs/install/installimage && echo 'rescue' || echo 'not_rescue'"
+  register: rescue_check
+  changed_when: false
+  failed_when: false
+
+- name: Fail if not in rescue system
+  ansible.builtin.fail:
+    msg: |
+      Server {{ inventory_hostname }} is not in rescue mode.
+      Please activate rescue mode in Hetzner Robot:
+        1. Go to https://robot.hetzner.com/
+        2. Select server {{ inventory_hostname }}
+        3. Go to 'Rescue' tab
+        4. Activate Linux rescue system (64-bit)
+        5. Reset the server, wait for rescue system to boot
+        6. Re-run this playbook
+  when: rescue_check.stdout is not defined or 'rescue' not in rescue_check.stdout
+
+- name: Detect available drives
+  ansible.builtin.raw: "lsblk -dn -o NAME,TYPE | grep disk | awk '{print $1}' | head -1"
+  register: detected_drive
+  changed_when: false
+
+- name: Set drive_to_use variable
+  ansible.builtin.set_fact:
+    drive_to_use: "{{ detected_drive.stdout | trim }}"
+
+- name: Display provisioning info
+  ansible.builtin.debug:
+    msg: |
+      Provisioning {{ inventory_hostname }}
+      Hostname: {{ inventory_hostname }}
+      Drive: {{ drive_to_use }} (auto-detected)
+      This will take approximately 10-15 minutes.
+
+- name: Copy provisioning script to rescue system
+  ansible.builtin.copy:
+    src: init.sh
+    dest: /root/init.sh
+    mode: "0755"
+
+- name: Run bare metal provisioning script
+  ansible.builtin.shell: |
+    export MACHINE_HOSTNAME='{{ inventory_hostname }}'
+    export DRIVE_TO_USE='{{ drive_to_use }}'
+    /root/init.sh
+  register: provision_result
+  async: 1200
+  poll: 30
+  changed_when: true
+  # async/poll status is unreliable — the real pass/fail check is the
+  # success message in stdout (see "Check installation success" below).
+  failed_when: false
+
+- name: Remove provisioning script
+  ansible.builtin.file:
+    path: /root/init.sh
+    state: absent
+  changed_when: false
+  failed_when: false
+
+- name: Check installation success
+  ansible.builtin.fail:
+    msg: |
+      Installation failed - success message not found in output.
+
+      RC: {{ provision_result.rc | default('N/A') }}
+
+      stdout:
+      {{ provision_result.stdout | default('NO STDOUT') }}
+
+      stderr:
+      {{ provision_result.stderr | default('NO STDERR') }}
+  when: >
+    provision_result.stdout is not defined or
+    ('INSTALLATION COMPLETE' not in provision_result.stdout and
+     'Installation complete!' not in provision_result.stdout)
+
+- name: Reboot server into installed system
+  ansible.builtin.reboot:
+    msg: "Rebooting into installed Ubuntu system"
+    connect_timeout: 5
+    reboot_timeout: 300
+    pre_reboot_delay: 3
+    post_reboot_delay: 30
+    test_command: uptime
+
+- name: Verify system booted into installed OS (not rescue mode)
+  ansible.builtin.shell: |
+    if [ -f /root/.oldroot/nfs/install/installimage ]; then
+      echo "rescue"
+    else
+      echo "installed"
+    fi
+  register: boot_mode_check
+  changed_when: false
+
+- name: Fail if still in rescue mode
+  ansible.builtin.fail:
+    msg: |
+      ERROR: Server is still in rescue mode after reboot!
+      The installimage completed but the server did not boot into the installed OS.
+
+      Manual steps:
+        1. Go to https://robot.hetzner.com, find server {{ inventory_hostname }}
+        2. Click 'Rescue' tab → 'Deactivate rescue system'
+        3. Reboot the server and re-run this playbook
+  when: boot_mode_check.stdout | trim == 'rescue'
+
+- name: Display boot status
+  ansible.builtin.debug:
+    msg: "✓ Server successfully booted into installed Ubuntu system"
+
+- name: Gather facts after reboot
+  ansible.builtin.setup:
+
+- name: Create provision marker
+  ansible.builtin.file:
+    path: "{{ provision_marker }}"
+    state: touch
+    mode: "0644"
+
+- name: Get current btrfs device from root filesystem
+  ansible.builtin.shell: "btrfs filesystem show / | grep -oP '/dev/\\S+' | head -1"
+  register: root_device
+  changed_when: false
+
+- name: Get base device name (strip partition)
+  ansible.builtin.shell: "echo '{{ root_device.stdout }}' | sed 's/p\\?[0-9]*$//'"
+  register: base_device
+  changed_when: false
+
+- name: List all available block devices
+  ansible.builtin.shell: 'lsblk -dn -o NAME,TYPE | grep disk | awk ''{print "/dev/" $1}'''
+  register: available_drives
+  changed_when: false
+
+- name: Determine second drive to add
+  ansible.builtin.set_fact:
+    current_device: "{{ base_device.stdout | trim }}"
+    all_drives: "{{ available_drives.stdout_lines }}"
+    second_drive: "{{ (available_drives.stdout_lines | reject('search', base_device.stdout | trim | basename) | list | first) | default('') }}"
+
+- name: Display drive information
+  ansible.builtin.debug:
+    msg: |
+      Root device: {{ root_device.stdout }}
+      Base device: {{ current_device }}
+      All available drives: {{ all_drives | join(', ') }}
+      Second drive to add: {{ second_drive if second_drive != '' else 'None (single disk system)' }}
+
+- name: Check if second drive exists
+  ansible.builtin.stat:
+    path: "{{ second_drive }}"
+  register: second_drive_stat
+  when: second_drive != ''
+
+- name: Wipe second drive
+  ansible.builtin.command: "wipefs -a {{ second_drive }}"
+  when: second_drive != '' and second_drive_stat.stat.exists | default(false)
+  changed_when: true
+
+- name: Add second drive to btrfs filesystem
+  ansible.builtin.command: "btrfs device add -f {{ second_drive }} /"
+  when: second_drive != '' and second_drive_stat.stat.exists | default(false)
+  changed_when: true
+  register: add_device_result
+
+- name: Balance btrfs filesystem
+  ansible.builtin.shell: "btrfs balance start / --full-balance"
+  when:
+    - second_drive != ''
+    - second_drive_stat.stat.exists | default(false)
+    - add_device_result is changed
+  async: 3600
+  poll: 10
+  changed_when: true
+  register: balance_result
+
+- name: Get btrfs filesystem status
+  ansible.builtin.shell: |
+    echo "=== Filesystem Show ==="
+    btrfs filesystem show /
+    echo ""
+    echo "=== Filesystem Usage ==="
+    btrfs filesystem usage /
+    echo ""
+    echo "=== Block Devices ==="
+    lsblk -f
+  register: btrfs_status
+  changed_when: false
+
+- name: Display btrfs RAID 0 setup results
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      {{ inventory_hostname }} - btrfs RAID 0 Setup Complete!
+      ========================================
+      {{ btrfs_status.stdout }}
+      ========================================

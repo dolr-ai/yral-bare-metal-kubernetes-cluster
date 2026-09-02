@@ -1,6 +1,3 @@
-[submodule "apps/hetzner-bare-metal-fleet"]
-	path = apps/hetzner-bare-metal-fleet
-	url = git@github.com:dolr-ai/hetzner-bare-metal-fleet.git
 [submodule "apps/website"]
 	path = apps/website
 	url = git@github.com:dolr-ai/website.git

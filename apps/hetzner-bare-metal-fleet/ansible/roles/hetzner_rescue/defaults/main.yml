@@ -1,0 +1,4 @@
+---
+rescue_os: "linux"
+rescue_arch: "64"
+hetzner_api_url: "https://robot-ws.your-server.de"

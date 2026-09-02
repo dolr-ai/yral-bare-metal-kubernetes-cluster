@@ -1,0 +1,62 @@
+---
+- name: Validate required variables
+  assert:
+    that:
+      - team_member_name is defined
+      - team_members is defined
+      - team_members[team_member_name] is defined
+    fail_msg: "team_member_name must be provided and exist in team_members dictionary"
+
+- name: Get team member SSH key
+  set_fact:
+    member_email: "{{ team_members[team_member_name].email }}"
+    member_ssh_key: "{{ team_members[team_member_name].ssh_key }}"
+
+- name: Display access grant information
+  debug:
+    msg: "Granting SSH access to {{ member_email }} on {{ inventory_hostname }}"
+
+- name: Ensure .ssh directory exists
+  file:
+    path: /root/.ssh
+    state: directory
+    mode: "0700"
+    owner: root
+    group: root
+
+- name: Check if authorized_keys file exists
+  stat:
+    path: "{{ authorized_keys_file }}"
+  register: authorized_keys_stat
+
+- name: Create authorized_keys file if it doesn't exist
+  file:
+    path: "{{ authorized_keys_file }}"
+    state: touch
+    mode: "0600"
+    owner: root
+    group: root
+  when: not authorized_keys_stat.stat.exists
+
+- name: Check if key already exists in authorized_keys
+  shell: |
+    grep -F "{{ member_email }}" {{ authorized_keys_file }} || true
+  register: key_check
+  changed_when: false
+
+- name: Add SSH key to authorized_keys
+  lineinfile:
+    path: "{{ authorized_keys_file }}"
+    line: "{{ member_ssh_key }}"
+    state: present
+    create: yes
+    mode: "0600"
+  when: key_check.stdout == ""
+
+- name: Confirm key was added
+  debug:
+    msg: "SSH key for {{ member_email }} {{ 'already existed' if key_check.stdout != '' else 'has been added' }} to {{ inventory_hostname }}"
+
+- name: Display access revocation notice
+  debug:
+    msg: "NOTE: This access is temporary. It will be revoked during the next weekly-update run (ssh_security role)."
