@@ -706,6 +706,10 @@ cp "$WORKDIR/Yral-Distribution.mobileprovision" ~/Library/MobileDevice/Provision
 # prompts (CI-standard form). The p12 stored in fnox is already in the
 # legacy PKCS12 format macOS `security import` requires — see the secret's
 # entry in fnox.toml for how to recreate it correctly.
+# Delete FIRST: the keychain persists across runs, and importing the p12
+# into the STALE one fails with SecKeychainItemImport: "User canceled the
+# operation" (partition-list denial) — the task must be idempotent.
+security delete-keychain ~/Library/Keychains/yralios-build.keychain-db 2>/dev/null || true
 security create-keychain -p "" yralios-build.keychain || true
 security import "$WORKDIR/Yral-Dist.p12" -k ~/Library/Keychains/yralios-build.keychain -P "$YRAL_IOS_CERT_PASSWORD" -A
 # Append the build keychain to the search list WITHOUT dropping the system
