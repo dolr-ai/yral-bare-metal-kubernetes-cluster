@@ -56,7 +56,7 @@ jobs:
           grep -n "MARKETING_VERSION" apps/yral-ios/iosApp.xcodeproj/project.pbxproj
 
       - name: Set up mise + project tools
-        uses: jdx/mise-action@v2
+        uses: jdx/mise-action@v4
 
       - name: Set up Xcode
         uses: maxim-lobanov/setup-xcode@v1
