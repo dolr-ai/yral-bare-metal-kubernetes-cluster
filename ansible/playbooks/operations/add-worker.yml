@@ -3,7 +3,9 @@
 # Usage: ansible-playbook operations/add-worker.yml -e target_host=worker-X
 
 - name: Add worker node (provision, configure, join)
-  hosts: "{{ target_host }}"
+  # target_host is always passed explicitly at run time (-e target_host=worker-X);
+  # the default exists only so ansible-lint syntax-check can resolve the hosts keyword.
+  hosts: "{{ target_host | default('worker_nodes') }}"
   gather_facts: false
   serial: 1
 

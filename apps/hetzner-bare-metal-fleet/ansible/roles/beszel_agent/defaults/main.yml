@@ -1,2 +1,2 @@
 ---
-docker_compose_path: /root/docker-compose.yml
+beszel_agent_docker_compose_path: /root/docker-compose.yml

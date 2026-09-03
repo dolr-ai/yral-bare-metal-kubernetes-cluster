@@ -20,7 +20,9 @@
 # Detect drives and expand btrfs
 
 - name: Get list of all disk devices
-  ansible.builtin.shell: lsblk -d -o NAME,TYPE | grep disk | awk '{print $1}'
+  ansible.builtin.shell: |
+    set -o pipefail
+    lsblk -d -o NAME,TYPE | grep disk | awk '{print $1}'
   register: disk_list
   changed_when: false
 
@@ -32,15 +34,20 @@
   ansible.builtin.set_fact:
     has_multiple_drives: "{{ disk_list.stdout_lines | length > 1 }}"
 
-- name: Skip if only one drive
+- name: Display drive count decision
   ansible.builtin.debug:
-    msg: "Only one drive detected. Skipping btrfs expansion."
-  when: not has_multiple_drives
+    msg: >-
+      {{ 'Multiple drives detected — proceeding with btrfs expansion check.'
+         if has_multiple_drives | bool
+         else 'Only one drive detected. Skipping btrfs expansion.' }}
 
-- when: has_multiple_drives
+- name: Expand btrfs when multiple drives and root is btrfs
+  when: has_multiple_drives
   block:
     - name: Check if root filesystem is btrfs
-      ansible.builtin.shell: df -T / | tail -1 | awk '{print $2}'
+      ansible.builtin.shell: |
+        set -o pipefail
+        df -T / | tail -1 | awk '{print $2}'
       register: root_fs_type
       changed_when: false
 
@@ -57,7 +64,9 @@
       when: root_fs_type.stdout == "btrfs"
       block:
         - name: Get current btrfs devices
-          ansible.builtin.shell: btrfs filesystem show / | grep -oP '/dev/\S+' | sed 's|/dev/||' | sort
+          ansible.builtin.shell: |
+            set -o pipefail
+            btrfs filesystem show / | grep -oP '/dev/\S+' | sed 's|/dev/||' | sort
           register: btrfs_devices
           changed_when: false
 
@@ -180,6 +189,7 @@
 
 - name: Verify nodatacow is set
   ansible.builtin.shell: |
+    set -o pipefail
     lsattr -d /var/lib/longhorn | grep -q 'C' && echo "nodatacow" || echo "cow"
   register: longhorn_nodatacow_check
   changed_when: false

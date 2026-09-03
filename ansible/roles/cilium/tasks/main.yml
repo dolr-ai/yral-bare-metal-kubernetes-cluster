@@ -41,6 +41,7 @@
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: cilium_install
+      changed_when: true   # helm upgrade --install always (re)applies the release
 
     - name: Display Cilium installation output
       ansible.builtin.debug:
@@ -53,11 +54,13 @@
       register: cilium_ready
       retries: 3
       delay: 10
+      changed_when: false   # read-only wait
 
     - name: Wait for Cilium operator deployment to be available
       ansible.builtin.command: kubectl wait --for=condition=available deployment/cilium-operator -n kube-system --timeout=300s
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
+      changed_when: false   # read-only wait
 
 - name: Verify Cilium core installation
   block:
@@ -73,7 +76,9 @@
         msg: "{{ cilium_pods.stdout_lines }}"
 
     - name: Check WireGuard encryption status
-      ansible.builtin.shell: kubectl exec -n kube-system ds/cilium -- cilium-dbg status | grep -i encryption
+      ansible.builtin.shell: |
+        set -o pipefail
+        kubectl exec -n kube-system ds/cilium -- cilium-dbg status | grep -i encryption
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       register: cilium_encryption_status

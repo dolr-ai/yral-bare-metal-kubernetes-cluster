@@ -80,10 +80,9 @@ jobs:
           # .venv and extracts the infra SSH key from the fleet vault →
           # ./.yral-infra-ed25519; the playbook runs with cwd = apps/hetzner-bare-metal-fleet.
           #
-          # inputs.enable_reboot is empty string on scheduled runs (no inputs context),
-          # which Ansible's | bool filter evaluates as false. Fall back to 'true' so
-          # scheduled runs reboot as intended; explicit false from workflow_dispatch is
-          # still honoured because non-empty 'false' is truthy in GHA expressions.
+          # inputs.enable_reboot is empty string on scheduled runs (no inputs context).
+          # Pass an explicit true then, so play 2's rolling reboot runs as intended;
+          # an explicit false from workflow_dispatch suppresses reboots.
           mise run fleet-maintenance -- \
             --limit "$TARGET" \
-            --extra-vars "enable_reboot=${{ inputs.enable_reboot || 'true' }}"
+            --extra-vars "weekly_update_enable_reboot=${{ inputs.enable_reboot || 'true' }}"

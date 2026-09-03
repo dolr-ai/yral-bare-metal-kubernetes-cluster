@@ -13,6 +13,7 @@
 
     - name: Remove stale etcd member at this node's IP if exists
       ansible.builtin.shell: |
+        set -o pipefail
         ETCD_CID=$(ctr -n k8s.io containers list | grep "etcd:" | head -1 | cut -d" " -f1)
         if [ -z "$ETCD_CID" ]; then
           echo "No etcd container found"
@@ -49,15 +50,18 @@
 
     - name: Upload control plane certificates on first control plane
       ansible.builtin.shell: |
+        set -o pipefail
         kubeadm init phase upload-certs --upload-certs 2>/dev/null | grep -E '^[a-f0-9]{64}$'
       delegate_to: "{{ (groups['control_plane'] | reject('equalto', inventory_hostname) | list)[0] }}"
       register: certificate_key
+      changed_when: true   # upload-certs always rotates the certificate key
 
     - name: Generate control plane join command
       ansible.builtin.shell: |
         kubeadm token create --print-join-command --certificate-key {{ certificate_key.stdout }}
       delegate_to: "{{ (groups['control_plane'] | reject('equalto', inventory_hostname) | list)[0] }}"
       register: join_command
+      changed_when: true   # token create always mints a new bootstrap token
 
     - name: Build final join command
       ansible.builtin.set_fact:
@@ -69,6 +73,7 @@
     - name: Join as control plane
       ansible.builtin.command: "{{ join_command_final }}"
       register: join_result
+      changed_when: true   # kubeadm join always rewrites node PKI + kubelet state
 
     - name: Display join result
       ansible.builtin.debug:
@@ -89,7 +94,9 @@
 
 - name: Query Cloudflare for existing CP A record at this IP
   ansible.builtin.uri:
-    url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=A&name={{ kubernetes_api_hostname }}&content={{ hostvars[inventory_hostname]['ansible_host'] }}"
+    url: >-
+      https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records
+      ?type=A&name={{ kubernetes_api_hostname }}&content={{ hostvars[inventory_hostname]['ansible_host'] }}
     method: GET
     headers:
       Authorization: "Bearer {{ cloudflare_api_token }}"
@@ -137,7 +144,9 @@
 
 - name: Query Cloudflare for existing app wildcard A record at this IP
   ansible.builtin.uri:
-    url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=A&name={{ cloudflare_app_wildcard_hostname }}&content={{ hostvars[inventory_hostname]['ansible_host'] }}"
+    url: >-
+      https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records
+      ?type=A&name={{ cloudflare_app_wildcard_hostname }}&content={{ hostvars[inventory_hostname]['ansible_host'] }}
     method: GET
     headers:
       Authorization: "Bearer {{ cloudflare_api_token }}"

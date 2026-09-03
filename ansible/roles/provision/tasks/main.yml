@@ -182,6 +182,7 @@
 
     - name: Verify Ubuntu is running
       ansible.builtin.shell: |
+        set -o pipefail
         ssh -i {{ ansible_private_key_file }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 \
           root@{{ provision_server_ip }} \
           "cat /etc/os-release | grep Ubuntu"

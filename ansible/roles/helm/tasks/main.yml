@@ -24,12 +24,13 @@
     mode: "0700"
   when: helm_check.rc != 0
 
-- name: Install Helm v{{ helm_version }} using official script
+- name: Install Helm using official script
   ansible.builtin.command: /tmp/get_helm.sh
   environment:
     DESIRED_VERSION: "v{{ helm_version }}"
   when: helm_check.rc != 0
   register: helm_install
+  changed_when: true   # installs (or upgrades) the helm binary when missing
 
 - name: Remove Helm installation script
   ansible.builtin.file:

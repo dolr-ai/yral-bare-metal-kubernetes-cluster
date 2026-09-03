@@ -35,6 +35,7 @@
 
 - name: Reset partial kubeadm init (admin.conf exists but API server unreachable)
   ansible.builtin.command: kubeadm reset --force
+  changed_when: true   # kubeadm reset always tears down and rewrites state
   when:
     - kubeconfig_stat.stat.exists
     - api_probe is defined

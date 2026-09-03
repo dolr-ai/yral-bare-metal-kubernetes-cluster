@@ -18,9 +18,10 @@
       when: hostvars[groups['control_plane'][0]]['worker_join_command'] is defined
 
     - name: Generate join command from first control plane
-      ansible.builtin.shell: kubeadm token create --print-join-command
+      ansible.builtin.command: kubeadm token create --print-join-command
       delegate_to: "{{ groups['control_plane'][0] }}"
       register: join_command_dynamic
+      changed_when: true   # token create always mints a new bootstrap token
       when: join_command is not defined
 
     - name: Set join command from generated output
@@ -31,6 +32,7 @@
     - name: Join cluster
       ansible.builtin.command: "{{ join_command }}"
       register: join_result
+      changed_when: true   # kubeadm join always rewrites kubelet state
 
     - name: Display join result
       ansible.builtin.debug:

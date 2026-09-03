@@ -45,7 +45,7 @@ rust = { version = "nightly", targets = [
 ] }
 sops = "latest"
 sqlite = "latest"
-swift = { version = "latest", os = ["macos"] }
+swift = { version = "latest" }
 swiftlint = { version = "latest", os = ["macos"] }
 
 # System packages — project-specific build dependencies (apt on Debian/Ubuntu).
@@ -157,13 +157,32 @@ YRAL_APPLE_TEAM_ID = "2UL556KNXC"
 [tasks.bootstrap]
 description = "Create .venv, install Python tooling, and extract infra SSH key from vault"
 run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+
 python -m venv .venv && ./.venv/bin/pip install --upgrade pip && ./.venv/bin/pip install ansible-core ansible-lint yamllint && ./.venv/bin/ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections
+
+# Validate the vault password once, up front. A missing/empty/incorrect password
+# (e.g. GitHub PRs from Dependabot/Renovate, which never receive repo secrets)
+# must degrade to warn-and-skip below — NOT crash the whole bootstrap with a
+# traceback deep inside a Python one-liner.
+# Sets: bootstrap_vault_ok=true|false
+bootstrap_vault_ok=false
+if [ -s ansible/.vault_pass ] && \
+   ./.venv/bin/ansible-vault view ansible/inventory/group_vars/all/vault.yml --vault-password-file ansible/.vault_pass > /dev/null 2>&1; then
+  bootstrap_vault_ok=true
+  echo '  ✓ Vault password valid — ansible/.vault_pass decrypts the vault'
+else
+  echo '  ⚠ Vault password missing or does not decrypt ansible/inventory/group_vars/all/vault.yml'
+  echo '    → skipping ALL vault extractions (infra SSH key, kubeconfig, fnox age key).'
+  echo '    → CI runs from Dependabot/Renovate PRs are expected to land here (no secrets).'
+  echo '    → locally: check ansible/.vault_pass contains the real vault password.'
+fi
 
 # Extract infra SSH private key from Ansible vault → ./.yral-infra-ed25519 (repo-local, gitignored)
 # Used by fnox (age provider) and ansible.cfg (private_key_file), and installed
 # as the machine's default SSH identity below. Idempotent — skips if already present.
-if [ -f ansible/.vault_pass ] && [ ! -f .yral-infra-ed25519 ]; then
-  export ANSIBLE_VAULT_PASSWORD_FILE=ansible/.vault_pass
+if [ "$bootstrap_vault_ok" = true ] && [ ! -f .yral-infra-ed25519 ]; then
   ./.venv/bin/ansible-vault view ansible/inventory/group_vars/all/vault.yml --vault-password-file ansible/.vault_pass | \
     ./.venv/bin/python -c "import sys, yaml; print(yaml.safe_load(sys.stdin)['vault_github_actions_ssh_private_key'])" \
     > .yral-infra-ed25519
@@ -171,8 +190,6 @@ if [ -f ansible/.vault_pass ] && [ ! -f .yral-infra-ed25519 ]; then
   echo '  ✓ Extracted infra SSH key to .yral-infra-ed25519'
 elif [ -f .yral-infra-ed25519 ]; then
   echo '  ✓ Infra SSH key already at .yral-infra-ed25519'
-else
-  echo '  ⚠ Vault password file not found at ansible/.vault_pass — skipping infra SSH key extraction'
 fi
 
 # Install the infra SSH key as the machine's DEFAULT identity (~/.ssh/id_ed25519),
@@ -186,6 +203,10 @@ if [ -f .yral-infra-ed25519 ]; then
   mkdir -p ~/.ssh && chmod 700 ~/.ssh
   cp .yral-infra-ed25519 ~/.ssh/id_ed25519
   chmod 600 ~/.ssh/id_ed25519
+  # Regenerate the matching .pub — a stale .pub from a previous key makes SSH
+  # reject the pair ("contents do not match public").
+  ssh-keygen -y -f ~/.ssh/id_ed25519 > ~/.ssh/id_ed25519.pub
+  chmod 644 ~/.ssh/id_ed25519.pub
   echo '  ✓ Installed infra SSH key as ~/.ssh/id_ed25519 (default machine identity)'
 fi
 
@@ -196,8 +217,7 @@ fi
 GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new" git submodule update --init --recursive
 
 # Extract kubeconfig from Ansible vault → ~/.kube/config (idempotent — skips if already present)
-if [ -f ansible/.vault_pass ] && [ ! -f ~/.kube/config ]; then
-  export ANSIBLE_VAULT_PASSWORD_FILE=ansible/.vault_pass
+if [ "$bootstrap_vault_ok" = true ] && [ ! -f ~/.kube/config ]; then
   mkdir -p ~/.kube
   ./.venv/bin/ansible-vault view ansible/inventory/group_vars/all/vault.yml --vault-password-file ansible/.vault_pass | \
     ./.venv/bin/python -c "import sys, yaml; print(yaml.safe_load(sys.stdin)['vault_kubeconfig'])" \
@@ -206,8 +226,6 @@ if [ -f ansible/.vault_pass ] && [ ! -f ~/.kube/config ]; then
   echo '  ✓ Extracted kubeconfig to ~/.kube/config'
 elif [ -f ~/.kube/config ]; then
   echo '  ✓ Kubeconfig already at ~/.kube/config'
-else
-  echo '  ⚠ Vault password file not found — skipping kubeconfig extraction'
 fi
 '''
 

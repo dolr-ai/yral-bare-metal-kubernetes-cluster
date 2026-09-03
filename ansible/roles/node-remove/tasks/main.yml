@@ -117,7 +117,9 @@
 
 - name: Query Cloudflare for CP A record (control plane only)
   ansible.builtin.uri:
-    url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=A&name={{ kubernetes_api_hostname }}&content={{ node_remove_target_ip }}"
+    url: >-
+      https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records
+      ?type=A&name={{ kubernetes_api_hostname }}&content={{ node_remove_target_ip }}
     method: GET
     headers:
       Authorization: "Bearer {{ cloudflare_api_token }}"
@@ -165,7 +167,9 @@
 
 - name: Query Cloudflare for app wildcard A record (all nodes)
   ansible.builtin.uri:
-    url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=A&name={{ cloudflare_app_wildcard_hostname }}&content={{ node_remove_target_ip }}"
+    url: >-
+      https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records
+      ?type=A&name={{ cloudflare_app_wildcard_hostname }}&content={{ node_remove_target_ip }}
     method: GET
     headers:
       Authorization: "Bearer {{ cloudflare_api_token }}"
@@ -222,6 +226,7 @@
   # removes the pod objects immediately (the containers are already gone since the
   # node is dead), unblocking drain.
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl get pods --all-namespaces --field-selector \
       spec.nodeName={{ node_remove_k8s_name }},status.phase=Running \
       -o json | python3 -c "
@@ -260,6 +265,7 @@
   delegate_to: "{{ kubectl_delegate }}"
   when: node_check.rc == 0
   register: drain_result
+  changed_when: true   # drain always evicts/reschedules pods off the node
 
 - name: Display drain result
   ansible.builtin.debug:
@@ -284,7 +290,9 @@
 
 - name: Find a v1.36.x control plane node for etcd operations
   ansible.builtin.set_fact:
-    etcd_delegate: "{{ (groups['control_plane'] | reject('equalto', target_host) | select('match', '^(node-|worker-12)') | list) | first | default((groups['control_plane'] | reject('equalto', target_host) | list)[0]) }}"
+    etcd_delegate: >-
+      {{ ((groups['control_plane'] | reject('equalto', target_host) | select('match', '^(node-|worker-12)') | list) | first)
+         | default((groups['control_plane'] | reject('equalto', target_host) | list)[0]) }}
   when: is_control_plane
 
 - name: Get etcd member ID
@@ -306,6 +314,7 @@
   register: etcd_member_id
   when: is_control_plane
   failed_when: false
+  changed_when: false   # read-only: etcdctl member list lookup
 
 - name: Display etcd member ID
   ansible.builtin.debug:
@@ -314,6 +323,7 @@
 
 - name: Remove etcd member
   ansible.builtin.shell: |
+    set -o pipefail
     ETCD_CID=$(ctr -n k8s.io containers list | grep "etcd:" | head -1 | cut -d" " -f1)
     ctr -n k8s.io tasks exec --exec-id etcd-remove "$ETCD_CID" \
       etcdctl member remove {{ etcd_member_id.stdout | trim }} \
@@ -326,6 +336,7 @@
     - is_control_plane
     - etcd_member_id.stdout | trim != ""
   register: etcd_remove
+  changed_when: true   # etcdctl member remove reconfigures the cluster
 
 - name: Display etcd removal result
   ansible.builtin.debug:
@@ -339,6 +350,7 @@
   delegate_to: "{{ kubectl_delegate }}"
   register: delete_result
   failed_when: false
+  changed_when: delete_result.rc == 0   # deleting a nonexistent node exits nonzero (NotFound)
 
 - name: Display deletion result
   ansible.builtin.debug:
@@ -441,6 +453,7 @@
   become: true
   failed_when: false
   ignore_unreachable: true
+  changed_when: true   # iptables -F/-X flushes all rules/chains
   when: reset_iptables | default(false)
 
 - name: Delete stale VolumeAttachments for removed node
@@ -454,6 +467,7 @@
   # 2. Force-delete with --grace-period=0 --force to prevent kubectl from
   #    blocking on webhook callbacks or residual controller finalizer processing.
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl get volumeattachment -o json | python3 -c "
     import sys, json, subprocess
     items = json.load(sys.stdin)['items']
@@ -528,6 +542,7 @@
   # is non-destructive (pods keep running via the container runtime) and forces a clean
   # reconnect to the surviving API servers.
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl get nodes --no-headers \
       -l '!node-role.kubernetes.io/control-plane' \
       | awk '$2=="NotReady" {print $1}'

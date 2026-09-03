@@ -1,6 +1,9 @@
 ---
-retry_count: 3
-retry_delay: 10
+# Role-private knobs: connection retry behavior and reboot control.
+# `system_update_enable_reboot` is overridden by the weekly-update playbook
+# (play 1 sets it to false — reboots are handled by play 2's rolling reboot).
+system_update_retry_count: 3
+system_update_retry_delay: 10
 # Reboot when the OS signals it is required (new kernel, libc, etc.).
-# Set to false to suppress reboots at call time: -e enable_reboot=false
-enable_reboot: true
+# Set to false to suppress reboots at call time: -e system_update_enable_reboot=false
+system_update_enable_reboot: true

@@ -1,6 +1,6 @@
 ---
 - name: Validate required variables
-  assert:
+  ansible.builtin.assert:
     that:
       - hetzner_robot_user is defined
       - hetzner_robot_password is defined
@@ -8,78 +8,79 @@
     fail_msg: "Required variables not defined. Ensure Hetzner credentials and ansible_host are set."
 
 - name: Fetch all SSH keys from Hetzner API
-  uri:
-    url: "{{ hetzner_api_url }}/key"
+  ansible.builtin.uri:
+    url: "{{ hetzner_rescue_hetzner_api_url }}/key"
     method: GET
     user: "{{ hetzner_robot_user }}"
     password: "{{ hetzner_robot_password }}"
-    force_basic_auth: yes
+    force_basic_auth: true
     status_code: 200
-  register: hetzner_keys_response
+  register: hetzner_rescue_keys_response
   delegate_to: localhost
 
 - name: Build list of canonical key names to match
-  set_fact:
-    canonical_key_names: "{{ canonical_ssh_keys | map(attribute='name') | list }}"
+  ansible.builtin.set_fact:
+    hetzner_rescue_canonical_key_names: "{{ canonical_ssh_keys | map(attribute='name') | list }}"
   delegate_to: localhost
 
 - name: Filter and extract fingerprints for canonical keys only
-  set_fact:
-    hetzner_key_fingerprints: >-
+  ansible.builtin.set_fact:
+    hetzner_rescue_key_fingerprints: >-
       {{
-        hetzner_keys_response.json
+        hetzner_rescue_keys_response.json
         | selectattr('key.name', 'defined')
-        | selectattr('key.name', 'in', canonical_key_names)
+        | selectattr('key.name', 'in', hetzner_rescue_canonical_key_names)
         | map(attribute='key.fingerprint')
         | list
       }}
   delegate_to: localhost
 
 - name: Display SSH keys to be added to rescue mode
-  debug:
-    msg: "Adding {{ hetzner_key_fingerprints | length }} canonical SSH key(s) to rescue mode: {{ canonical_key_names | join(', ') }}"
+  ansible.builtin.debug:
+    msg: "Adding {{ hetzner_rescue_key_fingerprints | length }} canonical SSH key(s) to rescue mode: {{ hetzner_rescue_canonical_key_names | join(', ') }}"
   delegate_to: localhost
 
 - name: Build form data with multiple authorized_key fields
-  set_fact:
-    rescue_form_body: >-
-      os={{ rescue_os }}&arch={{ rescue_arch }}{% for fp in hetzner_key_fingerprints %}&authorized_key[]={{ fp }}{% endfor %}
+  ansible.builtin.set_fact:
+    hetzner_rescue_form_body: >-
+      os={{ hetzner_rescue_os }}&arch={{ hetzner_rescue_arch
+      }}{%- for fingerprint in hetzner_rescue_key_fingerprints %}&authorized_key[]={{ fingerprint }}{% endfor %}
   delegate_to: localhost
 
 - name: Activate rescue mode via Hetzner Robot API
-  uri:
-    url: "{{ hetzner_api_url }}/boot/{{ ansible_host }}/rescue"
+  ansible.builtin.uri:
+    url: "{{ hetzner_rescue_hetzner_api_url }}/boot/{{ ansible_host }}/rescue"
     method: POST
     user: "{{ hetzner_robot_user }}"
     password: "{{ hetzner_robot_password }}"
-    force_basic_auth: yes
-    body: "{{ rescue_form_body }}"
+    force_basic_auth: true
+    body: "{{ hetzner_rescue_form_body }}"
     headers:
       Content-Type: "application/x-www-form-urlencoded"
     status_code: 200
-  register: rescue_activation
+  register: hetzner_rescue_activation
   delegate_to: localhost
 
 - name: Display rescue mode activation result
-  debug:
-    msg: "Rescue mode activated. Root password: {{ rescue_activation.json.rescue.password | default('N/A') }}"
+  ansible.builtin.debug:
+    msg: "Rescue mode activated. Root password: {{ hetzner_rescue_activation.json.rescue.password | default('N/A') }}"
 
 - name: Reboot server into rescue mode via Hetzner Robot API
-  uri:
-    url: "{{ hetzner_api_url }}/reset/{{ ansible_host }}"
+  ansible.builtin.uri:
+    url: "{{ hetzner_rescue_hetzner_api_url }}/reset/{{ ansible_host }}"
     method: POST
     user: "{{ hetzner_robot_user }}"
     password: "{{ hetzner_robot_password }}"
-    force_basic_auth: yes
+    force_basic_auth: true
     body_format: form-urlencoded
     body:
       type: "hw"
     status_code: 200
-  register: reboot_result
+  register: hetzner_rescue_reboot_result
   delegate_to: localhost
 
 - name: Wait for server to go down
-  wait_for:
+  ansible.builtin.wait_for:
     host: "{{ ansible_host }}"
     port: 22
     state: stopped
@@ -88,7 +89,7 @@
   failed_when: false
 
 - name: Wait for server to come back up in rescue mode
-  wait_for:
+  ansible.builtin.wait_for:
     host: "{{ ansible_host }}"
     port: 22
     state: started
@@ -97,7 +98,7 @@
   delegate_to: localhost
 
 - name: Verify rescue mode is active
-  shell: |
+  ansible.builtin.shell: |
     if [ ! -f /root/.oldroot/nfs/install/installimage ]; then
       echo "ERROR: Not in rescue mode!"
       exit 1

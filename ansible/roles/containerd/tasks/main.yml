@@ -64,7 +64,9 @@
   register: containerd_install
 
 - name: Get installed containerd version
-  ansible.builtin.shell: dpkg -l containerd.io | grep '^ii' | awk '{print $3}'
+  ansible.builtin.shell: |
+    set -o pipefail
+    dpkg -l containerd.io | grep '^ii' | awk '{print $3}'
   register: containerd_version
   changed_when: false
 
@@ -101,7 +103,9 @@
     state: present
 
 - name: Verify kernel modules are loaded
-  ansible.builtin.shell: lsmod | grep -E "overlay|br_netfilter"
+  ansible.builtin.shell: |
+    set -o pipefail
+    lsmod | grep -E "overlay|br_netfilter"
   register: containerd_kernel_modules
   changed_when: false
 
@@ -149,6 +153,7 @@
 
 - name: Generate default containerd configuration
   ansible.builtin.shell: containerd config default > /etc/containerd/config.toml
+  changed_when: true   # writes the config file when missing
   when: not containerd_config.stat.exists
 
 - name: Read containerd config
@@ -175,7 +180,9 @@
   when: not containerd_systemd_cgroup_enabled
 
 - name: Verify SystemdCgroup configuration
-  ansible.builtin.shell: grep -A 2 "runc.options" /etc/containerd/config.toml | grep SystemdCgroup || echo "NOT FOUND"
+  ansible.builtin.shell: |
+    set -o pipefail
+    grep -A 2 "runc.options" /etc/containerd/config.toml | grep SystemdCgroup || echo "NOT FOUND"
   register: containerd_systemd_cgroup_check
   changed_when: false
 

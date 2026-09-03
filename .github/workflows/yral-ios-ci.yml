@@ -9,6 +9,12 @@ name: Yral iOS CI
 #   pull_request          → mise run yral-ios-checks (lint + tests + sim build)
 #   push/merge to main    → same checks (deploys run locally — see the
 #                           commented-out deploy job below)
+#
+# Dependabot/Renovate PRs are SKIPPED: GitHub never delivers repo secrets
+# (ANSIBLE_VAULT_PASSWORD) to workflows triggered by those bots, so the
+# vault → age key → fnox chain can never work there. The bumped action version
+# gets validated by the push-to-main run after the bot PR merges, which does
+# have secrets.
 on:
   pull_request:
     paths:
@@ -37,6 +43,12 @@ concurrency:
 jobs:
   checks:
     runs-on: macos-latest
+    # Dependabot/Renovate PR workflows receive NO repo secrets (GitHub policy —
+    # same as fork PRs), so the vault-dependent checks can never run there.
+    # Skip instead of failing (PR #249 failed exactly this way).
+    # user.type == 'Bot' covers dependabot[bot], renovate[bot], AND
+    # GitHub-App style logins (e.g. `app/renovate`) that lack the [bot] suffix.
+    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.type != 'Bot')
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

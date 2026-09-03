@@ -12,7 +12,7 @@
 # Usage:
 #   ansible-playbook ansible/playbooks/weekly-update.yml
 #   ansible-playbook ansible/playbooks/weekly-update.yml --limit <hostname>
-#   ansible-playbook ansible/playbooks/weekly-update.yml -e enable_reboot=false  # suppress reboots
+#   ansible-playbook ansible/playbooks/weekly-update.yml -e weekly_update_enable_reboot=false  # suppress reboots
 
 # ── Play 1: apt upgrade + beszel agent refresh (parallel) ───────────────────
 - name: System update and beszel agent refresh
@@ -22,7 +22,7 @@
   roles:
     - role: system_update
       vars:
-        enable_reboot: false   # reboots handled separately in play 2
+        system_update_enable_reboot: false   # reboots handled separately in play 2
     - role: beszel_agent
 
 # ── Play 2: Rolling reboot of hosts that require it ─────────────────────────
@@ -41,46 +41,54 @@
   max_fail_percentage: 50     # with serial:1 a single node that fails to return
                               # aborts the rollout -- never reboot into a failure
   gather_facts: false
+  vars:
+    # Allow the rolling reboot. Scheduled runs pass no -e, so this default
+    # (true) makes them reboot as intended; workflow_dispatch / operators can
+    # pass -e weekly_update_enable_reboot=false to suppress.
+    weekly_update_enable_reboot: true
+    # Settle pause between serial:1 reboots (seconds). Raise for slower
+    # services that need longer to rejoin their quorum cluster.
+    weekly_update_reboot_pause_seconds: 60
   tasks:
     - name: Check if reboot is required
-      stat:
+      ansible.builtin.stat:
         path: /var/run/reboot-required
-      register: reboot_required_file
+      register: weekly_update_reboot_required_file
 
     - name: Reboot if required
-      reboot:
+      ansible.builtin.reboot:
         msg: "Rebooting after package upgrades (kernel or critical libraries updated)"
         reboot_timeout: 900          # bare-metal POST can take several minutes
         connect_timeout: 20
         post_reboot_delay: 30        # let the OS settle before we probe it
         test_command: uptime
       when:
-        - reboot_required_file.stat.exists
-        - enable_reboot | default(true) | bool
-      register: reboot_result
+        - weekly_update_reboot_required_file.stat.exists
+        - weekly_update_enable_reboot | default(true) | bool
+      register: weekly_update_reboot_result
 
     - name: Re-verify the node is truly back (guard against an early reboot return)
       # delay / sleep / timeout are all in SECONDS: wait 30s, then re-check every
       # 5s for up to 15 min. Blocks until the node is actually reachable even if
       # the reboot module returned before the host had gone down.
-      wait_for_connection:
+      ansible.builtin.wait_for_connection:
         delay: 30
         sleep: 5
         timeout: 900
       when:
-        - reboot_required_file.stat.exists
-        - enable_reboot | default(true) | bool
+        - weekly_update_reboot_required_file.stat.exists
+        - weekly_update_enable_reboot | default(true) | bool
 
     - name: Let the node settle before the next host reboots
-      # Gated on "a reboot was required" (stat.exists), NOT on reboot_result.changed
+      # Gated on "a reboot was required" (stat.exists), NOT on weekly_update_reboot_result.changed
       # -- the latter was being skipped, which is why there was no stagger on
-      # 2026-08-10. Default 60s; raise with -e reboot_pause_seconds=300 if a slower
-      # service (e.g. a large DB) needs longer to fully rejoin its cluster.
-      pause:
-        seconds: "{{ reboot_pause_seconds | default(60) }}"
+      # 2026-08-10. Default 60s; raise with -e weekly_update_reboot_pause_seconds=300 if a
+      # slower service (e.g. a large DB) needs longer to fully rejoin its cluster.
+      ansible.builtin.pause:
+        seconds: "{{ weekly_update_reboot_pause_seconds | default(60) }}"
       when:
-        - reboot_required_file.stat.exists
-        - enable_reboot | default(true) | bool
+        - weekly_update_reboot_required_file.stat.exists
+        - weekly_update_enable_reboot | default(true) | bool
 
 # ── Play 3: Reset SSH authorized_keys to canonical set on all hosts ─────────
 - name: Reset SSH authorized_keys to canonical set

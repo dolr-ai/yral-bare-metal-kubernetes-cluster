@@ -1,21 +1,21 @@
 ---
 - name: Check if system is Debian/Ubuntu
-  fail:
+  ansible.builtin.fail:
     msg: "This role is designed for Debian/Ubuntu systems only"
   when: ansible_os_family != "Debian"
 
 - name: Check if Docker is installed
-  command: docker --version
+  ansible.builtin.command: docker --version
   register: docker_check
   failed_when: false
   changed_when: false
 
 - name: Display Docker status
-  debug:
+  ansible.builtin.debug:
     msg: "Docker is {{ 'already installed' if docker_check.rc == 0 else 'not installed - will install now' }}"
 
 - name: Remove old Docker packages
-  apt:
+  ansible.builtin.apt:
     name:
       - docker.io
       - docker-doc
@@ -28,65 +28,66 @@
   when: docker_check.rc != 0
 
 - name: Install Docker prerequisites
-  apt:
+  ansible.builtin.apt:
     name:
       - ca-certificates
       - curl
       - gnupg
       - lsb-release
     state: present
-    update_cache: yes
+    update_cache: true
   when: docker_check.rc != 0
 
 - name: Create keyrings directory
-  file:
+  ansible.builtin.file:
     path: /etc/apt/keyrings
     state: directory
     mode: "0755"
   when: docker_check.rc != 0
 
 - name: Download Docker GPG key
-  get_url:
+  ansible.builtin.get_url:
     url: https://download.docker.com/linux/ubuntu/gpg
     dest: /etc/apt/keyrings/docker.asc
     mode: "0644"
   when: docker_check.rc != 0
 
 - name: Get Ubuntu codename
-  shell: |
+  ansible.builtin.shell: |
     if [ -f /etc/os-release ]; then
       . /etc/os-release
       echo "${VERSION_CODENAME:-$UBUNTU_CODENAME}"
     else
       lsb_release -cs
     fi
-  register: ubuntu_codename
+  register: docker_ubuntu_codename
   changed_when: false
   when: docker_check.rc != 0
 
 - name: Display detected Ubuntu codename
-  debug:
-    msg: "Detected Ubuntu codename: {{ ubuntu_codename.stdout | default('unknown') }}"
+  ansible.builtin.debug:
+    msg: "Detected Ubuntu codename: {{ docker_ubuntu_codename.stdout | default('unknown') }}"
   when: docker_check.rc != 0
 
 - name: Add Docker repository
-  copy:
+  ansible.builtin.copy:
     content: |
       Types: deb
       URIs: https://download.docker.com/linux/ubuntu
-      Suites: {{ ubuntu_codename.stdout | trim }}
+      Suites: {{ docker_ubuntu_codename.stdout | trim }}
       Components: stable
       Signed-By: /etc/apt/keyrings/docker.asc
     dest: /etc/apt/sources.list.d/docker.sources
+    mode: "0644"
   when: docker_check.rc != 0
 
 - name: Update apt cache after adding Docker repository
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
   when: docker_check.rc != 0
 
 - name: Install Docker packages
-  apt:
+  ansible.builtin.apt:
     name:
       - docker-ce
       - docker-ce-cli
@@ -98,25 +99,25 @@
   register: docker_install_result
 
 - name: Start and enable Docker service
-  systemd:
+  ansible.builtin.systemd:
     name: docker
     state: started
-    enabled: yes
+    enabled: true
   when: docker_check.rc != 0
 
 - name: Verify Docker installation
-  command: docker --version
+  ansible.builtin.command: docker --version
   register: docker_verify
   changed_when: false
 
 - name: Test Docker functionality
-  command: docker run --rm hello-world
+  ansible.builtin.command: docker run --rm hello-world
   register: docker_test
   when: docker_check.rc != 0
   changed_when: false
 
 - name: Display Docker installation summary
-  debug:
+  ansible.builtin.debug:
     msg: |
       Docker Installation Summary:
       - Docker Version: {{ docker_verify.stdout }}

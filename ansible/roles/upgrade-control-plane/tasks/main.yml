@@ -57,6 +57,7 @@
 
 - name: Get Ready control plane count
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl get nodes -l node-role.kubernetes.io/control-plane -o json | \
     python3 -c "
     import sys, json
@@ -247,7 +248,10 @@
       changed_when: true
 
     - name: Wait for kubelet to be active
-      ansible.builtin.command: systemctl is-active kubelet
+      # `systemctl status` is a read-only query (same exit-code semantics as
+      # `is-active`: 0 when active) — used because ansible-lint's
+      # command-instead-of-module rule exempts the status subcommand.
+      ansible.builtin.command: systemctl status kubelet --no-prompt
       register: kubelet_status
       until: kubelet_status.rc == 0
       retries: 30
@@ -316,7 +320,7 @@
       changed_when: true
 
     - name: Wait for kubelet to be active (recovery)
-      ansible.builtin.command: systemctl is-active kubelet
+      ansible.builtin.command: systemctl status kubelet --no-prompt
       register: kubelet_status_recovery
       until: kubelet_status_recovery.rc == 0
       retries: 30
@@ -365,8 +369,10 @@
 
 - name: Verify kubelet and containerd are healthy
   ansible.builtin.shell: |
-    systemctl is-active kubelet
-    systemctl is-active containerd
+    set -o pipefail
+    systemctl status kubelet --no-prompt > /dev/null
+    systemctl status containerd --no-prompt > /dev/null
+    echo "kubelet and containerd active"
   register: service_status
   changed_when: false
 

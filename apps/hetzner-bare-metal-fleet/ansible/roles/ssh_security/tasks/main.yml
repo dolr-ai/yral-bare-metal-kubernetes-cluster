@@ -1,124 +1,126 @@
 ---
 - name: Wait for system to be ready
-  wait_for_connection:
+  ansible.builtin.wait_for_connection:
     timeout: 60
-    delay: "{{ retry_delay }}"
-  retries: "{{ retry_count }}"
-  register: connection_result
-  until: connection_result is succeeded
+    delay: "{{ ssh_security_retry_delay }}"
+  retries: "{{ ssh_security_retry_count }}"
+  register: ssh_security_connection_result
+  until: ssh_security_connection_result is succeeded
 
 - name: Gather facts
-  setup:
+  ansible.builtin.setup:
 
 - name: Check if system is Debian/Ubuntu
-  fail:
+  ansible.builtin.fail:
     msg: "This role is designed for Debian/Ubuntu systems only"
   when: ansible_os_family != "Debian"
 
 - name: Ensure SSH password authentication is disabled
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: "^#?PasswordAuthentication"
     line: "PasswordAuthentication no"
     state: present
-    backup: yes
-  register: ssh_password_auth_check
+    backup: true
+  register: ssh_security_password_auth_result
   notify: Restart ssh
 
 - name: Ensure SSH public key authentication is enabled
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: "^#?PubkeyAuthentication"
     line: "PubkeyAuthentication yes"
     state: present
-    backup: yes
-  register: ssh_pubkey_auth_check
+    backup: true
+  register: ssh_security_pubkey_auth_result
   notify: Restart ssh
 
 - name: Verify SSH configuration syntax
-  command: sshd -t
-  register: ssh_config_test
-  failed_when: ssh_config_test.rc != 0
+  ansible.builtin.command: sshd -t
+  register: ssh_security_config_test
+  failed_when: ssh_security_config_test.rc != 0
   changed_when: false
 
 - name: Display SSH security status
-  debug:
+  ansible.builtin.debug:
     msg: |
       SSH Security Check:
-      - Password Authentication: {{ 'DISABLED' if not ssh_password_auth_check.changed else 'NOW DISABLED' }}
-      - Public Key Authentication: {{ 'ENABLED' if not ssh_pubkey_auth_check.changed else 'NOW ENABLED' }}
-      - SSH Config Test: {{ 'PASSED' if ssh_config_test.rc == 0 else 'FAILED' }}
+      - Password Authentication: {{ 'DISABLED' if not ssh_security_password_auth_result.changed else 'NOW DISABLED' }}
+      - Public Key Authentication: {{ 'ENABLED' if not ssh_security_pubkey_auth_result.changed else 'NOW ENABLED' }}
+      - SSH Config Test: {{ 'PASSED' if ssh_security_config_test.rc == 0 else 'FAILED' }}
 
 - name: Check if root authorized_keys file exists
-  stat:
-    path: "{{ ssh_authorized_keys_file }}"
-  register: root_authorized_keys_file
+  ansible.builtin.stat:
+    path: "{{ ssh_security_authorized_keys_file }}"
+  register: ssh_security_root_authorized_keys_file
 
 - name: Read existing root authorized_keys (if present)
-  slurp:
-    src: "{{ ssh_authorized_keys_file }}"
-  register: root_authorized_keys_raw
-  when: root_authorized_keys_file.stat.exists
+  ansible.builtin.slurp:
+    src: "{{ ssh_security_authorized_keys_file }}"
+  register: ssh_security_root_authorized_keys_raw
+  when: ssh_security_root_authorized_keys_file.stat.exists
 
 - name: Load canonical authorized_keys from role files directory
-  set_fact:
-    canonical_authorized_keys: "{{ lookup('file', role_path + '/files/authorized_keys') | default('') }}"
+  ansible.builtin.set_fact:
+    ssh_security_canonical_authorized_keys: "{{ lookup('file', role_path + '/files/authorized_keys') | default('') }}"
 
 - name: Compute existing authorized_keys content (decoded)
-  set_fact:
-    existing_authorized_keys: "{{ (root_authorized_keys_raw.content | default('') | b64decode) if root_authorized_keys_file.stat.exists else '' }}"
+  ansible.builtin.set_fact:
+    ssh_security_existing_authorized_keys: >-
+      {{ (ssh_security_root_authorized_keys_raw.content | default('') | b64decode)
+         if ssh_security_root_authorized_keys_file.stat.exists else '' }}
 
 - name: Determine whether canonical differs and replacement is allowed
-  set_fact:
-    canonical_differs: >-
-      {{ (root_authorized_keys_file.stat.exists and
-          (canonical_authorized_keys | default('') != (existing_authorized_keys | default(''))) and
-          (canonical_authorized_keys | default('') != '')
+  ansible.builtin.set_fact:
+    ssh_security_canonical_differs: >-
+      {{ (ssh_security_root_authorized_keys_file.stat.exists and
+          (ssh_security_canonical_authorized_keys | default('') != (ssh_security_existing_authorized_keys | default(''))) and
+          (ssh_security_canonical_authorized_keys | default('') != '')
          ) | bool }}
 
 - name: Print existing authorized_keys content before replacing (when different)
-  debug:
+  ansible.builtin.debug:
     msg: |
       Existing /root/.ssh/authorized_keys on {{ inventory_hostname }}:
-      {% for line in existing_authorized_keys.split('\n') %}
+      {% for line in ssh_security_existing_authorized_keys.split('\n') %}
       {{ line }}
       {% endfor %}
-  when: canonical_differs
+  when: ssh_security_canonical_differs
 
 - name: Replace /root/.ssh/authorized_keys with canonical file when different
-  copy:
+  ansible.builtin.copy:
     src: authorized_keys
-    dest: "{{ ssh_authorized_keys_file }}"
+    dest: "{{ ssh_security_authorized_keys_file }}"
     owner: root
     group: root
     mode: "0600"
-    backup: yes
-  when: canonical_differs
-  register: canonical_replace_result
+    backup: true
+  when: ssh_security_canonical_differs
+  register: ssh_security_canonical_replace_result
 
 - name: Report canonical replacement outcome
-  debug:
+  ansible.builtin.debug:
     msg: >-
-      {% if canonical_replace_result is defined and canonical_replace_result.changed %}
+      {% if ssh_security_canonical_replace_result is defined and ssh_security_canonical_replace_result.changed %}
         Replaced /root/.ssh/authorized_keys with canonical file (differences detected).
-      {% elif canonical_replace_result is defined %}
+      {% elif ssh_security_canonical_replace_result is defined %}
         Canonical authorized_keys equals existing file; no changes made.
       {% else %}
         No replacement attempted (either remote file missing or conditions not met).
       {% endif %}
-  when: root_authorized_keys_file is defined
+  when: ssh_security_root_authorized_keys_file is defined
 
 - name: Inform when canonical file is empty (no action taken)
-  debug:
+  ansible.builtin.debug:
     msg: "Canonical authorized_keys file is empty; not overwriting /root/.ssh/authorized_keys."
   when:
-    - root_authorized_keys_file.stat.exists
-    - canonical_authorized_keys | default('') == ''
+    - ssh_security_root_authorized_keys_file.stat.exists
+    - ssh_security_canonical_authorized_keys | default('') == ''
 
 - name: Inform when no existing authorized_keys found
-  debug:
+  ansible.builtin.debug:
     msg: |
       No /root/.ssh/authorized_keys exists on this host.
       Current policy is to NOT create the file automatically.
       To provision the canonical file when missing, enable that behavior explicitly.
-  when: not root_authorized_keys_file.stat.exists
+  when: not ssh_security_root_authorized_keys_file.stat.exists

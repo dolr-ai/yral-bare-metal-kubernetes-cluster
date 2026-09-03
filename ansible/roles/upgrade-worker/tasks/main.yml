@@ -38,6 +38,7 @@
 
 - name: Get Ready node count
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl get nodes -o json | python3 -c "
     import sys, json
     nodes = json.load(sys.stdin)['items']
@@ -109,6 +110,7 @@
     # restarts after reboot.
     - name: Remove Longhorn instance-manager PDB for this node to allow drain
       ansible.builtin.shell: |
+        set -o pipefail
         pdb=$(kubectl get pdb -n longhorn-system -o json | python3 -c "
         import sys, json
         data = json.load(sys.stdin)
@@ -135,6 +137,7 @@
     # is already degraded (e.g. another broker is still starting up).
     - name: Wait for PDBs covering pods on this node to allow disruption
       ansible.builtin.shell: |
+        set -o pipefail
         kubectl get pods --field-selector spec.nodeName={{ inventory_hostname }} -A -o json | python3 -c "
         import sys, json, subprocess
         pods = json.load(sys.stdin)
@@ -213,13 +216,12 @@
         delay: 5
 
     - name: Wait for kubelet to be active
-      ansible.builtin.command: systemctl is-active kubelet
+      ansible.builtin.command: systemctl status kubelet --no-prompt
       register: kubelet_status
       until: kubelet_status.rc == 0
       retries: 30
       delay: 5
       changed_when: false
-
     - name: Wait for node object to be Ready
       ansible.builtin.command: >
         kubectl wait --for=condition=Ready node/{{ inventory_hostname }} --timeout=300s
@@ -242,6 +244,7 @@
 
     - name: Wait for Longhorn disk to re-register as schedulable
       ansible.builtin.shell: |
+        set -o pipefail
         kubectl get node.longhorn.io {{ inventory_hostname }} -n longhorn-system \
           -o json 2>/dev/null | python3 -c "
         import sys, json
@@ -269,6 +272,7 @@
 
     - name: Wait for Longhorn volumes with replicas on this node to return to healthy state
       ansible.builtin.shell: |
+        set -o pipefail
         node_vols=$(kubectl get replicas.longhorn.io -n longhorn-system -o json | python3 -c "
         import sys, json
         d = json.load(sys.stdin)
@@ -320,8 +324,10 @@
 
 - name: Verify kubelet and containerd are healthy
   ansible.builtin.shell: |
-    systemctl is-active kubelet
-    systemctl is-active containerd
+    set -o pipefail
+    systemctl status kubelet --no-prompt > /dev/null
+    systemctl status containerd --no-prompt > /dev/null
+    echo "kubelet and containerd active"
   register: service_status
   changed_when: false
 

@@ -1,6 +1,8 @@
 ---
 - name: Wait for node to be registered
-  ansible.builtin.shell: kubectl get node {{ ansible_facts['hostname'] }} --no-headers 2>/dev/null | wc -l
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl get node {{ ansible_facts['hostname'] }} --no-headers 2>/dev/null | wc -l
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   register: node_check
@@ -88,6 +90,7 @@
 # cases (e.g. node was force-deleted without running the playbook).
 - name: Wait for Longhorn manager pod to be ready on this node
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl -n longhorn-system get pod -l app=longhorn-manager \
       --field-selector spec.nodeName={{ ansible_facts['hostname'] }} \
       -o json | python3 -c "
@@ -107,6 +110,7 @@
 
 - name: Check Longhorn Node CR disk status (retry until reconciled)
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl -n longhorn-system get node.longhorn.io {{ ansible_facts['hostname'] }} \
       -o json 2>/dev/null | python3 -c "
     import sys, json
@@ -144,7 +148,23 @@
       ansible.builtin.shell: |
         kubectl -n longhorn-system patch node.longhorn.io {{ ansible_facts['hostname'] }} \
           --type=merge \
-          -p '{"spec":{"disks":{"{{ lh_stale_disk.stdout | trim }}":{"allowScheduling":false,"evictionRequested":false,"path":"/var/lib/longhorn/","storageReserved":2684354560,"tags":[],"diskType":"filesystem","diskDriver":""}}}}'
+          -p '
+        {
+          "spec": {
+            "disks": {
+              "{{ lh_stale_disk.stdout | trim }}": {
+                "allowScheduling": false,
+                "evictionRequested": false,
+                "path": "/var/lib/longhorn/",
+                "storageReserved": 2684354560,
+                "tags": [],
+                "diskType": "filesystem",
+                "diskDriver": ""
+              }
+            }
+          }
+        }
+        '
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       delegate_to: "{{ groups['control_plane'][0] }}"
@@ -162,6 +182,7 @@
 
     - name: Wait for Longhorn to sync empty disk spec
       ansible.builtin.shell: |
+        set -o pipefail
         kubectl -n longhorn-system get node.longhorn.io {{ ansible_facts['hostname'] }} \
           -o json | python3 -c "
         import sys, json
@@ -182,7 +203,23 @@
       ansible.builtin.shell: |
         kubectl -n longhorn-system patch node.longhorn.io {{ ansible_facts['hostname'] }} \
           --type=merge \
-          -p '{"spec":{"disks":{"default-disk":{"allowScheduling":true,"evictionRequested":false,"path":"/var/lib/longhorn/","storageReserved":2684354560,"tags":[],"diskType":"filesystem","diskDriver":""}}}}'
+          -p '
+        {
+          "spec": {
+            "disks": {
+              "default-disk": {
+                "allowScheduling": true,
+                "evictionRequested": false,
+                "path": "/var/lib/longhorn/",
+                "storageReserved": 2684354560,
+                "tags": [],
+                "diskType": "filesystem",
+                "diskDriver": ""
+              }
+            }
+          }
+        }
+        '
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       delegate_to: "{{ groups['control_plane'][0] }}"
@@ -194,6 +231,7 @@
 
     - name: Wait for fresh disk to become Ready
       ansible.builtin.shell: |
+        set -o pipefail
         kubectl -n longhorn-system get node.longhorn.io {{ ansible_facts['hostname'] }} \
           -o json | python3 -c "
         import sys, json

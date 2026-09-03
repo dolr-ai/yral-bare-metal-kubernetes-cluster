@@ -79,8 +79,13 @@
     state: directory
     mode: "0755"
 
-- name: Download Kubernetes GPG key
-  ansible.builtin.shell: curl -fsSL https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version.split('.')[:2] | join('.') }}/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+- name: Download Kubernetes GPG key (dearmored to apt keyring)
+  # get_url cannot pipe through gpg --dearmor, so a shell with pipefail is used
+  # here; `creates` makes it idempotent.
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -fsSL "https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version.split('.')[:2] | join('.') }}/deb/Release.key" \
+      | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
   args:
     creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 

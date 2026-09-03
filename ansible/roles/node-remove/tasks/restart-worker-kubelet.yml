@@ -12,6 +12,7 @@
 
 - name: Wait for worker to become Ready - {{ worker_node }}
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl get node {{ worker_node }} --no-headers | awk '{print $2}'
   delegate_to: "{{ kubectl_delegate }}"
   register: worker_ready_check

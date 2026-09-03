@@ -1,0 +1,34 @@
+---
+# Handler chain for beszel-agent container lifecycle: notified by the
+# "Ensure docker-compose.yml has beszel-agent service" blockinfile task when
+# the managed block changed. Handlers listening on the same topic run in
+# definition order: pull+up → health wait → final status display.
+- name: Pull latest beszel-agent image and start container
+  ansible.builtin.command: docker compose -f {{ beszel_agent_docker_compose_path }} up -d --pull always beszel-agent
+  args:
+    chdir: /root
+  register: beszel_agent_docker_compose_up
+  changed_when: beszel_agent_compose_updated.changed
+  listen: beszel agent compose updated
+
+- name: Wait for beszel-agent container to be healthy
+  ansible.builtin.command: "docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' beszel-agent"
+  register: beszel_agent_container_status
+  until: beszel_agent_container_status.stdout == "running"
+  retries: 10
+  delay: 3
+  changed_when: false
+  listen: beszel agent compose updated
+
+- name: Display final container status
+  ansible.builtin.command: >-
+    docker ps --filter name=beszel-agent
+    --format 'table {{ '{{' }}.Names{{ '}}' }}\t{{ '{{' }}.Status{{ '}}' }}\t{{ '{{' }}.Ports{{ '}}' }}'
+  register: beszel_agent_container_info
+  changed_when: false
+  listen: beszel agent compose updated
+
+- name: Show beszel-agent container info
+  ansible.builtin.debug:
+    msg: "{{ beszel_agent_container_info.stdout_lines }}"
+  listen: beszel agent compose updated

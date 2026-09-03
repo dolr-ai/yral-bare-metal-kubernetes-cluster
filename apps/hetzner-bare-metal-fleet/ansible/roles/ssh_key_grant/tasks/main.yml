@@ -1,6 +1,6 @@
 ---
 - name: Validate required variables
-  assert:
+  ansible.builtin.assert:
     that:
       - team_member_name is defined
       - team_members is defined
@@ -8,16 +8,16 @@
     fail_msg: "team_member_name must be provided and exist in team_members dictionary"
 
 - name: Get team member SSH key
-  set_fact:
-    member_email: "{{ team_members[team_member_name].email }}"
-    member_ssh_key: "{{ team_members[team_member_name].ssh_key }}"
+  ansible.builtin.set_fact:
+    ssh_key_grant_member_email: "{{ team_members[team_member_name].email }}"
+    ssh_key_grant_member_ssh_key: "{{ team_members[team_member_name].ssh_key }}"
 
 - name: Display access grant information
-  debug:
-    msg: "Granting SSH access to {{ member_email }} on {{ inventory_hostname }}"
+  ansible.builtin.debug:
+    msg: "Granting SSH access to {{ ssh_key_grant_member_email }} on {{ inventory_hostname }}"
 
 - name: Ensure .ssh directory exists
-  file:
+  ansible.builtin.file:
     path: /root/.ssh
     state: directory
     mode: "0700"
@@ -25,38 +25,41 @@
     group: root
 
 - name: Check if authorized_keys file exists
-  stat:
-    path: "{{ authorized_keys_file }}"
-  register: authorized_keys_stat
+  ansible.builtin.stat:
+    path: "{{ ssh_key_grant_authorized_keys_file }}"
+  register: ssh_key_grant_authorized_keys_stat
 
 - name: Create authorized_keys file if it doesn't exist
-  file:
-    path: "{{ authorized_keys_file }}"
+  ansible.builtin.file:
+    path: "{{ ssh_key_grant_authorized_keys_file }}"
     state: touch
     mode: "0600"
     owner: root
     group: root
-  when: not authorized_keys_stat.stat.exists
+  when: not ssh_key_grant_authorized_keys_stat.stat.exists
 
 - name: Check if key already exists in authorized_keys
-  shell: |
-    grep -F "{{ member_email }}" {{ authorized_keys_file }} || true
-  register: key_check
+  ansible.builtin.shell: |
+    grep -F "{{ ssh_key_grant_member_email }}" {{ ssh_key_grant_authorized_keys_file }} || true
+  register: ssh_key_grant_key_check
   changed_when: false
 
 - name: Add SSH key to authorized_keys
-  lineinfile:
-    path: "{{ authorized_keys_file }}"
-    line: "{{ member_ssh_key }}"
+  ansible.builtin.lineinfile:
+    path: "{{ ssh_key_grant_authorized_keys_file }}"
+    line: "{{ ssh_key_grant_member_ssh_key }}"
     state: present
-    create: yes
+    create: true
     mode: "0600"
-  when: key_check.stdout == ""
+  when: ssh_key_grant_key_check.stdout == ""
 
 - name: Confirm key was added
-  debug:
-    msg: "SSH key for {{ member_email }} {{ 'already existed' if key_check.stdout != '' else 'has been added' }} to {{ inventory_hostname }}"
+  ansible.builtin.debug:
+    msg: >-
+      SSH key for {{ ssh_key_grant_member_email }}
+      {{ 'already existed' if ssh_key_grant_key_check.stdout != '' else 'has been added' }}
+      to {{ inventory_hostname }}
 
 - name: Display access revocation notice
-  debug:
+  ansible.builtin.debug:
     msg: "NOTE: This access is temporary. It will be revoked during the next weekly-update run (ssh_security role)."
