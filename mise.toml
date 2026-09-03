@@ -12,28 +12,12 @@ fnox = "latest"
 gh = "latest"
 helm = "latest"
 "github:clockworklabs/SpacetimeDB" = "latest"
-# Mobile tooling — macOS only (Android + iOS development). These tools
-# require macOS frameworks and are not installable on Linux. They are
-# conditionally installed only on macOS machines.
-# Pinned to JDK 21 LTS (not "latest"): Gradle 8.14.4's bundled Kotlin compiler
-# (Kotlin 2.0.21) cannot parse JDK 26's version string ("26.0.2") and throws
-# IllegalArgumentException during script compilation. Bump only after upgrading
-# the Gradle wrapper to a version whose embedded Kotlin supports the new JDK.
-java = { version = "21", os = ["macos"] }
 kubectl = "latest"
 maestro = { version = "latest", os = ["macos"] }
 node = "latest"
 pitchfork = "latest"
 podman = "latest"
-protobuf = "latest"
 python = "latest"
-ruby = { version = "latest", os = ["macos"] }
-# Rust toolchain — pinned to a dated nightly via mise.lock (more reproducible
-# than rust-toolchain.toml's floating "nightly"). mise's rust backend sets
-# RUSTUP_TOOLCHAIN, which would override rust-toolchain.toml anyway, so we
-# declare targets/components here as tool options. `mise install` adds any
-# missing targets/components on every run. Do NOT add a rust-toolchain.toml —
-# it would be dead weight (RUSTUP_TOOLCHAIN env var takes precedence).
 rust = { version = "nightly", targets = [
   "wasm32-unknown-unknown",
   "x86_64-unknown-linux-musl",
