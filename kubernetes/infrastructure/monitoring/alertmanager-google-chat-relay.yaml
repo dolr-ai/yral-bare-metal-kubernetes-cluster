@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
         - name: relay
-          image: python:3.12-slim
+          image: python:3.14-slim
           command: ["python3", "/app/relay.py"]
           env:
             - name: GOOGLE_CHAT_WEBHOOK_URL
