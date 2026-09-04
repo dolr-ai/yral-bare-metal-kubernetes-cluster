@@ -1,18 +1,76 @@
 import Foundation
+import HTTPTypes
+import OpenAPIRuntime
+import OpenAPIURLSession
 
-/// AI-influencer backend calls — port of Kotlin `AiInfluencerRemoteDataSource`
-/// (agent.rishi.yral.com, Bearer id_token) plus the avatar upload endpoint
-/// from `AiInfluencerViewModel.uploadProfileImage` (STORAGE_INTERFACE host).
+/// AI-influencer backend calls — TYPED via the swift-openapi-generator
+/// client, generated at build time from `openapi.json` (byte-verbatim
+/// snapshot of https://agent.rishi.yral.com/openapi.json, refreshed by
+/// `mise run yral-ios-sync-rishi-openapi` before every build). Same
+/// principle as the SpacetimeDB bindings: the live spec is the source
+/// of truth, drift becomes a compile error.
 ///
-/// Persona generation is LLM-backed and slow (gemini thinking: 7s..>30s) —
-/// both generation endpoints get the Kotlin 90-second timeout.
+/// Auth: bearer yral-auth id_token, injected per call via the
+/// `BearerAuthenticationMiddleware` below (Apple's documented
+/// ClientMiddleware pattern — the generator has no security-scheme
+/// support, this is the canonical mechanism).
+///
+/// KNOWN SPEC GAP (tracked upstream): the generator (1.13.x) drops
+/// OpenAPI 3.1 `anyOf: [T, {type: null}]` properties entirely
+/// (apple/swift-openapi-generator#817) — so the generated
+/// `Components.Schemas.CreateInfluencerRequest` only carries the 5
+/// non-nullable fields today; avatar_url/description/category/
+/// initial_greeting/suggested_messages/personality_traits/source are
+/// absent until the upstream spec PR lands. Until then the create call
+/// sends what the generated type can carry, and the server generates
+/// greeting/suggestions when absent.
+///
+/// Persona generation is LLM-backed and slow (gemini thinking: 7s..>30s)
+/// — both generation endpoints get the 90-second timeout.
+///
+/// Avatar lifecycle (per the server source): the metadata response's
+/// `avatar_url` is a SHORT-LIVED Replicate delivery URL (reaped after
+/// ~2h, may be null when generation fails) — display only. The durable
+/// Storj URL comes from the profile-image upload step, which the
+/// creation pipeline runs right after.
 public struct AIInfluencerDataSource: Sendable {
 
+    private let serverURL: URL
     private let session: URLSession
 
     public init(session: URLSession = .shared) {
         self.session = session
+        self.serverURL = URL(string: "https://\(AppConfiguration.chatBaseURL)")!
     }
+
+    /// A client with this call's bearer token. The generated Input has
+    /// no middlewares parameter (the spec declares no security schemes)
+    /// — the Client init is the injection point; constructing one per
+    /// call is cheap (a thin struct over the transport).
+    private func authenticatedClient(bearerToken: String) -> Client {
+        Client(
+            serverURL: serverURL,
+            transport: URLSessionTransport(
+                configuration: .init(
+                    session: Self.personaGenerationSession
+                )
+            ),
+            middlewares: [BearerAuthenticationMiddleware(bearerToken: bearerToken)]
+        )
+    }
+
+    /// Kotlin `PERSONA_GEN_TIMEOUT_MS = 90s` — LLM-backed generation
+    /// (gemini thinking: 7s..>30s, spikes beyond) exceeds URLSession's
+    /// 60s default, so ALL generation-endpoint calls ride this
+    /// dedicated session. (Create/upload calls share it too — one
+    /// session keeps connection reuse simple; their latency is
+    /// dominated by the same backend anyway.)
+    private static let personaGenerationSession: URLSession = {
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 90
+        configuration.timeoutIntervalForResource = 120
+        return URLSession(configuration: configuration)
+    }()
 
     // MARK: - Persona generation (Kotlin PERSONA_GEN_TIMEOUT_MS = 90s)
 
@@ -22,14 +80,31 @@ public struct AIInfluencerDataSource: Sendable {
         prompt: String,
         idToken: String
     ) async throws -> String {
-        let object: [String: Any] = ["prompt": prompt]
-        let data = try await post(
-            path: "api/v1/influencers/generate-prompt",
-            body: object,
-            idToken: idToken,
-            timeout: 90
-        )
-        return try stringField(data, "system_instructions")
+        let response = try await authenticatedClient(bearerToken: idToken)
+            .generate_prompt_api_v1_influencers_generate_prompt_post(
+                .init(body: .json(.init(concept: prompt)))
+            )
+        switch response {
+        case .ok(let payload):
+            // 200 is untyped in the spec (`{}`) — OpenAPIValueContainer
+            // is the generator's escape hatch. The response is a single
+            // string field; read it straight out of the decoded object
+            // (a response_model declaration is pending upstream).
+            let fields = try JSONDecoder().decode(
+                [String: String].self,
+                from: JSONEncoder().encode(try payload.body.json)
+            )
+            guard let instructions = fields["system_instructions"] else {
+                throw NetworkError.transport(
+                    underlying: "generate-prompt: response missing system_instructions"
+                )
+            }
+            return instructions
+        case .unprocessableContent(let payload):
+            throw Self.validationError(try payload.body.json.detail)
+        case .undocumented:
+            throw Self.undocumented(operation: "generate-prompt")
+        }
     }
 
     /// `POST /api/v1/influencers/validate-and-generate-metadata` — persona
@@ -39,54 +114,99 @@ public struct AIInfluencerDataSource: Sendable {
         systemInstructions: String,
         idToken: String
     ) async throws -> AIInfluencerMetadata {
-        let object: [String: Any] = ["system_instructions": systemInstructions]
-        let data = try await post(
-            path: "api/v1/influencers/validate-and-generate-metadata",
-            body: object,
-            idToken: idToken,
-            timeout: 90
-        )
-        return try AIInfluencerMetadata(json: data)
+        let response = try await authenticatedClient(bearerToken: idToken)
+            .validate_and_generate_api_v1_influencers_validate_and_generate_metadata_post(
+                .init(body: .json(.init(concept: systemInstructions)))
+            )
+        switch response {
+        case .ok(let payload):
+            // Untyped 200 (response_model missing; PR pending upstream)
+            // — the OpenAPIValueContainer is re-encoded to JSON and
+            // decoded straight into the metadata model below.
+            return try JSONDecoder().decode(
+                AIInfluencerMetadata.self,
+                from: JSONEncoder().encode(try payload.body.json)
+            )
+        case .unprocessableContent(let payload):
+            throw Self.validationError(try payload.body.json.detail)
+        case .undocumented:
+            throw Self.undocumented(operation: "validate-and-generate-metadata")
+        }
     }
 
-    /// `POST /api/v1/influencers/create` — the AI account's backend record.
-    public func createInfluencer(
-        request: CreateInfluencerRequest,
+    /// `POST /api/v1/influencers/create` — the AI account's backend
+    /// record. The backend derives the owner from the auth token, so
+    /// only the bot principal is sent. The remaining persona fields
+    /// (durable avatar URL, description, category, greeting,
+    /// suggestions, traits) join the wire when the upstream spec PR
+    /// lands — the generator drops anyOf-null fields until then
+    /// (apple/swift-openapi-generator#817).
+    func createInfluencer(
+        profile: AIProfileDetails,
+        aiPrincipalID: String,
         idToken: String
-    ) async throws -> CreateInfluencerResponse {
-        let data = try await post(
-            path: "api/v1/influencers/create",
-            body: request.jsonObject,
-            idToken: idToken,
-            timeout: 30
-        )
-        return try CreateInfluencerResponse(json: data)
+    ) async throws {
+        let response = try await authenticatedClient(bearerToken: idToken)
+            .create_influencer_api_v1_influencers_create_post(
+                .init(
+                    body: .json(
+                        .init(
+                            name: profile.name,
+                            display_name: profile.displayName,
+                            system_instructions: profile.systemInstructions,
+                            bot_principal_id: aiPrincipalID,
+                            is_nsfw: profile.isNSFW
+                        )))
+            )
+        switch response {
+        case .created:
+            // 201 — the created record is not consumed by the flow.
+            break
+        case .unprocessableContent(let payload):
+            throw Self.validationError(try payload.body.json.detail)
+        case .undocumented(let statusCode, let undocumentedPayload):
+            // 409 name-taken is NOT declared in the spec — it lands here.
+            if statusCode == 409,
+               let message = try? await Self.detailMessage(
+                   from: undocumentedPayload.body
+               ) {
+                throw NetworkError.http(statusCode: 409, body: message)
+            }
+            throw Self.undocumented(operation: "create-influencer")
+        }
     }
 
-    // MARK: - Avatar (Kotlin uploadProfileImage: STORAGE_INTERFACE host)
+    // MARK: - Avatar upload (the durable-URL step)
 
     /// `POST /api/v1/user/profile-image` — uploads base64 image bytes,
-    /// returns the hosted URL.
+    /// returns the hosted durable public URL (Storj link-share; the
+    /// old storage-interface.prakash host is dead — this endpoint lives
+    /// on the agent service itself).
     public func uploadProfileImage(
         imageBase64: String,
         idToken: String
     ) async throws -> String {
-        let object: [String: Any] = ["image_data": imageBase64]
-        let data = try await post(
-            host: AppConfiguration.storageInterfaceBaseURL,
-            path: "api/v1/user/profile-image",
-            body: object,
-            idToken: idToken,
-            timeout: 30
-        )
-        return try stringField(data, "profile_image_url")
+        let response = try await authenticatedClient(bearerToken: idToken)
+            .upload_profile_image_api_v1_user_profile_image_post(
+                .init(body: .json(.init(image_data: imageBase64)))
+            )
+        switch response {
+        case .ok(let payload):
+            // FULLY TYPED in the spec (response_model declared) — no
+            // OpenAPIValueContainer needed here.
+            return try payload.body.json.profile_image_url
+        case .unprocessableContent(let payload):
+            throw Self.validationError(try payload.body.json.detail)
+        case .undocumented:
+            throw Self.undocumented(operation: "profile-image")
+        }
     }
 
     /// Downloads the generated avatar bytes (Kotlin `downloadAvatar`).
     public func downloadAvatar(url: URL) async throws -> Data {
         let (data, response) = try await session.data(from: url)
         guard let httpResponse = response as? HTTPURLResponse,
-              (200..<300).contains(httpResponse.statusCode)
+            (200..<300).contains(httpResponse.statusCode)
         else {
             throw NetworkError.http(
                 statusCode: (response as? HTTPURLResponse)?.statusCode ?? 0,
@@ -96,51 +216,65 @@ public struct AIInfluencerDataSource: Sendable {
         return data
     }
 
-    // MARK: - Request plumbing (inline — no client wrapper)
+    // MARK: - Error mapping
 
-    private func post(
-        host: String = AppConfiguration.chatBaseURL,
-        path: String,
-        body: [String: Any],
-        idToken: String,
-        timeout: TimeInterval
-    ) async throws -> [String: Any] {
-        var request = URLRequest(url: URL(string: "https://\(host)/\(path)")!)
-        request.httpMethod = "POST"
-        request.timeoutInterval = timeout
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (data, response) = try await session.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NetworkError.transport(underlying: "Non-HTTP response")
-        }
-        guard (200..<300).contains(httpResponse.statusCode) else {
-            // The server's error body is the user-facing message (Kotlin
-            // extractServerMessage).
-            throw NetworkError.http(
-                statusCode: httpResponse.statusCode,
-                body: String(data: data, encoding: .utf8)
-            )
-        }
-        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw NetworkError.transport(underlying: "Response is not a JSON object")
-        }
-        return object
+    /// FastAPI validation errors carry the user-facing message under
+    /// "detail" — an ARRAY of validation objects, each with a `msg`.
+    private static func validationError(
+        _ detail: [Components.Schemas.ValidationError]?
+    ) -> NetworkError {
+        let message = detail?.first?.msg ?? "Validation failed"
+        return NetworkError.http(statusCode: 422, body: message)
     }
 
-    private func stringField(_ object: [String: Any], _ key: String) throws -> String {
-        guard let value = object[key] as? String, !value.isEmpty else {
-            throw NetworkError.transport(underlying: "Response missing '\(key)'")
-        }
-        return value
+    /// 409 detail message — the body is a stream; collect then parse.
+    private static func detailMessage(from body: HTTPBody?) async throws -> String? {
+        guard let body else { return nil }
+        let data = try await Data(collecting: body, upTo: 1024 * 1024)
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let detail = object["detail"] as? String
+        else { return nil }
+        return detail
+    }
+
+    private static func undocumented(operation: String) -> NetworkError {
+        NetworkError.transport(
+            underlying: "\(operation): unexpected response (spec drift)"
+        )
     }
 }
 
-// MARK: - DTOs (Kotlin ValidateAndGenerateMetadataResponseDto etc.)
+// MARK: - Bearer auth middleware (Apple's ClientMiddleware pattern)
 
-/// Kotlin `GeneratedInfluencerMetadata`.
-public struct AIInfluencerMetadata: Equatable, Sendable {
+/// Injects `Authorization: Bearer <token>` on every request. The
+/// generator emits no auth code from security schemes (unsupported) —
+/// middleware is the Apple-canonical per-call auth injection point
+/// (apple/swift-openapi-generator auth-client-middleware-example).
+private struct BearerAuthenticationMiddleware: ClientMiddleware {
+    let bearerToken: String
+
+    func intercept(
+        _ request: HTTPRequest,
+        body: HTTPBody?,
+        baseURL: URL,
+        operationID: String,
+        next: @Sendable (HTTPRequest, HTTPBody?, URL) async throws -> (HTTPResponse, HTTPBody?)
+    ) async throws -> (HTTPResponse, HTTPBody?) {
+        var request = request
+        request.headerFields[.authorization] = "Bearer \(bearerToken)"
+        return try await next(request, body, baseURL)
+    }
+}
+
+// MARK: - Generated persona metadata (the wizard's model)
+
+/// The persona metadata from `validate-and-generate-metadata`. The
+/// rejected case carries only `is_valid: false` plus a `reason`; the
+/// accepted case carries the full persona. `avatarURL` may be nil
+/// when avatar generation fails server-side — and when present it is
+/// a SHORT-LIVED Replicate delivery URL; the creation pipeline
+/// uploads the bytes for the durable copy.
+public struct AIInfluencerMetadata: Equatable, Sendable, Decodable {
     public var isValid: Bool
     public var validationReason: String?
     public var name: String?
@@ -151,70 +285,31 @@ public struct AIInfluencerMetadata: Equatable, Sendable {
     public var personalityTraits: [String: String]
     public var category: String?
     public var avatarURL: String?
-    public var systemInstructions: String?
-    public var isNSFW: Bool
 
-    init(json: [String: Any]) {
-        isValid = json["is_valid"] as? Bool ?? false
-        validationReason = json["reason"] as? String
-        name = json["name"] as? String
-        displayName = json["display_name"] as? String
-        description = json["description"] as? String
-        initialGreeting = json["initial_greeting"] as? String
-        suggestedMessages = (json["suggested_messages"] as? [String]) ?? []
-        personalityTraits = (json["personality_traits"] as? [String: String]) ?? [:]
-        category = json["category"] as? String
-        avatarURL = json["avatar_url"] as? String
-        systemInstructions = json["system_instructions"] as? String
-        isNSFW = json["is_nsfw"] as? Bool ?? false
+    private enum CodingKeys: String, CodingKey {
+        case isValid = "is_valid"
+        case validationReason = "reason"
+        case name
+        case displayName = "display_name"
+        case description
+        case initialGreeting = "initial_greeting"
+        case suggestedMessages = "suggested_messages"
+        case personalityTraits = "personality_traits"
+        case category
+        case avatarURL = "avatar_url"
     }
-}
 
-/// Kotlin `CreateInfluencerRequestDto` (snake_case wire keys).
-public struct CreateInfluencerRequest: Sendable {
-    public var name: String
-    public var displayName: String
-    public var description: String
-    public var systemInstructions: String
-    public var initialGreeting: String
-    public var suggestedMessages: [String]
-    public var personalityTraits: [String: String]
-    public var category: String
-    public var avatarURL: String
-    public var isNSFW: Bool
-    public var aiPrincipalID: String
-    public var parentPrincipalID: String
-
-    public var jsonObject: [String: Any] {
-        [
-            "name": name,
-            "display_name": displayName,
-            "description": description,
-            "system_instructions": systemInstructions,
-            "initial_greeting": initialGreeting,
-            "suggested_messages": suggestedMessages,
-            "personality_traits": personalityTraits,
-            "category": category,
-            "avatar_url": avatarURL,
-            "is_nsfw": isNSFW,
-            // Wire key is Kotlin's DTO field name — the server schema calls
-            // the AI account a "bot" (kept verbatim on the wire).
-            "bot_principal_id": aiPrincipalID,
-            "parent_principal_id": parentPrincipalID
-        ]
-    }
-}
-
-/// Kotlin `CreateInfluencerResponseDto`.
-public struct CreateInfluencerResponse: Sendable {
-    public var id: String
-    public var starterVideoPrompt: String?
-
-    init(json: [String: Any]) throws {
-        guard let id = json["id"] as? String else {
-            throw NetworkError.transport(underlying: "Create response missing 'id'")
-        }
-        self.id = id
-        starterVideoPrompt = json["starter_video_prompt"] as? String
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        isValid = try container.decodeIfPresent(Bool.self, forKey: .isValid) ?? false
+        validationReason = try container.decodeIfPresent(String.self, forKey: .validationReason)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        displayName = try container.decodeIfPresent(String.self, forKey: .displayName)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        initialGreeting = try container.decodeIfPresent(String.self, forKey: .initialGreeting)
+        suggestedMessages = try container.decodeIfPresent([String].self, forKey: .suggestedMessages) ?? []
+        personalityTraits = try container.decodeIfPresent([String: String].self, forKey: .personalityTraits) ?? [:]
+        category = try container.decodeIfPresent(String.self, forKey: .category)
+        avatarURL = try container.decodeIfPresent(String.self, forKey: .avatarURL)
     }
 }

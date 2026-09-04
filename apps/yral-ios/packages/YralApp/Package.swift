@@ -20,6 +20,14 @@ import PackageDescription
 
 let firebaseAppleSdkVersion: Version = "12.18.0"
 
+// swift-openapi-generator toolchain — same principle as the SpacetimeDB
+// bindings: the OpenAPI spec IS the API contract; generated types make
+// drift a compile error. Versions exact-pinned (repo rule) — latest
+// official releases as of 2026-09-03.
+let swiftOpenAPIGeneratorVersion: Version = "1.13.1"
+let swiftOpenAPIRuntimeVersion: Version = "1.12.1"
+let swiftOpenAPIURLSessionVersion: Version = "1.3.1"
+
 let package = Package(
     name: "YralApp",
     platforms: [
@@ -44,6 +52,21 @@ let package = Package(
         .package(
             url: "https://github.com/firebase/firebase-ios-sdk.git",
             exact: firebaseAppleSdkVersion
+        ),
+        // swift-openapi toolchain: the generator plugin runs at build time,
+        // the runtime provides Codable conformances, and the URLSession
+        // transport wires the generated client to the network.
+        .package(
+            url: "https://github.com/apple/swift-openapi-generator.git",
+            exact: swiftOpenAPIGeneratorVersion
+        ),
+        .package(
+            url: "https://github.com/apple/swift-openapi-runtime.git",
+            exact: swiftOpenAPIRuntimeVersion
+        ),
+        .package(
+            url: "https://github.com/apple/swift-openapi-urlsession.git",
+            exact: swiftOpenAPIURLSessionVersion
         )
     ],
     targets: [
@@ -61,10 +84,32 @@ let package = Package(
                 .product(
                     name: "FirebaseAnalytics",
                     package: "firebase-ios-sdk"
+                ),
+                // swift-openapi runtime + URLSession transport for the
+                // generated Rishi API client.
+                .product(
+                    name: "OpenAPIRuntime",
+                    package: "swift-openapi-runtime"
+                ),
+                .product(
+                    name: "OpenAPIURLSession",
+                    package: "swift-openapi-urlsession"
                 )
             ],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
+            ],
+            plugins: [
+                // Generates Sources/YralApp/GeneratedOpenAPI/ at build
+                // time from the byte-verbatim live-spec snapshot
+                // (openapi.json + openapi-generator-config.yaml in the
+                // source dir; the snapshot is refreshed before every
+                // build/test by mise run yral-ios-sync-rishi-openapi —
+                // see AGENTS.md "API bindings come from the live contract").
+                .plugin(
+                    name: "OpenAPIGenerator",
+                    package: "swift-openapi-generator"
+                )
             ]
         ),
         .testTarget(

@@ -153,7 +153,9 @@ extension AIAccountCreationView {
             suggestedMessages: metadata.suggestedMessages,
             personalityTraits: metadata.personalityTraits,
             category: metadata.category ?? "general",
-            isNSFW: metadata.isNSFW
+            // The server validator rejects NSFW personas, so wizard
+            // personas are never NSFW.
+            isNSFW: false
         )
     }
 }

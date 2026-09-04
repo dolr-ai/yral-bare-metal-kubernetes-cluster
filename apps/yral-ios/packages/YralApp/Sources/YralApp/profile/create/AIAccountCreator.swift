@@ -90,9 +90,7 @@ enum AIAccountCreator {
         if !progress.influencerCreated {
             try await createInfluencerRecord(
                 profile: profile,
-                ownerPrincipal: ownerPrincipal,
                 aiPrincipal: aiPrincipal,
-                hostedAvatarURL: hostedAvatarURL,
                 context: context
             )
             progress.influencerCreated = true
@@ -195,33 +193,20 @@ enum AIAccountCreator {
         return hostedAvatarURL
     }
 
-    /// Step 5 — the backend influencer record.
+    /// Step 5 — the backend influencer record. The backend derives the
+    /// owner from the auth token, so only the bot principal is sent.
     @MainActor
     private static func createInfluencerRecord(
         profile: AIProfileDetails,
-        ownerPrincipal: String,
         aiPrincipal: String,
-        hostedAvatarURL: String,
         context: CreationContext
     ) async throws {
         guard let idToken = context.authClient.idToken else {
             throw AuthError.oauthFailed(errorDescription: "Not signed in")
         }
-        _ = try await context.influencerDataSource.createInfluencer(
-            request: CreateInfluencerRequest(
-                name: profile.name,
-                displayName: profile.displayName,
-                description: profile.description,
-                systemInstructions: profile.systemInstructions,
-                initialGreeting: profile.initialGreeting,
-                suggestedMessages: profile.suggestedMessages,
-                personalityTraits: profile.personalityTraits,
-                category: profile.category,
-                avatarURL: hostedAvatarURL,
-                isNSFW: profile.isNSFW,
-                aiPrincipalID: aiPrincipal,
-                parentPrincipalID: ownerPrincipal
-            ),
+        try await context.influencerDataSource.createInfluencer(
+            profile: profile,
+            aiPrincipalID: aiPrincipal,
             idToken: idToken
         )
     }

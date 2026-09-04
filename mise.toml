@@ -18,6 +18,7 @@ node = "latest"
 pitchfork = "latest"
 podman = "latest"
 python = "latest"
+ruff = "0.15.14"
 rust = { version = "nightly", targets = [
   "wasm32-unknown-unknown",
   "x86_64-unknown-linux-musl",
@@ -624,9 +625,19 @@ run = "swift package resolve"
 # (YRAL_IOS_FIREBASE_PLIST_BASE64) when run under `fnox exec --`.
 # Rotate the API key: rotate in GCP console → update the fnox secret
 # (exact command documented on the secret's fnox.toml entry).
+[tasks.yral-ios-sync-rishi-openapi]
+description = "Fetch the LIVE OpenAPI spec from agent.rishi.yral.com (byte-verbatim) into the SPM target — the generator plugin consumes it at build time. Offline → keeps the committed snapshot (the spec is a build INPUT, never hand-edited; spec defects are fixed by PR to yral-rishi-agent)."
+dir = "apps/yral-ios/packages/YralApp"
+run = '''
+curl -fsSL --max-time 30 https://agent.rishi.yral.com/openapi.json \
+  -o Sources/YralApp/openapi.json \
+  || echo 'WARN: live spec unreachable — building against the committed snapshot (offline mode)'
+'''
+
 [tasks.yral-ios-build]
 description = "Build the iosApp target for the iOS Simulator (Debug, unsigned). Requires the Firebase plist (fnox exec -- mise run yral-ios-build)"
 dir = "apps/yral-ios"
+depends = ["yral-ios-sync-rishi-openapi"]
 run = '''
 # GoogleService-Info.plist is gitignored and injected from fnox — it must
 # exist for the build (it's a bundle resource). Under `fnox exec --` the
@@ -645,12 +656,14 @@ xcodebuild build \
   -destination 'generic/platform=iOS Simulator' \
   -configuration Debug \
   CODE_SIGNING_ALLOWED=NO \
+  -skipPackagePluginValidation \
   -quiet
 '''
 
 [tasks.yral-ios-test]
 description = "Run the YralApp SPM package unit tests (Swift Testing)"
 dir = "apps/yral-ios/packages/YralApp"
+depends = ["yral-ios-sync-rishi-openapi"]
 run = "swift test"
 
 [tasks.yral-ios-lint]
@@ -939,6 +952,51 @@ run = '''
 ./.venv/bin/ansible-vault view ansible/inventory/group_vars/all/vault.yml | \
   ./.venv/bin/python -c "import sys, yaml; print(yaml.safe_load(sys.stdin)[sys.argv[1]])" "$@"
 '''
+
+# ── yral-rishi-agent (agent.rishi.yral.com backend) ─────────────────────────
+# The repo's own CI (.github/workflows/ci.yml) pins ruff==0.15.14 and runs
+# `ruff check app/ infra/` + `ruff format --check app/ infra/`. These tasks
+# run the IDENTICAL commands locally (the ruff tool version above is pinned
+# to match CI) so a lint-clean local run means a lint-clean PR — no ad hoc
+# invocations that can drift from what CI enforces.
+
+[tasks.yral-rishi-agent-lint]
+description = "Run yral-rishi-agent's CI lint locally (ruff check + format --check, same version as CI)"
+dir = "apps/yral-rishi-agent"
+run = '''
+ruff check app/ infra/
+ruff format --check app/ infra/
+'''
+
+[tasks.yral-rishi-agent-lint-fix]
+description = "Apply ruff's formatting/import fixes to yral-rishi-agent (run before committing; verify with yral-rishi-agent-lint)"
+dir = "apps/yral-rishi-agent"
+run = '''
+ruff check --fix app/ infra/
+ruff format app/ infra/
+'''
+
+# Test env mirrors the repo's CI test job: python -m venv + pip install of
+# requirements.txt + requirements-test.txt + pytest — the SAME mechanism the
+# root bootstrap uses for Ansible (NO uv anywhere in this repo; a stray
+# uv.lock that uv commands once created at the root was removed — uv is
+# not part of this repo's toolchain).
+# Integration tests (tests/integration/) need testcontainers+Docker and
+# SKIP gracefully without them — CI runs them with a real Postgres.
+[tasks.yral-rishi-agent-test-bootstrap]
+description = "Create the yral-rishi-agent test venv (.venv, gitignored) with CI's dependency set"
+dir = "apps/yral-rishi-agent"
+run = '''
+python -m venv .venv
+./.venv/bin/pip install --upgrade pip
+./.venv/bin/pip install -r requirements.txt -r requirements-test.txt pytest
+'''
+
+[tasks.yral-rishi-agent-test]
+description = "Run yral-rishi-agent's test suite (venv from yral-rishi-agent-test-bootstrap; integration tests skip without Docker)"
+dir = "apps/yral-rishi-agent"
+depends = ["yral-rishi-agent-test-bootstrap"]
+run = "./.venv/bin/python -m pytest tests/ -v"
 
 # ── Dev: local SpacetimeDB + yral-auth + yral-web ────────────────────────
 # These tasks build the binaries and start all dev servers via pitchfork.

@@ -42,6 +42,7 @@ git submodule update --init --recursive
 | ---------------------------------- | ----------------------------------------------------- |
 | `apps/yral/`                       | git@github.com:dolr-ai/yral.git                       |
 | `apps/yral-mobile/`                | git@github.com:dolr-ai/yral-mobile.git                |
+| `apps/yral-rishi-agent/`           | git@github.com:saikatdas0790/yral-rishi-agent.git — fork of dolr-ai/yral-rishi-agent (agent.rishi.yral.com). The submodule clones the FORK; the checkout adds an `upstream` remote pointing at Rishi's repo. Work lands on fork branches; PRs go fork → upstream so Rishi's repo protections and final merge say are never bypassed. |
 | `apps/website/`                    | git@github.com:dolr-ai/website.git                    |
 
 ## In-repo applications (not submodules)
