@@ -7,3 +7,6 @@
 [submodule "apps/yral-mobile"]
 	path = apps/yral-mobile
 	url = git@github.com:dolr-ai/yral-mobile.git
+[submodule "apps/yral-rishi-agent"]
+	path = apps/yral-rishi-agent
+	url = git@github.com:saikatdas0790/yral-rishi-agent.git
