@@ -91,6 +91,7 @@ enum AIAccountCreator {
             try await createInfluencerRecord(
                 profile: profile,
                 aiPrincipal: aiPrincipal,
+                hostedAvatarURL: hostedAvatarURL,
                 context: context
             )
             progress.influencerCreated = true
@@ -194,11 +195,15 @@ enum AIAccountCreator {
     }
 
     /// Step 5 — the backend influencer record. The backend derives the
-    /// owner from the auth token, so only the bot principal is sent.
+    /// owner from the auth token; the DURABLE hosted avatar URL (from
+    /// step 4) is what the record carries — the short-lived generated
+    /// URL would be reaped after ~2h and the avatar would vanish from
+    /// backend-fed surfaces.
     @MainActor
     private static func createInfluencerRecord(
         profile: AIProfileDetails,
         aiPrincipal: String,
+        hostedAvatarURL: String,
         context: CreationContext
     ) async throws {
         guard let idToken = context.authClient.idToken else {
@@ -207,6 +212,7 @@ enum AIAccountCreator {
         try await context.influencerDataSource.createInfluencer(
             profile: profile,
             aiPrincipalID: aiPrincipal,
+            hostedAvatarURL: hostedAvatarURL,
             idToken: idToken
         )
     }

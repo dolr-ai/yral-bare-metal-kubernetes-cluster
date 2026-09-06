@@ -86,20 +86,7 @@ public struct AIInfluencerDataSource: Sendable {
             )
         switch response {
         case .ok(let payload):
-            // 200 is untyped in the spec (`{}`) — OpenAPIValueContainer
-            // is the generator's escape hatch. The response is a single
-            // string field; read it straight out of the decoded object
-            // (a response_model declaration is pending upstream).
-            let fields = try JSONDecoder().decode(
-                [String: String].self,
-                from: JSONEncoder().encode(try payload.body.json)
-            )
-            guard let instructions = fields["system_instructions"] else {
-                throw NetworkError.transport(
-                    underlying: "generate-prompt: response missing system_instructions"
-                )
-            }
-            return instructions
+            return try payload.body.json.system_instructions
         case .unprocessableContent(let payload):
             throw Self.validationError(try payload.body.json.detail)
         case .undocumented:
@@ -120,12 +107,8 @@ public struct AIInfluencerDataSource: Sendable {
             )
         switch response {
         case .ok(let payload):
-            // Untyped 200 (response_model missing; PR pending upstream)
-            // — the OpenAPIValueContainer is re-encoded to JSON and
-            // decoded straight into the metadata model below.
-            return try JSONDecoder().decode(
-                AIInfluencerMetadata.self,
-                from: JSONEncoder().encode(try payload.body.json)
+            return AIInfluencerMetadata(
+                from: try payload.body.json
             )
         case .unprocessableContent(let payload):
             throw Self.validationError(try payload.body.json.detail)
@@ -135,15 +118,13 @@ public struct AIInfluencerDataSource: Sendable {
     }
 
     /// `POST /api/v1/influencers/create` — the AI account's backend
-    /// record. The backend derives the owner from the auth token, so
-    /// only the bot principal is sent. The remaining persona fields
-    /// (durable avatar URL, description, category, greeting,
-    /// suggestions, traits) join the wire when the upstream spec PR
-    /// lands — the generator drops anyOf-null fields until then
-    /// (apple/swift-openapi-generator#817).
+    /// record. The backend derives the owner from the auth token. The
+    /// avatar URL passed here is the DURABLE hosted one (from the
+    /// profile-image upload step), not the short-lived generated one.
     func createInfluencer(
         profile: AIProfileDetails,
         aiPrincipalID: String,
+        hostedAvatarURL: String,
         idToken: String
     ) async throws {
         let response = try await authenticatedClient(bearerToken: idToken)
@@ -155,23 +136,35 @@ public struct AIInfluencerDataSource: Sendable {
                             display_name: profile.displayName,
                             system_instructions: profile.systemInstructions,
                             bot_principal_id: aiPrincipalID,
-                            is_nsfw: profile.isNSFW
+                            avatar_url: hostedAvatarURL,
+                            description: profile.description,
+                            category: profile.category,
+                            personality_traits: .init(
+                                additionalProperties: .init(
+                                    unvalidatedValue: profile.personalityTraits
+                                )
+                            ),
+                            initial_greeting: profile.initialGreeting,
+                            suggested_messages: profile.suggestedMessages,
+                            is_nsfw: profile.isNSFW,
+                            source: "ios"
                         )))
             )
         switch response {
         case .created:
             // 201 — the created record is not consumed by the flow.
             break
+        case .conflict:
+            // 409 — the persona name is already taken; the user edits
+            // the name on the review form and retries (the progress
+            // record keeps steps 1–4, no re-mint).
+            throw NetworkError.http(
+                statusCode: 409,
+                body: "Name '\(profile.name)' is already taken"
+            )
         case .unprocessableContent(let payload):
             throw Self.validationError(try payload.body.json.detail)
-        case .undocumented(let statusCode, let undocumentedPayload):
-            // 409 name-taken is NOT declared in the spec — it lands here.
-            if statusCode == 409,
-               let message = try? await Self.detailMessage(
-                   from: undocumentedPayload.body
-               ) {
-                throw NetworkError.http(statusCode: 409, body: message)
-            }
+        case .undocumented:
             throw Self.undocumented(operation: "create-influencer")
         }
     }
@@ -227,16 +220,6 @@ public struct AIInfluencerDataSource: Sendable {
         return NetworkError.http(statusCode: 422, body: message)
     }
 
-    /// 409 detail message — the body is a stream; collect then parse.
-    private static func detailMessage(from body: HTTPBody?) async throws -> String? {
-        guard let body else { return nil }
-        let data = try await Data(collecting: body, upTo: 1024 * 1024)
-        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let detail = object["detail"] as? String
-        else { return nil }
-        return detail
-    }
-
     private static func undocumented(operation: String) -> NetworkError {
         NetworkError.transport(
             underlying: "\(operation): unexpected response (spec drift)"
@@ -270,11 +253,11 @@ private struct BearerAuthenticationMiddleware: ClientMiddleware {
 
 /// The persona metadata from `validate-and-generate-metadata`. The
 /// rejected case carries only `is_valid: false` plus a `reason`; the
-/// accepted case carries the full persona. `avatarURL` may be nil
+/// accepted case carries the full persona. `avatarURL` may be empty
 /// when avatar generation fails server-side — and when present it is
 /// a SHORT-LIVED Replicate delivery URL; the creation pipeline
 /// uploads the bytes for the durable copy.
-public struct AIInfluencerMetadata: Equatable, Sendable, Decodable {
+public struct AIInfluencerMetadata: Equatable, Sendable {
     public var isValid: Bool
     public var validationReason: String?
     public var name: String?
@@ -286,30 +269,19 @@ public struct AIInfluencerMetadata: Equatable, Sendable, Decodable {
     public var category: String?
     public var avatarURL: String?
 
-    private enum CodingKeys: String, CodingKey {
-        case isValid = "is_valid"
-        case validationReason = "reason"
-        case name
-        case displayName = "display_name"
-        case description
-        case initialGreeting = "initial_greeting"
-        case suggestedMessages = "suggested_messages"
-        case personalityTraits = "personality_traits"
-        case category
-        case avatarURL = "avatar_url"
-    }
-
-    public init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        isValid = try container.decodeIfPresent(Bool.self, forKey: .isValid) ?? false
-        validationReason = try container.decodeIfPresent(String.self, forKey: .validationReason)
-        name = try container.decodeIfPresent(String.self, forKey: .name)
-        displayName = try container.decodeIfPresent(String.self, forKey: .displayName)
-        description = try container.decodeIfPresent(String.self, forKey: .description)
-        initialGreeting = try container.decodeIfPresent(String.self, forKey: .initialGreeting)
-        suggestedMessages = try container.decodeIfPresent([String].self, forKey: .suggestedMessages) ?? []
-        personalityTraits = try container.decodeIfPresent([String: String].self, forKey: .personalityTraits) ?? [:]
-        category = try container.decodeIfPresent(String.self, forKey: .category)
-        avatarURL = try container.decodeIfPresent(String.self, forKey: .avatarURL)
+    init(from generated: Components.Schemas.ValidateAndGenerateResponse) {
+        isValid = generated.is_valid
+        validationReason = generated.reason
+        name = generated.name
+        displayName = generated.display_name
+        description = generated.description
+        initialGreeting = generated.initial_greeting
+        suggestedMessages = generated.suggested_messages ?? []
+        // The generated payload is a free-form object container — read
+        // the values back as strings (the server stores string traits).
+        personalityTraits = (generated.personality_traits?.additionalProperties.value
+            .mapValues { "\($0 ?? "")" }) ?? [:]
+        category = generated.category
+        avatarURL = generated.avatar_url
     }
 }
