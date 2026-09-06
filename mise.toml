@@ -7,7 +7,7 @@ age = "latest"
 cargo-binstall = "latest"
 "cargo:trunk" = "latest"
 cocoapods = { version = "latest", os = ["macos"] }
-flux2 = "2.9.4"
+flux2 = "2.9.5"
 fnox = "latest"
 gh = "latest"
 helm = "latest"
