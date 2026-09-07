@@ -98,7 +98,7 @@ enum AIAccountCreator {
         }
 
         if !progress.finalized {
-            try finalize(
+            finalize(
                 profile: profile,
                 ownerPrincipal: ownerPrincipal,
                 aiPrincipal: aiPrincipal,
