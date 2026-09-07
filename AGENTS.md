@@ -161,6 +161,9 @@ Modern IDEs and language tooling make long names ergonomic regardless of languag
 
 **Colocate logic beside its caller (Hard Rule).** Business/data logic lives in the same folder as the UI (or other code) that calls it — feature-local by default, not in a parallel "core/common/utils" tree. Only when MULTIPLE features consume the same logic should it graduate to a shared location (and ask before creating that shared module). Do not pre-create shared/core modules "for later" — dead code ahead of its first consumer is speculative structure. Example (yral-ios): a feature's API client belongs in `Features/<Feature>/`, not `Core/Networking/`; promote to shared only when a second feature imports it.
 
+### Zero Warnings in Maintained Code (Hard Rule)
+Code we maintain compiles and lints with **zero warnings** — not "acceptable" warnings, zero. A warning is a fix-item, never background noise: it either gets fixed in the same change that introduced it, or the change isn't done. This covers compiler warnings, linter violations, and generator/tool warnings emitted while processing our inputs. Warnings originating in an upstream dependency's OUTPUT (e.g. swift-openapi-generator warnings caused by anyOf-null schemas in a service's OpenAPI spec) are fixed by a PR to the upstream repo — the same contract-improvement flow as spec defects — never ignored. The bar: `mise run <app>-checks` (or the equivalent suite) ends clean, including the toolchain's warning output.
+
 ### No Lint Suppression (Hard Rule)
 **Never use `#[allow(...)]`, `#[allow(unused)]`, `#[allow(dead_code)]`, `#[allow(clippy::...)]`, or any other lint suppression to silence a warning.** Warnings indicate a real problem in the code — fix the root cause, not the symptom. Suppressions hide bugs, accumulate dead code, and defeat the purpose of the linter. Every warning must be resolved by changing the code:
 
