@@ -24,7 +24,7 @@ spec:
       initContainers:
         # Wait for dbx to be ready before sending API requests
         - name: wait-for-dbx
-          image: curlimages/curl:8.21.0
+          image: curlimages/curl:8.22.0
           command:
             - sh
             - -c
@@ -37,7 +37,7 @@ spec:
               echo "dbx is ready."
       containers:
         - name: init-connections
-          image: curlimages/curl:8.21.0
+          image: curlimages/curl:8.22.0
           env:
             - name: KAFKA_SASL_PASSWORD
               valueFrom:
