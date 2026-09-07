@@ -30,7 +30,16 @@ spec:
     defaultRules:
       rules:
         kubeProxy: false
-
+      # Per-rule disable (NOT the rules.etcd group kill-switch): only
+      # etcdMemberCommunicationSlow is replaced — the chart's customRules
+      # only override for/severity, not the 150ms expression, and this
+      # cluster's two-DC etcd makes 150ms fire forever on the ~200ms
+      # inter-DC baseline. Redeclared at 400ms in
+      # additionalPrometheusRulesMap.etcd-cross-dc-tuning below; the other
+      # etcd alerts (MembersDown, NoLeader, FailedProposals, …) stay on
+      # their defaults.
+      disabled:
+        etcdMemberCommunicationSlow: true
     # etcd scraping: the loopback-only :2381 metrics port is unreachable from
     # Prometheus (nodes have public IPs only, no private LAN). Scrape the
     # existing mTLS-protected client port :2379 instead — the same surface the
@@ -51,6 +60,34 @@ spec:
         caFile: /etc/prometheus/secrets/etcd-client-cert/ca.crt
         certFile: /etc/prometheus/secrets/etcd-client-cert/tls.crt
         keyFile: /etc/prometheus/secrets/etcd-client-cert/tls.key
+
+    # etcdMemberCommunicationSlow threshold override — DOCUMENTED DEVIATION
+    # from the chart default (150ms/10m): this cluster's etcd spans two DCs
+    # by design (5 CP in Helsinki + 2 in Falkenstein; AGENTS.md "Kubernetes
+    # Cluster"), so every member's peer RTT includes inter-DC latency.
+    # Observed steady-state p99: ~200ms (verified 3-day history, 2026-09-07);
+    # the default fired continuously for 3 days on healthy cross-DC traffic.
+    #
+    # THE CHECK STAYS ACTIVE: the chart hardcodes >0.15 in the expression
+    # (customRules only tune for/severity), so the chart's 150ms copy is
+    # disabled via defaultRules.disabled and the SAME alert is redeclared
+    # below — identical expression, for, and severity; only 0.15 → 0.4.
+    # 400ms (2x the observed baseline) still catches real regressions
+    # (packet loss, route flaps, cross-DC congestion typically push RTT
+    # to 500ms+ or timeouts) while keeping the baseline quiet.
+    additionalPrometheusRulesMap:
+      etcd-cross-dc-tuning:
+        groups:
+          - name: etcd-cross-dc
+            rules:
+              - alert: etcdMemberCommunicationSlow
+                expr: histogram_quantile(0.99, rate(etcd_network_peer_round_trip_time_seconds_bucket{job=~".*etcd.*"}[5m])) > 0.4
+                for: 10m
+                labels:
+                  severity: warning
+                annotations:
+                  summary: "etcd peer communication slow (cross-DC cluster)"
+                  description: "p99 peer RTT to member {{ $labels.To }} above 400ms for 10m — the two-DC baseline is ~200ms; sustained 400ms+ indicates a real network regression, not inter-DC latency."
 
     grafana:
       # Inject Google Chat webhook URL as an env var so the alerting
