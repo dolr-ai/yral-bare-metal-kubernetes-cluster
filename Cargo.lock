@@ -2482,7 +2482,7 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "http",
- "indexmap 2.14.1",
+ "indexmap 2.14.2",
  "slab",
  "tokio",
  "tokio-util",
@@ -3306,9 +3306,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.14.1"
+version = "2.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07aa2048142242915a31d35844fb311e0e53fcca590c3a0a40dcf1b841fa09eb"
+checksum = "cc4e190f5d26ca7051642629da2c52fc03bde85a03197c99408dcd291734c855"
 dependencies = [
  "equivalent",
  "hashbrown 0.17.1",
@@ -3750,7 +3750,7 @@ checksum = "9d2a0f220c8a5ef3c51199dfb9cdd702bc0eb80d52fbe70c7890adfaaae8a4b1"
 dependencies = [
  "anyhow",
  "camino",
- "indexmap 2.14.1",
+ "indexmap 2.14.2",
  "or_poisoned",
  "proc-macro2",
  "quote",
@@ -3816,7 +3816,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c3efe657b4c55ed2e078922786ffe20acfb71767c3dd913767b09a35c75c890"
 dependencies = [
  "futures",
- "indexmap 2.14.1",
+ "indexmap 2.14.2",
  "leptos",
  "or_poisoned",
  "send_wrapper",
@@ -4122,7 +4122,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57b03af4ae0a1f58ac317c9aba6057d2a3560325178436c15e93c31e6a5119c5"
 dependencies = [
  "hashbrown 0.17.1",
- "indexmap 2.14.1",
+ "indexmap 2.14.2",
  "itoa",
  "libm",
  "memchr",
@@ -4492,7 +4492,7 @@ dependencies = [
  "http",
  "icondata",
  "icondata_core",
- "indexmap 2.14.1",
+ "indexmap 2.14.2",
  "js-sys",
  "leptos",
  "leptos-use",
@@ -5241,7 +5241,7 @@ dependencies = [
  "futures",
  "guardian",
  "hydration_context",
- "indexmap 2.14.1",
+ "indexmap 2.14.2",
  "or_poisoned",
  "paste",
  "pin-project-lite",
@@ -5261,7 +5261,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c30fd35b7d299c591293bb69fed47a703eb2703b1cff0493e78b16ed007e5382"
 dependencies = [
  "guardian",
- "indexmap 2.14.1",
+ "indexmap 2.14.2",
  "itertools 0.14.0",
  "or_poisoned",
  "paste",
@@ -5985,7 +5985,7 @@ dependencies = [
  "chrono",
  "hex",
  "indexmap 1.9.3",
- "indexmap 2.14.1",
+ "indexmap 2.14.2",
  "jiff",
  "schemars 0.9.0",
  "schemars 1.2.2",
@@ -6743,7 +6743,7 @@ dependencies = [
  "erased",
  "futures",
  "html-escape",
- "indexmap 2.14.1",
+ "indexmap 2.14.2",
  "itertools 0.14.0",
  "js-sys",
  "next_tuple",
@@ -7052,7 +7052,7 @@ version = "0.22.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "41fe8c660ae4257887cf66394862d21dbca4a6ddd26f04a3560410406a2f819a"
 dependencies = [
- "indexmap 2.14.1",
+ "indexmap 2.14.2",
  "toml_datetime 0.6.11",
  "winnow 0.7.15",
 ]
@@ -7075,7 +7075,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "hdrhistogram",
- "indexmap 2.14.1",
+ "indexmap 2.14.2",
  "pin-project-lite",
  "slab",
  "sync_wrapper",
@@ -7460,7 +7460,7 @@ dependencies = [
  "http",
  "icondata",
  "icondata_core",
- "indexmap 2.14.1",
+ "indexmap 2.14.2",
  "js-sys",
  "leptos",
  "leptos-use",
@@ -7503,7 +7503,7 @@ version = "5.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8bde15df68e80b16c7d16b9616e80770ad158988daa56a27dccd1e55558b0160"
 dependencies = [
- "indexmap 2.14.1",
+ "indexmap 2.14.2",
  "serde",
  "serde_json",
  "utoipa-gen",
@@ -8133,7 +8133,7 @@ dependencies = [
  "http",
  "icondata",
  "icondata_core",
- "indexmap 2.14.1",
+ "indexmap 2.14.2",
  "js-sys",
  "jsonwebtoken",
  "leptos",
@@ -8285,7 +8285,7 @@ dependencies = [
  "arbitrary",
  "crc32fast",
  "flate2",
- "indexmap 2.14.1",
+ "indexmap 2.14.2",
  "memchr",
  "zopfli",
 ]
