@@ -158,17 +158,23 @@
     mode: "0644"
 
 - name: Get current btrfs device from root filesystem
-  ansible.builtin.shell: "set -o pipefail; btrfs filesystem show / | grep -oP '/dev/\\S+' | head -1"
+  ansible.builtin.shell:
+    cmd: "set -o pipefail; btrfs filesystem show / | grep -oP '/dev/\\S+' | head -1"
+    executable: /bin/bash   # pipefail is bash-only; /bin/sh (dash) rejects it
   register: bare_metal_provision_root_device
   changed_when: false
 
 - name: Get base device name (strip partition)
-  ansible.builtin.shell: "set -o pipefail; echo '{{ bare_metal_provision_root_device.stdout }}' | sed 's/p\\?[0-9]*$//'"
+  ansible.builtin.shell:
+    cmd: "set -o pipefail; echo '{{ bare_metal_provision_root_device.stdout }}' | sed 's/p\\?[0-9]*$//'"
+    executable: /bin/bash   # pipefail is bash-only; /bin/sh (dash) rejects it
   register: bare_metal_provision_base_device
   changed_when: false
 
 - name: List all available block devices
-  ansible.builtin.shell: "set -o pipefail; lsblk -dn -o NAME,TYPE | grep disk | awk '{print \"/dev/\" $1}'"
+  ansible.builtin.shell:
+    cmd: "set -o pipefail; lsblk -dn -o NAME,TYPE | grep disk | awk '{print \"/dev/\" $1}'"
+    executable: /bin/bash   # pipefail is bash-only; /bin/sh (dash) rejects it
   register: bare_metal_provision_available_drives
   changed_when: false
 

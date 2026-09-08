@@ -25,7 +25,13 @@
   until: system_update_apt_cache_result is succeeded
 
 - name: Check for available package upgrades
-  ansible.builtin.shell: set -o pipefail; apt list --upgradable 2>/dev/null | grep -c upgradable || true
+  # pipefail is bash-only; the shell module defaults to /bin/sh (dash on
+  # Ubuntu) where `set -o pipefail` errors out — the 2026-09-07 weekly run
+  # failed fleet-wide on exactly this. executable: /bin/bash is the
+  # ansible-lint risky-shell-pipe docs' own correct pattern.
+  ansible.builtin.shell:
+    cmd: set -o pipefail; apt list --upgradable 2>/dev/null | grep -c upgradable || true
+    executable: /bin/bash
   register: system_update_upgradable_packages
   changed_when: false
 

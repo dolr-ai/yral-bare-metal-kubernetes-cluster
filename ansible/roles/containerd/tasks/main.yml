@@ -67,6 +67,8 @@
   ansible.builtin.shell: |
     set -o pipefail
     dpkg -l containerd.io | grep '^ii' | awk '{print $3}'
+  args:
+    executable: /bin/bash   # pipefail is bash-only; /bin/sh (dash) rejects it
   register: containerd_version
   changed_when: false
 
@@ -106,6 +108,8 @@
   ansible.builtin.shell: |
     set -o pipefail
     lsmod | grep -E "overlay|br_netfilter"
+  args:
+    executable: /bin/bash   # pipefail is bash-only; /bin/sh (dash) rejects it
   register: containerd_kernel_modules
   changed_when: false
 
@@ -183,6 +187,8 @@
   ansible.builtin.shell: |
     set -o pipefail
     grep -A 2 "runc.options" /etc/containerd/config.toml | grep SystemdCgroup || echo "NOT FOUND"
+  args:
+    executable: /bin/bash   # pipefail is bash-only; /bin/sh (dash) rejects it
   register: containerd_systemd_cgroup_check
   changed_when: false
 

@@ -186,6 +186,11 @@
         ssh -i {{ ansible_private_key_file }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 \
           root@{{ provision_server_ip }} \
           "cat /etc/os-release | grep Ubuntu"
+      args:
+        # pipefail is bash-only; the shell module defaults to /bin/sh
+        # (dash) which rejects it. Runs on the CI/local controller, where
+        # /bin/sh is also dash on Ubuntu runners.
+        executable: /bin/bash
       register: provision_ubuntu_check
       retries: 24
       delay: 5

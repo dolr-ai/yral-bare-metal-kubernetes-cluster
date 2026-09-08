@@ -23,6 +23,8 @@
   ansible.builtin.shell: |
     set -o pipefail
     lsblk -d -o NAME,TYPE | grep disk | awk '{print $1}'
+  args:
+    executable: /bin/bash   # pipefail is bash-only; /bin/sh (dash) rejects it
   register: disk_list
   changed_when: false
 
@@ -48,6 +50,8 @@
       ansible.builtin.shell: |
         set -o pipefail
         df -T / | tail -1 | awk '{print $2}'
+      args:
+        executable: /bin/bash   # pipefail is bash-only; /bin/sh (dash) rejects it
       register: root_fs_type
       changed_when: false
 
@@ -67,6 +71,8 @@
           ansible.builtin.shell: |
             set -o pipefail
             btrfs filesystem show / | grep -oP '/dev/\S+' | sed 's|/dev/||' | sort
+          args:
+            executable: /bin/bash   # pipefail is bash-only; /bin/sh (dash) rejects it
           register: btrfs_devices
           changed_when: false
 
@@ -191,6 +197,8 @@
   ansible.builtin.shell: |
     set -o pipefail
     lsattr -d /var/lib/longhorn | grep -q 'C' && echo "nodatacow" || echo "cow"
+  args:
+    executable: /bin/bash   # pipefail is bash-only; /bin/sh (dash) rejects it
   register: longhorn_nodatacow_check
   changed_when: false
 
