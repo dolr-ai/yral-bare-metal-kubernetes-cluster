@@ -955,14 +955,16 @@ run = '''
 '''
 
 # ── yral-rishi-agent (agent.rishi.yral.com backend) ─────────────────────────
-# The repo's own CI (.github/workflows/ci.yml) pins ruff==0.15.14 and runs
-# `ruff check app/ infra/` + `ruff format --check app/ infra/`. These tasks
-# run the IDENTICAL commands locally (the ruff tool version above is pinned
-# to match CI) so a lint-clean local run means a lint-clean PR — no ad hoc
-# invocations that can drift from what CI enforces.
+# The repo's CI pins ruff==0.15.14 (as of 2026-09-08); we bump to latest in
+# mise (0.16.6) and have asked Rishi to bump his CI to match — parity comes
+# from HIS bump, not from us pinning his old version. Until he does, his CI
+# is the authority for PRs: if our newer ruff flags extra findings, those are
+# his to fix (or his CI bump fixes parity); we do NOT sweep his repo with our
+# newer lint (scope discipline — we only fix what we need, not the code he
+# maintains). Same commands as his CI either way.
 
 [tasks.yral-rishi-agent-lint]
-description = "Run yral-rishi-agent's CI lint locally (ruff check + format --check, same version as CI)"
+description = "Run yral-rishi-agent's CI lint commands (ruff check + format --check at our latest ruff; his CI pin governs PRs)"
 dir = "apps/yral-rishi-agent"
 run = '''
 ruff check app/ infra/
