@@ -184,7 +184,10 @@ extension AuthClient {
                     username: UsernameGenerator.resolveUsername(
                         preferred: entry.username, principal: entry.principal
                     ) ?? entry.principal,
-                    avatarURL: ProfilePicture.url(fromPrincipal: entry.principal),
+                    // The hosted avatar (durable Storj URL) when we have
+                    // it; GobGob deterministic fallback otherwise.
+                    avatarURL: entry.hostedAvatarURL
+                        ?? ProfilePicture.url(fromPrincipal: entry.principal),
                     isBot: true,
                     isActive: entry.principal == activePrincipal
                 )
@@ -205,6 +208,7 @@ extension AuthClient {
         let storedMainPrincipal = keychain.string(forKey: .mainPrincipal)
         var isBot = true
         var botUsername: String?
+        var hostedAvatarURL: String?
         if principal == storedMainPrincipal {
             isBot = false
         } else {
@@ -213,9 +217,13 @@ extension AuthClient {
                 return
             }
             botUsername = match.username
+            hostedAvatarURL = match.hostedAvatarURL
         }
 
-        let profilePic = ProfilePicture.url(fromPrincipal: principal)
+        // The hosted avatar (durable Storj URL) when we have it; GobGob
+        // deterministic fallback otherwise.
+        let profilePic = hostedAvatarURL
+            ?? ProfilePicture.url(fromPrincipal: principal)
         let session = Session(
             canisterID: principal,
             userPrincipal: principal,

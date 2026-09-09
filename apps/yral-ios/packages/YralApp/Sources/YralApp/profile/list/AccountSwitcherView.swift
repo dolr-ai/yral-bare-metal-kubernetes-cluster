@@ -32,11 +32,18 @@ struct AccountSwitcherView: View {
             .padding(.top, 26)
 
             if let entries {
-                if !entries.mainAccount.isPlaceholder {
-                    section(title: "Main Profile", accounts: [entries.mainAccount])
-                }
-                if !entries.aiAccounts.isEmpty {
-                    section(title: "AI Influencer profiles", accounts: entries.aiAccounts)
+                // Scrollable — a creator can have many AI accounts; without
+                // this the rows past the medium detent's height were simply
+                // unreachable.
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        if !entries.mainAccount.isPlaceholder {
+                            section(title: "Main Profile", accounts: [entries.mainAccount])
+                        }
+                        if !entries.aiAccounts.isEmpty {
+                            section(title: "AI Influencer profiles", accounts: entries.aiAccounts)
+                        }
+                    }
                 }
             } else {
                 Text("No other accounts")

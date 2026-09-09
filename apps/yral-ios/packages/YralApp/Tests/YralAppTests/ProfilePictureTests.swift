@@ -32,24 +32,44 @@ struct ProfilePictureTests {
         #expect(firstHash != ProfilePicture.crc32IEEE(Data("AUTH0|USER-77".utf8)))
     }
 
-    @Test("avatar index reproduces Kotlin's signed-remainder trap")
-    func avatarIndexSignTrap() {
-        // Kotlin: (crc32 % 18557) + 1 where crc32 is a SIGNED Int and % is
-        // remainder-with-sign-of-dividend. For a negative hash the result is
-        // ≤ 0 — the shipped production behavior we reproduce verbatim.
-        var foundNegativePath = false
+    @Test("avatar index stays in the GobGob pool range for negative-hash principals")
+    func avatarIndexInRangeForNegativeHashes() {
+        // Regression: the Kotlin port took the remainder on the SIGNED
+        // CRC32, so any principal whose hash had the high bit set
+        // (~50%) produced index <= 0 -> `gob.-12345.png` -> permanent
+        // 404. The unsigned form must map EVERY principal into
+        // 1...18557 — the range the GobGob pool actually serves.
+        var foundNegativeHashPrincipal = false
         for index in 0..<1000 {
             let principal = "principal-\(index)"
             let hash = ProfilePicture.crc32IEEE(Data(principal.utf8))
+            let avatarIndex = ProfilePicture.avatarIndex(principal)
+            #expect(avatarIndex >= 1 && avatarIndex <= 18_557)
             if Int32(bitPattern: hash) < 0 {
-                let avatarIndex = ProfilePicture.avatarIndex(principal)
-                let kotlinIndex = Int(Int32(bitPattern: hash) % Int32(18_557)) + 1
-                #expect(avatarIndex == kotlinIndex)
-                #expect(avatarIndex <= 0)
-                foundNegativePath = true
+                foundNegativeHashPrincipal = true
+                // The bug: the signed remainder is <= 0 for these.
+                let signedRemainder = Int(Int32(bitPattern: hash) % Int32(18_557)) + 1
+                #expect(signedRemainder <= 0)
+                #expect(avatarIndex != signedRemainder)
             }
         }
-        #expect(foundNegativePath, "expected at least one negative-hash principal in the sample")
+        #expect(foundNegativeHashPrincipal, "expected at least one negative-hash principal in the sample")
+    }
+
+    @Test("positive-hash principals keep the exact Kotlin URL")
+    func avatarIndexUnchangedForPositiveHashes() {
+        // Principals whose CRC32 has the high bit clear produced the
+        // same index in Kotlin and here — the URL must not change for
+        // them (production continuity).
+        for index in 0..<1000 {
+            let principal = "principal-\(index)"
+            let hash = ProfilePicture.crc32IEEE(Data(principal.utf8))
+            if Int32(bitPattern: hash) >= 0 {
+                let kotlinIndex = Int(Int32(bitPattern: hash) % Int32(18_557)) + 1
+                #expect(kotlinIndex >= 1 && kotlinIndex <= 18_557)
+                #expect(ProfilePicture.avatarIndex(principal) == kotlinIndex)
+            }
+        }
     }
 
     @Test("avatar index is deterministic per principal")

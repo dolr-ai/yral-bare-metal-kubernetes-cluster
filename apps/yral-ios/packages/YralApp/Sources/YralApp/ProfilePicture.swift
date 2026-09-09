@@ -1,16 +1,21 @@
 import Foundation
 import CryptoKit
 
-/// Deterministic profile-picture URL from a principal — 1:1 port of Kotlin
-/// `PropicUtils.propicFromPrincipal`. The GobGob avatar index is stable per
-/// principal: CRC32 (IEEE 802.3) of the UTF-8 bytes, then the Kotlin
-/// remainder quirk reproduced exactly (see `avatarIndex`).
+/// Deterministic profile-picture URL from a principal — port of Kotlin
+/// `PropicUtils.propicFromPrincipal`, with one deliberate deviation: the
+/// index is computed from the UNSIGNED CRC32 (see `avatarIndex`).
 ///
-/// NOTE on the sign trap (verified against the Kotlin source): Kotlin's `%`
-/// on a signed `Int` is remainder-with-sign-of-dividend, and a raw CRC32 as
-/// `Int32` is frequently negative — so the shipped production behavior can
-/// produce index ≤ 0. We reproduce that deliberately: byte-identical URLs
-/// with production avatars matter more than "fixing" the hash here.
+/// The GobGob avatar index is stable per principal: CRC32 (IEEE 802.3) of
+/// the UTF-8 bytes, mod the GobGob pool size.
+///
+/// DEVIATION FROM KOTLIN (intentional, no parity): Kotlin reinterprets the
+/// CRC32 as a SIGNED Int before the remainder, so any principal whose hash
+/// has the high bit set (~50%) produced index ≤ 0 → `gob.-12345.png` → a
+/// PERMANENT 404. The Kotlin app is legacy (reference-only for ports);
+/// we take the remainder on the unsigned value, so every principal maps to
+/// a real avatar (1...18557). Principals that were already positive in
+/// Kotlin keep the exact same URL; only the always-broken negative cases
+/// change.
 enum ProfilePicture {
 
     /// Total GobGob avatar count (server asset pool).
@@ -25,13 +30,11 @@ enum ProfilePicture {
         "\(gobgobURLPrefix)\(avatarIndex(principal)).png"
     }
 
-    /// `(crc32 % 18557) + 1` — with Kotlin's signed-remainder semantics.
+    /// `(crc32 mod 18557) + 1` on the UNSIGNED hash — always in
+    /// 1...18557, the range the GobGob pool actually serves.
     static func avatarIndex(_ principal: String) -> Int {
         let hash = crc32IEEE(Data(principal.utf8))
-        // Bit-pattern reinterpretation: UInt32 → signed Int32 (Kotlin Int).
-        let signedHash = Int32(bitPattern: hash)
-        // Swift `%` on Int32 matches Kotlin's remainder semantics exactly.
-        return Int(signedHash % Int32(gobgobTotalCount)) + 1
+        return Int(hash % UInt32(gobgobTotalCount)) + 1
     }
 
     /// CRC32 (IEEE 802.3 / zlib polynomial 0xEDB88320) — table-driven,
