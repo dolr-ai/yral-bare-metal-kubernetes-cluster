@@ -37,8 +37,11 @@ public struct SpacetimeDBRemoteDataSource: Sendable {
     /// Token provider — nil → anonymous (reads only).
     private let idTokenProvider: @Sendable () -> String?
 
-    public init(idTokenProvider: @escaping @Sendable () -> String?) {
-        self.session = .shared
+    public init(
+        idTokenProvider: @escaping @Sendable () -> String?,
+        session: URLSession = .shared
+    ) {
+        self.session = session
         self.idTokenProvider = idTokenProvider
     }
 

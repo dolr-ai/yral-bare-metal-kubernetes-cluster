@@ -184,10 +184,10 @@ extension AuthClient {
                     username: UsernameGenerator.resolveUsername(
                         preferred: entry.username, principal: entry.principal
                     ) ?? entry.principal,
-                    // The hosted avatar (durable Storj URL) when we have
-                    // it; GobGob deterministic fallback otherwise.
-                    avatarURL: entry.hostedAvatarURL
-                        ?? ProfilePicture.url(fromPrincipal: entry.principal),
+                    // GobGob deterministic fallback — `refreshedAccountSwitcherEntries()`
+                    // overlays the hosted URL from the profile table when
+                    // the switcher is opened.
+                    avatarURL: ProfilePicture.url(fromPrincipal: entry.principal),
                     isBot: true,
                     isActive: entry.principal == activePrincipal
                 )
@@ -195,20 +195,72 @@ extension AuthClient {
         return AccountSwitcherEntries(mainAccount: mainEntry, aiAccounts: botEntries)
     }
 
+    /// The switcher's list with live avatars — `accountSwitcherEntries()`
+    /// plus one batch read of the bot profiles from SpacetimeDB so the
+    /// rows show the DURABLE hosted URLs (written at creation), not the
+    /// GobGob fallback. The table is the source of truth; nothing is
+    /// duplicated into local storage. Best-effort: on a read failure or a
+    /// blank row the GobGob fallback shows (same as before).
+    ///
+    /// DEVIATION FROM KOTLIN (intentional): Kotlin rebuilt every row's
+    /// avatar from the principal — losing the generated image. Here the
+    /// rows carry what the profile table says, per-bot.
+    func refreshedAccountSwitcherEntries() async -> AccountSwitcherEntries? {
+        guard let entries = accountSwitcherEntries() else { return nil }
+        guard !entries.aiAccounts.isEmpty else { return entries }
+        guard let profiles = try? await spacetimeDataSource.getUsersProfileDetails(
+            oauthSubjects: entries.aiAccounts.map(\.principal)
+        ) else { return entries }
+        let refreshed = Self.applyProfilePictures(
+            to: entries.aiAccounts,
+            from: profiles
+        )
+        return AccountSwitcherEntries(mainAccount: entries.mainAccount, aiAccounts: refreshed)
+    }
+
+    /// Pure — overlay the fetched profile pictures onto the switcher
+    /// rows. A row keeps its fallback when the server row is missing or
+    /// carries a blank URL (the bot's write may never have landed — e.g.
+    /// the pre-wire-fix creations).
+    nonisolated static func applyProfilePictures(
+        to entries: [AccountSwitcherEntry],
+        from profiles: [SpacetimeUserProfile]
+    ) -> [AccountSwitcherEntry] {
+        let pictureURLsByPrincipal: [String: String] = Dictionary(
+            uniqueKeysWithValues: profiles.compactMap { profile -> (String, String)? in
+                guard let picture = profile.profilePicture,
+                      !picture.url.isEmpty
+                else { return nil }
+                return (profile.oauthSubject, picture.url)
+            }
+        )
+        return entries.map { entry in
+            guard let hostedURL = pictureURLsByPrincipal[entry.principal] else { return entry }
+            var refreshed = entry
+            refreshed.avatarURL = hostedURL
+            return refreshed
+        }
+    }
+
     /// Switches the active account — Kotlin `switchToAccount` (CLIENT-SIDE
-    /// session construction; no network): build the session directly from
-    /// the principal (propic + username derived), update the store,
-    /// persist the cached session fields, and set LAST_ACTIVE_PRINCIPAL.
+    /// session construction): build the session directly from the
+    /// principal (propic + username derived), update the store, persist
+    /// the cached session fields, and set LAST_ACTIVE_PRINCIPAL.
     /// AI switches skip token refresh (the parent's tokens stay active);
     /// switching back to main refreshes + reauthorizes.
-    func switchToAccount(principal: String) {
+    ///
+    /// `avatarURL`: the tapped switcher row's URL — after
+    /// `refreshedAccountSwitcherEntries()` this is the bot's HOSTED
+    /// avatar from the profile table (durable Storj URL). Falls back to
+    /// the GobGob deterministic URL when absent (offline switch, main
+    /// account, or a bot whose write never landed).
+    func switchToAccount(principal: String, avatarURL: String? = nil) {
         // No-op when already active (Kotlin returns early).
         guard sessionStore.userPrincipal != principal else { return }
 
         let storedMainPrincipal = keychain.string(forKey: .mainPrincipal)
         var isBot = true
         var botUsername: String?
-        var hostedAvatarURL: String?
         if principal == storedMainPrincipal {
             isBot = false
         } else {
@@ -217,12 +269,9 @@ extension AuthClient {
                 return
             }
             botUsername = match.username
-            hostedAvatarURL = match.hostedAvatarURL
         }
 
-        // The hosted avatar (durable Storj URL) when we have it; GobGob
-        // deterministic fallback otherwise.
-        let profilePic = hostedAvatarURL
+        let profilePic = avatarURL
             ?? ProfilePicture.url(fromPrincipal: principal)
         let session = Session(
             canisterID: principal,

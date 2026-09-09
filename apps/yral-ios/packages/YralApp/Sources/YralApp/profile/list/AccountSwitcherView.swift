@@ -59,7 +59,17 @@ struct AccountSwitcherView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .presentationDetents([.medium])
         .background(Color.black)
-        .onAppear { entries = authClient.accountSwitcherEntries() }
+        .onAppear {
+            // Fallback entries first (instant, offline-safe), then one
+            // batch read of the bot profiles overlays the DURABLE hosted
+            // avatar URLs from the SpacetimeDB profile table — the source
+            // of truth written at creation. Best-effort: on failure the
+            // GobGob fallback rows remain.
+            entries = authClient.accountSwitcherEntries()
+            Task { @MainActor in
+                entries = await authClient.refreshedAccountSwitcherEntries()
+            }
+        }
     }
 
     /// Kotlin `SheetSection` — section title + rows.
@@ -88,7 +98,10 @@ struct AccountSwitcherView: View {
         Button {
             guard !isSwitching else { return }
             isSwitching = true
-            authClient.switchToAccount(principal: account.principal)
+            // The row's URL goes into the session + PROFILE_PIC cache —
+            // after `refreshedAccountSwitcherEntries()` this is the
+            // bot's hosted avatar, so the profile tab shows it too.
+            authClient.switchToAccount(principal: account.principal, avatarURL: account.avatarURL)
             dismiss()
         } label: {
             HStack(spacing: 10) {

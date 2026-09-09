@@ -35,6 +35,13 @@ public final class AuthClient {
     /// Auth data source (yral-auth + metadata + off-chain endpoints).
     let authDataSource: AuthDataSource
 
+    /// SpacetimeDB data plane — used to hydrate AI-identity avatar URLs
+    /// (bots created before the URL was persisted locally have no
+    /// hostedAvatarURL; their real picture lives in the profile table).
+    /// Injectable for tests; defaults to the real client reading the
+    /// current id token.
+    let spacetimeDataSource: SpacetimeDBRemoteDataSource
+
     /// Redirect scheme (from Info.plist via the app shell).
     let redirectScheme: String
 
@@ -79,12 +86,22 @@ public final class AuthClient {
         redirectScheme: String,
         keychain: KeychainStore = KeychainStore(),
         defaults: UserDefaults = .standard,
+        spacetimeDataSource: SpacetimeDBRemoteDataSource? = nil,
         sessionStore: SessionStore
     ) {
         self.authDataSource = authDataSource
         self.redirectScheme = redirectScheme
         self.keychain = keychain
         self.defaults = defaults
+        // Default: the real client reading the current id token. Built
+        // BEFORE the property is assigned — the closure captures self.
+        self.spacetimeDataSource = spacetimeDataSource
+            ?? {
+                let keychain = keychain
+                return SpacetimeDBRemoteDataSource(
+                    idTokenProvider: { keychain.string(forKey: .idToken) }
+                )
+            }()
         self.sessionStore = sessionStore
     }
 

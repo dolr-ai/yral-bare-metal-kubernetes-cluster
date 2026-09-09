@@ -7,15 +7,13 @@ import Foundation
 /// build the AI-influencer section (the main account comes from the
 /// Keychain's MAIN_PRINCIPAL).
 ///
-/// DEVIATION FROM KOTLIN (intentional): the entry also carries the bot's
-/// HOSTED avatar URL (the durable Storj link from the creation pipeline's
-/// upload step). Kotlin only stored principal + username and rebuilt every
-/// row's avatar from the GobGob fallback — losing the generated image on
-/// restart/switch. The URL is display data like the username, not a secret.
+/// Display data ONLY: this stores WHICH bots exist (principals) and their
+/// usernames. The bots' avatar URLs are NOT duplicated here — they live in
+/// the SpacetimeDB profile table (written at creation) and are read from
+/// there when the switcher opens (`refreshedAccountSwitcherEntries`).
 struct AIIdentityEntry: Codable, Equatable, Sendable {
     let principal: String
     var username: String?
-    var hostedAvatarURL: String?
 }
 
 /// UserDefaults-backed store (Kotlin used its Preferences — display data,
@@ -45,25 +43,17 @@ enum AIIdentitiesStore {
     }
 
     /// Kotlin `BotIdentityStorage.saveBotIdentity` — upsert a single AI
-    /// identity (with its username + hosted avatar URL) after creation.
-    /// The hosted URL is the DURABLE copy (Storj) — pass nil to keep the
-    /// stored value (a token merge must not clobber it with the fallback).
+    /// identity (with its username) after creation.
     static func saveIdentity(
         principal: String,
         username: String?,
-        hostedAvatarURL: String? = nil,
         defaults: UserDefaults = .standard
     ) {
         var entries = Self.entries(defaults: defaults)
         if let index = entries.firstIndex(where: { $0.principal == principal }) {
             entries[index].username = username ?? entries[index].username
-            entries[index].hostedAvatarURL = hostedAvatarURL ?? entries[index].hostedAvatarURL
         } else {
-            entries.append(AIIdentityEntry(
-                principal: principal,
-                username: username,
-                hostedAvatarURL: hostedAvatarURL
-            ))
+            entries.append(AIIdentityEntry(principal: principal, username: username))
         }
         put(entries, defaults: defaults)
     }
@@ -99,7 +89,7 @@ enum AIIdentitiesStore {
 
     /// Pure union — existing entries keep their usernames; the LATEST
     /// entry (token order) wins for duplicate principals; a stored
-    /// non-blank username and hosted avatar URL are preserved.
+    /// non-blank username is preserved.
     static func merge(
         existing: [AIIdentityEntry],
         additions: [AIIdentityEntry]
@@ -111,13 +101,8 @@ enum AIIdentitiesStore {
                 .reversed()
                 .first(where: { !($0.username ?? "").isBlank })?
                 .username
-            let hostedAvatarURL = group
-                .reversed()
-                .first(where: { !($0.hostedAvatarURL ?? "").isBlank })?
-                .hostedAvatarURL
             var entry = latest
             entry.username = username
-            entry.hostedAvatarURL = hostedAvatarURL
             return entry
         }
     }

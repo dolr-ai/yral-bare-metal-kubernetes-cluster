@@ -231,7 +231,6 @@ enum AIAccountCreator {
         AIIdentitiesStore.saveIdentity(
             principal: aiPrincipal,
             username: profile.name,
-            hostedAvatarURL: hostedAvatarURL,
             defaults: context.authClient.defaults
         )
         let aiSession = Session(
