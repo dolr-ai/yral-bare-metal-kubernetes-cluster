@@ -385,6 +385,13 @@ For any external service the repo calls (SpacetimeDB Maincloud, third-party APIs
 - **In-cluster:** plaintext → k8s `ConfigMap`; secrets → SOPS-encrypted `*.sops.yaml`. **Only provision cluster config if a service in our cluster actually calls the external service.** External clients (mobile apps, out-of-workspace backends) carry their own config and do not consume our cluster ConfigMaps/SOPS.
 - Wire config into the consuming app via its existing config mechanism (e.g. mobile `BuildConfig`/config module; Rust service `mise.toml [env]` + `fnox exec`).
 
+**Investigating yral-rishi-agent errors — Sentry first (read-only).** The agent reports every unhandled exception and ERROR log to the self-hosted Sentry at `https://sentry.rishi.yral.com` (SDK init in `apps/yral-rishi-agent/infra/sentry.py`: FastAPI/Starlette integrations, `attach_stacktrace=True`, error-level logs as events). When the agent's API misbehaves (HTTP 500s, generation failures), query it instead of guessing:
+- Token: fnox `SENTRY_RISHI_API_TOKEN` (read-scoped; `fnox get SENTRY_RISHI_API_TOKEN`).
+- Scope: org `sentry`, project `yral-rishi-agent` (id 4); `yral-chat-ai` (id 2) also exists.
+- Pattern: `curl -H "Authorization: Bearer $(fnox get SENTRY_RISHI_API_TOKEN)" "https://sentry.rishi.yral.com/api/0/organizations/sentry/issues/?project=4&query=<terms>&statsPeriod=14d"` → `.../issues/<id>/events/latest/` for the full stack trace + request. Sentry issue titles carry the exception type; group by `sort=freq` for the loudest failures.
+- This path found a live bug end-to-end in four queries (Sentry #602: `ResponseValidationError` on `reason: null` → GitHub issue → upstream fix #510), with no SSH access to the swarm.
+- Server fixes land in `apps/yral-rishi-agent` (upstream `dolr-ai/yral-rishi-agent`, auto-deploys on merge to main; verify with a read-only probe of `/health` and `/openapi.json` before re-testing a client against it).
+
 ### Inventory
 `control_plane` (node-1 through node-7, all stacked CP+worker) / `worker_nodes` (worker-1 through worker-35, pure workers) / `k8s_cluster` (parent group containing both). Target via `-e target_host=...`.
 
