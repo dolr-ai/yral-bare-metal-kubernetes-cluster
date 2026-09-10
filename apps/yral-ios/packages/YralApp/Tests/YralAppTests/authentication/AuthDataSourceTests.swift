@@ -77,7 +77,6 @@ struct AuthDataSourceTests {
         keychain.setString(mainSubject, forKey: .mainSubject)
         let sessionStore = SessionStore()
         let session = Session(
-            canisterID: activeSubject,
             userSubject: activeSubject,
             profilePic: ProfilePicture.url(fromSubject: activeSubject),
             username: "test-user",

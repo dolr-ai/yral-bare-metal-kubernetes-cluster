@@ -234,17 +234,14 @@ enum AIAccountCreator {
             defaults: context.authClient.defaults
         )
         let aiSession = Session(
-            canisterID: aiSubject,
             userSubject: aiSubject,
             profilePic: hostedAvatarURL,
             username: profile.name,
             bio: profile.description,
-            isCreatedFromServiceCanister: true,
             isAIAccount: true
         )
         context.sessionStore.updateState(.signedIn(aiSession))
         context.authClient.cacheSession(
-            canisterID: aiSubject,
             userSubject: aiSubject,
             profilePic: hostedAvatarURL,
             username: profile.name,

@@ -101,11 +101,9 @@ struct AuthClientTests {
     ) -> (main: String, aiAccount: String) {
         keychain.setString(Self.mainSubject, forKey: .mainSubject)
         keychain.setString(Self.aiSubject, forKey: .lastActiveSubject)
-        defaults.set("AI account-canister", forKey: "CANISTER_ID")
         defaults.set(Self.aiSubject, forKey: "USER_PRINCIPAL")
         defaults.set("https://example.com/AI account.png", forKey: "PROFILE_PIC")
         defaults.set("AI account-user", forKey: "USERNAME")
-        defaults.set(true, forKey: "IS_CREATED_FROM_SERVICE_CANISTER")
         keychain.setString(idToken, forKey: .idToken)
         keychain.setString(refreshToken, forKey: .refreshToken)
         return (Self.mainSubject, Self.aiSubject)

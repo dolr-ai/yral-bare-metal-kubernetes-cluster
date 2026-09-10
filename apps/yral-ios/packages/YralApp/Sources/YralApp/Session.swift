@@ -2,33 +2,27 @@ import Foundation
 import Observation
 
 /// Signed-in identity — port of Kotlin `Session` (core/session/Session.kt).
-/// `canisterID == userSubject` in the JWT-only world (no IC canisters);
-/// the field exists because the rest of the app (profile URLs, balance
-/// calls) keys off it.
+/// The Kotlin original carried an ICP canister ID; in the JWT-only world
+/// that field duplicated userSubject and is removed (ICP legacy purge —
+/// same treatment as the principal→subject rename).
 public struct Session: Equatable, Sendable {
-    public var canisterID: String?
     public var userSubject: String?
     public var profilePic: String?
     public var username: String?
     public var bio: String?
-    public var isCreatedFromServiceCanister: Bool
     public var isAIAccount: Bool
 
     public init(
-        canisterID: String? = nil,
         userSubject: String? = nil,
         profilePic: String? = nil,
         username: String? = nil,
         bio: String? = nil,
-        isCreatedFromServiceCanister: Bool = true,
         isAIAccount: Bool = false
     ) {
-        self.canisterID = canisterID
         self.userSubject = userSubject
         self.profilePic = profilePic
         self.username = username
         self.bio = bio
-        self.isCreatedFromServiceCanister = isCreatedFromServiceCanister
         self.isAIAccount = isAIAccount
     }
 }
@@ -143,11 +137,6 @@ public final class SessionStore {
     public init() {}
 
     // MARK: - Signed-in session accessors
-
-    public var canisterID: String? {
-        if case let .signedIn(session) = state { return session.canisterID }
-        return nil
-    }
 
     public var userSubject: String? {
         if case let .signedIn(session) = state { return session.userSubject }

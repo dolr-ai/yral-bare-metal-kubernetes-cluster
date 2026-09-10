@@ -228,31 +228,12 @@ public struct AuthDataSource: Sendable {
 
     // MARK: - Registration side effects
 
-    /// Fire-and-forget session registration on yral-metadata (status is NOT
-    /// checked — Kotlin sets `expectSuccess = false` here; the server made
-    /// this a no-op, kept for compat).
-    public func updateSessionAsRegistered(
-        idToken: String,
-        canisterID: String,
-        userSubject: String
-    ) async throws {
-        var request = URLRequest(
-            url: URL(
-                string:
-                    "https://\(AppConfiguration.metadataBaseURL)/v2/update_session_as_registered"
-            )!)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-        let bodyObject: [String: String] = [
-            "user_canister": canisterID,
-            "user_principal": userSubject
-        ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: bodyObject)
-        // Fire-and-forget: the Kotlin client sets expectSuccess = false and
-        // never inspects the result — the server made this endpoint a no-op.
-        _ = try? await session.data(for: request)
-    }
+    // Kotlin's updateYralSession fired POST /v2/update_session_as_registered
+    // here (fire-and-forget, status never checked). REMOVED: the server
+    // endpoint is a documented no-op that verifies the JWT and returns OK
+    // (see apps/yral-metadata server/src/session.rs — "will be deleted
+    // entirely once all consumers are migrated"). SpacetimeDB's
+    // accept_new_user_registration reducer is the real registration path.
 }
 
 // MARK: - DTOs

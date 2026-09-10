@@ -2,8 +2,11 @@ import Foundation
 
 /// Cached-session persistence for `AuthClient` — Kotlin
 /// `DefaultAuthClient`'s `getCachedSession`/`cacheSession`/
-/// `resetCachedCanisterData`/`saveTokens`/`updateYralSession`/`postLogin`,
-/// kept as an extension of the same class (not a layer).
+/// `resetCachedSessionData`/`saveTokens`/`postLogin`, kept as an
+/// extension of the same class (not a layer). The Kotlin original's
+/// canister fields (ICP legacy) are removed — userSubject is the
+/// identity; the canister-era updateYralSession call is dropped (its
+/// server endpoint is a documented no-op).
 extension AuthClient {
 
     /// Rebuilds the cached session — Kotlin `getCachedSession` verbatim
@@ -20,7 +23,6 @@ extension AuthClient {
             lastActiveSubject != nil
             && preferredSubject == lastActiveSubject
 
-        let canisterID = defaults.string(forKey: CachedSessionKey.canisterID.rawValue)
         let userSubject =
             usePreferred
             ? preferredSubject
@@ -31,17 +33,13 @@ extension AuthClient {
         let username = cachedUsername(
             userSubject: userSubject, preferredSubject: preferredSubject
         )
-        let isCreatedFromServiceCanister = defaults.bool(
-            forKey: CachedSessionKey.isCreatedFromServiceCanister.rawValue
-        )
         let resolvedIsBotAccount =
             mainSubject.map { main in
                 userSubject != nil && userSubject != main
             } ?? false
 
-        guard let canisterID, let userSubject, let profilePic else { return nil }
+        guard let userSubject, let profilePic else { return nil }
         return Session(
-            canisterID: canisterID,
             userSubject: userSubject,
             profilePic: profilePic,
             // Cached username when present; deterministic pseudonym
@@ -49,7 +47,6 @@ extension AuthClient {
             username: UsernameGenerator.resolveUsername(
                 preferred: username, subject: userSubject
             ),
-            isCreatedFromServiceCanister: isCreatedFromServiceCanister,
             isAIAccount: resolvedIsBotAccount
         )
     }
@@ -84,13 +81,11 @@ extension AuthClient {
     /// overwrites the main subject — the persisted rawValue strings
     /// keep the legacy names for device continuity).
     func cacheSession(
-        canisterID: String,
         userSubject: String,
         profilePic: String,
         username: String?,
         isAIAccount: Bool
     ) {
-        defaults.set(canisterID, forKey: CachedSessionKey.canisterID.rawValue)
         defaults.set(userSubject, forKey: CachedSessionKey.userSubject.rawValue)
         defaults.set(profilePic, forKey: CachedSessionKey.profilePic.rawValue)
         // The stored username when present; deterministic pseudonym
@@ -103,7 +98,6 @@ extension AuthClient {
         } else {
             defaults.removeObject(forKey: CachedSessionKey.username.rawValue)
         }
-        defaults.set(true, forKey: CachedSessionKey.isCreatedFromServiceCanister.rawValue)
         if !isAIAccount {
             let storedMainSubject = keychain.string(forKey: .mainSubject)
             if storedMainSubject == nil || storedMainSubject == userSubject {
@@ -114,14 +108,13 @@ extension AuthClient {
     }
 
     /// Kotlin `resetCachedCanisterData` — logout clears the cached session
-    /// fields and subject prefs.
-    func resetCachedCanisterData() {
+    /// fields and subject prefs. (Kotlin named it for the ICP canister
+    /// cache; renamed — no canisters exist in the JWT-only world.)
+    func resetCachedSessionData() {
         for key in [
-            CachedSessionKey.canisterID,
             CachedSessionKey.userSubject,
             CachedSessionKey.profilePic,
-            CachedSessionKey.username,
-            CachedSessionKey.isCreatedFromServiceCanister
+            CachedSessionKey.username
         ] {
             defaults.removeObject(forKey: key.rawValue)
         }
@@ -148,27 +141,16 @@ extension AuthClient {
         // Kotlin merges the JWT's `ext_ai_account_ids` into
         // AIIdentitiesStore here when `persistBotIdentities` is true —
         // that list feeds the account switcher's AI section.
-        if persistBotIdentities,
-            let claims = try? JWTParser.parsePayload(of: idToken),
-            let aiAccountIds = claims.aiAccountIds {
+        let parsedClaims = try? JWTParser.parsePayload(of: idToken)
+        if persistBotIdentities, let aiAccountIds = parsedClaims?.aiAccountIds {
             AIIdentitiesStore.mergeFromTokenAIAccountIds(aiAccountIds, defaults: defaults)
         }
     }
 
-    /// Kotlin `updateYralSession` — fire-and-forget registration call.
-    func updateYralSession(_ session: Session) async {
-        guard let idToken = keychain.string(forKey: .idToken),
-            let canisterID = session.canisterID,
-            let userSubject = session.userSubject
-        else { return }
-        _ = try? await authDataSource.updateSessionAsRegistered(
-            idToken: idToken,
-            canisterID: canisterID,
-            userSubject: userSubject
-        )
-    }
-
-    /// phase wires this to Firebase Messaging.
+    /// Kotlin `postLogin` placeholder — the push phase wires this to
+    /// Firebase Messaging. (Kotlin's `updateYralSession` registration call
+    /// is dropped: its server endpoint is a documented no-op awaiting
+    /// deletion — see apps/yral-metadata server/src/session.rs.)
     func postLogin() {}
 
     var currentEpochSeconds: Int64 {
@@ -249,7 +231,7 @@ extension AuthClient {
         // Kotlin also deregisters the push token here; the push phase adds
         // deregister_notification_token when Firebase Messaging lands.
 
-        resetCachedCanisterData()
+        resetCachedSessionData()
         sessionStore.resetSessionProperties()
         sessionStore.updateFirebaseLoginState(false)
         sessionStore.updateState(.initial)

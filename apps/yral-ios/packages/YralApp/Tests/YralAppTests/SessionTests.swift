@@ -19,11 +19,9 @@ struct SessionTests {
 
         // Signed in with properties set.
         let session = Session(
-            canisterID: "canister-1",
             userSubject: "auth0|user-77",
             profilePic: "https://example.com/pic.png",
             username: "sunnyotter",
-            isCreatedFromServiceCanister: true,
             isAIAccount: false
         )
         store.updateState(.signedIn(session))
@@ -31,7 +29,6 @@ struct SessionTests {
         store.updateSocialSignInStatus(true)
         store.updatePhoneNumber("+15551234567")
 
-        #expect(store.canisterID == "canister-1")
         #expect(store.userSubject == "auth0|user-77")
         #expect(store.profilePic == "https://example.com/pic.png")
         #expect(store.username == "sunnyotter")

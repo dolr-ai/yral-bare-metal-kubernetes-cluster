@@ -25,10 +25,13 @@ import Foundation
 /// Storage layout (Kotlin `PrefKeys` split by secrecy):
 ///   - Keychain: ID_TOKEN / ACCESS_TOKEN / REFRESH_TOKEN,
 ///     LAST_ACTIVE_PRINCIPAL, MAIN_PRINCIPAL.
-///   - UserDefaults (display data, not secrets): CANISTER_ID,
-///     USER_PRINCIPAL, PROFILE_PIC, USERNAME,
-///     IS_CREATED_FROM_SERVICE_CANISTER, PHONE_NUMBER,
-///     SOCIAL_SIGN_IN_SUCCESSFUL.
+///   - UserDefaults (display data, not secrets): USER_PRINCIPAL,
+///     PROFILE_PIC, USERNAME, PHONE_NUMBER,
+///     SOCIAL_SIGN_IN_SUCCESSFUL. (The Kotlin canister-era keys
+///     CANISTER_ID / IS_CREATED_FROM_SERVICE_CANISTER are dropped —
+///     ICP legacy; the fields duplicated USER_PRINCIPAL and were
+///     never read. Existing installs' stale entries are simply
+///     ignored and overwritten by cacheSession.)
 @MainActor @Observable
 public final class AuthClient {
 
@@ -79,12 +82,13 @@ public final class AuthClient {
     /// The rawValue strings keep the legacy PRINCIPAL naming — they are
     /// the persisted keys on existing installs (written by the Kotlin
     /// app's PrefKeys); only the Swift case names read as `subject`.
+    /// The Kotlin canister-era keys (CANISTER_ID,
+    /// IS_CREATED_FROM_SERVICE_CANISTER) are dropped — ICP legacy; the
+    /// fields duplicated userSubject and were never read.
     enum CachedSessionKey: String {
-        case canisterID = "CANISTER_ID"
         case userSubject = "USER_PRINCIPAL"
         case profilePic = "PROFILE_PIC"
         case username = "USERNAME"
-        case isCreatedFromServiceCanister = "IS_CREATED_FROM_SERVICE_CANISTER"
         case phoneNumber = "PHONE_NUMBER"
         case socialSignInSuccessful = "SOCIAL_SIGN_IN_SUCCESSFUL"
     }
@@ -199,11 +203,9 @@ public final class AuthClient {
                 accessToken: tokenResponse.accessToken,
                 persistBotIdentities: false
             )
-            if let cached = cachedSession() {
-                await updateYralSession(cached)
-            }
         } catch {
             await trackAndLogoutForTokenExpiry(cause: .refreshAccessTokenFailed)
+            CrashReporter.record(error, context: "cold-start-token-refresh")
         }
     }
 
@@ -214,7 +216,7 @@ public final class AuthClient {
                 idToken: tokenResponse.idToken,
                 accessToken: tokenResponse.accessToken,
                 refreshToken: tokenResponse.refreshToken,
-                resetCanister: true
+                resetCachedSession: true
             )
             sessionStore.updateSocialSignInStatus(false)
         } catch {
@@ -239,7 +241,7 @@ public final class AuthClient {
         idToken: String,
         accessToken: String,
         refreshToken: String,
-        resetCanister: Bool = false,
+        resetCachedSession: Bool = false,
         persistTokenState: Bool = true,
         persistBotIdentities: Bool = true
     ) async {
@@ -269,7 +271,7 @@ public final class AuthClient {
             return
         }
 
-        if resetCanister { resetCachedCanisterData() }
+        if resetCachedSession { resetCachedSessionData() }
         handleTokenClaims(tokenClaims)
         if let email = tokenClaims.email {
             sessionStore.updateLoggedInUserEmail(email)
@@ -299,7 +301,6 @@ public final class AuthClient {
 
         let profilePic = ProfilePicture.url(fromSubject: subject)
         cacheSession(
-            canisterID: subject,
             userSubject: subject,
             profilePic: profilePic,
             username: nil,
@@ -307,7 +308,6 @@ public final class AuthClient {
         )
 
         let session = Session(
-            canisterID: subject,
             userSubject: subject,
             profilePic: profilePic,
             // Deterministic pseudonym for a fresh main account (no server
@@ -315,7 +315,6 @@ public final class AuthClient {
             username: UsernameGenerator.resolveUsername(
                 preferred: nil, subject: subject
             ),
-            isCreatedFromServiceCanister: true,
             isAIAccount: false
         )
         sessionStore.updateCoinBalance(0)
@@ -338,9 +337,6 @@ public final class AuthClient {
                 accessToken: tokenResponse.accessToken,
                 refreshToken: tokenResponse.refreshToken
             )
-            if let cached = cachedSession() {
-                await updateYralSession(cached)
-            }
         } catch {
             await trackAndLogoutForTokenExpiry(cause: .refreshAccessTokenFailed)
             CrashReporter.record(error, context: "cold-start-token-refresh")

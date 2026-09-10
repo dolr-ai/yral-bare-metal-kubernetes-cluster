@@ -214,19 +214,16 @@ extension AuthClient {
         // Live/stored username when present; deterministic pseudonym
         // fallback otherwise.
         let session = Session(
-            canisterID: subject,
             userSubject: subject,
             profilePic: profilePic,
             username: UsernameGenerator.resolveUsername(
                 preferred: botUsername, subject: subject
             ),
             bio: nil,
-            isCreatedFromServiceCanister: true,
             isAIAccount: isBot
         )
         sessionStore.updateState(.signedIn(session))
         cacheSession(
-            canisterID: subject,
             userSubject: subject,
             profilePic: profilePic,
             username: botUsername,

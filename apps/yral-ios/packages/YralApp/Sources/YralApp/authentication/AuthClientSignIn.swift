@@ -97,11 +97,8 @@ extension AuthClient {
             idToken: tokenResponse.idToken,
             accessToken: tokenResponse.accessToken,
             refreshToken: tokenResponse.refreshToken,
-            resetCanister: true
+            resetCachedSession: true
         )
-        if let cached = cachedSession() {
-            await updateYralSession(cached)
-        }
         // Analytics events (onAuthSuccess with new-user flag; provider)
         // land with the analytics phase.
         _ = provider
