@@ -18,6 +18,18 @@ pub struct UserNotificationTokensTableHandle<'ctx> {
     ctx: std::marker::PhantomData<&'ctx super::RemoteTables>,
 }
 
+/// Lifetime-aware accessor marker for the table `user_notification_tokens`.
+pub struct UserNotificationTokensTableAccessor;
+
+impl __sdk::TableAccessor<super::RemoteTables> for UserNotificationTokensTableAccessor {
+    type Row = UserNotificationToken;
+    type Handle<'db> = UserNotificationTokensTableHandle<'db>;
+
+    fn get<'db>(db: &'db super::RemoteTables) -> Self::Handle<'db> {
+        db.user_notification_tokens()
+    }
+}
+
 #[allow(non_camel_case_types)]
 /// Extension trait for access to the table `user_notification_tokens`.
 ///
@@ -41,6 +53,18 @@ impl UserNotificationTokensTableAccess for super::RemoteTables {
 
 pub struct UserNotificationTokensInsertCallbackId(__sdk::CallbackId);
 pub struct UserNotificationTokensDeleteCallbackId(__sdk::CallbackId);
+
+impl<'ctx> __sdk::TableLike for UserNotificationTokensTableHandle<'ctx> {
+    type Row = UserNotificationToken;
+    type EventContext = super::EventContext;
+
+    fn count(&self) -> u64 {
+        self.imp.count()
+    }
+    fn iter(&self) -> impl Iterator<Item = UserNotificationToken> + '_ {
+        self.imp.iter()
+    }
+}
 
 impl<'ctx> __sdk::Table for UserNotificationTokensTableHandle<'ctx> {
     type Row = UserNotificationToken;
@@ -80,9 +104,54 @@ impl<'ctx> __sdk::Table for UserNotificationTokensTableHandle<'ctx> {
     }
 }
 
+impl<'ctx> __sdk::WithInsert for UserNotificationTokensTableHandle<'ctx> {
+    type InsertCallbackId = UserNotificationTokensInsertCallbackId;
+
+    fn on_insert(
+        &self,
+        callback: impl FnMut(&Self::EventContext, &Self::Row) + Send + 'static,
+    ) -> UserNotificationTokensInsertCallbackId {
+        UserNotificationTokensInsertCallbackId(self.imp.on_insert(Box::new(callback)))
+    }
+
+    fn remove_on_insert(&self, callback: UserNotificationTokensInsertCallbackId) {
+        self.imp.remove_on_insert(callback.0)
+    }
+}
+
+impl<'ctx> __sdk::WithDelete for UserNotificationTokensTableHandle<'ctx> {
+    type DeleteCallbackId = UserNotificationTokensDeleteCallbackId;
+
+    fn on_delete(
+        &self,
+        callback: impl FnMut(&Self::EventContext, &Self::Row) + Send + 'static,
+    ) -> UserNotificationTokensDeleteCallbackId {
+        UserNotificationTokensDeleteCallbackId(self.imp.on_delete(Box::new(callback)))
+    }
+
+    fn remove_on_delete(&self, callback: UserNotificationTokensDeleteCallbackId) {
+        self.imp.remove_on_delete(callback.0)
+    }
+}
+
 pub struct UserNotificationTokensUpdateCallbackId(__sdk::CallbackId);
 
 impl<'ctx> __sdk::TableWithPrimaryKey for UserNotificationTokensTableHandle<'ctx> {
+    type UpdateCallbackId = UserNotificationTokensUpdateCallbackId;
+
+    fn on_update(
+        &self,
+        callback: impl FnMut(&Self::EventContext, &Self::Row, &Self::Row) + Send + 'static,
+    ) -> UserNotificationTokensUpdateCallbackId {
+        UserNotificationTokensUpdateCallbackId(self.imp.on_update(Box::new(callback)))
+    }
+
+    fn remove_on_update(&self, callback: UserNotificationTokensUpdateCallbackId) {
+        self.imp.remove_on_update(callback.0)
+    }
+}
+
+impl<'ctx> __sdk::WithUpdate for UserNotificationTokensTableHandle<'ctx> {
     type UpdateCallbackId = UserNotificationTokensUpdateCallbackId;
 
     fn on_update(

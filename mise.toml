@@ -3,7 +3,13 @@
 
 [tools]
 age = "latest"
-"aqua:WebAssembly/binaryen" = "latest"
+# binaryen (wasm-opt) PINNED to 131: version 132's output broke the
+# SpacetimeDB CLI 2.10's wasm parser ("invalid leading byte (0x7f) for
+# external kind") — `spacetime generate` failed on the optimized module
+# while the un-optimized wasm parsed fine (isolated via --bin-path).
+# Bump only together with a verified `spacetime generate` + `spacetime
+# publish` cycle (spacetime-all).
+"aqua:WebAssembly/binaryen" = "131"
 cargo-binstall = "latest"
 "cargo:trunk" = "latest"
 cocoapods = { version = "latest", os = ["macos"] }
@@ -19,7 +25,15 @@ pitchfork = "latest"
 podman = "latest"
 python = "latest"
 ruff = "latest"
-rust = { version = "nightly", targets = [
+# Rust — latest STABLE via mise.lock resolution (committed lock pins the
+# exact resolved version per `mise lock`, so builds stay reproducible while
+# `mise run setup` on a fresh checkout pulls the newest stable). Nightly was
+# a leftover with zero real dependents: no #![feature] gates anywhere,
+# SpacetimeDB's `unstable` is a crate feature (stable-fine), and
+# nightly-2026-09-08's wasm codegen drifted into breaking
+# `spacetime generate`. The leptos `nightly` cargo-features and
+# cargo-leptos --hot-reload (nightly-only beta) are removed with this move.
+rust = { version = "stable", targets = [
   "wasm32-unknown-unknown",
   "x86_64-unknown-linux-musl",
 ], components = [

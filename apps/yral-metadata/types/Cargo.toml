@@ -8,8 +8,8 @@ edition = "2021"
 [dependencies]
 candid = { workspace = true }
 chrono = { workspace = true }
-ic-agent = { workspace = true, default-features = false, optional = true }
-k256 = { workspace = true, default-features = false, features = ["ecdsa", "pkcs8"], optional = true }
+ic-agent = { workspace = true, optional = true }
+k256 = { workspace = true, features = ["ecdsa", "pkcs8"], optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

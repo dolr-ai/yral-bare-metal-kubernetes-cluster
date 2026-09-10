@@ -18,6 +18,18 @@ pub struct UserFollowsTableHandle<'ctx> {
     ctx: std::marker::PhantomData<&'ctx super::RemoteTables>,
 }
 
+/// Lifetime-aware accessor marker for the table `user_follows`.
+pub struct UserFollowsTableAccessor;
+
+impl __sdk::TableAccessor<super::RemoteTables> for UserFollowsTableAccessor {
+    type Row = UserFollow;
+    type Handle<'db> = UserFollowsTableHandle<'db>;
+
+    fn get<'db>(db: &'db super::RemoteTables) -> Self::Handle<'db> {
+        db.user_follows()
+    }
+}
+
 #[allow(non_camel_case_types)]
 /// Extension trait for access to the table `user_follows`.
 ///
@@ -39,6 +51,18 @@ impl UserFollowsTableAccess for super::RemoteTables {
 
 pub struct UserFollowsInsertCallbackId(__sdk::CallbackId);
 pub struct UserFollowsDeleteCallbackId(__sdk::CallbackId);
+
+impl<'ctx> __sdk::TableLike for UserFollowsTableHandle<'ctx> {
+    type Row = UserFollow;
+    type EventContext = super::EventContext;
+
+    fn count(&self) -> u64 {
+        self.imp.count()
+    }
+    fn iter(&self) -> impl Iterator<Item = UserFollow> + '_ {
+        self.imp.iter()
+    }
+}
 
 impl<'ctx> __sdk::Table for UserFollowsTableHandle<'ctx> {
     type Row = UserFollow;
@@ -78,9 +102,54 @@ impl<'ctx> __sdk::Table for UserFollowsTableHandle<'ctx> {
     }
 }
 
+impl<'ctx> __sdk::WithInsert for UserFollowsTableHandle<'ctx> {
+    type InsertCallbackId = UserFollowsInsertCallbackId;
+
+    fn on_insert(
+        &self,
+        callback: impl FnMut(&Self::EventContext, &Self::Row) + Send + 'static,
+    ) -> UserFollowsInsertCallbackId {
+        UserFollowsInsertCallbackId(self.imp.on_insert(Box::new(callback)))
+    }
+
+    fn remove_on_insert(&self, callback: UserFollowsInsertCallbackId) {
+        self.imp.remove_on_insert(callback.0)
+    }
+}
+
+impl<'ctx> __sdk::WithDelete for UserFollowsTableHandle<'ctx> {
+    type DeleteCallbackId = UserFollowsDeleteCallbackId;
+
+    fn on_delete(
+        &self,
+        callback: impl FnMut(&Self::EventContext, &Self::Row) + Send + 'static,
+    ) -> UserFollowsDeleteCallbackId {
+        UserFollowsDeleteCallbackId(self.imp.on_delete(Box::new(callback)))
+    }
+
+    fn remove_on_delete(&self, callback: UserFollowsDeleteCallbackId) {
+        self.imp.remove_on_delete(callback.0)
+    }
+}
+
 pub struct UserFollowsUpdateCallbackId(__sdk::CallbackId);
 
 impl<'ctx> __sdk::TableWithPrimaryKey for UserFollowsTableHandle<'ctx> {
+    type UpdateCallbackId = UserFollowsUpdateCallbackId;
+
+    fn on_update(
+        &self,
+        callback: impl FnMut(&Self::EventContext, &Self::Row, &Self::Row) + Send + 'static,
+    ) -> UserFollowsUpdateCallbackId {
+        UserFollowsUpdateCallbackId(self.imp.on_update(Box::new(callback)))
+    }
+
+    fn remove_on_update(&self, callback: UserFollowsUpdateCallbackId) {
+        self.imp.remove_on_update(callback.0)
+    }
+}
+
+impl<'ctx> __sdk::WithUpdate for UserFollowsTableHandle<'ctx> {
     type UpdateCallbackId = UserFollowsUpdateCallbackId;
 
     fn on_update(

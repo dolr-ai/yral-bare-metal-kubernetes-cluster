@@ -1,0 +1,9 @@
+[toolchain]
+# NIGHTLY — this app only: cargo leptos watch --hot-reload (the
+# my-website-watch mise task) is a nightly-only beta feature.
+# Everything OUTSIDE this directory resolves to the repo root's latest
+# STABLE (rust-toolchain.toml).
+channel = "nightly"
+components = ["rustfmt", "clippy", "rust-src", "rust-analyzer"]
+targets = ["wasm32-unknown-unknown", "x86_64-unknown-linux-musl"]
+profile = "default"

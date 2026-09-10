@@ -19,6 +19,18 @@ pub struct PostsTableHandle<'ctx> {
     ctx: std::marker::PhantomData<&'ctx super::RemoteTables>,
 }
 
+/// Lifetime-aware accessor marker for the table `posts`.
+pub struct PostsTableAccessor;
+
+impl __sdk::TableAccessor<super::RemoteTables> for PostsTableAccessor {
+    type Row = Post;
+    type Handle<'db> = PostsTableHandle<'db>;
+
+    fn get<'db>(db: &'db super::RemoteTables) -> Self::Handle<'db> {
+        db.posts()
+    }
+}
+
 #[allow(non_camel_case_types)]
 /// Extension trait for access to the table `posts`.
 ///
@@ -40,6 +52,18 @@ impl PostsTableAccess for super::RemoteTables {
 
 pub struct PostsInsertCallbackId(__sdk::CallbackId);
 pub struct PostsDeleteCallbackId(__sdk::CallbackId);
+
+impl<'ctx> __sdk::TableLike for PostsTableHandle<'ctx> {
+    type Row = Post;
+    type EventContext = super::EventContext;
+
+    fn count(&self) -> u64 {
+        self.imp.count()
+    }
+    fn iter(&self) -> impl Iterator<Item = Post> + '_ {
+        self.imp.iter()
+    }
+}
 
 impl<'ctx> __sdk::Table for PostsTableHandle<'ctx> {
     type Row = Post;
@@ -79,9 +103,54 @@ impl<'ctx> __sdk::Table for PostsTableHandle<'ctx> {
     }
 }
 
+impl<'ctx> __sdk::WithInsert for PostsTableHandle<'ctx> {
+    type InsertCallbackId = PostsInsertCallbackId;
+
+    fn on_insert(
+        &self,
+        callback: impl FnMut(&Self::EventContext, &Self::Row) + Send + 'static,
+    ) -> PostsInsertCallbackId {
+        PostsInsertCallbackId(self.imp.on_insert(Box::new(callback)))
+    }
+
+    fn remove_on_insert(&self, callback: PostsInsertCallbackId) {
+        self.imp.remove_on_insert(callback.0)
+    }
+}
+
+impl<'ctx> __sdk::WithDelete for PostsTableHandle<'ctx> {
+    type DeleteCallbackId = PostsDeleteCallbackId;
+
+    fn on_delete(
+        &self,
+        callback: impl FnMut(&Self::EventContext, &Self::Row) + Send + 'static,
+    ) -> PostsDeleteCallbackId {
+        PostsDeleteCallbackId(self.imp.on_delete(Box::new(callback)))
+    }
+
+    fn remove_on_delete(&self, callback: PostsDeleteCallbackId) {
+        self.imp.remove_on_delete(callback.0)
+    }
+}
+
 pub struct PostsUpdateCallbackId(__sdk::CallbackId);
 
 impl<'ctx> __sdk::TableWithPrimaryKey for PostsTableHandle<'ctx> {
+    type UpdateCallbackId = PostsUpdateCallbackId;
+
+    fn on_update(
+        &self,
+        callback: impl FnMut(&Self::EventContext, &Self::Row, &Self::Row) + Send + 'static,
+    ) -> PostsUpdateCallbackId {
+        PostsUpdateCallbackId(self.imp.on_update(Box::new(callback)))
+    }
+
+    fn remove_on_update(&self, callback: PostsUpdateCallbackId) {
+        self.imp.remove_on_update(callback.0)
+    }
+}
+
+impl<'ctx> __sdk::WithUpdate for PostsTableHandle<'ctx> {
     type UpdateCallbackId = PostsUpdateCallbackId;
 
     fn on_update(

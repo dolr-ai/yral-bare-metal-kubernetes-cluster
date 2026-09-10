@@ -19,6 +19,18 @@ pub struct Posts3TableHandle<'ctx> {
     ctx: std::marker::PhantomData<&'ctx super::RemoteTables>,
 }
 
+/// Lifetime-aware accessor marker for the table `posts_3`.
+pub struct Posts3TableAccessor;
+
+impl __sdk::TableAccessor<super::RemoteTables> for Posts3TableAccessor {
+    type Row = Post3;
+    type Handle<'db> = Posts3TableHandle<'db>;
+
+    fn get<'db>(db: &'db super::RemoteTables) -> Self::Handle<'db> {
+        db.posts_3()
+    }
+}
+
 #[allow(non_camel_case_types)]
 /// Extension trait for access to the table `posts_3`.
 ///
@@ -40,6 +52,18 @@ impl Posts3TableAccess for super::RemoteTables {
 
 pub struct Posts3InsertCallbackId(__sdk::CallbackId);
 pub struct Posts3DeleteCallbackId(__sdk::CallbackId);
+
+impl<'ctx> __sdk::TableLike for Posts3TableHandle<'ctx> {
+    type Row = Post3;
+    type EventContext = super::EventContext;
+
+    fn count(&self) -> u64 {
+        self.imp.count()
+    }
+    fn iter(&self) -> impl Iterator<Item = Post3> + '_ {
+        self.imp.iter()
+    }
+}
 
 impl<'ctx> __sdk::Table for Posts3TableHandle<'ctx> {
     type Row = Post3;
@@ -79,9 +103,54 @@ impl<'ctx> __sdk::Table for Posts3TableHandle<'ctx> {
     }
 }
 
+impl<'ctx> __sdk::WithInsert for Posts3TableHandle<'ctx> {
+    type InsertCallbackId = Posts3InsertCallbackId;
+
+    fn on_insert(
+        &self,
+        callback: impl FnMut(&Self::EventContext, &Self::Row) + Send + 'static,
+    ) -> Posts3InsertCallbackId {
+        Posts3InsertCallbackId(self.imp.on_insert(Box::new(callback)))
+    }
+
+    fn remove_on_insert(&self, callback: Posts3InsertCallbackId) {
+        self.imp.remove_on_insert(callback.0)
+    }
+}
+
+impl<'ctx> __sdk::WithDelete for Posts3TableHandle<'ctx> {
+    type DeleteCallbackId = Posts3DeleteCallbackId;
+
+    fn on_delete(
+        &self,
+        callback: impl FnMut(&Self::EventContext, &Self::Row) + Send + 'static,
+    ) -> Posts3DeleteCallbackId {
+        Posts3DeleteCallbackId(self.imp.on_delete(Box::new(callback)))
+    }
+
+    fn remove_on_delete(&self, callback: Posts3DeleteCallbackId) {
+        self.imp.remove_on_delete(callback.0)
+    }
+}
+
 pub struct Posts3UpdateCallbackId(__sdk::CallbackId);
 
 impl<'ctx> __sdk::TableWithPrimaryKey for Posts3TableHandle<'ctx> {
+    type UpdateCallbackId = Posts3UpdateCallbackId;
+
+    fn on_update(
+        &self,
+        callback: impl FnMut(&Self::EventContext, &Self::Row, &Self::Row) + Send + 'static,
+    ) -> Posts3UpdateCallbackId {
+        Posts3UpdateCallbackId(self.imp.on_update(Box::new(callback)))
+    }
+
+    fn remove_on_update(&self, callback: Posts3UpdateCallbackId) {
+        self.imp.remove_on_update(callback.0)
+    }
+}
+
+impl<'ctx> __sdk::WithUpdate for Posts3TableHandle<'ctx> {
     type UpdateCallbackId = Posts3UpdateCallbackId;
 
     fn on_update(

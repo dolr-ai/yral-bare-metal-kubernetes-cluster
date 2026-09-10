@@ -1,0 +1,16 @@
+[toolchain]
+# NIGHTLY — this app only. Two real dependents:
+#  1. leptos `nightly` cargo-features (ssr/Cargo.toml) require a nightly
+#     rustc to compile leptos's nightly-mode APIs.
+#  2. cargo leptos watch --hot-reload (the yral-web-watch mise task) is a
+#     nightly-only beta feature.
+# Everything OUTSIDE this directory resolves to the repo root's latest
+# STABLE (rust-toolchain.toml) — including the SpacetimeDB module, whose
+# wasm must stay parseable by the spacetimedb CLI (nightly codegen drift
+# broke `spacetime generate` once already). The prod image builds
+# in-container from the repo root copy of this file — nightly, same as
+# local, so what you test locally is what ships.
+channel = "nightly"
+components = ["rustfmt", "clippy", "rust-src", "rust-analyzer"]
+targets = ["wasm32-unknown-unknown", "x86_64-unknown-linux-musl"]
+profile = "default"
