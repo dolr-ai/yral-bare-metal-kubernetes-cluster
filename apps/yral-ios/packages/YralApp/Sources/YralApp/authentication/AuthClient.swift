@@ -343,6 +343,7 @@ public final class AuthClient {
             }
         } catch {
             await trackAndLogoutForTokenExpiry(cause: .refreshAccessTokenFailed)
+            CrashReporter.record(error, context: "cold-start-token-refresh")
         }
     }
 
@@ -361,8 +362,9 @@ public final class AuthClient {
                 accessToken: tokenResponse.accessToken
             )
         } catch {
-            // Kotlin logs and returns; logging infra lands with the
-            // analytics phase.
+            // Kotlin logs and returns; the failure now reaches
+            // Crashlytics as a non-fatal.
+            CrashReporter.record(error, context: "manual-token-refresh")
         }
     }
 }

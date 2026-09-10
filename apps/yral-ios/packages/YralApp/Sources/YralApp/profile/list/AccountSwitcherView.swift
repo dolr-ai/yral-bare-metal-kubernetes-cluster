@@ -33,7 +33,7 @@ struct AccountSwitcherView: View {
 
             if let entries {
                 // Scrollable — a creator can have many AI accounts; without
-                // this the rows past the medium detent's height were simply
+                // this the rows past the 2/3 detent's height were simply
                 // unreachable.
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
@@ -57,7 +57,10 @@ struct AccountSwitcherView: View {
         .padding(.horizontal, 16)
         .padding(.bottom, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .presentationDetents([.medium])
+        // 2/3 of the screen — the switcher can hold many AI accounts;
+        // medium (~half) cramped the list. Drag down to medium, up for
+        // full screen. Custom fraction detent per SwiftUI docs.
+        .presentationDetents([.fraction(2.0 / 3.0), .medium, .large])
         .background(Color.black)
         .onAppear {
             // Fallback entries first (instant, offline-safe), then one

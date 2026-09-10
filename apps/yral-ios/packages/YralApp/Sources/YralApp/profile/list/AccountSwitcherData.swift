@@ -86,9 +86,10 @@ extension AuthClient {
         if let mainSubject = keychain.string(forKey: .mainSubject) {
             allSubjects.append(mainSubject)
         }
-        if let profiles = try? await spacetimeDataSource.getUsersProfileDetails(
-            oauthSubjects: allSubjects
-        ) {
+        do {
+            let profiles = try await spacetimeDataSource.getUsersProfileDetails(
+                oauthSubjects: allSubjects
+            )
             entries.aiAccounts = Self.applyProfilePictures(
                 to: entries.aiAccounts,
                 from: profiles
@@ -99,16 +100,28 @@ extension AuthClient {
                !mainPicture.url.isEmpty {
                 entries.mainAccount.avatarURL = mainPicture.url
             }
+        } catch {
+            // Best-effort overlay — GobGob fallback rows stay. The
+            // failure still reaches Crashlytics (non-fatal).
+            CrashReporter.record(error, context: "switcher-avatar-overlay")
         }
         // Overlay 2 — real bot names from the creator API.
-        if let idToken = keychain.string(forKey: .idToken),
-           let creators = try? await influencerDataSource?.listMyInfluencers(
-               idToken: idToken
-           ) {
-            entries.aiAccounts = Self.applyRealNames(
-                to: entries.aiAccounts,
-                from: creators
-            )
+        if let idToken = keychain.string(forKey: .idToken) {
+            do {
+                let creators = try await influencerDataSource?.listMyInfluencers(
+                    idToken: idToken
+                )
+                if let creators {
+                    entries.aiAccounts = Self.applyRealNames(
+                        to: entries.aiAccounts,
+                        from: creators
+                    )
+                }
+            } catch {
+                // Best-effort overlay — pseudonym fallback stays; the
+                // failure still reaches Crashlytics (non-fatal).
+                CrashReporter.record(error, context: "switcher-name-overlay")
+            }
         }
         return entries
     }

@@ -199,6 +199,26 @@ launch (`YralAppRoot.configureFirebase()`), so every shipped build reports
 crashes from day one. The Crashlytics dSYM upload build phase runs after
 every Release build (path resolution documented in `project.pbxproj`).
 
+**Report every handled error to Crashlytics — never swallow into a UI label
+only (Hard Rule).** Every `catch` of an API/network/persistence failure
+records the error via the `CrashReporter` facade
+(`packages/YralApp/Sources/YralApp/CrashReporter.swift`, thin wrapper over
+`Crashlytics.crashlytics().record(error:)` — the documented non-fatal
+mechanism per Firebase's "Report non-fatal exceptions" docs; no-op when
+Firebase isn't configured so tests/previews stay clean). No `try?` on
+network calls in feature flows — a best-effort UI enhancement that fails
+still reports (`try?` hides the failure from both the user AND the
+dashboard; use do/catch + record + fallback behavior instead). Grouping is
+by NSError `domain`+`code`, so codes are STABLE per error kind (one code
+per `NetworkError` case via `CrashReporter.stableCode` — never per-instance
+values; the docs warn high-cardinality domains/codes get rate-limited).
+Per-instance detail (upstream status + body per the verbatim-errors rule,
+operation context, call site) lives in `userInfo` keys (`context`, `site`)
+and shows in the issue's Keys/logs tabs; the full `String(describing:)` of
+the error is in `NSLocalizedDescriptionKey`. Breadcrumbs via
+`CrashReporter.log(_:)` (64 kB ring buffer per session). Non-fatals buffer
+on-device and are delivered on the next app launch.
+
 ## Phase status
 
 - [x] Phase 0 — scaffold + CI/distribution + Crashlytics

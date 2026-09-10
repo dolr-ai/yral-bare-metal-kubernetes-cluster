@@ -185,6 +185,7 @@ struct SettingsView: View {
         do {
             try await authClient.deleteAccount()
         } catch {
+            CrashReporter.record(error, context: "account-deletion")
             let reason = (error as? LocalizedError)?.errorDescription
                 ?? String(describing: error)
             actionError = "Failed to delete account: \(reason)"

@@ -104,8 +104,10 @@ public struct AIInfluencerDataSource: Sendable {
             return try payload.body.json.system_instructions
         case .unprocessableContent(let payload):
             throw Self.validationError(try payload.body.json.detail)
-        case .undocumented:
-            throw Self.undocumented(operation: "generate-prompt")
+        case .undocumented(let statusCode, let payload):
+            throw await Self.undocumented(
+                operation: "generate-prompt", statusCode: statusCode, payload: payload
+            )
         }
     }
 
@@ -127,8 +129,16 @@ public struct AIInfluencerDataSource: Sendable {
             )
         case .unprocessableContent(let payload):
             throw Self.validationError(try payload.body.json.detail)
-        case .undocumented:
-            throw Self.undocumented(operation: "validate-and-generate-metadata")
+        case .undocumented(let statusCode, let payload):
+            // Undeclared status — the server's known failure mode here
+            // is 500 when LLM metadata generation fails (the handler
+            // returns None → HTTPException 500). Surface the upstream
+            // body verbatim (Hard Rule: never hide upstream errors).
+            throw await Self.undocumented(
+                operation: "validate-and-generate-metadata",
+                statusCode: statusCode,
+                payload: payload
+            )
         }
     }
 
@@ -156,8 +166,10 @@ public struct AIInfluencerDataSource: Sendable {
             return try CreatorInfluencerList(
                 unvalidated: body.value
             ).influencers
-        case .undocumented:
-            throw Self.undocumented(operation: "creator-influencers")
+        case .undocumented(let statusCode, let payload):
+            throw await Self.undocumented(
+                operation: "creator-influencers", statusCode: statusCode, payload: payload
+            )
         }
     }
 
@@ -208,8 +220,10 @@ public struct AIInfluencerDataSource: Sendable {
             )
         case .unprocessableContent(let payload):
             throw Self.validationError(try payload.body.json.detail)
-        case .undocumented:
-            throw Self.undocumented(operation: "create-influencer")
+        case .undocumented(let statusCode, let payload):
+            throw await Self.undocumented(
+                operation: "create-influencer", statusCode: statusCode, payload: payload
+            )
         }
     }
 
@@ -234,8 +248,10 @@ public struct AIInfluencerDataSource: Sendable {
             return try payload.body.json.profile_image_url
         case .unprocessableContent(let payload):
             throw Self.validationError(try payload.body.json.detail)
-        case .undocumented:
-            throw Self.undocumented(operation: "profile-image")
+        case .undocumented(let statusCode, let payload):
+            throw await Self.undocumented(
+                operation: "profile-image", statusCode: statusCode, payload: payload
+            )
         }
     }
 
@@ -264,10 +280,28 @@ public struct AIInfluencerDataSource: Sendable {
         return NetworkError.http(statusCode: 422, body: message)
     }
 
-    private static func undocumented(operation: String) -> NetworkError {
-        NetworkError.transport(
-            underlying: "\(operation): unexpected response (spec drift)"
+    /// Undeclared response status — surface the status AND the upstream
+    /// body verbatim (Hard Rule: never hide upstream API errors behind
+    /// our own generic text). The body is FastAPI's error JSON (e.g.
+    /// {"detail":"Failed to validate and generate metadata"}); when it
+    /// can't be read, fall back to the bare status. 1 MB cap per the
+    /// HTTPBody collecting-initializer contract (memory safety).
+    private static func undocumented(
+        operation: String,
+        statusCode: Int,
+        payload: OpenAPIRuntime.UndocumentedPayload
+    ) async -> NetworkError {
+        guard let payloadBody = payload.body else {
+            return .http(statusCode: statusCode, body: "\(operation): HTTP \(statusCode)")
+        }
+        let upstreamBody = try? await String(
+            collecting: payloadBody,
+            upTo: 1 << 20
         )
+        if let upstreamBody, !upstreamBody.isEmpty {
+            return .http(statusCode: statusCode, body: upstreamBody)
+        }
+        return .http(statusCode: statusCode, body: "\(operation): HTTP \(statusCode)")
     }
 }
 
@@ -290,89 +324,5 @@ private struct BearerAuthenticationMiddleware: ClientMiddleware {
         var request = request
         request.headerFields[.authorization] = "Bearer \(bearerToken)"
         return try await next(request, body, baseURL)
-    }
-}
-
-// MARK: - Generated persona metadata (the wizard's model)
-
-/// The persona metadata from `validate-and-generate-metadata`. The
-/// rejected case carries only `is_valid: false` plus a `reason`; the
-/// accepted case carries the full persona. `avatarURL` may be empty
-/// when avatar generation fails server-side — and when present it is
-/// a SHORT-LIVED Replicate delivery URL; the creation pipeline
-/// uploads the bytes for the durable copy.
-public struct AIInfluencerMetadata: Equatable, Sendable {
-    public var isValid: Bool
-    public var validationReason: String?
-    public var name: String?
-    public var displayName: String?
-    public var description: String?
-    public var initialGreeting: String?
-    public var suggestedMessages: [String]
-    public var personalityTraits: [String: String]
-    public var category: String?
-    public var avatarURL: String?
-
-    init(from generated: Components.Schemas.ValidateAndGenerateResponse) {
-        isValid = generated.is_valid
-        validationReason = generated.reason
-        name = generated.name
-        displayName = generated.display_name
-        description = generated.description
-        initialGreeting = generated.initial_greeting
-        suggestedMessages = generated.suggested_messages ?? []
-        // The generated payload is a free-form object container — read
-        // the values back as strings (the server stores string traits).
-        personalityTraits =
-            (generated.personality_traits?.additionalProperties.value
-                .mapValues { "\($0 ?? "")" }) ?? [:]
-        category = generated.category
-        avatarURL = generated.avatar_url
-    }
-}
-
-// MARK: - Creator's influencer listing (the bots' real names)
-
-/// One row of `GET /api/v1/creator/influencers` — the bot's real name
-/// (`name`, the creation-time handle), optional display name, and its
-/// SpacetimeDB subject (`bot_principal_id` is NOT in this response —
-/// the `id` field IS the bot's subject, verified live: `id ==
-/// `user_profiles_2.oauth_subject`).
-public struct CreatorInfluencer: Equatable, Sendable {
-    public let subject: String
-    public let name: String
-    public let displayName: String?
-    public let avatarURL: String?
-}
-
-/// Decodes the untyped response container (spec defect — empty 200
-/// schema) into typed rows. Pure: takes the runtime JSON value. The
-/// runtime decodes objects to `[String: (any Sendable)?]` and arrays to
-/// `[(any Sendable)?]` — the casts must match those EXACTLY (a plain
-/// `as? [[String: (any Sendable)?]]` fails: array elements are
-/// optionals of dictionaries, not dictionaries).
-struct CreatorInfluencerList: Equatable {
-    let influencers: [CreatorInfluencer]
-
-    init(unvalidated: (any Sendable)?) throws {
-        guard let dictionary = unvalidated as? [String: (any Sendable)?],
-            let rows = dictionary["influencers"] as? [(any Sendable)?]
-        else {
-            throw NetworkError.transport(
-                underlying: "creator-influencers: unexpected response shape"
-            )
-        }
-        influencers = rows.compactMap { row -> CreatorInfluencer? in
-            guard let row = row as? [String: (any Sendable)?],
-                let subject = row["id"] as? String,
-                let name = row["name"] as? String
-            else { return nil }
-            return CreatorInfluencer(
-                subject: subject,
-                name: name,
-                displayName: row["display_name"] as? String,
-                avatarURL: row["avatar_url"] as? String
-            )
-        }
     }
 }

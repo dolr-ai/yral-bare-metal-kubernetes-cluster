@@ -34,6 +34,7 @@ extension AIAccountCreationView {
             // idempotent with a Reset draft, and correct for a resume.
             draft.step = .descriptionEntry
             if !isUserCancellation(error) {
+                CrashReporter.record(error, context: "persona-prompt-generation")
                 errorMessage = errorText(of: error)
             }
         }
@@ -80,6 +81,7 @@ extension AIAccountCreationView {
                 return
             }
             draft.step = .personaReview
+            CrashReporter.record(error, context: "persona-metadata-generation")
             errorMessage = errorText(of: error)
         }
     }
@@ -128,6 +130,7 @@ extension AIAccountCreationView {
             draft.creationProgress = progress
             draft.profileUnderReview = profile
             draft.step = .reviewProfile
+            CrashReporter.record(error, context: "ai-account-creation")
             errorMessage = errorText(of: error)
         }
     }
