@@ -89,18 +89,27 @@ public enum SpacetimePositionalDecoder {
 
     // MARK: - Sum types
 
-    /// Decodes `[tag, payloadArray]`.
+    /// Decodes `[tag, payload]`. The payload may be an array (multi-field
+    /// variant, e.g. a struct) or the INLINED value itself (single-field
+    /// variant — SpacetimeDB's serde bridge inlines it; verified against
+    /// the live wire: `Some(false)` arrives as `[0,false]`, NOT
+    /// `[0,[false]]`, and `BotAccount(owner)` as `[1,"owner"]`).
     public static func sumVariant(_ array: [Any]) throws -> (tag: Int, payload: [Any]) {
         guard array.count == 2,
-              let tag = (array[0] as? NSNumber)?.intValue,
-              let payload = array[1] as? [Any]
+              let tag = (array[0] as? NSNumber)?.intValue
         else {
             throw SpacetimeDecodingError.malformedSumVariant
         }
-        return (tag, payload)
+        if let payload = array[1] as? [Any] {
+            return (tag, payload)
+        }
+        // Inlined single-field payload — normalize to a one-element array
+        // so every call site reads positionally (unchanged contract).
+        return (tag, [array[1]])
     }
 
-    /// `Option<T>` response: `[0, [value]]` → payload, `[1, []]` → nil.
+    /// `Option<T>` response: `[0, value]` → payload (value inlined for
+    /// scalars, wrapped for structs), `[1, …]` → nil.
     public static func optionPayload(_ array: [Any]) throws -> [Any]? {
         let variant = try sumVariant(array)
         return variant.tag == 0 ? variant.payload : nil

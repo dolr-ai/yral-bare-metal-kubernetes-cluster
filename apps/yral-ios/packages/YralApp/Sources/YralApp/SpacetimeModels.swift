@@ -187,10 +187,18 @@ func parseUserAccountType(_ array: [Any], at index: Int) throws -> SpacetimeUser
     )
     switch variant.tag {
     case 0:
-        let aiAccounts = try SpacetimePositionalDecoder.array(variant.payload, at: 0)
-        return .mainAccount(aiAccounts: aiAccounts.compactMap { $0 as? String })
+        // `MainAccount(aiAccounts: Vec<String>)` — ONE field: the live
+        // wire INLINES the Vec as the variant payload itself:
+        // `[0, ["id1", "id2"]]` (verified against Maincloud), so the
+        // payload IS the list — not a wrapper containing it.
+        return .mainAccount(
+            aiAccounts: variant.payload.compactMap { $0 as? String }
+        )
     case 1:
-        return .botAccount(owner: try SpacetimePositionalDecoder.string(variant.payload, at: 0))
+        // `BotAccount(owner: String)` — one field, inlined: `[1, "owner"]`.
+        return .botAccount(
+            owner: try SpacetimePositionalDecoder.string(variant.payload, at: 0)
+        )
     default:
         throw SpacetimeDecodingError.unknownVariantTag(type: "UserAccountType", tag: variant.tag)
     }

@@ -81,17 +81,21 @@ struct AccountSwitcherAvatarIntegrationTests {
     }
 
     /// One bot profile row in the LIVE positional wire shape of
-    /// `UserProfileDetails` (11 fields; see SpacetimePositionalDecoderTests):
+    /// `UserProfileDetails` (11 fields; verified against Maincloud):
     /// [oauthSubject, profilePicture?, bio, websiteURL, followersCount,
     ///  followingCount, callerFollowsUser?, userFollowsCaller?,
     ///  subscriptionPlan, isAiInfluencer, accountType]
+    /// Single-field variants INLINE their payloads (Some(bool) = [0,false],
+    /// BotAccount = [1,"owner"]); struct payloads stay wrapped
+    /// (Some(ProfilePictureData) = [0,[url,[nsfw…]]]).
     static func profileWireRow(
         principal: String,
         avatarURL: String?
     ) -> String {
         let pictureField: String
         if let avatarURL {
-            // Some(ProfilePictureData): [0, [url, [isNsfw, nsfwEc, nsfwGore, csamDetected]]]
+            // Some(ProfilePictureData) — struct payload stays wrapped:
+            // [0, [url, [isNsfw, nsfwEc, nsfwGore, csamDetected]]]
             pictureField = #"[0, ["\#(avatarURL)", [false, "0.0", "0.0", false]]]"#
         } else {
             // None: [1, []]
@@ -105,11 +109,11 @@ struct AccountSwitcherAvatarIntegrationTests {
           "",
           100,
           50,
-          [1, []],
-          [1, []],
+          [0, false],
+          [0, false],
           [0, []],
           true,
-          [1, ["\#(mainPrincipal)"]]
+          [1, "\#(mainPrincipal)"]
         ]
         """#
     }

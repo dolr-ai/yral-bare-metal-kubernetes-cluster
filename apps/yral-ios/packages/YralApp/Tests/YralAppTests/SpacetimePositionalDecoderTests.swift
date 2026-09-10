@@ -27,19 +27,31 @@ struct SpacetimePositionalDecoderTests {
         #expect(payload == nil)
     }
 
-    @Test("Option<String> field decode")
+    @Test("Option<String> field decode — live inlined form")
     func optionStringField() throws {
+        // Live wire (captured from Maincloud, get_followers cursor): the
+        // single-field Some payload is INLINED — `[0, "cursor"]`, not
+        // `[0, ["cursor"]]`.
+        let array = try SpacetimePositionalDecoder.parseArray(#"[[0,"cursor-123"]]"#)
+        #expect(try SpacetimePositionalDecoder.optionString(array, at: 0) == "cursor-123")
+    }
+
+    @Test("Option<String> field decode — legacy wrapped form still parses")
+    func optionStringFieldWrapped() throws {
         let array = try SpacetimePositionalDecoder.parseArray(#"[[0,["cursor-123"]]]"#)
         #expect(try SpacetimePositionalDecoder.optionString(array, at: 0) == "cursor-123")
     }
 
-    @Test("Option<Bool> field decode")
+    @Test("Option<Bool> field decode — live inlined form")
     func optionBoolField() throws {
+        // Live wire (captured from Maincloud, UserProfileDetails follow
+        // flags): `Some(false)` arrives as `[0,false]`, NOT `[0,[false]]` —
+        // the regression that broke every profile decode on device.
         #expect(try SpacetimePositionalDecoder.optionBool(
-            SpacetimePositionalDecoder.parseArray("[[0,[true]]]"), at: 0
+            SpacetimePositionalDecoder.parseArray("[[0,true]]"), at: 0
         ) == true)
         #expect(try SpacetimePositionalDecoder.optionBool(
-            SpacetimePositionalDecoder.parseArray("[[0,[false]]]"), at: 0
+            SpacetimePositionalDecoder.parseArray("[[0,false]]"), at: 0
         ) == false)
     }
 
@@ -115,10 +127,14 @@ struct SpacetimePositionalDecoderTests {
 
     // MARK: - UserProfile (11 positional fields)
 
-    /// Self-view profile: profilePicture None, follow flags None, Free plan,
-    /// MainAccount with AI accounts.
+    /// Live-wire pins for the full captured responses live in
+    /// `SpacetimeLiveWireTests` — including the inlined single-field
+    /// variant forms that broke the device (`[0,false]`, `[1,"owner"]`).
+
     @Test("UserProfile self-view decodes: None options, Free plan, MainAccount AI accounts")
     func userProfileSelfView() throws {
+        // MainAccount live form: the Vec is INLINED as the variant payload
+        // (`[0,["id",…]]`), not wrapped again.
         let body = #"""
         [
           "auth0|user-77",
@@ -131,7 +147,7 @@ struct SpacetimePositionalDecoderTests {
           [1, []],
           [0, []],
           false,
-          [0, [["auth0|ai-account-1","auth0|ai-account-2"]]]
+          [0, ["auth0|ai-account-1","auth0|ai-account-2"]]
         ]
         """#
         let profile = try SpacetimeUserProfile.fromPositionalArray(
@@ -158,6 +174,8 @@ struct SpacetimePositionalDecoderTests {
 
     @Test("UserProfile other-view: Pro plan, BotAccount, follow flags present")
     func userProfileOtherView() throws {
+        // Live forms: follow flags inlined ([0,[true]] → [0,true]),
+        // Pro stays wrapped (two fields), BotAccount inlines its String.
         let body = #"""
         [
           "auth0|AI account-1",
@@ -166,11 +184,11 @@ struct SpacetimePositionalDecoderTests {
           "",
           100,
           50,
-          [0, [true]],
-          [0, [false]],
+          [0, true],
+          [0, false],
           [1, [3, 10]],
           true,
-          [1, ["auth0|user-77"]]
+          [1, "auth0|user-77"]
         ]
         """#
         let profile = try SpacetimeUserProfile.fromPositionalArray(
@@ -202,11 +220,12 @@ struct SpacetimePositionalDecoderTests {
 
     @Test("FollowersPage decodes items, total, and Some cursor")
     func followersPage() throws {
+        // Live cursor form: Some inlines the String (`[0, "cursor"]`).
         let body = #"""
         [[
           ["auth0|f1", true, "https://cdn.example.com/f1.png"],
           ["auth0|f2", false, "https://cdn.example.com/f2.png"]
-        ], 500, [0, ["auth0|f2"]]]
+        ], 500, [0, "auth0|f2"]]
         """#
         let page = try SpacetimeFollowersPage.fromPositionalArray(
             SpacetimePositionalDecoder.parseArray(body)
