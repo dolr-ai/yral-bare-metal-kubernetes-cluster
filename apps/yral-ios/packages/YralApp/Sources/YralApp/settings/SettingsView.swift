@@ -56,10 +56,14 @@ struct SettingsView: View {
         #if canImport(UIKit)
             .toolbar(.hidden, for: .navigationBar)
         #endif
-        .confirmationDialog(
+        // Native CENTERED alert (not confirmationDialog — that renders
+        // as a bottom action sheet on iPhone and a source-anchored
+        // popover on iPad; the user asked for the standard centered
+        // modal). One destructive decision → alert is the canonical
+        // presentation.
+        .alert(
             "Delete your account?",
-            isPresented: $isDeleteSheetShown,
-            titleVisibility: .visible
+            isPresented: $isDeleteSheetShown
         ) {
             Button("Yes, delete", role: .destructive) {
                 Task { await deleteAccount() }
