@@ -42,6 +42,11 @@ public final class AuthClient {
     /// current id token.
     let spacetimeDataSource: SpacetimeDBRemoteDataSource
 
+    /// Rishi-agent data plane — the bots' REAL names live in the creator
+    /// listing (`GET /api/v1/creator/influencers`), not in SpacetimeDB or
+    /// local storage. Injectable for tests.
+    let influencerDataSource: AIInfluencerDataSource?
+
     /// Redirect scheme (from Info.plist via the app shell).
     let redirectScheme: String
 
@@ -87,6 +92,7 @@ public final class AuthClient {
         keychain: KeychainStore = KeychainStore(),
         defaults: UserDefaults = .standard,
         spacetimeDataSource: SpacetimeDBRemoteDataSource? = nil,
+        influencerDataSource: AIInfluencerDataSource? = nil,
         sessionStore: SessionStore
     ) {
         self.authDataSource = authDataSource
@@ -102,6 +108,10 @@ public final class AuthClient {
                     idTokenProvider: { keychain.string(forKey: .idToken) }
                 )
             }()
+        // Nil default: the creator-name overlay degrades to the fallback
+        // names; tests inject a stub-backed source when needed.
+        self.influencerDataSource = influencerDataSource
+            ?? AIInfluencerDataSource()
         self.sessionStore = sessionStore
     }
 
@@ -297,6 +307,8 @@ public final class AuthClient {
             canisterID: principal,
             userPrincipal: principal,
             profilePic: profilePic,
+            // Deterministic pseudonym for a fresh main account (no server
+            // username yet) — the fallback tier, per the display rules.
             username: UsernameGenerator.resolveUsername(
                 preferred: nil, principal: principal
             ),

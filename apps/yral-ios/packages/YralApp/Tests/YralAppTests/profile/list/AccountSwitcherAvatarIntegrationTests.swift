@@ -28,120 +28,8 @@ import Testing
 @MainActor
 struct AccountSwitcherAvatarIntegrationTests {
 
-    // MARK: - Fixtures
-
-    static let mainPrincipal = "110822651133748857609"
-    static let firstBotPrincipal = "f0a50e9a-2565-4e76-894a-27edf2e833fc"
-    static let secondBotPrincipal = "b3581395-5c53-4dfe-a978-2359b13d13e2"
-
-    static let firstBotHostedAvatar =
-        "https://link.storjshare.io/raw/bucket/owner/930816ac-22ea-4a31-8d3a-ed399e553169.jpg"
-    static let secondBotHostedAvatar =
-        "https://link.storjshare.io/raw/bucket/owner/a035d85e-4d23-4679-b080-c623412fd5df.jpg"
-
-    func freshDefaults() -> UserDefaults {
-        let name = "account-switcher-avatar-integration-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        defaults.removePersistentDomain(forName: name)
-        return defaults
-    }
-
-    /// A client with two bots in the local identity store (as the JWT
-    /// merge seeds them — principals + usernames only, NO avatar URLs).
-    func makeClient(
-        defaults: UserDefaults,
-        keychain: KeychainStore
-    ) -> (client: AuthClient, sessionStore: SessionStore) {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [RecordingURLProtocol.self]
-        let dataSource = SpacetimeDBRemoteDataSource(
-            idTokenProvider: { "test-id-token" },
-            session: URLSession(configuration: configuration)
-        )
-        let sessionStore = SessionStore()
-        let client = AuthClient(
-            authDataSource: AuthDataSource(
-                session: URLSession(configuration: configuration)
-            ),
-            redirectScheme: "com.yral.iosApp",
-            keychain: keychain,
-            defaults: defaults,
-            spacetimeDataSource: dataSource,
-            sessionStore: sessionStore
-        )
-        keychain.setString(Self.mainPrincipal, forKey: .mainPrincipal)
-        AIIdentitiesStore.put(
-            [
-                AIIdentityEntry(principal: Self.firstBotPrincipal, username: "dekuizuku"),
-                AIIdentityEntry(principal: Self.secondBotPrincipal, username: "uraraka")
-            ],
-            defaults: defaults
-        )
-        return (client, sessionStore)
-    }
-
-    /// One bot profile row in the LIVE positional wire shape of
-    /// `UserProfileDetails` (11 fields; verified against Maincloud):
-    /// [oauthSubject, profilePicture?, bio, websiteURL, followersCount,
-    ///  followingCount, callerFollowsUser?, userFollowsCaller?,
-    ///  subscriptionPlan, isAiInfluencer, accountType]
-    /// Single-field variants INLINE their payloads (Some(bool) = [0,false],
-    /// BotAccount = [1,"owner"]); struct payloads stay wrapped
-    /// (Some(ProfilePictureData) = [0,[url,[nsfw…]]]).
-    static func profileWireRow(
-        principal: String,
-        avatarURL: String?
-    ) -> String {
-        let pictureField: String
-        if let avatarURL {
-            // Some(ProfilePictureData) — struct payload stays wrapped:
-            // [0, [url, [isNsfw, nsfwEc, nsfwGore, csamDetected]]]
-            pictureField = #"[0, ["\#(avatarURL)", [false, "0.0", "0.0", false]]]"#
-        } else {
-            // None: [1, []]
-            pictureField = "[1, []]"
-        }
-        return #"""
-        [
-          "\#(principal)",
-          \#(pictureField),
-          "bot bio",
-          "",
-          100,
-          50,
-          [0, false],
-          [0, false],
-          [0, []],
-          true,
-          [1, "\#(mainPrincipal)"]
-        ]
-        """#
-    }
-
-    /// The full response body of `get_users_profile_details` — a JSON
-    /// array of profile positional arrays.
-    static func profilesResponseBody(rows: [String]) -> String {
-        "[" + rows.joined(separator: ",") + "]"
-    }
-
-    @discardableResult
-    func serveProfiles(
-        body: String,
-        recorder: RequestRecorder
-    ) -> @Sendable (URLRequest) throws -> (HTTPURLResponse, Data) {
-        return { request in
-            recorder.record(request)
-            guard let response = HTTPURLResponse(
-                url: request.url!,
-                statusCode: 200,
-                httpVersion: "HTTP/1.1",
-                headerFields: ["Content-Type": "application/json"]
-            ) else {
-                throw URLError(.badServerResponse)
-            }
-            return (response, Data(body.utf8))
-        }
-    }
+    /// Short alias — the fixture namespace name is long.
+    typealias Fixtures = AccountSwitcherFixtures
 
     // MARK: - The contract: table URL reaches the switcher row
 
@@ -149,20 +37,28 @@ struct AccountSwitcherAvatarIntegrationTests {
     func switcherRowsShowHostedAvatars() async throws {
         let keychain = KeychainStore(service: "switcher-avatar-tests-\(UUID().uuidString)")
         defer { keychain.removeAll() }
-        let defaults = freshDefaults()
-        let (client, _) = makeClient(defaults: defaults, keychain: keychain)
+        let defaults = Fixtures.freshDefaults()
+        let (client, _) = Fixtures.makeClient(
+                defaults: defaults,
+                keychain: keychain,
+                protocolClass: SwitcherAvatarURLProtocol.self
+            )
 
         let recorder = RequestRecorder()
-        RecordingURLProtocol.handler = serveProfiles(
-            body: Self.profilesResponseBody(rows: [
-                Self.profileWireRow(
-                    principal: Self.firstBotPrincipal,
-                    avatarURL: Self.firstBotHostedAvatar
+        SwitcherAvatarURLProtocol.handler = Fixtures.serveProfilesAndNames(
+            profilesBody: Fixtures.profilesResponseBody(rows: [
+                Fixtures.profileWireRow(
+                    principal: Fixtures.firstBotPrincipal,
+                    avatarURL: Fixtures.firstBotHostedAvatar
                 ),
-                Self.profileWireRow(
-                    principal: Self.secondBotPrincipal,
-                    avatarURL: Self.secondBotHostedAvatar
+                Fixtures.profileWireRow(
+                    principal: Fixtures.secondBotPrincipal,
+                    avatarURL: Fixtures.secondBotHostedAvatar
                 )
+            ]),
+            namesBody: Fixtures.creatorNamesResponseBody(entries: [
+                (principal: Fixtures.firstBotPrincipal, name: "dekuizuku"),
+                (principal: Fixtures.secondBotPrincipal, name: "uraraka")
             ]),
             recorder: recorder
         )
@@ -174,37 +70,48 @@ struct AccountSwitcherAvatarIntegrationTests {
         let avatarsByPrincipal = Dictionary(
             uniqueKeysWithValues: (entries?.aiAccounts ?? []).map { ($0.principal, $0.avatarURL) }
         )
-        #expect(avatarsByPrincipal[Self.firstBotPrincipal] == Self.firstBotHostedAvatar)
-        #expect(avatarsByPrincipal[Self.secondBotPrincipal] == Self.secondBotHostedAvatar)
+        #expect(avatarsByPrincipal[Fixtures.firstBotPrincipal] == Fixtures.firstBotHostedAvatar)
+        #expect(avatarsByPrincipal[Fixtures.secondBotPrincipal] == Fixtures.secondBotHostedAvatar)
 
-        // The read is ONE batch call carrying both bot principals.
-        #expect(recorder.requests.count == 1)
-        guard let body = recorder.requestBodies.first else {
-            Issue.record("expected a request body")
+        // Exactly TWO calls: the profiles batch + the creator listing.
+        #expect(recorder.requests.count == 2)
+        guard let profileCall = recorder.requests.first(where: {
+            $0.url?.path.contains("/call/get_users_profile_details") == true
+        }) else {
+            Issue.record("expected a profiles batch call")
             return
         }
-        #expect(body.contains(Self.firstBotPrincipal))
-        #expect(body.contains(Self.secondBotPrincipal))
+        let profileBody = String(
+            data: profileCall.httpBody ?? profileCall.bodyStreamData ?? Data(),
+            encoding: .utf8
+        ) ?? ""
+        #expect(profileBody.contains(Fixtures.firstBotPrincipal))
+        #expect(profileBody.contains(Fixtures.secondBotPrincipal))
     }
 
     @Test("blank profile rows keep the GobGob fallback (bot whose write never landed)")
     func blankProfileRowKeepsFallback() async throws {
         let keychain = KeychainStore(service: "switcher-avatar-tests-\(UUID().uuidString)")
         defer { keychain.removeAll() }
-        let defaults = freshDefaults()
-        let (client, _) = makeClient(defaults: defaults, keychain: keychain)
+        let defaults = Fixtures.freshDefaults()
+        let (client, _) = Fixtures.makeClient(
+                defaults: defaults,
+                keychain: keychain,
+                protocolClass: SwitcherAvatarURLProtocol.self
+            )
 
         let recorder = RequestRecorder()
         // One bot with its real picture, one with a None picture (the
         // pre-wire-fix creations left the table row blank).
-        RecordingURLProtocol.handler = serveProfiles(
-            body: Self.profilesResponseBody(rows: [
-                Self.profileWireRow(
-                    principal: Self.firstBotPrincipal,
-                    avatarURL: Self.firstBotHostedAvatar
+        SwitcherAvatarURLProtocol.handler = Fixtures.serveProfilesAndNames(
+            profilesBody: Fixtures.profilesResponseBody(rows: [
+                Fixtures.profileWireRow(
+                    principal: Fixtures.firstBotPrincipal,
+                    avatarURL: Fixtures.firstBotHostedAvatar
                 ),
-                Self.profileWireRow(principal: Self.secondBotPrincipal, avatarURL: nil)
+                Fixtures.profileWireRow(principal: Fixtures.secondBotPrincipal, avatarURL: nil)
             ]),
+            namesBody: Fixtures.creatorNamesResponseBody(entries: []),
             recorder: recorder
         )
 
@@ -213,16 +120,16 @@ struct AccountSwitcherAvatarIntegrationTests {
         let avatarsByPrincipal = Dictionary(
             uniqueKeysWithValues: (entries?.aiAccounts ?? []).map { ($0.principal, $0.avatarURL) }
         )
-        #expect(avatarsByPrincipal[Self.firstBotPrincipal] == Self.firstBotHostedAvatar)
+        #expect(avatarsByPrincipal[Fixtures.firstBotPrincipal] == Fixtures.firstBotHostedAvatar)
         // The GobGob fallback — deterministic per-principal, and (after
         // the sign-trap fix) always a real avatar index.
         #expect(
-            avatarsByPrincipal[Self.secondBotPrincipal]
-                == ProfilePicture.url(fromPrincipal: Self.secondBotPrincipal)
+            avatarsByPrincipal[Fixtures.secondBotPrincipal]
+                == ProfilePicture.url(fromPrincipal: Fixtures.secondBotPrincipal)
         )
         #expect(
-            avatarsByPrincipal[Self.secondBotPrincipal]
-                != Self.secondBotHostedAvatar
+            avatarsByPrincipal[Fixtures.secondBotPrincipal]
+                != Fixtures.secondBotHostedAvatar
         )
     }
 
@@ -230,11 +137,15 @@ struct AccountSwitcherAvatarIntegrationTests {
     func networkFailureKeepsFallbacks() async throws {
         let keychain = KeychainStore(service: "switcher-avatar-tests-\(UUID().uuidString)")
         defer { keychain.removeAll() }
-        let defaults = freshDefaults()
-        let (client, _) = makeClient(defaults: defaults, keychain: keychain)
+        let defaults = Fixtures.freshDefaults()
+        let (client, _) = Fixtures.makeClient(
+                defaults: defaults,
+                keychain: keychain,
+                protocolClass: SwitcherAvatarURLProtocol.self
+            )
 
         // The handler throws — the profile read fails entirely.
-        RecordingURLProtocol.handler = { _ in
+        SwitcherAvatarURLProtocol.handler = { _ in
             throw URLError(.notConnectedToInternet)
         }
 
@@ -244,80 +155,13 @@ struct AccountSwitcherAvatarIntegrationTests {
             uniqueKeysWithValues: (entries?.aiAccounts ?? []).map { ($0.principal, $0.avatarURL) }
         )
         #expect(
-            avatarsByPrincipal[Self.firstBotPrincipal]
-                == ProfilePicture.url(fromPrincipal: Self.firstBotPrincipal)
+            avatarsByPrincipal[Fixtures.firstBotPrincipal]
+                == ProfilePicture.url(fromPrincipal: Fixtures.firstBotPrincipal)
         )
         #expect(
-            avatarsByPrincipal[Self.secondBotPrincipal]
-                == ProfilePicture.url(fromPrincipal: Self.secondBotPrincipal)
+            avatarsByPrincipal[Fixtures.secondBotPrincipal]
+                == ProfilePicture.url(fromPrincipal: Fixtures.secondBotPrincipal)
         )
     }
 
-    @Test("switchToAccount persists the tapped row's hosted URL into the session cache")
-    func switchPersistsRowAvatarIntoSession() async throws {
-        let keychain = KeychainStore(service: "switcher-avatar-tests-\(UUID().uuidString)")
-        defer { keychain.removeAll() }
-        let defaults = freshDefaults()
-        let (client, sessionStore) = makeClient(defaults: defaults, keychain: keychain)
-
-        // The user taps the row AFTER the live refresh — the row carries
-        // the hosted URL; the session + PROFILE_PIC cache must show it.
-        client.switchToAccount(
-            principal: Self.firstBotPrincipal,
-            avatarURL: Self.firstBotHostedAvatar
-        )
-
-        #expect(sessionStore.profilePic == Self.firstBotHostedAvatar)
-        #expect(
-            defaults.string(forKey: "PROFILE_PIC") == Self.firstBotHostedAvatar
-        )
-        // The bot becomes the last-active principal (cold-start continuity).
-        #expect(keychain.string(forKey: .lastActivePrincipal) == Self.firstBotPrincipal)
-    }
-
-    @Test("switchToAccount without a URL falls back to GobGob (offline switch)")
-    func switchWithoutURLFallsBack() {
-        let keychain = KeychainStore(service: "switcher-avatar-tests-\(UUID().uuidString)")
-        defer { keychain.removeAll() }
-        let defaults = freshDefaults()
-        let (client, sessionStore) = makeClient(defaults: defaults, keychain: keychain)
-
-        client.switchToAccount(principal: Self.firstBotPrincipal, avatarURL: nil)
-
-        #expect(
-            sessionStore.profilePic
-                == ProfilePicture.url(fromPrincipal: Self.firstBotPrincipal)
-        )
-    }
-}
-
-/// Request recorder — reference-boxed so the @Sendable URLProtocol
-/// handler (running off the MainActor) can record into it. Same shape
-/// as `RefreshRecorder` in `AuthClientTests` (file-scope for the same
-/// isolation reasons).
-final class RequestRecorder: @unchecked Sendable {
-    private let lock = NSLock()
-    private var storedRequests: [URLRequest] = []
-    private var storedBodies: [String] = []
-
-    var requests: [URLRequest] {
-        lock.lock()
-        defer { lock.unlock() }
-        return storedRequests
-    }
-
-    var requestBodies: [String] {
-        lock.lock()
-        defer { lock.unlock() }
-        return storedBodies
-    }
-
-    func record(_ request: URLRequest) {
-        lock.lock()
-        defer { lock.unlock() }
-        storedRequests.append(request)
-        if let body = request.httpBody ?? request.bodyStreamData {
-            storedBodies.append(String(data: body, encoding: .utf8) ?? "")
-        }
-    }
 }

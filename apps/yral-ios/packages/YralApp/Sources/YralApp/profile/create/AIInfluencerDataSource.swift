@@ -46,8 +46,23 @@ public struct AIInfluencerDataSource: Sendable {
     /// A client with this call's bearer token. The generated Input has
     /// no middlewares parameter (the spec declares no security schemes)
     /// — the Client init is the injection point; constructing one per
-    /// call is cheap (a thin struct over the transport).
+    /// call is cheap (a thin struct over the transport). Non-generation
+    /// calls (create/upload/creator-listing) ride the injected `session`
+    /// (default `.shared`) — that's also the URLProtocol test seam.
     private func authenticatedClient(bearerToken: String) -> Client {
+        Client(
+            serverURL: serverURL,
+            transport: URLSessionTransport(
+                configuration: .init(session: session)
+            ),
+            middlewares: [BearerAuthenticationMiddleware(bearerToken: bearerToken)]
+        )
+    }
+
+    /// The generation endpoints' client — same auth injection, but on
+    /// the dedicated 90s LLM-timeout session (gemini thinking exceeds
+    /// URLSession's 60s default).
+    private func generationClient(bearerToken: String) -> Client {
         Client(
             serverURL: serverURL,
             transport: URLSessionTransport(
@@ -80,7 +95,7 @@ public struct AIInfluencerDataSource: Sendable {
         prompt: String,
         idToken: String
     ) async throws -> String {
-        let response = try await authenticatedClient(bearerToken: idToken)
+        let response = try await generationClient(bearerToken: idToken)
             .generate_prompt_api_v1_influencers_generate_prompt_post(
                 .init(body: .json(.init(concept: prompt)))
             )
@@ -101,7 +116,7 @@ public struct AIInfluencerDataSource: Sendable {
         systemInstructions: String,
         idToken: String
     ) async throws -> AIInfluencerMetadata {
-        let response = try await authenticatedClient(bearerToken: idToken)
+        let response = try await generationClient(bearerToken: idToken)
             .validate_and_generate_api_v1_influencers_validate_and_generate_metadata_post(
                 .init(body: .json(.init(concept: systemInstructions)))
             )
@@ -114,6 +129,35 @@ public struct AIInfluencerDataSource: Sendable {
             throw Self.validationError(try payload.body.json.detail)
         case .undocumented:
             throw Self.undocumented(operation: "validate-and-generate-metadata")
+        }
+    }
+
+    /// `GET /api/v1/creator/influencers` — the authenticated creator's
+    /// bots with their real names (`name` = the handle used at creation,
+    /// `display_name`, `avatar_url`). This is where a bot's NAME lives —
+    /// the SpacetimeDB profile row carries no displayable name.
+    ///
+    /// SPEC DEFECT (upstream PR): the 200 response declares an empty
+    /// schema (`{}`), so the generator emits an untyped
+    /// `OpenAPIValueContainer` — decoded here via a JSON round-trip into
+    /// the typed `CreatorInfluencer` model. The endpoint is
+    /// Bearer-authenticated (the backend derives the creator from the
+    /// token).
+    public func listMyInfluencers(
+        idToken: String
+    ) async throws -> [CreatorInfluencer] {
+        let response = try await authenticatedClient(bearerToken: idToken)
+            .list_my_influencers_api_v1_creator_influencers_get(
+                .init()
+            )
+        switch response {
+        case .ok(let payload):
+            let body = try payload.body.json
+            return try CreatorInfluencerList(
+                unvalidated: body.value
+            ).influencers
+        case .undocumented:
+            throw Self.undocumented(operation: "creator-influencers")
         }
     }
 
@@ -279,9 +323,56 @@ public struct AIInfluencerMetadata: Equatable, Sendable {
         suggestedMessages = generated.suggested_messages ?? []
         // The generated payload is a free-form object container — read
         // the values back as strings (the server stores string traits).
-        personalityTraits = (generated.personality_traits?.additionalProperties.value
-            .mapValues { "\($0 ?? "")" }) ?? [:]
+        personalityTraits =
+            (generated.personality_traits?.additionalProperties.value
+                .mapValues { "\($0 ?? "")" }) ?? [:]
         category = generated.category
         avatarURL = generated.avatar_url
+    }
+}
+
+// MARK: - Creator's influencer listing (the bots' real names)
+
+/// One row of `GET /api/v1/creator/influencers` — the bot's real name
+/// (`name`, the creation-time handle), optional display name, and its
+/// SpacetimeDB principal (`bot_principal_id` is NOT in this response —
+/// the `id` field IS the bot principal, verified live: `id ==
+/// user_profiles_2.oauth_subject`).
+public struct CreatorInfluencer: Equatable, Sendable {
+    public let principal: String
+    public let name: String
+    public let displayName: String?
+    public let avatarURL: String?
+}
+
+/// Decodes the untyped response container (spec defect — empty 200
+/// schema) into typed rows. Pure: takes the runtime JSON value. The
+/// runtime decodes objects to `[String: (any Sendable)?]` and arrays to
+/// `[(any Sendable)?]` — the casts must match those EXACTLY (a plain
+/// `as? [[String: (any Sendable)?]]` fails: array elements are
+/// optionals of dictionaries, not dictionaries).
+struct CreatorInfluencerList: Equatable {
+    let influencers: [CreatorInfluencer]
+
+    init(unvalidated: (any Sendable)?) throws {
+        guard let dictionary = unvalidated as? [String: (any Sendable)?],
+            let rows = dictionary["influencers"] as? [(any Sendable)?]
+        else {
+            throw NetworkError.transport(
+                underlying: "creator-influencers: unexpected response shape"
+            )
+        }
+        influencers = rows.compactMap { row -> CreatorInfluencer? in
+            guard let row = row as? [String: (any Sendable)?],
+                let principal = row["id"] as? String,
+                let name = row["name"] as? String
+            else { return nil }
+            return CreatorInfluencer(
+                principal: principal,
+                name: name,
+                displayName: row["display_name"] as? String,
+                avatarURL: row["avatar_url"] as? String
+            )
+        }
     }
 }

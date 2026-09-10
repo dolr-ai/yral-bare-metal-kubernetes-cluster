@@ -23,7 +23,9 @@ struct ProfileView: View {
             Text(sessionStore.username ?? "Anonymous")
                 .font(.title3.weight(.semibold))
             if let principal = sessionStore.userPrincipal {
-                Text(principal)
+                // The auth identifier — the JWT `sub` (== principal in
+                // our tokens), labeled so it reads as an ID, not a name.
+                Text("ID: \(principal)")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)

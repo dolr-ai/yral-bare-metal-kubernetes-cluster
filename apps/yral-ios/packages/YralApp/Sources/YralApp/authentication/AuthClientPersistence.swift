@@ -14,11 +14,13 @@ extension AuthClient {
         let lastActivePrincipal = keychain.string(forKey: .lastActivePrincipal)
 
         let preferredPrincipal = defaults.string(forKey: CachedSessionKey.userPrincipal.rawValue)
-        let usePreferred = lastActivePrincipal != nil
+        let usePreferred =
+            lastActivePrincipal != nil
             && preferredPrincipal == lastActivePrincipal
 
         let canisterID = defaults.string(forKey: CachedSessionKey.canisterID.rawValue)
-        let userPrincipal = usePreferred
+        let userPrincipal =
+            usePreferred
             ? preferredPrincipal
             : mainPrincipal ?? preferredPrincipal
         let profilePic = cachedProfilePic(
@@ -30,15 +32,18 @@ extension AuthClient {
         let isCreatedFromServiceCanister = defaults.bool(
             forKey: CachedSessionKey.isCreatedFromServiceCanister.rawValue
         )
-        let resolvedIsBotAccount = mainPrincipal.map { main in
-            userPrincipal != nil && userPrincipal != main
-        } ?? false
+        let resolvedIsBotAccount =
+            mainPrincipal.map { main in
+                userPrincipal != nil && userPrincipal != main
+            } ?? false
 
         guard let canisterID, let userPrincipal, let profilePic else { return nil }
         return Session(
             canisterID: canisterID,
             userPrincipal: userPrincipal,
             profilePic: profilePic,
+            // Cached username when present; deterministic pseudonym
+            // fallback otherwise (never the raw identifier as a name).
             username: UsernameGenerator.resolveUsername(
                 preferred: username, principal: userPrincipal
             ),
@@ -84,6 +89,8 @@ extension AuthClient {
         defaults.set(canisterID, forKey: CachedSessionKey.canisterID.rawValue)
         defaults.set(userPrincipal, forKey: CachedSessionKey.userPrincipal.rawValue)
         defaults.set(profilePic, forKey: CachedSessionKey.profilePic.rawValue)
+        // The stored username when present; deterministic pseudonym
+        // fallback otherwise.
         let resolvedUsername = UsernameGenerator.resolveUsername(
             preferred: username, principal: userPrincipal
         )
@@ -138,8 +145,8 @@ extension AuthClient {
         // AIIdentitiesStore here when `persistBotIdentities` is true —
         // that list feeds the account switcher's AI section.
         if persistBotIdentities,
-           let claims = try? JWTParser.parsePayload(of: idToken),
-           let aiAccountIds = claims.aiAccountIds {
+            let claims = try? JWTParser.parsePayload(of: idToken),
+            let aiAccountIds = claims.aiAccountIds {
             AIIdentitiesStore.mergeFromTokenAIAccountIds(aiAccountIds, defaults: defaults)
         }
     }
@@ -147,8 +154,8 @@ extension AuthClient {
     /// Kotlin `updateYralSession` — fire-and-forget registration call.
     func updateYralSession(_ session: Session) async {
         guard let idToken = keychain.string(forKey: .idToken),
-              let canisterID = session.canisterID,
-              let userPrincipal = session.userPrincipal
+            let canisterID = session.canisterID,
+            let userPrincipal = session.userPrincipal
         else { return }
         _ = try? await authDataSource.updateSessionAsRegistered(
             idToken: idToken,
@@ -157,155 +164,6 @@ extension AuthClient {
         )
     }
 
-    // MARK: - Account switching (Kotlin RootViewModel.switchToAccount)
-
-    /// The switcher's list — Kotlin `seedAccountDialogFromLocalData`:
-    /// main account (from MAIN_PRINCIPAL) + AI entries (from
-    /// AIIdentitiesStore), each with resolved username + propic + the
-    /// active flag. Nil when no main principal exists (signed out).
-    func accountSwitcherEntries() -> AccountSwitcherEntries? {
-        guard let mainPrincipal = keychain.string(forKey: .mainPrincipal) else {
-            return nil
-        }
-        let activePrincipal = sessionStore.userPrincipal
-        let mainEntry = AccountSwitcherEntry(
-            principal: mainPrincipal,
-            username: mainPrincipal,
-            avatarURL: sessionStore.profilePic
-                ?? ProfilePicture.url(fromPrincipal: mainPrincipal),
-            isBot: false,
-            isActive: mainPrincipal == activePrincipal
-        )
-        let botEntries = AIIdentitiesStore.entries(defaults: defaults)
-            .filter { $0.principal != mainPrincipal }
-            .map { entry in
-                AccountSwitcherEntry(
-                    principal: entry.principal,
-                    username: UsernameGenerator.resolveUsername(
-                        preferred: entry.username, principal: entry.principal
-                    ) ?? entry.principal,
-                    // GobGob deterministic fallback — `refreshedAccountSwitcherEntries()`
-                    // overlays the hosted URL from the profile table when
-                    // the switcher is opened.
-                    avatarURL: ProfilePicture.url(fromPrincipal: entry.principal),
-                    isBot: true,
-                    isActive: entry.principal == activePrincipal
-                )
-            }
-        return AccountSwitcherEntries(mainAccount: mainEntry, aiAccounts: botEntries)
-    }
-
-    /// The switcher's list with live avatars — `accountSwitcherEntries()`
-    /// plus one batch read of the bot profiles from SpacetimeDB so the
-    /// rows show the DURABLE hosted URLs (written at creation), not the
-    /// GobGob fallback. The table is the source of truth; nothing is
-    /// duplicated into local storage. Best-effort: on a read failure or a
-    /// blank row the GobGob fallback shows (same as before).
-    ///
-    /// DEVIATION FROM KOTLIN (intentional): Kotlin rebuilt every row's
-    /// avatar from the principal — losing the generated image. Here the
-    /// rows carry what the profile table says, per-bot.
-    func refreshedAccountSwitcherEntries() async -> AccountSwitcherEntries? {
-        guard let entries = accountSwitcherEntries() else { return nil }
-        guard !entries.aiAccounts.isEmpty else { return entries }
-        guard let profiles = try? await spacetimeDataSource.getUsersProfileDetails(
-            oauthSubjects: entries.aiAccounts.map(\.principal)
-        ) else { return entries }
-        let refreshed = Self.applyProfilePictures(
-            to: entries.aiAccounts,
-            from: profiles
-        )
-        return AccountSwitcherEntries(mainAccount: entries.mainAccount, aiAccounts: refreshed)
-    }
-
-    /// Pure — overlay the fetched profile pictures onto the switcher
-    /// rows. A row keeps its fallback when the server row is missing or
-    /// carries a blank URL (the bot's write may never have landed — e.g.
-    /// the pre-wire-fix creations).
-    nonisolated static func applyProfilePictures(
-        to entries: [AccountSwitcherEntry],
-        from profiles: [SpacetimeUserProfile]
-    ) -> [AccountSwitcherEntry] {
-        let pictureURLsByPrincipal: [String: String] = Dictionary(
-            uniqueKeysWithValues: profiles.compactMap { profile -> (String, String)? in
-                guard let picture = profile.profilePicture,
-                      !picture.url.isEmpty
-                else { return nil }
-                return (profile.oauthSubject, picture.url)
-            }
-        )
-        return entries.map { entry in
-            guard let hostedURL = pictureURLsByPrincipal[entry.principal] else { return entry }
-            var refreshed = entry
-            refreshed.avatarURL = hostedURL
-            return refreshed
-        }
-    }
-
-    /// Switches the active account — Kotlin `switchToAccount` (CLIENT-SIDE
-    /// session construction): build the session directly from the
-    /// principal (propic + username derived), update the store, persist
-    /// the cached session fields, and set LAST_ACTIVE_PRINCIPAL.
-    /// AI switches skip token refresh (the parent's tokens stay active);
-    /// switching back to main refreshes + reauthorizes.
-    ///
-    /// `avatarURL`: the tapped switcher row's URL — after
-    /// `refreshedAccountSwitcherEntries()` this is the bot's HOSTED
-    /// avatar from the profile table (durable Storj URL). Falls back to
-    /// the GobGob deterministic URL when absent (offline switch, main
-    /// account, or a bot whose write never landed).
-    func switchToAccount(principal: String, avatarURL: String? = nil) {
-        // No-op when already active (Kotlin returns early).
-        guard sessionStore.userPrincipal != principal else { return }
-
-        let storedMainPrincipal = keychain.string(forKey: .mainPrincipal)
-        var isBot = true
-        var botUsername: String?
-        if principal == storedMainPrincipal {
-            isBot = false
-        } else {
-            let storedBots = AIIdentitiesStore.entries(defaults: defaults)
-            guard let match = storedBots.first(where: { $0.principal == principal }) else {
-                return
-            }
-            botUsername = match.username
-        }
-
-        let profilePic = avatarURL
-            ?? ProfilePicture.url(fromPrincipal: principal)
-        let session = Session(
-            canisterID: principal,
-            userPrincipal: principal,
-            profilePic: profilePic,
-            username: UsernameGenerator.resolveUsername(
-                preferred: botUsername, principal: principal
-            ),
-            bio: nil,
-            isCreatedFromServiceCanister: true,
-            isAIAccount: isBot
-        )
-        sessionStore.updateState(.signedIn(session))
-        cacheSession(
-            canisterID: principal,
-            userPrincipal: principal,
-            profilePic: profilePic,
-            username: botUsername,
-            isAIAccount: isBot
-        )
-        keychain.setString(principal, forKey: .lastActivePrincipal)
-        if isBot {
-            // AI accounts share the parent's tokens — do NOT overwrite the session
-            // with parent-token auth state (Kotlin parity).
-            sessionStore.updateFirebaseLoginState(false)
-        } else {
-            Task {
-                await refreshTokens()
-                sessionStore.updateFirebaseLoginState(true)
-            }
-        }
-    }
-
-    /// Kotlin `postLogin` — notification-token registration; the push
     /// phase wires this to Firebase Messaging.
     func postLogin() {}
 

@@ -97,11 +97,15 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(sessionStore.username ?? "Anonymous")
                         .font(.headline)
-                    Text(sessionStore.userPrincipal ?? "")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                    // The auth identifier — the JWT `sub` (== principal in
+                    // our tokens), labeled so it reads as an ID, not a name.
+                    if let principal = sessionStore.userPrincipal {
+                        Text("ID: \(principal)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
                 }
             }
         }
