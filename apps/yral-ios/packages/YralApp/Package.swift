@@ -27,6 +27,13 @@ let firebaseAppleSdkVersion: Version = "12.18.0"
 let swiftOpenAPIGeneratorVersion: Version = "1.13.1"
 let swiftOpenAPIRuntimeVersion: Version = "1.12.1"
 let swiftOpenAPIURLSessionVersion: Version = "1.3.1"
+// HTTPTypes (swift-http-types) — the generated-client middleware
+// (`BearerAuthenticationMiddleware`) references HTTPRequest/HTTPResponse/
+// HTTPBody directly, so it is a DIRECT dependency (SPM does not expose
+// transitive deps for import — see the FirebaseCore note below). Pinned
+// to the version swift-openapi-runtime 1.12.1 already resolves to, so no
+// dependency-graph change beyond making the direct edge explicit.
+let swiftHTTPTypesVersion: Version = "1.7.0"
 
 let package = Package(
     name: "YralApp",
@@ -67,6 +74,12 @@ let package = Package(
         .package(
             url: "https://github.com/apple/swift-openapi-urlsession.git",
             exact: swiftOpenAPIURLSessionVersion
+        ),
+        // Direct HTTPTypes for the bearer middleware's request/response
+        // types (see the note on swiftHTTPTypesVersion above).
+        .package(
+            url: "https://github.com/apple/swift-http-types.git",
+            exact: swiftHTTPTypesVersion
         )
     ],
     targets: [
@@ -94,6 +107,11 @@ let package = Package(
                 .product(
                     name: "OpenAPIURLSession",
                     package: "swift-openapi-urlsession"
+                ),
+                // Direct import target for the middleware types.
+                .product(
+                    name: "HTTPTypes",
+                    package: "swift-http-types"
                 )
             ],
             swiftSettings: [
