@@ -61,6 +61,12 @@ use crate::posts::posts_3;
 /// **Do not write to this table.** All writes go to `user_profiles_2`.
 /// Reads use lazy migration: check `user_profiles_2` first, then fall back
 /// here and migrate the row.
+///
+/// TODO(drop-user-profiles): once the `user_profiles_2` migration is
+/// confirmed complete in production (row counts validated, spot checks
+/// pass, no lazy-migration reads falling through), clear this table via a
+/// batch reducer (NEVER --delete-data), then remove the struct + accessor
+/// and publish.
 #[spacetimedb::table(accessor = user_profiles, public)]
 #[derive(Clone)]
 pub struct UserProfile {
@@ -142,6 +148,11 @@ pub struct UserProfile2 {
 /// "who does X follow" queries.
 ///
 /// **Do not write to this table.** All writes go to `user_follows_2`.
+///
+/// TODO(drop-user-follows): once the `user_follows_2` migration is confirmed
+/// complete in production (row counts validated, spot checks pass), clear
+/// this table via a batch reducer (NEVER --delete-data), then remove the
+/// struct + accessor and publish.
 #[spacetimedb::table(accessor = user_follows, public)]
 #[derive(Clone)]
 pub struct UserFollow {

@@ -81,6 +81,16 @@ pub struct PostViewDetailsFromFrontend {
 ///
 /// Primary key: `id` (String, the post's UUID from the IC canister).
 /// Index: `by_creator` btree on `creator` for profile-pagination queries.
+///
+/// LEGACY — superseded by `PostV2` (`posts_v2`), itself superseded by
+/// `Post3` (`posts_3`, the CURRENT table). All writes and client reads go
+/// to `posts_3`; this table survives only for the migration backfill
+/// (`migrate_posts_to_3`). Its columns live only in the migration path.
+///
+/// TODO(drop-posts): once `posts_3` is confirmed complete in production
+/// (row counts validated vs `posts_v2`, spot checks pass, clients all on
+/// `posts_3`), clear this table via a batch reducer (NEVER --delete-data),
+/// then remove the struct + accessor and publish.
 #[spacetimedb::table(accessor = posts, public)]
 pub struct Post {
     #[primary_key]
@@ -108,7 +118,17 @@ pub struct Post {
 /// doesn't work for `String` columns (not const-constructible), so adding
 /// a column to the existing table requires `--delete-data`. Instead, we
 /// create a separate V2 table, backfill it from IC, validate, then swap
-/// the procedure reads to use V2. The old `Post` table is dropped later.
+/// the procedure reads to use V2.
+///
+/// LEGACY — superseded by `Post3` (`posts_3`, the CURRENT table). All
+/// writes and client reads go to `posts_3`; this table survives only for
+/// the lazy/batch migration paths (`migrate_posts_to_3` reads it, the
+/// read fallback checks it before migrating).
+///
+/// TODO(drop-posts-v2): once `posts_3` is confirmed complete in production
+/// (row counts validated, spot checks pass), clear this table via a batch
+/// reducer (NEVER --delete-data), then remove the struct + accessor and
+/// publish.
 #[spacetimedb::table(name = "posts_v2", accessor = posts_v2, public)]
 pub struct PostV2 {
     #[primary_key]
