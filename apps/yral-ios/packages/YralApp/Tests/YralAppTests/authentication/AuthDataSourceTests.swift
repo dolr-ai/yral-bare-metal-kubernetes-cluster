@@ -63,11 +63,25 @@ struct AuthDataSourceTests {
         ChannelURLProtocol.register(
             { request in
                 recorder.record(request)
+                // The delete_user PROCEDURE returns DeleteUserResult as
+                // a positional array: [error, deleted_subjects,
+                // backend_deletions]. Success-shaped stub: echo the
+                // requested subject as deleted, no backend failures.
+                var deletedSubjectsJSON = "[]"
+                if request.url?.path.contains("/call/delete_user") == true {
+                    let body = request.httpBody ?? request.bodyStreamData
+                    if let body,
+                       let arguments = try? JSONSerialization.jsonObject(with: body) as? [Any],
+                       let target = arguments.first as? String {
+                        deletedSubjectsJSON = "[\"\(target)\"]"
+                    }
+                }
+                let deleteResult = "[\"\",\(deletedSubjectsJSON),[]]"
                 let response = HTTPURLResponse(
                     url: request.url!, statusCode: 200,
                     httpVersion: "HTTP/1.1", headerFields: nil
                 )!
-                return (response, Data("[]".utf8))
+                return (response, Data(deleteResult.utf8))
             },
             forChannel: channel
         )
@@ -101,12 +115,12 @@ struct AuthDataSourceTests {
         )
     }
 
-    /// Extracts the reducer target from the captured delete_user_info call.
-    private func capturedReducerTarget(recorder: RequestRecorder) throws -> String {
+    /// Extracts the procedure target from the captured delete_user call.
+    private func capturedProcedureTarget(recorder: RequestRecorder) throws -> String {
         guard let deleteCall = recorder.requests.first(where: {
-            $0.url?.path.contains("/call/delete_user_info") == true
+            $0.url?.path.contains("/call/delete_user") == true
         }) else {
-            Issue.record("expected a delete_user_info call")
+            Issue.record("expected a delete_user call")
             return ""
         }
         let body = deleteCall.httpBody ?? deleteCall.bodyStreamData
@@ -142,8 +156,8 @@ struct AuthDataSourceTests {
 
         try await signedIn.client.deleteAccount()
 
-        // The reducer target is THE BOT — not the token's (main) sub.
-        #expect(try capturedReducerTarget(recorder: recorder) == botSubject)
+        // The procedure target is THE BOT — not the token's (main) sub.
+        #expect(try capturedProcedureTarget(recorder: recorder) == botSubject)
         // UI switched back to the main account (still signed in).
         #expect(signedIn.sessionStore.userSubject == mainSubject)
         #expect(signedIn.sessionStore.isAIAccount == false)
@@ -173,9 +187,9 @@ struct AuthDataSourceTests {
 
         try await signedIn.client.deleteAccount()
 
-        // The reducer target is the main subject (cascades all bots
+        // The procedure target is the main subject (cascades all bots
         // server-side).
-        #expect(try capturedReducerTarget(recorder: recorder) == mainSubject)
+        #expect(try capturedProcedureTarget(recorder: recorder) == mainSubject)
         // Full logout — the account (and every bot) is gone.
         #expect(signedIn.sessionStore.userSubject == nil)
         #expect(signedIn.keychain.string(forKey: .idToken) == nil)

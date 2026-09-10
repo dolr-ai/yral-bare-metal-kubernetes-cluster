@@ -12,9 +12,11 @@ pub mod add_post_reducer;
 pub mod add_pro_plan_free_video_credits_reducer;
 pub mod add_view_details_reducer;
 pub mod auth_kv_entry_type;
+pub mod backend_deletion_status_type;
 pub mod change_subscription_plan_reducer;
 pub mod delete_post_reducer;
-pub mod delete_user_info_reducer;
+pub mod delete_user_procedure;
+pub mod delete_user_result_type;
 pub mod fetch_posts_procedure;
 pub mod fetch_posts_result_type;
 pub mod follow_user_reducer;
@@ -94,9 +96,11 @@ pub use add_post_reducer::add_post;
 pub use add_pro_plan_free_video_credits_reducer::add_pro_plan_free_video_credits;
 pub use add_view_details_reducer::add_view_details;
 pub use auth_kv_entry_type::AuthKvEntry;
+pub use backend_deletion_status_type::BackendDeletionStatus;
 pub use change_subscription_plan_reducer::change_subscription_plan;
 pub use delete_post_reducer::delete_post;
-pub use delete_user_info_reducer::delete_user_info;
+pub use delete_user_procedure::delete_user;
+pub use delete_user_result_type::DeleteUserResult;
 pub use fetch_posts_procedure::fetch_posts;
 pub use fetch_posts_result_type::FetchPostsResult;
 pub use follow_user_reducer::follow_user;
@@ -214,9 +218,6 @@ pub enum Reducer {
     DeletePost {
         post_id: String,
     },
-    DeleteUserInfo {
-        principal_to_delete_text: String,
-    },
     FollowUser {
         followee_subject: String,
     },
@@ -309,7 +310,6 @@ impl __sdk::Reducer for Reducer {
             Reducer::AddViewDetails { .. } => "add_view_details",
             Reducer::ChangeSubscriptionPlan { .. } => "change_subscription_plan",
             Reducer::DeletePost { .. } => "delete_post",
-            Reducer::DeleteUserInfo { .. } => "delete_user_info",
             Reducer::FollowUser { .. } => "follow_user",
             Reducer::KvDelete { .. } => "kv_delete",
             Reducer::KvSet { .. } => "kv_set",
@@ -410,11 +410,6 @@ impl __sdk::Reducer for Reducer {
                     post_id: post_id.clone(),
                 })
             }
-            Reducer::DeleteUserInfo {
-                principal_to_delete_text,
-            } => __sats::bsatn::to_vec(&delete_user_info_reducer::DeleteUserInfoArgs {
-                principal_to_delete_text: principal_to_delete_text.clone(),
-            }),
             Reducer::FollowUser { followee_subject } => {
                 __sats::bsatn::to_vec(&follow_user_reducer::FollowUserArgs {
                     followee_subject: followee_subject.clone(),

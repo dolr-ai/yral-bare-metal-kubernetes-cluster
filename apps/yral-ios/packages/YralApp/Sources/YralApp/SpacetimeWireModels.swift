@@ -234,18 +234,6 @@ struct UnfollowUserArguments: Encodable {
     }
 }
 
-/// `delete_user_info(principal_to_delete_text: String)` — the LIVE
-/// reducer signature (the module keeps the wire arg name; encoding is
-/// positional so the Swift property name is Swift-side only).
-struct DeleteUserInfoArguments: Encodable {
-    let subjectToDelete: String
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-        try container.encode(subjectToDelete)
-    }
-}
-
 /// `register_notification_token(token: String)`.
 struct RegisterNotificationTokenArguments: Encodable {
     let token: String

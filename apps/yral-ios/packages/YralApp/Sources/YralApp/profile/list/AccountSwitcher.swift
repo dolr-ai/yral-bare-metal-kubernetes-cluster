@@ -42,6 +42,19 @@ enum AIIdentitiesStore {
         defaults.removeObject(forKey: storageKey)
     }
 
+    /// Drops one AI identity — the account-deletion flow calls this so
+    /// the deleted bot disappears from the switcher's AI section (the
+    /// next token merge re-seeds from `ext_ai_account_ids`).
+    static func removeIdentity(
+        subject: String,
+        defaults: UserDefaults = .standard
+    ) {
+        let current = entries(defaults: defaults)
+        let remaining = current.filter { $0.subject != subject }
+        if remaining.count == current.count { return }
+        put(remaining, defaults: defaults)
+    }
+
     /// Kotlin `BotIdentityStorage.saveBotIdentity` — upsert a single AI
     /// identity (with its username) after creation.
     static func saveIdentity(

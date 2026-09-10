@@ -160,109 +160,12 @@ public struct SpacetimeDBRemoteDataSource: Sendable {
         )
     }
 
-    // MARK: - Writes (reducers)
-
-    /// `follow_user` — JWT required.
-    public func followUser(followeeSubject: String) async throws {
-        try await callReducer(name: "follow_user", arguments: FollowUserArguments(followeeSubject: followeeSubject))
-    }
-
-    /// `unfollow_user` — JWT required.
-    public func unfollowUser(followeeSubject: String) async throws {
-        try await callReducer(name: "unfollow_user", arguments: UnfollowUserArguments(followeeSubject: followeeSubject))
-    }
-
-    /// `register_new_user` — JWT required.
-    public func registerNewUser() async throws {
-        try await callReducer(name: "register_new_user", arguments: SpacetimeNoArguments())
-    }
-
-    /// `update_profile_details` — typed args (UpdateProfileDetailsArguments —
-    /// mirrors the LIVE reducer signature; see SpacetimeWireModels).
-    /// `update_as_ai_account_id` is REQUIRED when editing an AI account's
-    /// profile — without it the details land on the OWNER's profile (see
-    /// the reducer's doc comment in src/user_info.rs).
-    public func updateProfileDetails(
-        bio: String?,
-        websiteURL: String?,
-        profilePictureURL: String?,
-        updateAsAIAccountID: String?
-    ) async throws {
-        let profilePicture = profilePictureURL.map {
-            SpacetimeWireProfilePictureData(
-                url: $0,
-                nsfwInfo: SpacetimeWireNSFWInfo(
-                    isNSFW: false,
-                    nsfwEC: "",
-                    nsfwGore: "",
-                    csamDetected: false
-                )
-            )
-        }
-        try await callReducer(
-            name: "update_profile_details",
-            arguments: UpdateProfileDetailsArguments(
-                bio: bio,
-                websiteURL: websiteURL,
-                profilePicture: profilePicture,
-                updateAsAIAccountID: updateAsAIAccountID
-            )
-        )
-    }
-
-    /// `accept_new_user_registration` — typed args
-    /// (AcceptNewUserRegistrationArguments — mirrors the LIVE reducer
-    /// signature; see SpacetimeWireModels). Used for both owner
-    /// registration and AI account attachment.
-    public func acceptNewUserRegistration(
-        newSubjectText: String,
-        authenticated: Bool,
-        mainAccountText: String?
-    ) async throws {
-        try await callReducer(
-            name: "accept_new_user_registration",
-            arguments: AcceptNewUserRegistrationArguments(
-                newSubjectText: newSubjectText,
-                authenticated: authenticated,
-                mainAccountText: mainAccountText
-            )
-        )
-    }
-
-    /// `delete_user_info` — JWT required.
-    public func deleteUserInfo(subjectToDelete: String) async throws {
-        try await callReducer(
-            name: "delete_user_info",
-            arguments: DeleteUserInfoArguments(subjectToDelete: subjectToDelete)
-        )
-    }
-
-    /// `register_notification_token` — JWT required (Phase 2 push wiring).
-    public func registerNotificationToken(_ token: String) async throws {
-        try await callReducer(
-            name: "register_notification_token",
-            arguments: RegisterNotificationTokenArguments(token: token)
-        )
-    }
-
-    /// `unregister_notification_token` — JWT required.
-    public func unregisterNotificationToken(_ token: String) async throws {
-        try await callReducer(
-            name: "unregister_notification_token",
-            arguments: UnregisterNotificationTokenArguments(token: token)
-        )
-    }
-
-    /// `update_user_last_access_time` — JWT required.
-    public func updateUserLastAccessTime() async throws {
-        try await callReducer(name: "update_user_last_access_time", arguments: SpacetimeNoArguments())
-    }
-
     // MARK: - Transport
 
     /// POSTs `{base}/v1/database/{db}/call/{name}` and returns the raw body.
     /// The response body IS the return value (no wrapper array).
-    private func callProcedure(
+    /// Internal (not private): the Writes extension file shares it.
+    func callProcedure(
         name: String,
         arguments: some Encodable,
         requiresToken: Bool
@@ -310,8 +213,9 @@ public struct SpacetimeDBRemoteDataSource: Sendable {
         return String(data: data, encoding: .utf8) ?? ""
     }
 
-    /// Calls a reducer (write) — JWT required; the unit-return body is discarded.
-    private func callReducer(name: String, arguments: some Encodable) async throws {
+    /// Calls a reducer (write) — JWT required; the unit-return body is
+    /// discarded. Internal (not private): the Writes extension shares it.
+    func callReducer(name: String, arguments: some Encodable) async throws {
         _ = try await callProcedure(name: name, arguments: arguments, requiresToken: true)
     }
 

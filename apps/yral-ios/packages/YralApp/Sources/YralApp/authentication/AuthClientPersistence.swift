@@ -170,15 +170,16 @@ extension AuthClient {
         keychain.string(forKey: .idToken)
     }
 
-    /// Delete the ACTIVE account — ONE transactional SpacetimeDB reducer
-    /// (`delete_user_info`) cascading profiles, bots (where applicable),
-    /// follows (with counter fixes), notification tokens, posts, and
-    /// auth_kv identity mappings. The off-chain-agent's DELETE
-    /// /api/v1/user is decommissioned (it was a stub: logged + returned
-    /// fake success, deleted nothing).
+    /// Delete the ACTIVE account — ONE SpacetimeDB PROCEDURE
+    /// (`delete_user`) that runs the transactional cascade (profiles,
+    /// bots where applicable, follows with counter fixes, notification
+    /// tokens, posts, auth_kv identity mappings) and then soft-deletes
+    /// the deleted bots' rows on the agent service so persona names
+    /// free up. The backend sync happens server-side in the procedure —
+    /// the client makes ONE call and gets a typed result.
     ///
-    /// Semantics by WHAT is active (the reducer's ownership rule — self
-    /// or owner-of-bot — enforces both server-side):
+    /// Semantics by WHAT is active (the cascade's ownership rule — self
+    /// or owner-of-bot — enforces it server-side):
     ///   - AI account active → deletes THAT bot + its data. The UI then
     ///     switches back to the main account (`switchAfterDelete`).
     ///   - Main account active → deletes the main + ALL bots + all data;
@@ -189,6 +190,11 @@ extension AuthClient {
     /// is the main subject — deleting "the token's subject" while a
     /// bot is active would cascade the whole main account (observed in
     /// prod: deleting pure-calm-moose removed every bot).
+    ///
+    /// Failed backend soft-deletes are reported to Crashlytics with the
+    /// agent service's verbatim response — the DB cascade has already
+    /// committed; the backend rows converge on a retry of the same
+    /// procedure (idempotent: a missing row counts as success).
     public func deleteAccount() async throws {
         guard let idToken else {
             throw AuthError.oauthFailed(errorDescription: "Not signed in")
@@ -196,9 +202,35 @@ extension AuthClient {
         guard let activeSubject = sessionStore.userSubject else {
             throw AuthError.oauthFailed(errorDescription: "No active account")
         }
-        try await spacetimeDataSource.deleteUserInfo(
-            subjectToDelete: activeSubject
+        let result = try await spacetimeDataSource.deleteUser(
+            subjectToDelete: activeSubject,
+            idToken: idToken
         )
+        guard result.error.isEmpty else {
+            // The module's own words — surface them verbatim.
+            throw AuthError.oauthFailed(errorDescription: result.error)
+        }
+        // Report any failed backend soft-delete (the DB cascade has
+        // committed; the result's per-bot status tells us what didn't
+        // converge — retryable by re-running the procedure).
+        for backendStatus in result.backendDeletions where !backendStatus.succeeded {
+            CrashReporter.record(
+                NetworkError.http(
+                    statusCode: backendStatus.httpStatus,
+                    body: backendStatus.error
+                ),
+                context: "influencer-backend-delete-\(backendStatus.botSubject)"
+            )
+        }
+        // Local identity store — the switcher's AI section reflects the
+        // deletion immediately (the deleted bots drop out of the list;
+        // the next token merge re-seeds from `ext_ai_account_ids`).
+        for deletedSubject in result.deletedSubjects {
+            AIIdentitiesStore.removeIdentity(
+                subject: deletedSubject,
+                defaults: defaults
+            )
+        }
         if sessionStore.isAIAccount == true {
             // Deleted a BOT — switch back to the main account rather
             // than logging out (the user is still signed in as main).

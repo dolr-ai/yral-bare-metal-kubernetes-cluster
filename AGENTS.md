@@ -155,7 +155,15 @@ Always use well-named, descriptive variable and type names. Never use shortened 
 Modern IDEs and language tooling make long names ergonomic regardless of language. Descriptive names serve as inline documentation and make grep/code-search effective. Abbreviations create cognitive overhead and inconsistency.
 
 **No legacy domain jargon (Hard Rule):** Do not carry over naming from previous platforms. Call things what they actually are in the current system (e.g. `oauth_subject` / `user_id` for user identifiers, `service_id` for service identifiers, SpacetimeDB `Identity` for database identity). When touching code that uses legacy jargon from a prior platform, rename to the accurate current term in the same change. This prevents conflation and makes the code self-documenting.
+### Self-Documenting Code over Comment Narration (Hard Rule)
+**Names and types carry the documentation burden; comments are the fallback, not the default.** Never write narration comments that restate what the code already says ("// loop over the rows", "// return the result", "// create the client") — a reviewer reading two parallel texts loses readability, not gains it. Express intent in identifiers and types first (Descriptive Naming above); comment ONLY what names + types cannot carry: cross-system rationale, invariants, wire-format gotchas, incident/issue references.
 
+When a comment IS warranted, prefer the API-exportable, tool-consumable forms:
+- **Doc comments by default** — Rust `///` items and `//!` module docs, Swift `///`: rendered by rustdoc/DocC/editor Quick Help, exported to generated API docs, and force contract-level framing (semantics, args, returns, errors) over line-local narration.
+- **Annotated TODO forms for tracked work** — `TODO:` / `FIXME:` prefixes are the operator-requested follow-up mechanism (why the `todo` lint rule stays disabled); Better Comments + Todo Tree index them. Established pattern: the `TODO(drop-*)` markers in the SpacetimeDB module.
+- **Inline `//` only for line-local notes** that cannot be a doc comment — a constant's derivation at its use site, a non-obvious ordering constraint mid-function.
+
+When touching code whose comments violate this (narration, or multi-paragraph essays where a rename or type would do), tighten them in the same change — gradual migration, same policy as the macro-free rules. This targets REDUNDANCY, not documentation: contract doc comments (wire-pin shapes, incident references, ownership semantics) remain and are load-bearing.
 ### Commit Scope — Include the Operator's Parallel Changes (Preference)
 When the operator makes manual changes in parallel with agent work (dependency bumps, edits done in another editor, etc.), **include them in the same commit set rather than excluding them** — review the diff, describe it accurately in the commit message, and commit everything together. Deliberately excluding the operator's own changes strands their work uncommitted while the agent's work ships. Only exception: changes the operator explicitly asks to keep separate.
 

@@ -29,7 +29,9 @@
 //! - `update_profile_details(bio, website_url, profile_picture)` — sender only, NSFW-aware
 //! - `update_profile_ai_influencer_status(oauth_subject, is_ai)` — admin only
 //! - `accept_new_user_registration(new_principal_text, authenticated, main_account_text)` — register/bot
-//! - `delete_user_info(principal_to_delete_text)` — cascade delete
+//! - `delete_user(subject_to_delete, id_token)` — procedure: cascade delete
+//!   + agent-service backend soft-deletes (the standalone reducer is
+//!   removed — this procedure is the mutation entry point)
 //! - `update_user_last_access_time()` — sender only
 //! - `update_profile_picture_nsfw_info(oauth_subject, nsfw_info)` — admin only
 //! - `change_subscription_plan(oauth_subject, plan)` — admin only
@@ -41,7 +43,7 @@
 
 use spacetimedb::{ProcedureContext, ReducerContext, SpacetimeType, Table, Timestamp};
 
-// Cross-module table accessors for `delete_user_info`'s cascade: the live
+// Cross-module table accessors for the delete cascade: the live
 // post table, and yral-auth's private KV store (the per-table accessor
 // traits are crate-visible; `Table` above brings insert/iter/delete in).
 use crate::auth_kv::auth_kv;
@@ -766,36 +768,43 @@ pub fn accept_new_user_registration(
 ///     provider logins and backend-service logins) so re-login mints a
 ///     FRESH identity instead of resurrecting the deleted one
 ///
-/// Everything in one reducer = one transaction — all-or-nothing.
-#[spacetimedb::reducer]
-pub fn delete_user_info(
+/// The delete cascade, run by the `delete_user` procedure. Ownership:
+/// admin, or self for a MainAccount target, or the bot's owner for a
+/// BotAccount target. Returns every subject deleted (main + its bots,
+/// or the one bot) so the caller can propagate the deletion to
+/// dependent systems.
+///
+/// MUST run inside a transaction — the procedure wraps it in `with_tx`.
+///
+/// The standalone `delete_user_info` REDUCER was REMOVED (2026-09-10):
+/// reducers run inside the DB transaction and cannot propagate deletion
+/// to external systems, which orphaned the bots' rows on the agent
+/// service (persona names stayed "taken" forever — see
+/// dolr-ai/yral-rishi-agent#512). Clients call the `delete_user`
+/// PROCEDURE instead. The Kotlin client's migration is tracked in the
+/// yral-mobile repo.
+fn cascade_delete_user(
     ctx: &ReducerContext,
-    principal_to_delete_text: String,
-) -> Result<(), String> {
-    let caller_text = ctx
-        .sender_auth()
-        .jwt()
-        .expect("JWT required")
-        .subject()
-        .to_string();
-    let admin = crate::constants::ADMINS.contains(&ctx.sender());
-
+    subject_to_delete: &str,
+    caller_text: &str,
+    admin: bool,
+) -> Result<Vec<String>, String> {
     let profile = match ctx
         .db
         .user_profiles_2()
         .iter()
-        .find(|p| p.oauth_subject == principal_to_delete_text)
+        .find(|p| p.oauth_subject == subject_to_delete)
     {
         Some(p) => p,
         None => return Err("User not found".to_string()),
     };
 
     // Collect every subject being deleted (main + bots) up front.
-    let mut deleted_subjects = vec![principal_to_delete_text.clone()];
+    let mut deleted_subjects: Vec<String> = vec![subject_to_delete.to_string()];
     match &profile.account_type {
         UserAccountType::MainAccount { bots } => {
             // Admin or self can delete a MainAccount
-            if !admin && principal_to_delete_text != caller_text {
+            if !admin && subject_to_delete != caller_text {
                 return Err("Unauthorized".to_string());
             }
             deleted_subjects.extend(bots.iter().cloned());
@@ -815,7 +824,7 @@ pub fn delete_user_info(
                 if let UserAccountType::MainAccount { bots } = &owner_profile.account_type {
                     let new_bots: Vec<String> = bots
                         .iter()
-                        .filter(|b| *b != &principal_to_delete_text)
+                        .filter(|b| *b != subject_to_delete)
                         .cloned()
                         .collect();
                     owner_profile.account_type = UserAccountType::MainAccount { bots: new_bots };
@@ -904,11 +913,132 @@ pub fn delete_user_info(
         }
     }
 
-    Ok(())
+    Ok(deleted_subjects)
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Procedure: delete with backend sync (the preferred client entry point)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Per-bot outcome of the backend soft-delete on the agent service.
+/// `error` carries the upstream response body (or transport error text)
+/// verbatim — the client surfaces the agent's own words.
+#[derive(SpacetimeType)]
+pub struct BackendDeletionStatus {
+    pub bot_subject: String,
+    pub ok: bool,
+    /// 0 when the request itself failed (transport error, timeout).
+    pub http_status: u16,
+    pub error: String,
+}
+
+/// The `delete_user` result: the cascade's error text (empty on success),
+/// every subject removed, and each bot's backend soft-delete outcome.
+#[derive(SpacetimeType)]
+pub struct DeleteUserResult {
+    /// The cascade's error (e.g. "User not found", "Unauthorized");
+    /// empty on success. Typed so the client surfaces the module's own
+    /// words verbatim instead of a panic.
+    pub error: String,
+    pub deleted_subjects: Vec<String>,
+    pub backend_deletions: Vec<BackendDeletionStatus>,
+}
+
+/// Rishi's influencer backend — the `ai_influencers` rows holding the
+/// persona names that must free up on deletion.
+const AGENT_SERVICE_BASE_URL: &str = "https://agent.rishi.yral.com";
+
+/// Delete the ACTIVE account: the transactional cascade, then (after
+/// commit) the deleted bots' backend soft-deletes so their persona
+/// names free up for re-creation.
+///
+/// `id_token` is forwarded as the agent-call bearer: the module's
+/// `sender_auth().jwt()` exposes only parsed claims, never the signed
+/// token. Ownership is enforced twice — here via the JWT's subject
+/// claim, and on the agent via `parent_principal_id == token user`.
+///
+/// BotAccount target → deletes that bot; the client switches back to
+/// main. MainAccount target → deletes the main + ALL its bots; the
+/// client logs out.
+#[spacetimedb::procedure]
+pub fn delete_user(
+    ctx: &mut ProcedureContext,
+    subject_to_delete: String,
+    id_token: String,
+) -> DeleteUserResult {
+    let cascade_result = ctx.try_with_tx(|tx| {
+        let caller_text = tx
+            .sender_auth()
+            .jwt()
+            .expect("JWT required")
+            .subject()
+            .to_string();
+        let admin = crate::constants::ADMINS.contains(&tx.sender());
+        cascade_delete_user(tx, &subject_to_delete, &caller_text, admin)
+    });
+    let deleted_subjects = match cascade_result {
+        Ok(subjects) => subjects,
+        Err(error) => {
+            return DeleteUserResult {
+                error,
+                deleted_subjects: Vec::new(),
+                backend_deletions: Vec::new(),
+            };
+        }
+    };
+
+    // Best-effort and idempotent: a main subject has no influencer row
+    // (its 404 counts as success), and a bot already gone also 404s.
+    let backend_deletions = deleted_subjects
+        .iter()
+        .map(|subject| soft_delete_influencer_row(ctx, subject, &id_token))
+        .collect();
+
+    DeleteUserResult {
+        error: String::new(),
+        deleted_subjects,
+        backend_deletions,
+    }
+}
+
+fn soft_delete_influencer_row(
+    ctx: &ProcedureContext,
+    bot_subject: &str,
+    id_token: &str,
+) -> BackendDeletionStatus {
+    let url = format!("{AGENT_SERVICE_BASE_URL}/api/v1/influencers/{bot_subject}");
+    let request = spacetimedb::http::Request::builder()
+        .uri(url)
+        .method("DELETE")
+        .header("Authorization", format!("Bearer {id_token}"))
+        .body(())
+        .expect("Building the DELETE request failed");
+
+    match ctx.http.send(request) {
+        Ok(response) => {
+            let (parts, body) = response.into_parts();
+            let status = parts.status.as_u16();
+            // 200 deleted, 404 already gone — both success (the row
+            // must simply not be retrievable).
+            let ok = status == 200 || status == 404;
+            BackendDeletionStatus {
+                bot_subject: bot_subject.to_string(),
+                ok,
+                http_status: status,
+                error: if ok { String::new() } else { body.into_string_lossy() },
+            }
+        }
+        Err(error) => BackendDeletionStatus {
+            bot_subject: bot_subject.to_string(),
+            ok: false,
+            http_status: 0,
+            error: error.to_string(),
+        },
+    }
 }
 
 /// Decrement a profile's followers count (saturating; no-op when the
-/// profile doesn't exist). Called from `delete_user_info`'s follow
+/// profile doesn't exist). Called from the delete cascade's follow
 /// cascade — the surviving counterpart of a deleted follow edge.
 fn adjust_followers_count(ctx: &ReducerContext, subject: &str, delta: i64) {
     if let Some(mut profile) = ctx
@@ -946,7 +1076,7 @@ fn adjust_following_count(ctx: &ReducerContext, subject: &str, delta: i64) {
 ///
 /// The `{provider}-login-{sub}` and `internal-login-{client}` mapping keys
 /// are NOT constructible here (the provider/upstream-sub knowledge lives
-/// only in yral-auth) — `delete_user_info` scans by VALUE for those:
+/// only in yral-auth) — the delete cascade scans by VALUE for those:
 /// every mapping TO the identity carries the identity as its value.
 fn auth_kv_deletable_keys(subject: &str) -> Vec<String> {
     vec![
