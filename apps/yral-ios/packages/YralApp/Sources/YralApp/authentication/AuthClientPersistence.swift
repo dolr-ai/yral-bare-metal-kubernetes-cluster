@@ -184,15 +184,24 @@ extension AuthClient {
         keychain.string(forKey: .idToken)
     }
 
-    /// Delete the account via off-chain-agent (Kotlin
-    /// `DeleteAccountUseCase` main-account path) then logout. AI account
-    /// accounts additionally need the soft-delete-on-AI account-server step —
-    /// that lands with the AI accounts phase.
+    /// Delete the account — ONE transactional SpacetimeDB reducer
+    /// (`delete_user_info`) cascading profiles, bots, follows (with
+    /// counter fixes), notification tokens, posts, and auth_kv identity
+    /// mappings — then logout. The off-chain-agent's DELETE /api/v1/user
+    /// is decommissioned (it was a stub: logged + returned fake success,
+    /// deleted nothing).
+    ///
+    /// The caller deletes THEMSELVES: the subject comes from the id
+    /// token (the reducer enforces self-or-admin anyway — the same rule
+    /// the off-chain handler had).
     public func deleteAccount() async throws {
         guard let idToken else {
             throw AuthError.oauthFailed(errorDescription: "Not signed in")
         }
-        try await authDataSource.deleteAccount(idToken: idToken)
+        let subject = try JWTParser.parsePayload(of: idToken).principal
+        try await spacetimeDataSource.deleteUserInfo(
+            principalToDeleteText: subject
+        )
         await logoutInternal()
     }
 

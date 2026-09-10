@@ -38,10 +38,20 @@ auto = ["start", "stop"]
 
 # ── my-website dev server (Leptos release binary) ─────────────────────────────
 # Build first with: mise run my-website-build
-# Runs the pre-built musl binary. Port 8080.
+# Runs the NATIVE binary (arm64 on macOS, gnu on Linux/WSL — runs/debugs
+# locally; prod musl is built in-container by Shipwright). Port 8080.
 
 [daemons.my-website]
-run = "exec ./../../target/x86_64-unknown-linux-musl/release/my-website"
+# Binary path is OS-conditional at start: Linux/WSL builds musl (mimics prod),
+# macOS builds native arm64 (Linux ELF can't exec on Darwin). Both from
+# mise run my-website-build.
+run = '''
+if [[ "$(uname)" == "Darwin" ]]; then
+  exec ./../../target/release/my-website
+else
+  exec ./../../target/x86_64-unknown-linux-musl/release/my-website
+fi
+'''
 dir = "apps/my-website"
 ready_http = "http://localhost:8081/"
 stop_signal = "SIGINT"
@@ -58,14 +68,22 @@ exec podman run --rm \
 '''
 
 # ── off-chain-agent dev server (release binary) ─────────────────────────────
-# Runs the pre-built musl binary with env vars from mise + secrets from fnox.
+# Runs the NATIVE binary (arm64 on macOS, gnu on Linux/WSL — runs/debugs
+# locally) with env vars from mise + secrets from fnox.
 # Build first with: mise run off-chain-agent-build
 # The binary is built at the workspace-root target/ by the mise task, so we
 # use a path relative to dir ("apps/off-chain-agent") that points up to it.
 # Port 50051 is hardcoded in the binary.
 
 [daemons.off-chain-agent]
-run = "exec fnox exec -- ../../target/x86_64-unknown-linux-musl/release/icp-off-chain-agent"
+# Binary path is OS-conditional at start (musl on Linux/WSL, native on macOS).
+run = '''
+if [[ "$(uname)" == "Darwin" ]]; then
+  exec fnox exec -- ../../target/release/icp-off-chain-agent
+else
+  exec fnox exec -- ../../target/x86_64-unknown-linux-musl/release/icp-off-chain-agent
+fi
+'''
 dir = "apps/off-chain-agent"
 ready_http = "http://localhost:50051/healthz"
 stop_signal = "SIGINT"
@@ -83,7 +101,6 @@ exec fnox exec -- podman run --rm \
   -e JWT_PUB_EC_PEM \
   -e GRPC_AUTH_TOKEN \
   -e NAITIK_MULTI_SERVICE_API_JWT_TOKEN \
-  -e YRAL_OFF_CHAIN_USER_MIGRATION_API_KEY \
   -p 50051:50051 test/off-chain-agent
 '''
 dir = "apps/off-chain-agent"
@@ -134,13 +151,22 @@ retry = 3
 on_ready = "spacetimedb-cli build -p apps/yral-database-spacetime && spacetimedb-cli publish --env dev --yes --server local yral-database-spacetime-4lbo7"
 
 # ── yral-auth dev server (release binary) ──────────────────────────────────
-# Runs the pre-built musl binary with env vars from mise + secrets from fnox.
+# Runs the NATIVE binary (arm64 on macOS, gnu on Linux/WSL — runs/debugs
+# locally) with env vars from mise + secrets from fnox.
 # Build first with: mise run yral-auth-build
 # dir ensures mise x -- loads the per-app mise.toml [env] (plaintext values).
 # fnox exec loads secrets from fnox.toml (age-encrypted).
 
 [daemons.yral-auth]
-run = "exec fnox exec -- ./target/x86_64-unknown-linux-musl/release/yral-auth"
+# Binary path is OS-conditional at start (musl on Linux/WSL, native on macOS).
+# Root target/ only — apps/yral-auth/target is a stale pre-monorepo leftover.
+run = '''
+if [[ "$(uname)" == "Darwin" ]]; then
+  exec fnox exec -- ./target/release/yral-auth
+else
+  exec fnox exec -- ./target/x86_64-unknown-linux-musl/release/yral-auth
+fi
+'''
 dir = "apps/yral-auth"
 ready_http = "http://localhost:8080/healthz"
 stop_signal = "SIGINT"
@@ -171,7 +197,13 @@ stop_signal = "SIGINT"
 # Build first with: mise run yral-auth-build
 
 [daemons.yral-auth-dev]
-run = "exec fnox exec -- ./target/x86_64-unknown-linux-musl/release/yral-auth"
+run = '''
+if [[ "$(uname)" == "Darwin" ]]; then
+  exec fnox exec -- ./target/release/yral-auth
+else
+  exec fnox exec -- ./target/x86_64-unknown-linux-musl/release/yral-auth
+fi
+'''
 dir = "apps/yral-auth"
 ready_http = "http://localhost:8080/healthz"
 stop_signal = "SIGINT"
@@ -184,7 +216,15 @@ env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080", SPACETIMEDB_URL = "http://127.0.0.1:3
 # Build first with: mise run yral-metadata-build
 
 [daemons.yral-metadata]
-run = "exec fnox exec -- ./target/x86_64-unknown-linux-musl/release/yral-metadata-server"
+# Binary path is OS-conditional at start (musl on Linux/WSL, native on macOS).
+# Root target/ only — apps/yral-metadata/target is a stale leftover.
+run = '''
+if [[ "$(uname)" == "Darwin" ]]; then
+  exec fnox exec -- ../../target/release/yral-metadata-server
+else
+  exec fnox exec -- ../../target/x86_64-unknown-linux-musl/release/yral-metadata-server
+fi
+'''
 dir = "apps/yral-metadata"
 ready_http = "http://localhost:7000/healthz"
 stop_signal = "SIGINT"
@@ -205,13 +245,23 @@ ready_http = "http://localhost:7000/healthz"
 stop_signal = "SIGINT"
 
 # ── yral-web dev server (release binary) ─────────────────────────────────
-# Runs the pre-built musl binary with env vars from mise + secrets from fnox.
+# Runs the NATIVE binary (arm64 on macOS, gnu on Linux/WSL — runs/debugs
+# locally) with env vars from mise + secrets from fnox.
 # Build first with: mise run yral-web-build
 # dir ensures mise x -- loads the per-app mise.toml [env] (plaintext values).
 # fnox exec loads secrets from fnox.toml (age-encrypted).
 
 [daemons.yral-web]
-run = "exec fnox exec -- ../../target/x86_64-unknown-linux-musl/prod-release/yral-web"
+# Binary path is OS-conditional at start. The musl build lands under the custom
+# `prod-release` profile dir (yral-web's bin-profile-release), the native
+# macOS build under plain release/.
+run = '''
+if [[ "$(uname)" == "Darwin" ]]; then
+  exec fnox exec -- ../../target/release/yral-web
+else
+  exec fnox exec -- ../../target/x86_64-unknown-linux-musl/prod-release/yral-web
+fi
+'''
 dir = "apps/yral-web"
 ready_http = "http://localhost:8080/healthz"
 stop_signal = "SIGINT"

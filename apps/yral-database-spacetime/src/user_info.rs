@@ -41,6 +41,12 @@
 
 use spacetimedb::{ProcedureContext, ReducerContext, SpacetimeType, Table, Timestamp};
 
+// Cross-module table accessors for `delete_user_info`'s cascade: the live
+// post table, and yral-auth's private KV store (the per-table accessor
+// traits are crate-visible; `Table` above brings insert/iter/delete in).
+use crate::auth_kv::auth_kv;
+use crate::posts::posts_3;
+
 // ─────────────────────────────────────────────────────────────────────────
 // Tables
 // ─────────────────────────────────────────────────────────────────────────
@@ -728,12 +734,28 @@ pub fn accept_new_user_registration(
     Ok(())
 }
 
-/// Delete a user and cascade-delete their bots. Mirrors the IC canister's
-/// `delete_user_info`.
+/// Delete a user and cascade-delete all their data. THE account-deletion
+/// path (the off-chain-agent's DELETE /api/v1/user stub is decommissioned —
+/// it logged and returned success without deleting anything; this reducer
+/// is the real, transactional cascade).
 ///
 /// - `MainAccount`: admin or self can delete. Cascade-deletes all bots.
 /// - `BotAccount`: admin or owner can delete. Removes the bot from the
 ///   owner's `bots` list.
+///
+/// Cascade per deleted subject (main + each bot):
+///   - `user_profiles_2` rows
+///   - follow relationships in BOTH directions, with the surviving
+///     counterpart's follower/following counts decremented
+///   - `user_notification_tokens` rows
+///   - `posts_3` rows authored by the subject (current table; the legacy
+///     `posts`/`posts_v2` are migration leftovers and not user-facing)
+///   - `auth_kv` entries (existence markers, AI-account list + reverse
+///     lookup, and every mapping whose VALUE is the subject — OAuth
+///     provider logins and backend-service logins) so re-login mints a
+///     FRESH identity instead of resurrecting the deleted one
+///
+/// Everything in one reducer = one transaction — all-or-nothing.
 #[spacetimedb::reducer]
 pub fn delete_user_info(
     ctx: &ReducerContext,
@@ -757,25 +779,15 @@ pub fn delete_user_info(
         None => return Err("User not found".to_string()),
     };
 
+    // Collect every subject being deleted (main + bots) up front.
+    let mut deleted_subjects = vec![principal_to_delete_text.clone()];
     match &profile.account_type {
         UserAccountType::MainAccount { bots } => {
             // Admin or self can delete a MainAccount
             if !admin && principal_to_delete_text != caller_text {
                 return Err("Unauthorized".to_string());
             }
-            // Cascade: delete all bots
-            for bot_text in bots {
-                if let Some(bot_profile) = ctx
-                    .db
-                    .user_profiles_2()
-                    .iter()
-                    .find(|p| &p.oauth_subject == bot_text)
-                {
-                    ctx.db.user_profiles_2().delete(bot_profile);
-                }
-            }
-            // Delete the main account
-            ctx.db.user_profiles_2().delete(profile);
+            deleted_subjects.extend(bots.iter().cloned());
         }
         UserAccountType::BotAccount { owner } => {
             // Admin or owner can delete a BotAccount
@@ -802,26 +814,135 @@ pub fn delete_user_info(
                         .update(owner_profile);
                 }
             }
-            // Delete the bot
-            ctx.db.user_profiles_2().delete(profile);
         }
     }
 
-    // Also delete any follow relationships involving this user
-    let follows_to_delete: Vec<UserFollow2> = ctx
-        .db
-        .user_follows_2()
-        .iter()
-        .filter(|f| {
-            f.follower_subject == principal_to_delete_text
-                || f.followee_subject == principal_to_delete_text
-        })
-        .collect();
-    for f in follows_to_delete {
-        ctx.db.user_follows_2().delete(f);
+    // Cascade per deleted subject: profiles (owner repair already done),
+    // follows in both directions (with counter fixes), tokens, posts.
+    for subject in &deleted_subjects {
+        // Profile rows
+        if let Some(bot_profile) = ctx
+            .db
+            .user_profiles_2()
+            .iter()
+            .find(|p| &p.oauth_subject == subject)
+        {
+            ctx.db.user_profiles_2().delete(bot_profile);
+        }
+
+        // Follow relationships, both directions — decrement the
+        // SURVIVING counterpart's counters so they stay accurate.
+        let follows_to_delete: Vec<UserFollow2> = ctx
+            .db
+            .user_follows_2()
+            .iter()
+            .filter(|f| &f.follower_subject == subject || &f.followee_subject == subject)
+            .collect();
+        for follow in follows_to_delete {
+            ctx.db.user_follows_2().delete(follow.clone());
+            if &follow.follower_subject == subject {
+                // The deleted user followed someone — that someone loses
+                // a follower.
+                adjust_followers_count(ctx, &follow.followee_subject, -1);
+            } else {
+                // Someone followed the deleted user — that someone is
+                // following one fewer account.
+                adjust_following_count(ctx, &follow.follower_subject, -1);
+            }
+        }
+
+        // Push notification tokens
+        let tokens_to_delete: Vec<UserNotificationToken> = ctx
+            .db
+            .user_notification_tokens()
+            .iter()
+            .filter(|t| &t.user_id == subject)
+            .collect();
+        for token in tokens_to_delete {
+            ctx.db.user_notification_tokens().delete(token);
+        }
+
+        // Posts authored by the subject (posts_3 — the live table).
+        let posts_to_delete: Vec<crate::posts::Post3> = ctx
+            .db
+            .posts_3()
+            .iter()
+            .filter(|p| &p.creator_oauth_subject == subject)
+            .collect();
+        for post in posts_to_delete {
+            ctx.db.posts_3().delete(post);
+        }
+
+        // auth_kv cleanup — without it the next OAuth login with the same
+        // upstream sub resolves to the DELETED identity (a zombie). Direct
+        // keys are constructible from the subject; the `{provider}-login-
+        // {sub}` / `internal-login-{client}` mappings are found by VALUE
+        // (every mapping TO this identity carries the identity as its
+        // value). The table is private and only this module + yral-auth's
+        // admin identity can see it.
+        let mut kv_keys_to_delete = auth_kv_deletable_keys(subject);
+        kv_keys_to_delete.extend(
+            ctx.db
+                .auth_kv()
+                .iter()
+                .filter(|entry| entry.value == *subject)
+                .map(|entry| entry.key),
+        );
+        for key in kv_keys_to_delete {
+            ctx.db.auth_kv().key().delete(key);
+        }
     }
 
     Ok(())
+}
+
+/// Decrement a profile's followers count (saturating; no-op when the
+/// profile doesn't exist). Called from `delete_user_info`'s follow
+/// cascade — the surviving counterpart of a deleted follow edge.
+fn adjust_followers_count(ctx: &ReducerContext, subject: &str, delta: i64) {
+    if let Some(mut profile) = ctx
+        .db
+        .user_profiles_2()
+        .iter()
+        .find(|p| p.oauth_subject == subject)
+    {
+        profile.followers_count = (profile.followers_count as i64 + delta).max(0) as u64;
+        ctx.db.user_profiles_2().oauth_subject().update(profile);
+    }
+}
+
+/// Decrement a profile's following count (saturating; no-op when the
+/// profile doesn't exist). Counterpart of `adjust_followers_count`.
+fn adjust_following_count(ctx: &ReducerContext, subject: &str, delta: i64) {
+    if let Some(mut profile) = ctx
+        .db
+        .user_profiles_2()
+        .iter()
+        .find(|p| p.oauth_subject == subject)
+    {
+        profile.following_count = (profile.following_count as i64 + delta).max(0) as u64;
+        ctx.db.user_profiles_2().oauth_subject().update(profile);
+    }
+}
+
+/// The `auth_kv` keys that can be constructed DIRECTLY from a subject.
+///
+/// Formats mirror yral-auth's key builders (`apps/yral-auth/src/api/`:
+/// `identity_provider.rs` `user_existence_key`, `ai_accounts.rs`
+/// `ai_account_list_key`/`ai_account_reverse_lookup_key`) — keep both
+/// sides in sync (grep for `user:` / `ai-account:` / `-ai-accounts`
+/// touches both crates).
+///
+/// The `{provider}-login-{sub}` and `internal-login-{client}` mapping keys
+/// are NOT constructible here (the provider/upstream-sub knowledge lives
+/// only in yral-auth) — `delete_user_info` scans by VALUE for those:
+/// every mapping TO the identity carries the identity as its value.
+fn auth_kv_deletable_keys(subject: &str) -> Vec<String> {
+    vec![
+        format!("user:{subject}"),
+        format!("ai-account:{subject}"),
+        format!("{subject}-ai-accounts"),
+    ]
 }
 
 /// Update the caller's last access time to the current timestamp.
@@ -1661,6 +1782,22 @@ mod tests {
     use super::*;
 
     const TEST_TIMESTAMP: Timestamp = Timestamp::UNIX_EPOCH;
+
+    // ── auth_kv_deletable_keys ──
+
+    #[test]
+    fn test_auth_kv_deletable_keys_cover_all_constructible_formats() {
+        let subject = "auth0|user-77";
+        let keys = auth_kv_deletable_keys(subject);
+        // The three constructible formats, mirroring yral-auth's key
+        // builders (identity_provider.rs user_existence_key, ai_accounts.rs
+        // list + reverse keys). Provider-login mappings are found by VALUE
+        // scan in the reducer, not constructed here.
+        assert!(keys.contains(&format!("user:{subject}")));
+        assert!(keys.contains(&format!("ai-account:{subject}")));
+        assert!(keys.contains(&format!("{subject}-ai-accounts")));
+        assert_eq!(keys.len(), 3);
+    }
 
     // ── validate_owner_for_bot_creation ──
 

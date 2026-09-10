@@ -18,7 +18,7 @@ node = "latest"
 pitchfork = "latest"
 podman = "latest"
 python = "latest"
-ruff = "0.16.6"
+ruff = "latest"
 rust = { version = "nightly", targets = [
   "wasm32-unknown-unknown",
   "x86_64-unknown-linux-musl",
@@ -352,10 +352,16 @@ mise run spacetime-validate
 # ── yral-auth ────────────────────────────────────────────────────────────────
 
 [tasks.yral-auth-build]
-description = "Build yral-auth (release, musl static binary + WASM client)"
+description = "Build yral-auth (release + WASM client). Linux/WSL: musl x86_64 (mimics prod). macOS: native arm64."
 dir = "apps/yral-auth"
-run = "cargo leptos build --release --lib-features release-lib --bin-features release-bin"
-env = { LEPTOS_BIN_TARGET_TRIPLE = "x86_64-unknown-linux-musl" }
+run = '''
+if [[ "$(uname)" == "Darwin" ]]; then
+  cargo leptos build --release --lib-features release-lib --bin-features release-bin
+else
+  LEPTOS_BIN_TARGET_TRIPLE=x86_64-unknown-linux-musl \
+    cargo leptos build --release --lib-features release-lib --bin-features release-bin
+fi
+'''
 
 [tasks.yral-auth-run]
 description = "Run yral-auth locally via pitchfork (release binary, port 8080)"
@@ -420,10 +426,19 @@ cd apps/yral-web && npm install
 '''
 
 [tasks.yral-web-build]
-description = "Build yral-web (release, musl static binary + WASM client)"
+description = "Build yral-web (release + WASM client). Linux/WSL: musl x86_64 (mimics prod). macOS: native arm64."
+# yral-web's bin uses the custom `prod-release` profile (lto, debug=1) — the
+# profile rides INSIDE target/<triple>/prod-release/ on musl, plain release/
+# native.
 dir = "apps/yral-web"
-run = "cargo leptos --manifest-path ssr/Cargo.toml build --release"
-env = { LEPTOS_BIN_TARGET_TRIPLE = "x86_64-unknown-linux-musl" }
+run = '''
+if [[ "$(uname)" == "Darwin" ]]; then
+  cargo leptos --manifest-path ssr/Cargo.toml build --release
+else
+  LEPTOS_BIN_TARGET_TRIPLE=x86_64-unknown-linux-musl \
+    cargo leptos --manifest-path ssr/Cargo.toml build --release
+fi
+'''
 
 [tasks.yral-web-run]
 description = "Run yral-web locally via pitchfork (release binary, port 8080)"
@@ -500,8 +515,14 @@ run = "pitchfork stop hello-world"
 # ── yral-metadata ───────────────────────────────────────────────────────────
 
 [tasks.yral-metadata-build]
-description = "Build yral-metadata server (release, musl static binary)"
-run = "cargo build --release --target x86_64-unknown-linux-musl -p yral-metadata-server"
+description = "Build yral-metadata server (release). Linux/WSL: musl x86_64 (mimics prod). macOS: native arm64."
+run = '''
+if [[ "$(uname)" == "Darwin" ]]; then
+  cargo build --release -p yral-metadata-server
+else
+  cargo build --release --target x86_64-unknown-linux-musl -p yral-metadata-server
+fi
+'''
 
 [tasks.yral-metadata-run]
 description = "Run yral-metadata locally via pitchfork (release binary, port 7000)"
@@ -552,8 +573,14 @@ kubectl -n yral-metadata logs "$FIRST_POD" --tail=20
 # ── off-chain-agent ─────────────────────────────────────────────────────────
 
 [tasks.off-chain-agent-build]
-description = "Build off-chain-agent (release, musl static binary)"
-run = "cargo build --release --target x86_64-unknown-linux-musl -p off-chain-agent"
+description = "Build off-chain-agent (release). Linux/WSL: musl x86_64 (mimics prod). macOS: native arm64 (Linux ELF can't exec on Darwin)."
+run = '''
+if [[ "$(uname)" == "Darwin" ]]; then
+  cargo build --release -p off-chain-agent
+else
+  cargo build --release --target x86_64-unknown-linux-musl -p off-chain-agent
+fi
+'''
 
 [tasks.off-chain-agent-run]
 description = "Run off-chain-agent locally via pitchfork (release binary, port 50051)"
@@ -801,10 +828,16 @@ fi
 # ─── my-website (Leptos SSR app, islands architecture) ────────────────────────
 
 [tasks.my-website-build]
-description = "Build my-website (Leptos islands, release musl binary + WASM client)"
+description = "Build my-website (release + WASM client). Linux/WSL: musl x86_64 (mimics prod). macOS: native arm64."
 dir = "apps/my-website"
-run = "cargo leptos build --release"
-env = { LEPTOS_BIN_TARGET_TRIPLE = "x86_64-unknown-linux-musl" }
+run = '''
+if [[ "$(uname)" == "Darwin" ]]; then
+  cargo leptos build --release
+else
+  LEPTOS_BIN_TARGET_TRIPLE=x86_64-unknown-linux-musl \
+    cargo leptos build --release
+fi
+'''
 
 [tasks.my-website-run]
 description = "Run my-website locally via pitchfork (release binary, port 8080)"

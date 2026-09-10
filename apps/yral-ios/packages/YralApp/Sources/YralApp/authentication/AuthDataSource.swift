@@ -8,7 +8,11 @@ import Foundation
 ///   - POST `api/phone_auth_login` (JSON), POST `api/verify_phone_auth` (JSON)
 ///   - POST `api/create_ai_account` (JSON)
 ///   - POST `metadata.yral.com/v2/update_session_as_registered` (JSON, Bearer)
-///   - DELETE `offchain.yral.com/api/v1/user` (JSON, Bearer)
+///
+/// Account DELETION does not live here — it's the SpacetimeDB
+/// `delete_user_info` reducer via `SpacetimeDBRemoteDataSource`
+/// (the off-chain-agent's DELETE /api/v1/user is decommissioned;
+/// it was a stub that deleted nothing).
 ///
 /// Kotlin-faithful details:
 ///   - Form bodies are RAW string interpolation (`grant_type=x&client_id=y`)
@@ -118,11 +122,12 @@ public struct AuthDataSource: Sendable {
         // Status handled manually here (Kotlin: expectSuccess = false).
         let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200
+            httpResponse.statusCode == 200
         else {
-            return .error(try AuthErrorPayload.fromJSONBody(
-                String(data: data, encoding: .utf8) ?? ""
-            ))
+            return .error(
+                try AuthErrorPayload.fromJSONBody(
+                    String(data: data, encoding: .utf8) ?? ""
+                ))
         }
         return .success
     }
@@ -149,11 +154,12 @@ public struct AuthDataSource: Sendable {
         request.httpBody = try JSONSerialization.data(withJSONObject: bodyObject)
         let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200
+            httpResponse.statusCode == 200
         else {
-            return .error(try AuthErrorPayload.fromJSONBody(
-                String(data: data, encoding: .utf8) ?? ""
-            ))
+            return .error(
+                try AuthErrorPayload.fromJSONBody(
+                    String(data: data, encoding: .utf8) ?? ""
+                ))
         }
         guard let array = try? JSONSerialization.jsonObject(with: data) as? [String],
             array.count == 2
@@ -246,26 +252,6 @@ public struct AuthDataSource: Sendable {
         // Fire-and-forget: the Kotlin client sets expectSuccess = false and
         // never inspects the result — the server made this endpoint a no-op.
         _ = try? await session.data(for: request)
-    }
-
-    /// Deletes the account via off-chain-agent.
-    public func deleteAccount(idToken: String) async throws {
-        var request = URLRequest(
-            url: URL(string: "https://\(AppConfiguration.offChainBaseURL)/api/v1/user")!)
-        request.httpMethod = "DELETE"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-        // Kotlin sends {"dummy": ""} (encodeDefaults = true).
-        request.httpBody = Data(#"{"dummy":""}"#.utf8)
-        let (data, response) = try await session.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse,
-            (200..<300).contains(httpResponse.statusCode)
-        else {
-            throw NetworkError.http(
-                statusCode: (response as? HTTPURLResponse)?.statusCode ?? 0,
-                body: String(data: data, encoding: .utf8)
-            )
-        }
     }
 }
 
