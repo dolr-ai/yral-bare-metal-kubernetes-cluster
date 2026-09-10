@@ -123,6 +123,60 @@ struct AccountSwitcherNameAndSwitchTests {
         #expect(keychain.string(forKey: .lastActivePrincipal) == Fixtures.firstBotPrincipal)
     }
 
+    @Test("switchToAccount persists the tapped row's real name into the session")
+    func switchPersistsRowNameIntoSession() {
+        let keychain = KeychainStore(service: "switcher-avatar-tests-\(UUID().uuidString)")
+        defer { keychain.removeAll() }
+        let defaults = Fixtures.freshDefaults()
+        let (client, sessionStore) = Fixtures.makeClient(
+            defaults: defaults,
+            keychain: keychain,
+            protocolClass: SwitcherNameURLProtocol.self
+        )
+
+        // The user taps the row AFTER the live refresh — the row carries
+        // the REAL name; the session + USERNAME cache must show it (the
+        // Settings/Profile headers read from there, and the local store
+        // only knows names on the creating device).
+        client.switchToAccount(
+            principal: Fixtures.firstBotPrincipal,
+            username: "uraraka"
+        )
+
+        #expect(sessionStore.username == "uraraka")
+        #expect(defaults.string(forKey: "USERNAME") == "uraraka")
+    }
+
+    @Test("switchToAccount without a name falls back to stored then pseudonym")
+    func switchWithoutNameFallsBack() {
+        let keychain = KeychainStore(service: "switcher-avatar-tests-\(UUID().uuidString)")
+        defer { keychain.removeAll() }
+        let defaults = Fixtures.freshDefaults()
+        let (client, sessionStore) = Fixtures.makeClient(
+            defaults: defaults,
+            keychain: keychain,
+            protocolClass: SwitcherNameURLProtocol.self
+        )
+
+        // The fixture seeds usernames for its two bots; add a third with
+        // NO stored name — the pseudonym fallback tier.
+        let namelessBotPrincipal = "nameless-bot-principal"
+        var entries = AIIdentitiesStore.entries(defaults: defaults)
+        entries.append(AIIdentityEntry(principal: namelessBotPrincipal, username: nil))
+        AIIdentitiesStore.put(entries, defaults: defaults)
+
+        client.switchToAccount(principal: namelessBotPrincipal, username: nil)
+
+        // Deterministic pseudonym fallback (per-principal, stable).
+        #expect(
+            sessionStore.username
+                == UsernameGenerator.resolveUsername(
+                    preferred: nil, principal: namelessBotPrincipal
+                )
+        )
+        #expect(sessionStore.username != namelessBotPrincipal)
+    }
+
     @Test("switchToAccount without a URL falls back to GobGob (offline switch)")
     func switchWithoutURLFallsBack() {
         let keychain = KeychainStore(service: "switcher-avatar-tests-\(UUID().uuidString)")

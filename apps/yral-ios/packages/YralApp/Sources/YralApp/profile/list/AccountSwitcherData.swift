@@ -167,13 +167,25 @@ extension AuthClient {
     /// avatar from the profile table (durable Storj URL). Falls back to
     /// the GobGob deterministic URL when absent (offline switch, main
     /// account, or a bot whose write never landed).
-    func switchToAccount(principal: String, avatarURL: String? = nil) {
+    ///
+    /// `username`: the tapped row's display name — after the name
+    /// overlay this is the bot's REAL name from the creator API. It
+    /// feeds the session + PROFILE_PIC-cache so the Settings/Profile
+    /// headers show it too (the local store only knows names on the
+    /// creating device). Falls back to the stored/pseudonym name.
+    func switchToAccount(
+        principal: String,
+        avatarURL: String? = nil,
+        username: String? = nil
+    ) {
         // No-op when already active (Kotlin returns early).
         guard sessionStore.userPrincipal != principal else { return }
 
         let storedMainPrincipal = keychain.string(forKey: .mainPrincipal)
         var isBot = true
-        var botUsername: String?
+        // Live row name first (creator overlay), then the locally stored
+        // one; the pseudonym fallback resolves below.
+        var botUsername = username
         if principal == storedMainPrincipal {
             isBot = false
         } else {
@@ -181,13 +193,13 @@ extension AuthClient {
             guard let match = storedBots.first(where: { $0.principal == principal }) else {
                 return
             }
-            botUsername = match.username
+            botUsername = botUsername ?? match.username
         }
 
         let profilePic = avatarURL
             ?? ProfilePicture.url(fromPrincipal: principal)
-        // Stored username (creation device) when present; deterministic
-        // pseudonym fallback otherwise.
+        // Live/stored username when present; deterministic pseudonym
+        // fallback otherwise.
         let session = Session(
             canisterID: principal,
             userPrincipal: principal,

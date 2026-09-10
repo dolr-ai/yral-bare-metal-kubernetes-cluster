@@ -98,10 +98,15 @@ struct AccountSwitcherView: View {
         Button {
             guard !isSwitching else { return }
             isSwitching = true
-            // The row's URL goes into the session + PROFILE_PIC cache —
-            // after `refreshedAccountSwitcherEntries()` this is the
-            // bot's hosted avatar, so the profile tab shows it too.
-            authClient.switchToAccount(principal: account.principal, avatarURL: account.avatarURL)
+            // The row's URL + name go into the session + PROFILE_PIC /
+            // USERNAME caches — after `refreshedAccountSwitcherEntries()`
+            // these are the bot's hosted avatar and REAL name, so the
+            // profile/settings headers show them too.
+            authClient.switchToAccount(
+                principal: account.principal,
+                avatarURL: account.avatarURL,
+                username: account.username
+            )
             dismiss()
         } label: {
             HStack(spacing: 10) {
