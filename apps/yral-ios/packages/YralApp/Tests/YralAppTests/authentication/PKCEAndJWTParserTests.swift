@@ -64,7 +64,7 @@ struct PKCEAndJWTParserTests {
         #expect(claims.expiry == 1_767_225_600)
         #expect(claims.issuedAtTime == 1_767_139_200)
         #expect(claims.issuerHost == "auth.yral.com")
-        #expect(claims.principal == "auth0|user-77")
+        #expect(claims.subject == "auth0|user-77")
         #expect(claims.nonce == "n-1")
         #expect(claims.isAnonymous == false)
         #expect(claims.email == "user@example.com")

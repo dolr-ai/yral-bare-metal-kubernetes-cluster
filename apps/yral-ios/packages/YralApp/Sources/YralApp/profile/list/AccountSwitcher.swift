@@ -7,12 +7,12 @@ import Foundation
 /// build the AI-influencer section (the main account comes from the
 /// Keychain's MAIN_PRINCIPAL).
 ///
-/// Display data ONLY: this stores WHICH bots exist (principals) and their
+/// Display data ONLY: this stores WHICH bots exist (subjects) and their
 /// usernames. The bots' avatar URLs are NOT duplicated here — they live in
 /// the SpacetimeDB profile table (written at creation) and are read from
 /// there when the switcher opens (`refreshedAccountSwitcherEntries`).
 struct AIIdentityEntry: Codable, Equatable, Sendable {
-    let principal: String
+    let subject: String
     var username: String?
 }
 
@@ -45,21 +45,21 @@ enum AIIdentitiesStore {
     /// Kotlin `BotIdentityStorage.saveBotIdentity` — upsert a single AI
     /// identity (with its username) after creation.
     static func saveIdentity(
-        principal: String,
+        subject: String,
         username: String?,
         defaults: UserDefaults = .standard
     ) {
         var entries = Self.entries(defaults: defaults)
-        if let index = entries.firstIndex(where: { $0.principal == principal }) {
+        if let index = entries.firstIndex(where: { $0.subject == subject }) {
             entries[index].username = username ?? entries[index].username
         } else {
-            entries.append(AIIdentityEntry(principal: principal, username: username))
+            entries.append(AIIdentityEntry(subject: subject, username: username))
         }
         put(entries, defaults: defaults)
     }
 
     /// Kotlin `mergeFromTokenBotAccountIds`: union of stored + token-claimed
-    /// identities, keyed by principal; the most recent non-blank username
+    /// identities, keyed by subject; the most recent non-blank username
     /// wins. Returns nil when the merge would change nothing (empty input).
     @discardableResult
     static func mergeFromTokenAIAccountIds(
@@ -68,7 +68,7 @@ enum AIIdentitiesStore {
     ) -> MergeResult? {
         let newEntries = aiAccountIds
             .filter { !$0.isBlank }
-            .map { AIIdentityEntry(principal: $0, username: nil) }
+            .map { AIIdentityEntry(subject: $0, username: nil) }
         guard !newEntries.isEmpty else { return nil }
         let existing = entries(defaults: defaults)
         let merged = merge(existing: existing, additions: newEntries)
@@ -88,13 +88,13 @@ enum AIIdentitiesStore {
     }
 
     /// Pure union — existing entries keep their usernames; the LATEST
-    /// entry (token order) wins for duplicate principals; a stored
+    /// entry (token order) wins for duplicate subjects; a stored
     /// non-blank username is preserved.
     static func merge(
         existing: [AIIdentityEntry],
         additions: [AIIdentityEntry]
     ) -> [AIIdentityEntry] {
-        let grouped = Dictionary(grouping: existing + additions, by: \.principal)
+        let grouped = Dictionary(grouping: existing + additions, by: \.subject)
         return grouped.values.map { group in
             let latest = group.last!
             let username = group

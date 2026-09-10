@@ -5,7 +5,7 @@ import Foundation
 /// Responsibilities (faithful to the Kotlin contract):
 ///   - `initialize()`: cold-start decision tree (restore cached AI account session /
 ///     validate ID token / refresh / anonymous identity).
-///   - `logout()`: clear tokens + cached session + principal prefs, reset
+///   - `logout()`: clear tokens + cached session + subject prefs, reset, reset
 ///     session properties, return to `.initial`.
 ///   - Token pipeline: `handleToken` → claims-based session or refresh.
 ///
@@ -76,9 +76,12 @@ public final class AuthClient {
     internal var lastLogoutCause: AuthExpiryCause?
 
     /// Session-storage keys in UserDefaults for the cached session fields.
+    /// The rawValue strings keep the legacy PRINCIPAL naming — they are
+    /// the persisted keys on existing installs (written by the Kotlin
+    /// app's PrefKeys); only the Swift case names read as `subject`.
     enum CachedSessionKey: String {
         case canisterID = "CANISTER_ID"
-        case userPrincipal = "USER_PRINCIPAL"
+        case userSubject = "USER_PRINCIPAL"
         case profilePic = "PROFILE_PIC"
         case username = "USERNAME"
         case isCreatedFromServiceCanister = "IS_CREATED_FROM_SERVICE_CANISTER"
@@ -130,13 +133,13 @@ public final class AuthClient {
     }
 
     private func refreshAuthIfNeeded() async {
-        let lastActivePrincipal = keychain.string(forKey: .lastActivePrincipal)
-        let mainPrincipal = keychain.string(forKey: .mainPrincipal)
+        let lastActiveSubject = keychain.string(forKey: .lastActiveSubject)
+        let mainSubject = keychain.string(forKey: .mainSubject)
 
         // 1. AI account (or non-main) last-active → restore from cache directly.
-        if let lastActivePrincipal, lastActivePrincipal != mainPrincipal {
+        if let lastActiveSubject, lastActiveSubject != mainSubject {
             if let cached = cachedSession(),
-               cached.userPrincipal == lastActivePrincipal {
+               cached.userSubject == lastActiveSubject {
                 sessionStore.updateState(.signedIn(cached))
                 await refreshBotColdStartTokensIfNeeded()
                 return
@@ -146,7 +149,7 @@ public final class AuthClient {
         // 2. Main-account ID token → validate/refresh through handleToken.
         if let idToken = keychain.string(forKey: .idToken) {
             let shouldPersistTokenState =
-                lastActivePrincipal == nil || lastActivePrincipal == mainPrincipal
+                lastActiveSubject == nil || lastActiveSubject == mainSubject
             await handleToken(
                 idToken: idToken,
                 accessToken: "",
@@ -274,43 +277,43 @@ public final class AuthClient {
     }
 
     /// Kotlin `handleTokenClaims` — builds the session from claims. The
-    /// foreign-principal guard: if the main account is active and this
-    /// token's principal differs, the cached MAIN session is restored
+    /// foreign-subject guard: if the main account is active and this
+    /// token's subject differs, the cached MAIN session is restored
     /// instead (a stale token for another account must not hijack the
     /// active session).
     private func handleTokenClaims(_ tokenClaims: TokenClaims) {
-        let storedMainPrincipal = keychain.string(forKey: .mainPrincipal)
-        let lastActivePrincipal = keychain.string(forKey: .lastActivePrincipal)
-        let principal = tokenClaims.principal
+        let storedMainSubject = keychain.string(forKey: .mainSubject)
+        let lastActiveSubject = keychain.string(forKey: .lastActiveSubject)
+        let subject = tokenClaims.subject
 
-        if let storedMainPrincipal,
-           lastActivePrincipal == storedMainPrincipal,
-           principal != storedMainPrincipal {
+        if let storedMainSubject,
+           lastActiveSubject == storedMainSubject,
+           subject != storedMainSubject {
             if let cachedMain = cachedSession(),
-               cachedMain.userPrincipal == storedMainPrincipal {
+               cachedMain.userSubject == storedMainSubject {
                 sessionStore.updateState(.signedIn(cachedMain))
                 sessionStore.updateFirebaseLoginState(true)
             }
             return
         }
 
-        let profilePic = ProfilePicture.url(fromPrincipal: principal)
+        let profilePic = ProfilePicture.url(fromSubject: subject)
         cacheSession(
-            canisterID: principal,
-            userPrincipal: principal,
+            canisterID: subject,
+            userSubject: subject,
             profilePic: profilePic,
             username: nil,
             isAIAccount: false
         )
 
         let session = Session(
-            canisterID: principal,
-            userPrincipal: principal,
+            canisterID: subject,
+            userSubject: subject,
             profilePic: profilePic,
             // Deterministic pseudonym for a fresh main account (no server
             // username yet) — the fallback tier, per the display rules.
             username: UsernameGenerator.resolveUsername(
-                preferred: nil, principal: principal
+                preferred: nil, subject: subject
             ),
             isCreatedFromServiceCanister: true,
             isAIAccount: false

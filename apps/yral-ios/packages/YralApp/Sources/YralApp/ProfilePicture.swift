@@ -1,19 +1,19 @@
 import Foundation
 import CryptoKit
 
-/// Deterministic profile-picture URL from a principal — port of Kotlin
-/// `PropicUtils.propicFromPrincipal`, with one deliberate deviation: the
+/// Deterministic profile-picture URL from a subject — port of Kotlin
+/// `PropicUtils.propicFromSubject`, with one deliberate deviation: the
 /// index is computed from the UNSIGNED CRC32 (see `avatarIndex`).
 ///
-/// The GobGob avatar index is stable per principal: CRC32 (IEEE 802.3) of
+/// The GobGob avatar index is stable per subject: CRC32 (IEEE 802.3) of
 /// the UTF-8 bytes, mod the GobGob pool size.
 ///
 /// DEVIATION FROM KOTLIN (intentional, no parity): Kotlin reinterprets the
-/// CRC32 as a SIGNED Int before the remainder, so any principal whose hash
+/// CRC32 as a SIGNED Int before the remainder, so any subject whose hash
 /// has the high bit set (~50%) produced index ≤ 0 → `gob.-12345.png` → a
 /// PERMANENT 404. The Kotlin app is legacy (reference-only for ports);
-/// we take the remainder on the unsigned value, so every principal maps to
-/// a real avatar (1...18557). Principals that were already positive in
+/// we take the remainder on the unsigned value, so every subject maps to
+/// a real avatar (1...18557). Subjects that were already positive in
 /// Kotlin keep the exact same URL; only the always-broken negative cases
 /// change.
 enum ProfilePicture {
@@ -25,15 +25,15 @@ enum ProfilePicture {
     static let gobgobURLPrefix =
         "https://prakash-yral.hel1.your-objectstorage.com/gobgob/gob."
 
-    /// `https://…/gobgob/gob.<index>.png` for the given principal.
-    static func url(fromPrincipal principal: String) -> String {
-        "\(gobgobURLPrefix)\(avatarIndex(principal)).png"
+    /// `https://…/gobgob/gob.<index>.png` for the given subject.
+    static func url(fromSubject subject: String) -> String {
+        "\(gobgobURLPrefix)\(avatarIndex(subject)).png"
     }
 
     /// `(crc32 mod 18557) + 1` on the UNSIGNED hash — always in
     /// 1...18557, the range the GobGob pool actually serves.
-    static func avatarIndex(_ principal: String) -> Int {
-        let hash = crc32IEEE(Data(principal.utf8))
+    static func avatarIndex(_ subject: String) -> Int {
+        let hash = crc32IEEE(Data(subject.utf8))
         return Int(hash % UInt32(gobgobTotalCount)) + 1
     }
 
@@ -58,7 +58,7 @@ enum ProfilePicture {
 }
 
 /// Deterministic display-name fallback — port of Kotlin
-/// `generateUsernameFromPrincipal` (UsernameUtils.kt). SHA-256(principal)
+/// `generateUsernameFromSubject` (UsernameUtils.kt). SHA-256(subject)
 /// seeds a byte-stream PRNG that picks two distinct modifiers + one noun;
 /// retries up to 128 times for a ≤ 15-char result. Words are HYPHENATED
 /// (cute-kind-panda) — a deliberate deviation from Kotlin's squished
@@ -78,19 +78,19 @@ enum UsernameGenerator {
     static let fallbackUsername = "cute-kind-panda"
 
     /// Kotlin `resolveUsername`: preferred (trimmed, non-empty) wins, else
-    /// the generated name; nil principal with no preferred → nil.
+    /// the generated name; nil subject with no preferred → nil.
     static func resolveUsername(
         preferred: String?,
-        principal: String?
+        subject: String?
     ) -> String? {
         if let preferred, !preferred.trimmingCharacters(in: .whitespaces).isEmpty {
             return preferred
         }
-        return principal.map { username(fromPrincipal: $0) }
+        return subject.map { username(fromSubject: $0) }
     }
 
-    static func username(fromPrincipal principal: String) -> String {
-        var generator = SeededGenerator(seed: SHA256.hash(data: Data(principal.utf8)))
+    static func username(fromSubject subject: String) -> String {
+        var generator = SeededGenerator(seed: SHA256.hash(data: Data(subject.utf8)))
         for _ in 0..<generationAttempts {
             let firstModifier = yralUsernameModifiers.randomOrDefault(
                 generator: &generator, fallback: "cute"

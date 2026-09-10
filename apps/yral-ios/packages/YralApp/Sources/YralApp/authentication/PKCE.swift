@@ -57,8 +57,8 @@ public struct TokenClaims: Equatable {
     public let issuedAtTime: Int64
     /// `iss` — issuer host ("auth.yral.com").
     public let issuerHost: String
-    /// `sub` — the user's principal (SpacetimeDB identity source).
-    public let principal: String
+    /// `sub` — the user's subject (SpacetimeDB identity source).
+    public let subject: String
     /// `nonce` — optional.
     public let nonce: String?
     /// `ext_is_anonymous` — default false.
@@ -102,7 +102,7 @@ public enum JWTParser {
         let expiry = try requireLongClaim(payloadJSON, ClaimKey.expiry)
         let issuedAt = try requireLongClaim(payloadJSON, ClaimKey.issuedAt)
         let issuerHost = try requireStringClaim(payloadJSON, ClaimKey.issuer)
-        let principal = try requireStringClaim(payloadJSON, ClaimKey.subject)
+        let subject = try requireStringClaim(payloadJSON, ClaimKey.subject)
         let nonce = optionalString(payloadJSON[ClaimKey.nonce])
         let isAnonymous = (payloadJSON[ClaimKey.isAnonymous] as? Bool) ?? false
         let email = optionalString(payloadJSON[ClaimKey.email])
@@ -113,7 +113,7 @@ public enum JWTParser {
             expiry: expiry,
             issuedAtTime: issuedAt,
             issuerHost: issuerHost,
-            principal: principal,
+            subject: subject,
             nonce: nonce,
             isAnonymous: isAnonymous,
             email: email,

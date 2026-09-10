@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Profile — the CURRENT account's details (avatar, username, bio,
-/// principal). Phase 4 builds the real profile surface (posts grid,
+/// subject). Phase 4 builds the real profile surface (posts grid,
 /// stats, edit); this placeholder is the tab's anchor until then,
 /// showing live session data.
 struct ProfileView: View {
@@ -22,10 +22,10 @@ struct ProfileView: View {
             }
             Text(sessionStore.username ?? "Anonymous")
                 .font(.title3.weight(.semibold))
-            if let principal = sessionStore.userPrincipal {
-                // The auth identifier — the JWT `sub` (== principal in
+            if let subject = sessionStore.userSubject {
+                // The auth identifier — the JWT `sub` (== subject in
                 // our tokens), labeled so it reads as an ID, not a name.
-                Text("ID: \(principal)")
+                Text("ID: \(subject)")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)

@@ -10,7 +10,7 @@ import Foundation
 ///     otherwise). Same reducer with `mainAccount = null`; idempotent.
 ///  2. Mint the AI account via yral-auth (`create_ai_account`).
 ///  3. Attach it (`accept_new_user_registration` with
-///     `mainAccount = <owner principal>`).
+///     `mainAccount = <owner subject>`).
 ///  4. Profile: update bio + hosted avatar via `update_profile_details`.
 ///  5. Backend record: `create` on the influencer API.
 ///  6. Finalize: persist the AI identity, switch the active session.
@@ -24,7 +24,7 @@ struct AICreationProgress {
     /// username: a name-collision edit retries the same creation
     /// without re-minting the AI account.
     let personaKey: String
-    var aiPrincipal: String?
+    var aiSubject: String?
     var ownerRegistered = false
     var registrationAccepted = false
     var avatarBytes: Data?
@@ -47,7 +47,7 @@ enum AIAccountCreator {
     }
 
     /// Kotlin `createBotAccount` + `completeBotSetup` end-to-end. Returns
-    /// the created AI principal; the session switch happens on success
+    /// the created AI subject; the session switch happens on success
     /// (Kotlin setActiveBotSession).
     @MainActor
     static func create(
@@ -55,26 +55,26 @@ enum AIAccountCreator {
         progress: inout AICreationProgress,
         context: CreationContext
     ) async throws -> String {
-        guard let ownerPrincipal = context.sessionStore.userPrincipal else {
+        guard let ownerSubject = context.sessionStore.userSubject else {
             throw AuthError.oauthFailed(errorDescription: "Not signed in")
         }
 
         if !progress.ownerRegistered {
-            try await registerOwner(ownerPrincipal: ownerPrincipal, context: context)
+            try await registerOwner(ownerSubject: ownerSubject, context: context)
             progress.ownerRegistered = true
         }
 
-        if progress.aiPrincipal == nil {
-            progress.aiPrincipal = try await mintAIAccount(
-                ownerPrincipal: ownerPrincipal, context: context
+        if progress.aiSubject == nil {
+            progress.aiSubject = try await mintAIAccount(
+                ownerSubject: ownerSubject, context: context
             )
         }
-        let aiPrincipal = try require(progress.aiPrincipal)
+        let aiSubject = try require(progress.aiSubject)
 
         if !progress.registrationAccepted {
             try await attachAIAccount(
-                ownerPrincipal: ownerPrincipal,
-                aiPrincipal: aiPrincipal,
+                ownerSubject: ownerSubject,
+                aiSubject: aiSubject,
                 context: context
             )
             progress.registrationAccepted = true
@@ -82,7 +82,7 @@ enum AIAccountCreator {
 
         let hostedAvatarURL = try await updateProfile(
             profile: profile,
-            aiPrincipal: aiPrincipal,
+            aiSubject: aiSubject,
             progress: &progress,
             context: context
         )
@@ -90,7 +90,7 @@ enum AIAccountCreator {
         if !progress.influencerCreated {
             try await createInfluencerRecord(
                 profile: profile,
-                aiPrincipal: aiPrincipal,
+                aiSubject: aiSubject,
                 hostedAvatarURL: hostedAvatarURL,
                 context: context
             )
@@ -100,15 +100,15 @@ enum AIAccountCreator {
         if !progress.finalized {
             finalize(
                 profile: profile,
-                ownerPrincipal: ownerPrincipal,
-                aiPrincipal: aiPrincipal,
+                ownerSubject: ownerSubject,
+                aiSubject: aiSubject,
                 hostedAvatarURL: hostedAvatarURL,
                 context: context
             )
             progress.finalized = true
         }
 
-        return aiPrincipal
+        return aiSubject
     }
 
     // MARK: - Steps (each idempotent-guarded by the progress record)
@@ -118,11 +118,11 @@ enum AIAccountCreator {
     /// otherwise). Same reducer with `mainAccount = nil`; idempotent.
     @MainActor
     private static func registerOwner(
-        ownerPrincipal: String,
+        ownerSubject: String,
         context: CreationContext
     ) async throws {
         try await context.spacetime.acceptNewUserRegistration(
-            newPrincipalText: ownerPrincipal,
+            newSubjectText: ownerSubject,
             authenticated: true,
             mainAccountText: nil
         )
@@ -131,14 +131,14 @@ enum AIAccountCreator {
     /// Step 2 — mint the AI identity via yral-auth.
     @MainActor
     private static func mintAIAccount(
-        ownerPrincipal: String,
+        ownerSubject: String,
         context: CreationContext
     ) async throws -> String {
         guard let idToken = context.authClient.idToken else {
             throw AuthError.oauthFailed(errorDescription: "Not signed in")
         }
         return try await context.authClient.authDataSource.createAiAccount(
-            userID: ownerPrincipal,
+            userID: ownerSubject,
             idToken: idToken
         )
     }
@@ -146,14 +146,14 @@ enum AIAccountCreator {
     /// Step 3 — attach the AI account under the owner.
     @MainActor
     private static func attachAIAccount(
-        ownerPrincipal: String,
-        aiPrincipal: String,
+        ownerSubject: String,
+        aiSubject: String,
         context: CreationContext
     ) async throws {
         try await context.spacetime.acceptNewUserRegistration(
-            newPrincipalText: aiPrincipal,
+            newSubjectText: aiSubject,
             authenticated: true,
-            mainAccountText: ownerPrincipal
+            mainAccountText: ownerSubject
         )
     }
 
@@ -162,7 +162,7 @@ enum AIAccountCreator {
     @MainActor
     private static func updateProfile(
         profile: AIProfileDetails,
-        aiPrincipal: String,
+        aiSubject: String,
         progress: inout AICreationProgress,
         context: CreationContext
     ) async throws -> String {
@@ -179,7 +179,7 @@ enum AIAccountCreator {
             imageBase64: avatarBytes.base64EncodedString(),
             idToken: idToken
         )
-        // `update_as_ai_account_id` = the new AI principal — WITHOUT it the
+        // `update_as_ai_account_id` = the new AI subject — WITHOUT it the
         // reducer edits the CALLER's (owner's) profile instead of the bot's
         // (see the reducer's doc comment in user_info.rs). Ownership is
         // checked server-side (step 3 attached the bot to the owner above).
@@ -187,7 +187,7 @@ enum AIAccountCreator {
             bio: profile.description,
             websiteURL: nil,
             profilePictureURL: hostedAvatarURL,
-            updateAsAIAccountID: aiPrincipal
+            updateAsAIAccountID: aiSubject
         )
         progress.profileUpdated = true
         progress.hostedAvatarURL = hostedAvatarURL
@@ -202,7 +202,7 @@ enum AIAccountCreator {
     @MainActor
     private static func createInfluencerRecord(
         profile: AIProfileDetails,
-        aiPrincipal: String,
+        aiSubject: String,
         hostedAvatarURL: String,
         context: CreationContext
     ) async throws {
@@ -211,7 +211,7 @@ enum AIAccountCreator {
         }
         try await context.influencerDataSource.createInfluencer(
             profile: profile,
-            aiPrincipalID: aiPrincipal,
+            aiSubjectID: aiSubject,
             hostedAvatarURL: hostedAvatarURL,
             idToken: idToken
         )
@@ -223,19 +223,19 @@ enum AIAccountCreator {
     @MainActor
     private static func finalize(
         profile: AIProfileDetails,
-        ownerPrincipal: String,
-        aiPrincipal: String,
+        ownerSubject: String,
+        aiSubject: String,
         hostedAvatarURL: String,
         context: CreationContext
     ) {
         AIIdentitiesStore.saveIdentity(
-            principal: aiPrincipal,
+            subject: aiSubject,
             username: profile.name,
             defaults: context.authClient.defaults
         )
         let aiSession = Session(
-            canisterID: aiPrincipal,
-            userPrincipal: aiPrincipal,
+            canisterID: aiSubject,
+            userSubject: aiSubject,
             profilePic: hostedAvatarURL,
             username: profile.name,
             bio: profile.description,
@@ -244,13 +244,13 @@ enum AIAccountCreator {
         )
         context.sessionStore.updateState(.signedIn(aiSession))
         context.authClient.cacheSession(
-            canisterID: aiPrincipal,
-            userPrincipal: aiPrincipal,
+            canisterID: aiSubject,
+            userSubject: aiSubject,
             profilePic: hostedAvatarURL,
             username: profile.name,
             isAIAccount: true
         )
-        context.authClient.keychain.setString(aiPrincipal, forKey: .lastActivePrincipal)
+        context.authClient.keychain.setString(aiSubject, forKey: .lastActiveSubject)
     }
 
     /// Avatar bytes — generated URL download (Kotlin downloadAvatar),

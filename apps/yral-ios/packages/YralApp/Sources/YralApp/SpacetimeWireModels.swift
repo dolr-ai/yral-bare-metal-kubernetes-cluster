@@ -97,15 +97,17 @@ struct UpdateProfileDetailsArguments: Encodable {
 
 /// `accept_new_user_registration(new_principal_text: String,
 /// authenticated: bool, main_account_text: Option<String>)` — the LIVE
-/// reducer signature.
+/// reducer signature. The arg name keeps the module's wire naming;
+/// encoding is positional so the Swift property names are Swift-side
+/// only.
 struct AcceptNewUserRegistrationArguments: Encodable {
-    let newPrincipalText: String
+    let newSubjectText: String
     let authenticated: Bool
     let mainAccountText: String?
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.unkeyedContainer()
-        try container.encode(newPrincipalText)
+        try container.encode(newSubjectText)
         try container.encode(authenticated)
         try container.encode(SpacetimeOption(mainAccountText))
     }
@@ -232,13 +234,15 @@ struct UnfollowUserArguments: Encodable {
     }
 }
 
-/// `delete_user_info(principal_to_delete_text: String)`.
+/// `delete_user_info(principal_to_delete_text: String)` — the LIVE
+/// reducer signature (the module keeps the wire arg name; encoding is
+/// positional so the Swift property name is Swift-side only).
 struct DeleteUserInfoArguments: Encodable {
-    let principalToDeleteText: String
+    let subjectToDelete: String
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.unkeyedContainer()
-        try container.encode(principalToDeleteText)
+        try container.encode(subjectToDelete)
     }
 }
 

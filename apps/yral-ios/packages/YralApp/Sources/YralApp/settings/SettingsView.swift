@@ -101,10 +101,10 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(sessionStore.username ?? "Anonymous")
                         .font(.headline)
-                    // The auth identifier — the JWT `sub` (== principal in
+                    // The auth identifier — the JWT `sub` (== subject in
                     // our tokens), labeled so it reads as an ID, not a name.
-                    if let principal = sessionStore.userPrincipal {
-                        Text("ID: \(principal)")
+                    if let subject = sessionStore.userSubject {
+                        Text("ID: \(subject)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)

@@ -40,7 +40,7 @@ struct SpacetimeDBRemoteDataSourceTests {
                     url: "https://images.yral.com/avatar.png",
                     nsfwInfo: SpacetimeWireNSFWInfo(isNSFW: false, nsfwEC: "", nsfwGore: "", csamDetected: false)
                 ),
-                updateAsAIAccountID: "ai-principal-1"
+                updateAsAIAccountID: "ai-subject-1"
             )
         )
         // Exact wire body for the live 4-arg reducer. Option<String>
@@ -51,7 +51,7 @@ struct SpacetimeDBRemoteDataSourceTests {
             + "[0,\"A witty travel photographer\"],"
             + "null,"
             + "[0,[\"https://images.yral.com/avatar.png\",[false,\"\",\"\",false]]],"
-            + "[0,\"ai-principal-1\"]"
+            + "[0,\"ai-subject-1\"]"
             + "]"
         #expect(body == expected)
     }
@@ -68,7 +68,7 @@ struct SpacetimeDBRemoteDataSourceTests {
                 bio: bioWithQuotesAndNewlines,
                 websiteURL: nil,
                 profilePicture: nil,
-                updateAsAIAccountID: "ai-principal-1"
+                updateAsAIAccountID: "ai-subject-1"
             )
         )
         // The body must parse as valid JSON (JSONSerialization accepts
@@ -128,37 +128,37 @@ struct SpacetimeDBRemoteDataSourceTests {
     @Test func ownerRegistrationEncodesNoneAsBareNull() throws {
         let body = try wireBody(
             of: AcceptNewUserRegistrationArguments(
-                newPrincipalText: "owner-principal",
+                newSubjectText: "owner-subject",
                 authenticated: true,
                 mainAccountText: nil
             )
         )
-        #expect(body == #"["owner-principal",true,null]"#)
+        #expect(body == #"["owner-subject",true,null]"#)
     }
 
     @Test func botAttachmentEncodesSomeWithInlinedPayload() throws {
         let body = try wireBody(
             of: AcceptNewUserRegistrationArguments(
-                newPrincipalText: "ai-principal-1",
+                newSubjectText: "ai-subject-1",
                 authenticated: true,
-                mainAccountText: "owner-principal"
+                mainAccountText: "owner-subject"
             )
         )
-        #expect(body == #"["ai-principal-1",true,[0,"owner-principal"]]"#)
+        #expect(body == #"["ai-subject-1",true,[0,"owner-subject"]]"#)
     }
 
     // MARK: - Reads (procedures)
 
     @Test func followersCursorEncodesAsBareNullThenSome() throws {
         let firstPage = try wireBody(
-            of: GetFollowersArguments(oauthSubject: "owner-principal", limit: 20, cursor: nil)
+            of: GetFollowersArguments(oauthSubject: "owner-subject", limit: 20, cursor: nil)
         )
-        #expect(firstPage == "[\"owner-principal\",20,null]")
+        #expect(firstPage == "[\"owner-subject\",20,null]")
 
         let nextPage = try wireBody(
-            of: GetFollowersArguments(oauthSubject: "owner-principal", limit: 20, cursor: "cursor-1")
+            of: GetFollowersArguments(oauthSubject: "owner-subject", limit: 20, cursor: "cursor-1")
         )
-        #expect(nextPage == "[\"owner-principal\",20,[0,\"cursor-1\"]]")
+        #expect(nextPage == "[\"owner-subject\",20,[0,\"cursor-1\"]]")
     }
 
     @Test func batchProfileReadNestsTheSubjectList() throws {
@@ -171,12 +171,12 @@ struct SpacetimeDBRemoteDataSourceTests {
     @Test func postsOfUserSendsOffsetThenLimit() throws {
         let body = try wireBody(
             of: GetPostsOfUserByPrincipalArguments(
-                creatorOauthSubject: "owner-principal",
+                creatorOauthSubject: "owner-subject",
                 offset: 40,
                 limit: 20
             )
         )
-        #expect(body == "[\"owner-principal\",40,20]")
+        #expect(body == "[\"owner-subject\",40,20]")
     }
 
     @Test func noArgumentCallsEncodeAsEmptyArray() throws {

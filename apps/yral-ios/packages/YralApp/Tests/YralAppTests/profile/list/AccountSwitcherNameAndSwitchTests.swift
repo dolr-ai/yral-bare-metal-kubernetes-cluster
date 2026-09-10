@@ -6,7 +6,9 @@ import Testing
 /// Real-bot-name overlay + account-switch session tests — split
 /// from `AccountSwitcherAvatarIntegrationTests.swift` to stay
 /// within the file/type lint bounds.
-@Suite(.serialized)
+/// Real-bot-name overlay + account-switch session tests — split
+/// from `AccountSwitcherAvatarIntegrationTests.swift` to stay
+/// within the file/type lint bounds.
 @MainActor
 struct AccountSwitcherNameAndSwitchTests {
 
@@ -19,43 +21,48 @@ struct AccountSwitcherNameAndSwitchTests {
         let keychain = KeychainStore(service: "switcher-avatar-tests-\(UUID().uuidString)")
         defer { keychain.removeAll() }
         let defaults = Fixtures.freshDefaults()
+        let channel = UUID().uuidString
+        defer { ChannelURLProtocol.unregister(channel: channel) }
         let (client, _) = Fixtures.makeClient(
                 defaults: defaults,
                 keychain: keychain,
-                protocolClass: SwitcherNameURLProtocol.self
+                channel: channel
             )
 
         // The local store's usernames exist only on the creating device;
         // on a fresh install they're absent and rows show pseudonyms.
         AIIdentitiesStore.put(
             [
-                AIIdentityEntry(principal: Fixtures.firstBotPrincipal, username: nil),
-                AIIdentityEntry(principal: Fixtures.secondBotPrincipal, username: nil)
+                AIIdentityEntry(subject: Fixtures.firstBotSubject, username: nil),
+                AIIdentityEntry(subject: Fixtures.secondBotSubject, username: nil)
             ],
             defaults: defaults
         )
-        SwitcherNameURLProtocol.handler = Fixtures.serveProfilesAndNames(
-            profilesBody: Fixtures.profilesResponseBody(rows: [
-                Fixtures.profileWireRow(
-                    principal: Fixtures.firstBotPrincipal,
-                    avatarURL: Fixtures.firstBotHostedAvatar
-                ),
-                Fixtures.profileWireRow(principal: Fixtures.secondBotPrincipal, avatarURL: nil)
-            ]),
-            namesBody: Fixtures.creatorNamesResponseBody(entries: [
-                (principal: Fixtures.firstBotPrincipal, name: "dekuizuku"),
-                (principal: Fixtures.secondBotPrincipal, name: "uraraka")
-            ]),
-            recorder: RequestRecorder()
+        ChannelURLProtocol.register(
+            Fixtures.serveProfilesAndNames(
+                profilesBody: Fixtures.profilesResponseBody(rows: [
+                    Fixtures.profileWireRow(
+                        subject: Fixtures.firstBotSubject,
+                        avatarURL: Fixtures.firstBotHostedAvatar
+                    ),
+                    Fixtures.profileWireRow(subject: Fixtures.secondBotSubject, avatarURL: nil)
+                ]),
+                namesBody: Fixtures.creatorNamesResponseBody(entries: [
+                    (subject: Fixtures.firstBotSubject, name: "dekuizuku"),
+                    (subject: Fixtures.secondBotSubject, name: "uraraka")
+                ]),
+                recorder: RequestRecorder()
+            ),
+            forChannel: channel
         )
 
         let entries = await client.refreshedAccountSwitcherEntries()
 
-        let namesByPrincipal = Dictionary(
-            uniqueKeysWithValues: (entries?.aiAccounts ?? []).map { ($0.principal, $0.username) }
+        let namesBySubject = Dictionary(
+            uniqueKeysWithValues: (entries?.aiAccounts ?? []).map { ($0.subject, $0.username) }
         )
-        #expect(namesByPrincipal[Fixtures.firstBotPrincipal] == "dekuizuku")
-        #expect(namesByPrincipal[Fixtures.secondBotPrincipal] == "uraraka")
+        #expect(namesBySubject[Fixtures.firstBotSubject] == "dekuizuku")
+        #expect(namesBySubject[Fixtures.secondBotSubject] == "uraraka")
     }
 
     @Test("bots without a creator record keep their pseudonym fallback")
@@ -63,28 +70,33 @@ struct AccountSwitcherNameAndSwitchTests {
         let keychain = KeychainStore(service: "switcher-avatar-tests-\(UUID().uuidString)")
         defer { keychain.removeAll() }
         let defaults = Fixtures.freshDefaults()
+        let channel = UUID().uuidString
+        defer { ChannelURLProtocol.unregister(channel: channel) }
         let (client, _) = Fixtures.makeClient(
                 defaults: defaults,
                 keychain: keychain,
-                protocolClass: SwitcherNameURLProtocol.self
+                channel: channel
             )
 
         AIIdentitiesStore.put(
-            [AIIdentityEntry(principal: Fixtures.firstBotPrincipal, username: nil)],
+            [AIIdentityEntry(subject: Fixtures.firstBotSubject, username: nil)],
             defaults: defaults
         )
-        SwitcherNameURLProtocol.handler = Fixtures.serveProfilesAndNames(
-            profilesBody: Fixtures.profilesResponseBody(rows: [
-                Fixtures.profileWireRow(
-                    principal: Fixtures.firstBotPrincipal,
-                    avatarURL: Fixtures.firstBotHostedAvatar
-                )
-            ]),
-            // The creator listing knows only the first bot.
-            namesBody: Fixtures.creatorNamesResponseBody(entries: [
-                (principal: Fixtures.firstBotPrincipal, name: "dekuizuku")
-            ]),
-            recorder: RequestRecorder()
+        ChannelURLProtocol.register(
+            Fixtures.serveProfilesAndNames(
+                profilesBody: Fixtures.profilesResponseBody(rows: [
+                    Fixtures.profileWireRow(
+                        subject: Fixtures.firstBotSubject,
+                        avatarURL: Fixtures.firstBotHostedAvatar
+                    )
+                ]),
+                // The creator listing knows only the first bot.
+                namesBody: Fixtures.creatorNamesResponseBody(entries: [
+                    (subject: Fixtures.firstBotSubject, name: "dekuizuku")
+                ]),
+                recorder: RequestRecorder()
+            ),
+            forChannel: channel
         )
 
         let entries = await client.refreshedAccountSwitcherEntries()
@@ -93,7 +105,7 @@ struct AccountSwitcherNameAndSwitchTests {
             Issue.record("expected the bot row")
             return
         }
-        #expect(firstBot.principal == Fixtures.firstBotPrincipal)
+        #expect(firstBot.subject == Fixtures.firstBotSubject)
         #expect(firstBot.username == "dekuizuku")
     }
 
@@ -105,13 +117,13 @@ struct AccountSwitcherNameAndSwitchTests {
         let (client, sessionStore) = Fixtures.makeClient(
                 defaults: defaults,
                 keychain: keychain,
-                protocolClass: SwitcherNameURLProtocol.self
+                channel: UUID().uuidString
             )
 
         // The user taps the row AFTER the live refresh — the row carries
         // the hosted URL; the session + PROFILE_PIC cache must show it.
         client.switchToAccount(
-            principal: Fixtures.firstBotPrincipal,
+            subject: Fixtures.firstBotSubject,
             avatarURL: Fixtures.firstBotHostedAvatar
         )
 
@@ -119,8 +131,8 @@ struct AccountSwitcherNameAndSwitchTests {
         #expect(
             defaults.string(forKey: "PROFILE_PIC") == Fixtures.firstBotHostedAvatar
         )
-        // The bot becomes the last-active principal (cold-start continuity).
-        #expect(keychain.string(forKey: .lastActivePrincipal) == Fixtures.firstBotPrincipal)
+        // The bot becomes the last-active subject (cold-start continuity).
+        #expect(keychain.string(forKey: .lastActiveSubject) == Fixtures.firstBotSubject)
     }
 
     @Test("switchToAccount persists the tapped row's real name into the session")
@@ -131,7 +143,7 @@ struct AccountSwitcherNameAndSwitchTests {
         let (client, sessionStore) = Fixtures.makeClient(
             defaults: defaults,
             keychain: keychain,
-            protocolClass: SwitcherNameURLProtocol.self
+            channel: UUID().uuidString
         )
 
         // The user taps the row AFTER the live refresh — the row carries
@@ -139,7 +151,7 @@ struct AccountSwitcherNameAndSwitchTests {
         // Settings/Profile headers read from there, and the local store
         // only knows names on the creating device).
         client.switchToAccount(
-            principal: Fixtures.firstBotPrincipal,
+            subject: Fixtures.firstBotSubject,
             username: "uraraka"
         )
 
@@ -155,26 +167,26 @@ struct AccountSwitcherNameAndSwitchTests {
         let (client, sessionStore) = Fixtures.makeClient(
             defaults: defaults,
             keychain: keychain,
-            protocolClass: SwitcherNameURLProtocol.self
+            channel: UUID().uuidString
         )
 
         // The fixture seeds usernames for its two bots; add a third with
         // NO stored name — the pseudonym fallback tier.
-        let namelessBotPrincipal = "nameless-bot-principal"
+        let namelessBotSubject = "nameless-bot-subject"
         var entries = AIIdentitiesStore.entries(defaults: defaults)
-        entries.append(AIIdentityEntry(principal: namelessBotPrincipal, username: nil))
+        entries.append(AIIdentityEntry(subject: namelessBotSubject, username: nil))
         AIIdentitiesStore.put(entries, defaults: defaults)
 
-        client.switchToAccount(principal: namelessBotPrincipal, username: nil)
+        client.switchToAccount(subject: namelessBotSubject, username: nil)
 
-        // Deterministic pseudonym fallback (per-principal, stable).
+        // Deterministic pseudonym fallback (per-subject, stable).
         #expect(
             sessionStore.username
                 == UsernameGenerator.resolveUsername(
-                    preferred: nil, principal: namelessBotPrincipal
+                    preferred: nil, subject: namelessBotSubject
                 )
         )
-        #expect(sessionStore.username != namelessBotPrincipal)
+        #expect(sessionStore.username != namelessBotSubject)
     }
 
     @Test("switchToAccount without a URL falls back to GobGob (offline switch)")
@@ -185,19 +197,18 @@ struct AccountSwitcherNameAndSwitchTests {
         let (client, sessionStore) = Fixtures.makeClient(
                 defaults: defaults,
                 keychain: keychain,
-                protocolClass: SwitcherNameURLProtocol.self
+                channel: UUID().uuidString
             )
 
-        client.switchToAccount(principal: Fixtures.firstBotPrincipal, avatarURL: nil)
+        client.switchToAccount(subject: Fixtures.firstBotSubject, avatarURL: nil)
 
         #expect(
             sessionStore.profilePic
-                == ProfilePicture.url(fromPrincipal: Fixtures.firstBotPrincipal)
+                == ProfilePicture.url(fromSubject: Fixtures.firstBotSubject)
         )
     }
 }
 
-/// Request recorder — reference-boxed so the @Sendable URLProtocol
-/// handler (running off the MainActor) can record into it. Same shape
-/// as `RefreshRecorder` in `AuthClientTests` (file-scope for the same
-/// isolation reasons).
+/// `RequestRecorder` and the URLProtocol channel seam live in
+/// `TestSupport/NetworkStubSupport.swift` (file-scope for the MainActor
+/// isolation reasons documented there).

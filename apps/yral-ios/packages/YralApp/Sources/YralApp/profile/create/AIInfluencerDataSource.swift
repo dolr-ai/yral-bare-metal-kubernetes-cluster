@@ -167,7 +167,7 @@ public struct AIInfluencerDataSource: Sendable {
     /// profile-image upload step), not the short-lived generated one.
     func createInfluencer(
         profile: AIProfileDetails,
-        aiPrincipalID: String,
+        aiSubjectID: String,
         hostedAvatarURL: String,
         idToken: String
     ) async throws {
@@ -179,7 +179,7 @@ public struct AIInfluencerDataSource: Sendable {
                             name: profile.name,
                             display_name: profile.displayName,
                             system_instructions: profile.systemInstructions,
-                            bot_principal_id: aiPrincipalID,
+                            bot_principal_id: aiSubjectID,
                             avatar_url: hostedAvatarURL,
                             description: profile.description,
                             category: profile.category,
@@ -335,11 +335,11 @@ public struct AIInfluencerMetadata: Equatable, Sendable {
 
 /// One row of `GET /api/v1/creator/influencers` — the bot's real name
 /// (`name`, the creation-time handle), optional display name, and its
-/// SpacetimeDB principal (`bot_principal_id` is NOT in this response —
-/// the `id` field IS the bot principal, verified live: `id ==
-/// user_profiles_2.oauth_subject`).
+/// SpacetimeDB subject (`bot_principal_id` is NOT in this response —
+/// the `id` field IS the bot's subject, verified live: `id ==
+/// `user_profiles_2.oauth_subject`).
 public struct CreatorInfluencer: Equatable, Sendable {
-    public let principal: String
+    public let subject: String
     public let name: String
     public let displayName: String?
     public let avatarURL: String?
@@ -364,11 +364,11 @@ struct CreatorInfluencerList: Equatable {
         }
         influencers = rows.compactMap { row -> CreatorInfluencer? in
             guard let row = row as? [String: (any Sendable)?],
-                let principal = row["id"] as? String,
+                let subject = row["id"] as? String,
                 let name = row["name"] as? String
             else { return nil }
             return CreatorInfluencer(
-                principal: principal,
+                subject: subject,
                 name: name,
                 displayName: row["display_name"] as? String,
                 avatarURL: row["avatar_url"] as? String

@@ -12,7 +12,7 @@ struct ProfilePictureTests {
 
     @Test("avatar URL is prefix + index + .png")
     func avatarURL() {
-        let url = ProfilePicture.url(fromPrincipal: "auth0|user-77")
+        let url = ProfilePicture.url(fromSubject: "auth0|user-77")
         let index = ProfilePicture.avatarIndex("auth0|user-77")
         #expect(url == "https://prakash-yral.hel1.your-objectstorage.com/gobgob/gob.\(index).png")
         #expect(url.hasPrefix(ProfilePicture.gobgobURLPrefix))
@@ -32,47 +32,47 @@ struct ProfilePictureTests {
         #expect(firstHash != ProfilePicture.crc32IEEE(Data("AUTH0|USER-77".utf8)))
     }
 
-    @Test("avatar index stays in the GobGob pool range for negative-hash principals")
+    @Test("avatar index stays in the GobGob pool range for negative-hash subjects")
     func avatarIndexInRangeForNegativeHashes() {
         // Regression: the Kotlin port took the remainder on the SIGNED
-        // CRC32, so any principal whose hash had the high bit set
+        // CRC32, so any subject whose hash had the high bit set
         // (~50%) produced index <= 0 -> `gob.-12345.png` -> permanent
-        // 404. The unsigned form must map EVERY principal into
+        // 404. The unsigned form must map EVERY subject into
         // 1...18557 — the range the GobGob pool actually serves.
-        var foundNegativeHashPrincipal = false
+        var foundNegativeHashSubject = false
         for index in 0..<1000 {
-            let principal = "principal-\(index)"
-            let hash = ProfilePicture.crc32IEEE(Data(principal.utf8))
-            let avatarIndex = ProfilePicture.avatarIndex(principal)
+            let subject = "subject-\(index)"
+            let hash = ProfilePicture.crc32IEEE(Data(subject.utf8))
+            let avatarIndex = ProfilePicture.avatarIndex(subject)
             #expect(avatarIndex >= 1 && avatarIndex <= 18_557)
             if Int32(bitPattern: hash) < 0 {
-                foundNegativeHashPrincipal = true
+                foundNegativeHashSubject = true
                 // The bug: the signed remainder is <= 0 for these.
                 let signedRemainder = Int(Int32(bitPattern: hash) % Int32(18_557)) + 1
                 #expect(signedRemainder <= 0)
                 #expect(avatarIndex != signedRemainder)
             }
         }
-        #expect(foundNegativeHashPrincipal, "expected at least one negative-hash principal in the sample")
+        #expect(foundNegativeHashSubject, "expected at least one negative-hash subject in the sample")
     }
 
-    @Test("positive-hash principals keep the exact Kotlin URL")
+    @Test("positive-hash subjects keep the exact Kotlin URL")
     func avatarIndexUnchangedForPositiveHashes() {
-        // Principals whose CRC32 has the high bit clear produced the
+        // Subjects whose CRC32 has the high bit clear produced the
         // same index in Kotlin and here — the URL must not change for
         // them (production continuity).
         for index in 0..<1000 {
-            let principal = "principal-\(index)"
-            let hash = ProfilePicture.crc32IEEE(Data(principal.utf8))
+            let subject = "subject-\(index)"
+            let hash = ProfilePicture.crc32IEEE(Data(subject.utf8))
             if Int32(bitPattern: hash) >= 0 {
                 let kotlinIndex = Int(Int32(bitPattern: hash) % Int32(18_557)) + 1
                 #expect(kotlinIndex >= 1 && kotlinIndex <= 18_557)
-                #expect(ProfilePicture.avatarIndex(principal) == kotlinIndex)
+                #expect(ProfilePicture.avatarIndex(subject) == kotlinIndex)
             }
         }
     }
 
-    @Test("avatar index is deterministic per principal")
+    @Test("avatar index is deterministic per subject")
     func avatarIndexDeterministic() {
         #expect(ProfilePicture.avatarIndex("p") == ProfilePicture.avatarIndex("p"))
         #expect(ProfilePicture.avatarIndex("p") != ProfilePicture.avatarIndex("q"))
@@ -88,18 +88,18 @@ struct ProfilePictureTests {
         #expect(Set(yralUsernameNouns).count == 150)
     }
 
-    @Test("username generation is deterministic for the same principal")
+    @Test("username generation is deterministic for the same subject")
     func usernameDeterminism() {
         #expect(
-            UsernameGenerator.username(fromPrincipal: "test-principal")
-                == UsernameGenerator.username(fromPrincipal: "test-principal")
+            UsernameGenerator.username(fromSubject: "test-subject")
+                == UsernameGenerator.username(fromSubject: "test-subject")
         )
     }
 
     @Test("generated usernames are hyphenated: modifier-modifier-noun, 3–15 chars")
     func usernameShape() {
         for index in 0..<200 {
-            let username = UsernameGenerator.username(fromPrincipal: "principal-\(index)")
+            let username = UsernameGenerator.username(fromSubject: "subject-\(index)")
             #expect(username.count >= 3)
             #expect(username.count <= 15)
             // Lowercase letters + hyphens only.
@@ -116,12 +116,12 @@ struct ProfilePictureTests {
         }
     }
 
-    @Test("resolveUsername prefers trimmed non-empty preferred; falls back per principal")
+    @Test("resolveUsername prefers trimmed non-empty preferred; falls back per subject")
     func resolveUsername() {
-        #expect(UsernameGenerator.resolveUsername(preferred: "  saikat  ", principal: "p") == "  saikat  ")
-        #expect(UsernameGenerator.resolveUsername(preferred: "", principal: "p") != nil)
-        #expect(UsernameGenerator.resolveUsername(preferred: nil, principal: "p") != nil)
-        #expect(UsernameGenerator.resolveUsername(preferred: nil, principal: nil) == nil)
+        #expect(UsernameGenerator.resolveUsername(preferred: "  saikat  ", subject: "p") == "  saikat  ")
+        #expect(UsernameGenerator.resolveUsername(preferred: "", subject: "p") != nil)
+        #expect(UsernameGenerator.resolveUsername(preferred: nil, subject: "p") != nil)
+        #expect(UsernameGenerator.resolveUsername(preferred: nil, subject: nil) == nil)
     }
 
     @Test("unsafe words are absent from the username pools")

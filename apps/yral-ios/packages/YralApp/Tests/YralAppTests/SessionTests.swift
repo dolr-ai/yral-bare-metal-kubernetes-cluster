@@ -13,14 +13,14 @@ struct SessionTests {
 
         // Initial state.
         #expect(store.state == .initial)
-        #expect(store.userPrincipal == nil)
+        #expect(store.userSubject == nil)
         #expect(store.profilePic == nil)
         #expect(store.isAIAccount == nil)
 
         // Signed in with properties set.
         let session = Session(
             canisterID: "canister-1",
-            userPrincipal: "auth0|user-77",
+            userSubject: "auth0|user-77",
             profilePic: "https://example.com/pic.png",
             username: "sunnyotter",
             isCreatedFromServiceCanister: true,
@@ -32,7 +32,7 @@ struct SessionTests {
         store.updatePhoneNumber("+15551234567")
 
         #expect(store.canisterID == "canister-1")
-        #expect(store.userPrincipal == "auth0|user-77")
+        #expect(store.userSubject == "auth0|user-77")
         #expect(store.profilePic == "https://example.com/pic.png")
         #expect(store.username == "sunnyotter")
         #expect(store.isAIAccount == false)
@@ -50,7 +50,7 @@ struct SessionTests {
     @Test("resetSessionProperties zeroes balance and clears social sign-in")
     func resetSessionProperties() {
         let store = SessionStore()
-        let session = Session(userPrincipal: "p", profilePic: "pic")
+        let session = Session(userSubject: "p", profilePic: "pic")
         store.updateState(.signedIn(session))
         store.updateCoinBalance(99)
         store.updateSocialSignInStatus(true)

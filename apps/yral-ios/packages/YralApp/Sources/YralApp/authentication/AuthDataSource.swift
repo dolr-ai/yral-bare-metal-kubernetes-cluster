@@ -234,7 +234,7 @@ public struct AuthDataSource: Sendable {
     public func updateSessionAsRegistered(
         idToken: String,
         canisterID: String,
-        userPrincipal: String
+        userSubject: String
     ) async throws {
         var request = URLRequest(
             url: URL(
@@ -246,7 +246,7 @@ public struct AuthDataSource: Sendable {
         request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
         let bodyObject: [String: String] = [
             "user_canister": canisterID,
-            "user_principal": userPrincipal
+            "user_principal": userSubject
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: bodyObject)
         // Fire-and-forget: the Kotlin client sets expectSuccess = false and

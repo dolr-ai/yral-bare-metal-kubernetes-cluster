@@ -7,7 +7,9 @@ import Foundation
 /// plus the account-deletion contract: deletion goes through the
 /// SpacetimeDB `delete_user_info` reducer (the off-chain-agent endpoint
 /// is decommissioned — it was a stub that deleted nothing).
-/// @MainActor: the delete test constructs AuthClient/SessionStore.
+/// @MainActor: the delete tests construct AuthClient/SessionStore. Each
+/// test stubs HTTP on its own `ChannelURLProtocol` channel — no shared
+/// state, fully parallel-safe.
 @MainActor
 struct AuthDataSourceTests {
 
@@ -36,41 +38,52 @@ struct AuthDataSourceTests {
             .joined(separator: ".")
     }
 
-    /// Deletion targets the CALLER'S OWN sub (from the id token — the
-    /// reducer enforces self-or-admin server-side). The reducer call
-    /// must carry the token subject, never a locally stored principal.
-    @Test("delete account calls delete_user_info with the token subject")
-    func deleteAccountCallsReducerWithTokenSubject() async throws {
-        let now = Int64(Date.now.timeIntervalSince1970)
-        let subject = "test-user-sub-123"
-        let idToken = makeJWT(claims: [
-            "exp": now + 3_600, "iat": now - 60,
-            "iss": "auth.yral.com", "sub": subject
-        ])
+    // MARK: - Account deletion (the SpacetimeDB delete_user_info contract)
 
-        // Reference-boxed capture — the @Sendable URLProtocol handler
-        // runs off the MainActor (same shape as AuthClientTests' recorders).
-        final class CallBox: @unchecked Sendable {
-            var url: URL?
-            var body: Data?
-        }
-        let box = CallBox()
-        RecordingURLProtocol.handler = { request in
-            box.url = request.url
-            box.body = request.httpBody ?? request.bodyStreamData
-            let response = HTTPURLResponse(
-                url: request.url!, statusCode: 200,
-                httpVersion: "HTTP/1.1", headerFields: nil
-            )!
-            return (response, Data("[]".utf8))
-        }
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [RecordingURLProtocol.self]
-        let mockSession = URLSession(configuration: configuration)
+    /// Everything a delete test needs: the signed-in client, its
+    /// stores, and the stub channel (tests `defer` its unregistration).
+    private struct SignedInClient {
+        let client: AuthClient
+        let sessionStore: SessionStore
+        let keychain: KeychainStore
+        let channel: String
+    }
+
+    /// Builds a signed-in client with the given session + tokens. The
+    /// channel-scoped handler captures the reducer call into `recorder`.
+    @discardableResult
+    private func makeSignedInClient(
+        activeSubject: String,
+        isAIAccount: Bool,
+        mainSubject: String,
+        idToken: String,
+        recorder: RequestRecorder
+    ) -> SignedInClient {
+        let channel = UUID().uuidString
+        ChannelURLProtocol.register(
+            { request in
+                recorder.record(request)
+                let response = HTTPURLResponse(
+                    url: request.url!, statusCode: 200,
+                    httpVersion: "HTTP/1.1", headerFields: nil
+                )!
+                return (response, Data("[]".utf8))
+            },
+            forChannel: channel
+        )
+        let mockSession = ChannelURLProtocol.makeSession(channel: channel)
         let keychain = KeychainStore(service: "delete-account-tests-\(UUID().uuidString)")
-        defer { keychain.removeAll() }
         keychain.setString(idToken, forKey: .idToken)
+        keychain.setString(mainSubject, forKey: .mainSubject)
         let sessionStore = SessionStore()
+        let session = Session(
+            canisterID: activeSubject,
+            userSubject: activeSubject,
+            profilePic: ProfilePicture.url(fromSubject: activeSubject),
+            username: "test-user",
+            isAIAccount: isAIAccount
+        )
+        sessionStore.updateState(.signedIn(session))
         let client = AuthClient(
             authDataSource: AuthDataSource(session: mockSession),
             redirectScheme: "com.yral.iosApp",
@@ -81,19 +94,91 @@ struct AuthDataSourceTests {
             ),
             sessionStore: sessionStore
         )
+        return SignedInClient(
+            client: client,
+            sessionStore: sessionStore,
+            keychain: keychain,
+            channel: channel
+        )
+    }
 
-        try await client.deleteAccount()
-
-        // The reducer endpoint, not the off-chain one.
-        #expect(box.url?.path.contains("/call/delete_user_info") == true)
-        guard let bodyData = box.body else {
-            Issue.record("expected a request body")
-            return
+    /// Extracts the reducer target from the captured delete_user_info call.
+    private func capturedReducerTarget(recorder: RequestRecorder) throws -> String {
+        guard let deleteCall = recorder.requests.first(where: {
+            $0.url?.path.contains("/call/delete_user_info") == true
+        }) else {
+            Issue.record("expected a delete_user_info call")
+            return ""
         }
-        let arguments = try JSONSerialization.jsonObject(with: bodyData) as? [Any]
-        #expect(arguments?.first as? String == subject)
-        // Deletion logs the caller out (session torn down).
-        #expect(sessionStore.userPrincipal == nil)
-        #expect(keychain.string(forKey: .idToken) == nil)
+        let body = deleteCall.httpBody ?? deleteCall.bodyStreamData
+        let arguments = try body.flatMap { try JSONSerialization.jsonObject(with: $0) as? [Any] }
+        return arguments?.first as? String ?? ""
+    }
+
+    /// THE prod bug this pins: deleting a BOT must target THE BOT's
+    /// subject — never the token's sub. Bot sessions carry the
+    /// PARENT's tokens (sub = main subject), so the token-based
+    /// version cascaded the whole main account when a bot was active.
+    @Test("deleting an active AI account targets the bot subject, then switches to main")
+    func deleteAIAccountTargetsBotAndSwitchesToMain() async throws {
+        let now = Int64(Date.now.timeIntervalSince1970)
+        let mainSubject = "main-owner-sub"
+        let botSubject = "3324e51a-6379-4eb0-a7ec-cde85897081f"
+        // Bot session: tokens are the PARENT's (sub = main subject).
+        let idToken = makeJWT(claims: [
+            "exp": now + 3_600, "iat": now - 60,
+            "iss": "auth.yral.com", "sub": mainSubject
+        ])
+
+        let recorder = RequestRecorder()
+        let signedIn = makeSignedInClient(
+            activeSubject: botSubject,
+            isAIAccount: true,
+            mainSubject: mainSubject,
+            idToken: idToken,
+            recorder: recorder
+        )
+        defer { signedIn.keychain.removeAll() }
+        defer { ChannelURLProtocol.unregister(channel: signedIn.channel) }
+
+        try await signedIn.client.deleteAccount()
+
+        // The reducer target is THE BOT — not the token's (main) sub.
+        #expect(try capturedReducerTarget(recorder: recorder) == botSubject)
+        // UI switched back to the main account (still signed in).
+        #expect(signedIn.sessionStore.userSubject == mainSubject)
+        #expect(signedIn.sessionStore.isAIAccount == false)
+        #expect(signedIn.keychain.string(forKey: .idToken) != nil)
+    }
+
+    @Test("deleting the main account targets the main subject and logs out")
+    func deleteMainAccountTargetsMainAndLogsOut() async throws {
+        let now = Int64(Date.now.timeIntervalSince1970)
+        let mainSubject = "main-owner-sub"
+        // Main session: token sub IS the main subject.
+        let idToken = makeJWT(claims: [
+            "exp": now + 3_600, "iat": now - 60,
+            "iss": "auth.yral.com", "sub": mainSubject
+        ])
+
+        let recorder = RequestRecorder()
+        let signedIn = makeSignedInClient(
+            activeSubject: mainSubject,
+            isAIAccount: false,
+            mainSubject: mainSubject,
+            idToken: idToken,
+            recorder: recorder
+        )
+        defer { signedIn.keychain.removeAll() }
+        defer { ChannelURLProtocol.unregister(channel: signedIn.channel) }
+
+        try await signedIn.client.deleteAccount()
+
+        // The reducer target is the main subject (cascades all bots
+        // server-side).
+        #expect(try capturedReducerTarget(recorder: recorder) == mainSubject)
+        // Full logout — the account (and every bot) is gone.
+        #expect(signedIn.sessionStore.userSubject == nil)
+        #expect(signedIn.keychain.string(forKey: .idToken) == nil)
     }
 }

@@ -3,43 +3,17 @@ import Testing
 
 @testable import YralApp
 
-/// Routes every request through a per-test handler. FILE SCOPE (not
+/// HTTP stubbing, per-test request recorders, and the `bodyStreamData`
+/// helper live in `TestSupport/NetworkStubSupport.swift`
+/// (`ChannelURLProtocol` + `RequestRecorder`). Kept FILE SCOPE (not
 /// nested in the @MainActor suite): URLProtocol.startLoading runs on
 /// URLSession's queue, and a nested class would inherit MainActor
 /// isolation under Swift 6 — trapping on executor mismatch (seen as
-/// `dispatch_assert_queue` SIGTRAPs). Declaring it here keeps the
-/// protocol nonisolated; the suite's `.serialized` run order makes the
-/// static handler safe (one test installs its own before running).
-final class RecordingURLProtocol: URLProtocol, @unchecked Sendable {
-    nonisolated(unsafe) static var handler:
-        (@Sendable (URLRequest) throws -> (HTTPURLResponse, Data))?
-
-    static override func canInit(with request: URLRequest) -> Bool { true }
-    static override func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-
-    override func startLoading() {
-        guard let handler = Self.handler else {
-            client?.urlProtocol(
-                self, didFailWithError: URLError(.unsupportedURL)
-            )
-            return
-        }
-        do {
-            let (response, data) = try handler(request)
-            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-            client?.urlProtocol(self, didLoad: data)
-            client?.urlProtocolDidFinishLoading(self)
-        } catch {
-            client?.urlProtocol(self, didFailWithError: error)
-        }
-    }
-
-    override func stopLoading() {}
-}
+/// `dispatch_assert_queue` SIGTRAPs).
 
 /// Refresh-call recorder — reference-boxed so the @Sendable URLProtocol
 /// handler (running off the MainActor) can mutate it. File scope for the
-/// same isolation reason as `RecordingURLProtocol`.
+/// same isolation reason as the stub protocol.
 final class RefreshRecorder: @unchecked Sendable {
     private let lock = NSLock()
     private var storedRefreshCalls = 0
@@ -87,11 +61,9 @@ final class RefreshCounter: @unchecked Sendable {
 /// Cold-start + token-expiry contracts for `AuthClient` — ports of the
 /// three verified `DefaultAuthClientTest.kt` cases. HTTP is stubbed via
 /// `URLProtocol` (Apple-canonical seam) driving the real data source; the
-/// Keychain/UserDefaults use isolated per-test instances.
-///
-/// `.serialized`: the shared static URLProtocol handler is per-test state
-/// (each test installs its own); parallel execution would race on it.
-@Suite(.serialized)
+/// Keychain/UserDefaults use isolated per-test instances. Each test gets
+/// a fresh stub channel (per-session `httpAdditionalHeaders` id) — no
+/// shared state, tests run fully parallel.
 @MainActor
 struct AuthClientTests {
 
@@ -115,8 +87,8 @@ struct AuthClientTests {
 
     // MARK: - Fixtures
 
-    static let mainPrincipal = "main-principal"
-    static let aiPrincipal = "AI account-principal"
+    static let mainSubject = "main-subject"
+    static let aiSubject = "AI account-subject"
     static let now = Int64(Date.now.timeIntervalSince1970)
 
     /// Kotlin `storeCachedBotSession` — cached AI account session + tokens.
@@ -127,25 +99,25 @@ struct AuthClientTests {
         idToken: String,
         refreshToken: String
     ) -> (main: String, aiAccount: String) {
-        keychain.setString(Self.mainPrincipal, forKey: .mainPrincipal)
-        keychain.setString(Self.aiPrincipal, forKey: .lastActivePrincipal)
+        keychain.setString(Self.mainSubject, forKey: .mainSubject)
+        keychain.setString(Self.aiSubject, forKey: .lastActiveSubject)
         defaults.set("AI account-canister", forKey: "CANISTER_ID")
-        defaults.set(Self.aiPrincipal, forKey: "USER_PRINCIPAL")
+        defaults.set(Self.aiSubject, forKey: "USER_PRINCIPAL")
         defaults.set("https://example.com/AI account.png", forKey: "PROFILE_PIC")
         defaults.set("AI account-user", forKey: "USERNAME")
         defaults.set(true, forKey: "IS_CREATED_FROM_SERVICE_CANISTER")
         keychain.setString(idToken, forKey: .idToken)
         keychain.setString(refreshToken, forKey: .refreshToken)
-        return (Self.mainPrincipal, Self.aiPrincipal)
+        return (Self.mainSubject, Self.aiSubject)
     }
 
     func makeClient(
         keychain: KeychainStore,
-        defaults: UserDefaults
+        defaults: UserDefaults,
+        channel: String
     ) -> (client: AuthClient, sessionStore: SessionStore) {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [RecordingURLProtocol.self]
-        let dataSource = AuthDataSource(session: URLSession(configuration: configuration))
+        let mockSession = ChannelURLProtocol.makeSession(channel: channel)
+        let dataSource = AuthDataSource(session: mockSession)
         let sessionStore = SessionStore()
         let client = AuthClient(
             authDataSource: dataSource,
@@ -183,10 +155,12 @@ struct AuthClientTests {
         let keychain = KeychainStore(service: "yral-tests-\(UUID().uuidString)")
         defer { keychain.removeAll() }
         let defaults = freshDefaults()
+        let channel = UUID().uuidString
+        defer { ChannelURLProtocol.unregister(channel: channel) }
 
         let validIDToken = Self.makeJWT(claims: [
             "exp": Self.now + 3_600, "iat": Self.now - 60,
-            "iss": "auth.yral.com", "sub": Self.aiPrincipal
+            "iss": "auth.yral.com", "sub": Self.aiSubject
         ])
         storeCachedBotSession(
             keychain: keychain, defaults: defaults,
@@ -194,13 +168,17 @@ struct AuthClientTests {
         )
 
         let counter = RefreshCounter()
-        RecordingURLProtocol.handler = makeFailingHandler(counter: counter)
+        ChannelURLProtocol.register(
+            makeFailingHandler(counter: counter), forChannel: channel
+        )
 
-        let (client, sessionStore) = makeClient(keychain: keychain, defaults: defaults)
+        let (client, sessionStore) = makeClient(
+            keychain: keychain, defaults: defaults, channel: channel
+        )
         await client.initialize()
 
         #expect(counter.calls == 0)
-        #expect(sessionStore.userPrincipal == Self.aiPrincipal)
+        #expect(sessionStore.userSubject == Self.aiSubject)
         #expect(sessionStore.isAIAccount == true)
         #expect(keychain.string(forKey: .idToken) == validIDToken)
     }
@@ -250,14 +228,16 @@ struct AuthClientTests {
         let keychain = KeychainStore(service: "yral-tests-\(UUID().uuidString)")
         defer { keychain.removeAll() }
         let defaults = freshDefaults()
+        let channel = UUID().uuidString
+        defer { ChannelURLProtocol.unregister(channel: channel) }
 
         let expiredIDToken = Self.makeJWT(claims: [
             "exp": Self.now - 60, "iat": Self.now - 7_200,
-            "iss": "auth.yral.com", "sub": Self.aiPrincipal
+            "iss": "auth.yral.com", "sub": Self.aiSubject
         ])
         let validRefreshToken = Self.makeJWT(claims: [
             "exp": Self.now + 3_600, "iat": Self.now - 60,
-            "iss": "auth.yral.com", "sub": Self.aiPrincipal
+            "iss": "auth.yral.com", "sub": Self.aiSubject
         ])
         storeCachedBotSession(
             keychain: keychain, defaults: defaults,
@@ -266,21 +246,26 @@ struct AuthClientTests {
 
         let refreshedIDToken = Self.makeJWT(claims: [
             "exp": Self.now + 3_600, "iat": Self.now,
-            "iss": "auth.yral.com", "sub": Self.aiPrincipal
+            "iss": "auth.yral.com", "sub": Self.aiSubject
         ])
 
         let recorder = RefreshRecorder()
-        RecordingURLProtocol.handler = makeRefreshHandler(
-            refreshedIDToken: refreshedIDToken,
-            recorder: recorder
+        ChannelURLProtocol.register(
+            makeRefreshHandler(
+                refreshedIDToken: refreshedIDToken,
+                recorder: recorder
+            ),
+            forChannel: channel
         )
 
-        let (client, sessionStore) = makeClient(keychain: keychain, defaults: defaults)
+        let (client, sessionStore) = makeClient(
+            keychain: keychain, defaults: defaults, channel: channel
+        )
         await client.initialize()
 
         #expect(recorder.refreshCalls == 1)
         #expect(recorder.lastRefreshToken == validRefreshToken)
-        #expect(sessionStore.userPrincipal == Self.aiPrincipal)
+        #expect(sessionStore.userSubject == Self.aiSubject)
         #expect(sessionStore.isAIAccount == true)
         #expect(keychain.string(forKey: .idToken) == refreshedIDToken)
         #expect(keychain.string(forKey: .refreshToken) == "refreshed-refresh-token")
@@ -294,14 +279,16 @@ struct AuthClientTests {
         let keychain = KeychainStore(service: "yral-tests-\(UUID().uuidString)")
         defer { keychain.removeAll() }
         let defaults = freshDefaults()
+        let channel = UUID().uuidString
+        defer { ChannelURLProtocol.unregister(channel: channel) }
 
         let expiredIDToken = Self.makeJWT(claims: [
             "exp": Self.now - 60, "iat": Self.now - 7_200,
-            "iss": "auth.yral.com", "sub": Self.aiPrincipal
+            "iss": "auth.yral.com", "sub": Self.aiSubject
         ])
         let expiredRefreshToken = Self.makeJWT(claims: [
             "exp": Self.now - 60, "iat": Self.now - 7_200,
-            "iss": "auth.yral.com", "sub": Self.aiPrincipal
+            "iss": "auth.yral.com", "sub": Self.aiSubject
         ])
         storeCachedBotSession(
             keychain: keychain, defaults: defaults,
@@ -309,13 +296,17 @@ struct AuthClientTests {
         )
 
         let counter = RefreshCounter()
-        RecordingURLProtocol.handler = makeFailingHandler(counter: counter)
+        ChannelURLProtocol.register(
+            makeFailingHandler(counter: counter), forChannel: channel
+        )
 
-        let (client, sessionStore) = makeClient(keychain: keychain, defaults: defaults)
+        let (client, sessionStore) = makeClient(
+            keychain: keychain, defaults: defaults, channel: channel
+        )
         await client.initialize()
 
         #expect(counter.calls == 0)
-        #expect(sessionStore.userPrincipal == nil)
+        #expect(sessionStore.userSubject == nil)
         #expect(keychain.string(forKey: .idToken) == nil)
         #expect(keychain.string(forKey: .refreshToken) == nil)
         #expect(client.lastLogoutCause == .refreshTokenExpiredOrInvalid)
@@ -327,7 +318,10 @@ struct AuthClientTests {
     func callbackStateMismatchThrows() async throws {
         let keychain = KeychainStore(service: "yral-tests-\(UUID().uuidString)")
         defer { keychain.removeAll() }
-        let (client, _) = makeClient(keychain: keychain, defaults: freshDefaults())
+        let channel = UUID().uuidString
+        let (client, _) = makeClient(
+            keychain: keychain, defaults: freshDefaults(), channel: channel
+        )
 
         _ = try client.socialAuthorizationURL(provider: .google)
         await #expect(throws: AuthError.stateMismatch) {
@@ -343,7 +337,10 @@ struct AuthClientTests {
     func socialAuthorizationURL() throws {
         let keychain = KeychainStore(service: "yral-tests-\(UUID().uuidString)")
         defer { keychain.removeAll() }
-        let (client, _) = makeClient(keychain: keychain, defaults: freshDefaults())
+        let channel = UUID().uuidString
+        let (client, _) = makeClient(
+            keychain: keychain, defaults: freshDefaults(), channel: channel
+        )
 
         let url = try client.socialAuthorizationURL(provider: .apple)
         let components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
@@ -363,25 +360,5 @@ struct AuthClientTests {
         #expect(query("code_challenge_method") == "S256")
         #expect(query("state") == query("code_challenge"))
         #expect((query("code_challenge") ?? "").count == 43)
-    }
-}
-
-extension URLRequest {
-    /// `httpBody` may be nil when the protocol consumed the body stream —
-    /// this reads it back for the recording handlers.
-    var bodyStreamData: Data? {
-        guard let stream = httpBodyStream else { return nil }
-        stream.open()
-        defer { stream.close() }
-        var data = Data()
-        let bufferSize = 4_096
-        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
-        defer { buffer.deallocate() }
-        while stream.hasBytesAvailable {
-            let read = stream.read(buffer, maxLength: bufferSize)
-            if read <= 0 { break }
-            data.append(buffer, count: read)
-        }
-        return data
     }
 }

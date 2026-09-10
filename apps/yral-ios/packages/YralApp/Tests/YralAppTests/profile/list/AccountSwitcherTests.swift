@@ -3,7 +3,7 @@ import Foundation
 @testable import YralApp
 
 /// Tests for `AIIdentitiesStore` — the merge semantics from Kotlin
-/// `AIIdentitiesStore.mergeFromTokenAIAccountIds` (union by principal,
+/// `AIIdentitiesStore.mergeFromTokenAIAccountIds` (union by subject,
 /// latest token entry wins, non-blank usernames preserved).
 struct AccountSwitcherTests {
 
@@ -21,8 +21,8 @@ struct AccountSwitcherTests {
         #expect(AIIdentitiesStore.entries(defaults: defaults).isEmpty)
     }
 
-    @Test("blank principals are filtered before merging")
-    func blankPrincipalsFiltered() {
+    @Test("blank subjects are filtered before merging")
+    func blankSubjectsFiltered() {
         let defaults = freshDefaults()
         #expect(
             AIIdentitiesStore.mergeFromTokenAIAccountIds(
@@ -41,7 +41,7 @@ struct AccountSwitcherTests {
         #expect(result?.addedCount == 2)
         #expect(result?.mergedCount == 2)
         let entries = AIIdentitiesStore.entries(defaults: defaults)
-        #expect(entries.map(\.principal).sorted() == ["auth0|AI account-1", "auth0|AI account-2"])
+        #expect(entries.map(\.subject).sorted() == ["auth0|AI account-1", "auth0|AI account-2"])
     }
 
     @Test("re-merging the same identities changes nothing (idempotent)")
@@ -59,10 +59,10 @@ struct AccountSwitcherTests {
 
     @Test("merge preserves a stored non-blank username over a blank token entry")
     func mergePreservesUsernames() {
-        let stored = [AIIdentityEntry(principal: "auth0|AI account-1", username: "cutie-AI account")]
+        let stored = [AIIdentityEntry(subject: "auth0|AI account-1", username: "cutie-AI account")]
         let merged = AIIdentitiesStore.merge(
             existing: stored,
-            additions: [AIIdentityEntry(principal: "auth0|AI account-1", username: nil)]
+            additions: [AIIdentityEntry(subject: "auth0|AI account-1", username: nil)]
         )
         #expect(merged.count == 1)
         #expect(merged.first?.username == "cutie-AI account")
@@ -79,7 +79,7 @@ struct AccountSwitcherTests {
     func removeClears() {
         let defaults = freshDefaults()
         AIIdentitiesStore.put(
-            [AIIdentityEntry(principal: "auth0|AI account-1", username: nil)],
+            [AIIdentityEntry(subject: "auth0|AI account-1", username: nil)],
             defaults: defaults
         )
         AIIdentitiesStore.remove(defaults: defaults)

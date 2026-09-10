@@ -53,8 +53,8 @@ extension AuthClient {
                 throw AuthError.stateMismatch
             }
             sessionStore.updateState(.loading)
-            let previousPrincipal = sessionStore.userPrincipal
-            try await authenticate(code: code, currentUserPrincipal: previousPrincipal)
+            let previousSubject = sessionStore.userSubject
+            try await authenticate(code: code, currentUserSubject: previousSubject)
         case let .failure(error, errorDescription):
             currentProvider = nil
             throw AuthError.oauthFailed(
@@ -74,7 +74,7 @@ extension AuthClient {
     }
 
     /// Code → token exchange + session build — Kotlin `authenticate`.
-    func authenticate(code: String, currentUserPrincipal: String?) async throws {
+    func authenticate(code: String, currentUserSubject: String?) async throws {
         guard let codeVerifier = pendingCodeVerifier else {
             throw AuthError.oauthFailed(errorDescription: "No in-flight OAuth flow")
         }
@@ -105,7 +105,7 @@ extension AuthClient {
         // Analytics events (onAuthSuccess with new-user flag; provider)
         // land with the analytics phase.
         _ = provider
-        _ = currentUserPrincipal
+        _ = currentUserSubject
     }
 
     // MARK: - Phone OTP (Kotlin phoneAuthLogin/verifyPhoneAuth)
@@ -149,12 +149,12 @@ extension AuthClient {
             defaults.set(phoneNumber, forKey: CachedSessionKey.phoneNumber.rawValue)
             sessionStore.updatePhoneNumber(phoneNumber)
             currentProvider = .phone
-            guard let userPrincipal = sessionStore.userPrincipal else {
+            guard let userSubject = sessionStore.userSubject else {
                 throw AuthError.oauthFailed(
-                    errorDescription: "Phone auth verification failed - user principal not found"
+                    errorDescription: "Phone auth verification failed - user subject not found"
                 )
             }
-            try await authenticate(code: idTokenCode, currentUserPrincipal: userPrincipal)
+            try await authenticate(code: idTokenCode, currentUserSubject: userSubject)
         case let .error(errorPayload):
             throw AuthError.oauthFailed(
                 errorDescription:

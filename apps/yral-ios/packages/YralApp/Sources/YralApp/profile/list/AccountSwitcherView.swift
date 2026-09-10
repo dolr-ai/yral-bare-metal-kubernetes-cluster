@@ -79,7 +79,7 @@ struct AccountSwitcherView: View {
             Text(title)
                 .font(.subheadline.weight(.semibold))
             VStack(spacing: 0) {
-                ForEach(Array(accounts.enumerated()), id: \.element.principal) { index, account in
+                ForEach(Array(accounts.enumerated()), id: \.element.subject) { index, account in
                     accountRow(account)
                     if index < accounts.count - 1 {
                         Divider()
@@ -103,7 +103,7 @@ struct AccountSwitcherView: View {
             // these are the bot's hosted avatar and REAL name, so the
             // profile/settings headers show them too.
             authClient.switchToAccount(
-                principal: account.principal,
+                subject: account.subject,
                 avatarURL: account.avatarURL,
                 username: account.username
             )
@@ -147,16 +147,16 @@ struct AccountSwitcherEntries: Equatable, Sendable {
 }
 
 struct AccountSwitcherEntry: Equatable, Identifiable, Sendable {
-    var principal: String
+    var subject: String
     var username: String
     var avatarURL: String
     var isBot: Bool
     var isActive: Bool
-    var id: String { principal }
+    var id: String { subject }
 }
 
 private extension AccountSwitcherEntry {
     /// Signed-out sentinel: entries() returns nil then, but keep the main
     /// row's placeholder handling honest if a nil sneaks through.
-    var isPlaceholder: Bool { principal.isEmpty }
+    var isPlaceholder: Bool { subject.isEmpty }
 }

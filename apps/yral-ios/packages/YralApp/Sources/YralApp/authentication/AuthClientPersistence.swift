@@ -8,44 +8,46 @@ extension AuthClient {
 
     /// Rebuilds the cached session — Kotlin `getCachedSession` verbatim
     /// (single-slot cache: PROFILE_PIC/USERNAME are trusted only when
-    /// USER_PRINCIPAL == LAST_ACTIVE_PRINCIPAL).
+    /// the stored USER_PRINCIPAL == LAST_ACTIVE_PRINCIPAL — the
+    /// persisted rawValue strings keep the legacy names for device
+    /// continuity; the Swift cases read as `subject`).
     func cachedSession() -> Session? {
-        let mainPrincipal = keychain.string(forKey: .mainPrincipal)
-        let lastActivePrincipal = keychain.string(forKey: .lastActivePrincipal)
+        let mainSubject = keychain.string(forKey: .mainSubject)
+        let lastActiveSubject = keychain.string(forKey: .lastActiveSubject)
 
-        let preferredPrincipal = defaults.string(forKey: CachedSessionKey.userPrincipal.rawValue)
+        let preferredSubject = defaults.string(forKey: CachedSessionKey.userSubject.rawValue)
         let usePreferred =
-            lastActivePrincipal != nil
-            && preferredPrincipal == lastActivePrincipal
+            lastActiveSubject != nil
+            && preferredSubject == lastActiveSubject
 
         let canisterID = defaults.string(forKey: CachedSessionKey.canisterID.rawValue)
-        let userPrincipal =
+        let userSubject =
             usePreferred
-            ? preferredPrincipal
-            : mainPrincipal ?? preferredPrincipal
+            ? preferredSubject
+            : mainSubject ?? preferredSubject
         let profilePic = cachedProfilePic(
-            userPrincipal: userPrincipal, preferredPrincipal: preferredPrincipal
+            userSubject: userSubject, preferredSubject: preferredSubject
         )
         let username = cachedUsername(
-            userPrincipal: userPrincipal, preferredPrincipal: preferredPrincipal
+            userSubject: userSubject, preferredSubject: preferredSubject
         )
         let isCreatedFromServiceCanister = defaults.bool(
             forKey: CachedSessionKey.isCreatedFromServiceCanister.rawValue
         )
         let resolvedIsBotAccount =
-            mainPrincipal.map { main in
-                userPrincipal != nil && userPrincipal != main
+            mainSubject.map { main in
+                userSubject != nil && userSubject != main
             } ?? false
 
-        guard let canisterID, let userPrincipal, let profilePic else { return nil }
+        guard let canisterID, let userSubject, let profilePic else { return nil }
         return Session(
             canisterID: canisterID,
-            userPrincipal: userPrincipal,
+            userSubject: userSubject,
             profilePic: profilePic,
             // Cached username when present; deterministic pseudonym
             // fallback otherwise (never the raw identifier as a name).
             username: UsernameGenerator.resolveUsername(
-                preferred: username, principal: userPrincipal
+                preferred: username, subject: userSubject
             ),
             isCreatedFromServiceCanister: isCreatedFromServiceCanister,
             isAIAccount: resolvedIsBotAccount
@@ -53,46 +55,48 @@ extension AuthClient {
     }
 
     /// Kotlin `getCachedProfilePic`: cached pic trusted only when the
-    /// preferred principal matches; else derived from the principal.
+    /// preferred subject matches; else derived from the subject.
     private func cachedProfilePic(
-        userPrincipal: String?,
-        preferredPrincipal: String?
+        userSubject: String?,
+        preferredSubject: String?
     ) -> String? {
         let cached = defaults.string(forKey: CachedSessionKey.profilePic.rawValue)
-        guard preferredPrincipal == userPrincipal else {
-            return userPrincipal.map { ProfilePicture.url(fromPrincipal: $0) }
+        guard preferredSubject == userSubject else {
+            return userSubject.map { ProfilePicture.url(fromSubject: $0) }
         }
-        return cached ?? userPrincipal.map { ProfilePicture.url(fromPrincipal: $0) }
+        return cached ?? userSubject.map { ProfilePicture.url(fromSubject: $0) }
     }
 
     /// Kotlin `getCachedUsername`: cached username trusted only when the
-    /// preferred principal matches.
+    /// preferred subject matches.
     private func cachedUsername(
-        userPrincipal: String?,
-        preferredPrincipal: String?
+        userSubject: String?,
+        preferredSubject: String?
     ) -> String? {
         let cached = defaults.string(forKey: CachedSessionKey.username.rawValue)
-        guard preferredPrincipal == userPrincipal else { return nil }
+        guard preferredSubject == userSubject else { return nil }
         return cached
     }
 
-    /// Persists the session fields — Kotlin `cacheSession` (writes
-    /// MAIN_PRINCIPAL/LAST_ACTIVE_PRINCIPAL only for non-AI account sessions; a
-    /// AI account session never overwrites the main principal).
+    /// Persists the session fields — Kotlin `cacheSession` (writes the
+    /// keychain's LAST_ACTIVE_PRINCIPAL and the defaults' USER_PRINCIPAL
+    /// only for non-AI account sessions; an AI account session never
+    /// overwrites the main subject — the persisted rawValue strings
+    /// keep the legacy names for device continuity).
     func cacheSession(
         canisterID: String,
-        userPrincipal: String,
+        userSubject: String,
         profilePic: String,
         username: String?,
         isAIAccount: Bool
     ) {
         defaults.set(canisterID, forKey: CachedSessionKey.canisterID.rawValue)
-        defaults.set(userPrincipal, forKey: CachedSessionKey.userPrincipal.rawValue)
+        defaults.set(userSubject, forKey: CachedSessionKey.userSubject.rawValue)
         defaults.set(profilePic, forKey: CachedSessionKey.profilePic.rawValue)
         // The stored username when present; deterministic pseudonym
         // fallback otherwise.
         let resolvedUsername = UsernameGenerator.resolveUsername(
-            preferred: username, principal: userPrincipal
+            preferred: username, subject: userSubject
         )
         if let resolvedUsername {
             defaults.set(resolvedUsername, forKey: CachedSessionKey.username.rawValue)
@@ -101,28 +105,28 @@ extension AuthClient {
         }
         defaults.set(true, forKey: CachedSessionKey.isCreatedFromServiceCanister.rawValue)
         if !isAIAccount {
-            let storedMainPrincipal = keychain.string(forKey: .mainPrincipal)
-            if storedMainPrincipal == nil || storedMainPrincipal == userPrincipal {
-                keychain.setString(userPrincipal, forKey: .mainPrincipal)
-                keychain.setString(userPrincipal, forKey: .lastActivePrincipal)
+            let storedMainSubject = keychain.string(forKey: .mainSubject)
+            if storedMainSubject == nil || storedMainSubject == userSubject {
+                keychain.setString(userSubject, forKey: .mainSubject)
+                keychain.setString(userSubject, forKey: .lastActiveSubject)
             }
         }
     }
 
     /// Kotlin `resetCachedCanisterData` — logout clears the cached session
-    /// fields and principal prefs.
+    /// fields and subject prefs.
     func resetCachedCanisterData() {
         for key in [
             CachedSessionKey.canisterID,
-            CachedSessionKey.userPrincipal,
+            CachedSessionKey.userSubject,
             CachedSessionKey.profilePic,
             CachedSessionKey.username,
             CachedSessionKey.isCreatedFromServiceCanister
         ] {
             defaults.removeObject(forKey: key.rawValue)
         }
-        keychain.removeValue(forKey: .mainPrincipal)
-        keychain.removeValue(forKey: .lastActivePrincipal)
+        keychain.removeValue(forKey: .mainSubject)
+        keychain.removeValue(forKey: .lastActiveSubject)
     }
 
     /// Kotlin `saveTokens` — writes the three OAuth tokens; the
@@ -155,12 +159,12 @@ extension AuthClient {
     func updateYralSession(_ session: Session) async {
         guard let idToken = keychain.string(forKey: .idToken),
             let canisterID = session.canisterID,
-            let userPrincipal = session.userPrincipal
+            let userSubject = session.userSubject
         else { return }
         _ = try? await authDataSource.updateSessionAsRegistered(
             idToken: idToken,
             canisterID: canisterID,
-            userPrincipal: userPrincipal
+            userSubject: userSubject
         )
     }
 
@@ -184,25 +188,47 @@ extension AuthClient {
         keychain.string(forKey: .idToken)
     }
 
-    /// Delete the account — ONE transactional SpacetimeDB reducer
-    /// (`delete_user_info`) cascading profiles, bots, follows (with
-    /// counter fixes), notification tokens, posts, and auth_kv identity
-    /// mappings — then logout. The off-chain-agent's DELETE /api/v1/user
-    /// is decommissioned (it was a stub: logged + returned fake success,
-    /// deleted nothing).
+    /// Delete the ACTIVE account — ONE transactional SpacetimeDB reducer
+    /// (`delete_user_info`) cascading profiles, bots (where applicable),
+    /// follows (with counter fixes), notification tokens, posts, and
+    /// auth_kv identity mappings. The off-chain-agent's DELETE
+    /// /api/v1/user is decommissioned (it was a stub: logged + returned
+    /// fake success, deleted nothing).
     ///
-    /// The caller deletes THEMSELVES: the subject comes from the id
-    /// token (the reducer enforces self-or-admin anyway — the same rule
-    /// the off-chain handler had).
+    /// Semantics by WHAT is active (the reducer's ownership rule — self
+    /// or owner-of-bot — enforces both server-side):
+    ///   - AI account active → deletes THAT bot + its data. The UI then
+    ///     switches back to the main account (`switchAfterDelete`).
+    ///   - Main account active → deletes the main + ALL bots + all data;
+    ///     the UI logs out.
+    ///
+    /// CRITICAL — the target is the ACTIVE SESSION's subject, NOT the
+    /// token's sub: bot sessions carry the PARENT's tokens, so the sub
+    /// is the main subject — deleting "the token's subject" while a
+    /// bot is active would cascade the whole main account (observed in
+    /// prod: deleting pure-calm-moose removed every bot).
     public func deleteAccount() async throws {
         guard let idToken else {
             throw AuthError.oauthFailed(errorDescription: "Not signed in")
         }
-        let subject = try JWTParser.parsePayload(of: idToken).principal
+        guard let activeSubject = sessionStore.userSubject else {
+            throw AuthError.oauthFailed(errorDescription: "No active account")
+        }
         try await spacetimeDataSource.deleteUserInfo(
-            principalToDeleteText: subject
+            subjectToDelete: activeSubject
         )
-        await logoutInternal()
+        if sessionStore.isAIAccount == true {
+            // Deleted a BOT — switch back to the main account rather
+            // than logging out (the user is still signed in as main).
+            guard let mainSubject = keychain.string(forKey: .mainSubject) else {
+                await logoutInternal()
+                return
+            }
+            switchToAccount(subject: mainSubject)
+        } else {
+            // Deleted the MAIN account (cascades all bots) — full logout.
+            await logoutInternal()
+        }
     }
 
     /// Kotlin `trackAndLogoutForTokenExpiry` — the token-expiry logout

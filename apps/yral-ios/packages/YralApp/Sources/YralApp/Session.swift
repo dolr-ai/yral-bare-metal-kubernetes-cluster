@@ -2,12 +2,12 @@ import Foundation
 import Observation
 
 /// Signed-in identity — port of Kotlin `Session` (core/session/Session.kt).
-/// `canisterID == userPrincipal` in the JWT-only world (no IC canisters);
+/// `canisterID == userSubject` in the JWT-only world (no IC canisters);
 /// the field exists because the rest of the app (profile URLs, balance
 /// calls) keys off it.
 public struct Session: Equatable, Sendable {
     public var canisterID: String?
-    public var userPrincipal: String?
+    public var userSubject: String?
     public var profilePic: String?
     public var username: String?
     public var bio: String?
@@ -16,7 +16,7 @@ public struct Session: Equatable, Sendable {
 
     public init(
         canisterID: String? = nil,
-        userPrincipal: String? = nil,
+        userSubject: String? = nil,
         profilePic: String? = nil,
         username: String? = nil,
         bio: String? = nil,
@@ -24,7 +24,7 @@ public struct Session: Equatable, Sendable {
         isAIAccount: Bool = false
     ) {
         self.canisterID = canisterID
-        self.userPrincipal = userPrincipal
+        self.userSubject = userSubject
         self.profilePic = profilePic
         self.username = username
         self.bio = bio
@@ -101,13 +101,13 @@ public struct ProDetails: Equatable, Sendable {
 /// phase; the type ships now because `SessionProperties` holds it and
 /// Kotlin's `updateState` preserves it across session resets).
 public struct AccountDirectoryProfile: Codable, Equatable, Sendable {
-    public var principal: String
+    public var subject: String
     public var username: String
     public var avatarURL: String
     public var isBot: Bool
 
-    public init(principal: String, username: String, avatarURL: String, isBot: Bool) {
-        self.principal = principal
+    public init(subject: String, username: String, avatarURL: String, isBot: Bool) {
+        self.subject = subject
         self.username = username
         self.avatarURL = avatarURL
         self.isBot = isBot
@@ -115,18 +115,18 @@ public struct AccountDirectoryProfile: Codable, Equatable, Sendable {
 }
 
 public struct AccountDirectory: Codable, Equatable, Sendable {
-    public var mainPrincipal: String?
-    public var botPrincipals: [String]
-    public var profilesByPrincipal: [String: AccountDirectoryProfile]
+    public var mainSubject: String?
+    public var botSubjects: [String]
+    public var profilesBySubject: [String: AccountDirectoryProfile]
 
     public init(
-        mainPrincipal: String?,
-        botPrincipals: [String],
-        profilesByPrincipal: [String: AccountDirectoryProfile]
+        mainSubject: String?,
+        botSubjects: [String],
+        profilesBySubject: [String: AccountDirectoryProfile]
     ) {
-        self.mainPrincipal = mainPrincipal
-        self.botPrincipals = botPrincipals
-        self.profilesByPrincipal = profilesByPrincipal
+        self.mainSubject = mainSubject
+        self.botSubjects = botSubjects
+        self.profilesBySubject = profilesBySubject
     }
 }
 
@@ -149,8 +149,8 @@ public final class SessionStore {
         return nil
     }
 
-    public var userPrincipal: String? {
-        if case let .signedIn(session) = state { return session.userPrincipal }
+    public var userSubject: String? {
+        if case let .signedIn(session) = state { return session.userSubject }
         return nil
     }
 

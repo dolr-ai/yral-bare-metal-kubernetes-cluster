@@ -215,14 +215,14 @@ public struct SpacetimeDBRemoteDataSource: Sendable {
     /// signature; see SpacetimeWireModels). Used for both owner
     /// registration and AI account attachment.
     public func acceptNewUserRegistration(
-        newPrincipalText: String,
+        newSubjectText: String,
         authenticated: Bool,
         mainAccountText: String?
     ) async throws {
         try await callReducer(
             name: "accept_new_user_registration",
             arguments: AcceptNewUserRegistrationArguments(
-                newPrincipalText: newPrincipalText,
+                newSubjectText: newSubjectText,
                 authenticated: authenticated,
                 mainAccountText: mainAccountText
             )
@@ -230,10 +230,10 @@ public struct SpacetimeDBRemoteDataSource: Sendable {
     }
 
     /// `delete_user_info` — JWT required.
-    public func deleteUserInfo(principalToDeleteText: String) async throws {
+    public func deleteUserInfo(subjectToDelete: String) async throws {
         try await callReducer(
             name: "delete_user_info",
-            arguments: DeleteUserInfoArguments(principalToDeleteText: principalToDeleteText)
+            arguments: DeleteUserInfoArguments(subjectToDelete: subjectToDelete)
         )
     }
 

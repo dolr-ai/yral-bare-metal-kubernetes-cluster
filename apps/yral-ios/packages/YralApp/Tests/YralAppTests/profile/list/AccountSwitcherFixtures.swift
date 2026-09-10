@@ -13,9 +13,9 @@ enum AccountSwitcherFixtures {
 
     // MARK: - Fixtures
 
-    static let mainPrincipal = "110822651133748857609"
-    static let firstBotPrincipal = "f0a50e9a-2565-4e76-894a-27edf2e833fc"
-    static let secondBotPrincipal = "b3581395-5c53-4dfe-a978-2359b13d13e2"
+    static let mainSubject = "110822651133748857609"
+    static let firstBotSubject = "f0a50e9a-2565-4e76-894a-27edf2e833fc"
+    static let secondBotSubject = "b3581395-5c53-4dfe-a978-2359b13d13e2"
 
     static let firstBotHostedAvatar =
         "https://link.storjshare.io/raw/bucket/owner/930816ac-22ea-4a31-8d3a-ed399e553169.jpg"
@@ -30,15 +30,15 @@ enum AccountSwitcherFixtures {
     }
 
     /// A client with two bots in the local identity store (as the JWT
-    /// merge seeds them — principals + usernames only, NO avatar URLs).
+    /// merge seeds them — subjects + usernames only, NO avatar URLs).
+    /// Registers nothing: pass the caller's stub channel so every
+    /// request the client makes routes to that test's handler.
     static func makeClient(
         defaults: UserDefaults,
         keychain: KeychainStore,
-        protocolClass: URLProtocol.Type
+        channel: String
     ) -> (client: AuthClient, sessionStore: SessionStore) {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [protocolClass]
-        let mockSession = URLSession(configuration: configuration)
+        let mockSession = ChannelURLProtocol.makeSession(channel: channel)
         let dataSource = SpacetimeDBRemoteDataSource(
             idTokenProvider: { "test-id-token" },
             session: mockSession
@@ -53,14 +53,14 @@ enum AccountSwitcherFixtures {
             influencerDataSource: AIInfluencerDataSource(session: mockSession),
             sessionStore: sessionStore
         )
-        keychain.setString(Self.mainPrincipal, forKey: .mainPrincipal)
+        keychain.setString(Self.mainSubject, forKey: .mainSubject)
         // The name overlay requires an id token — the creator call is
         // Bearer-authenticated.
         keychain.setString("test-id-token", forKey: .idToken)
         AIIdentitiesStore.put(
             [
-                AIIdentityEntry(principal: Self.firstBotPrincipal, username: "dekuizuku"),
-                AIIdentityEntry(principal: Self.secondBotPrincipal, username: "uraraka")
+                AIIdentityEntry(subject: Self.firstBotSubject, username: "dekuizuku"),
+                AIIdentityEntry(subject: Self.secondBotSubject, username: "uraraka")
             ],
             defaults: defaults
         )
@@ -76,7 +76,7 @@ enum AccountSwitcherFixtures {
     /// BotAccount = [1,"owner"]); struct payloads stay wrapped
     /// (Some(ProfilePictureData) = [0,[url,[nsfw…]]]).
     static func profileWireRow(
-        principal: String,
+        subject: String,
         avatarURL: String?
     ) -> String {
         let pictureField: String
@@ -90,7 +90,7 @@ enum AccountSwitcherFixtures {
         }
         return #"""
         [
-          "\#(principal)",
+          "\#(subject)",
           \#(pictureField),
           "bot bio",
           "",
@@ -100,7 +100,7 @@ enum AccountSwitcherFixtures {
           [0, false],
           [0, []],
           true,
-          [1, "\#(mainPrincipal)"]
+          [1, "\#(mainSubject)"]
         ]
         """#
     }
@@ -114,10 +114,10 @@ enum AccountSwitcherFixtures {
     /// The creator-names response body (`GET /api/v1/creator/influencers`,
     /// untyped per the spec defect) — shape per creator.py: {influencers: [...]}.
     static func creatorNamesResponseBody(
-        entries: [(principal: String, name: String)]
+        entries: [(subject: String, name: String)]
     ) -> String {
         let rows = entries.map { entry in
-            "{\"id\":\"\(entry.principal)\",\"name\":\"\(entry.name)\",\"display_name\":null,\"avatar_url\":null}"
+            "{\"id\":\"\(entry.subject)\",\"name\":\"\(entry.name)\",\"display_name\":null,\"avatar_url\":null}"
         }
         return "{\"influencers\":[\(rows.joined(separator: ","))],\"total\":\(entries.count)}"
     }
@@ -167,93 +167,6 @@ enum AccountSwitcherFixtures {
                 throw URLError(.badServerResponse)
             }
             return (response, Data(profilesBody.utf8))
-        }
-    }
-}
-
-/// Per-suite protocols — Swift Testing runs independent suites in
-/// PARALLEL, and a shared static handler would be overwritten by the
-/// other suite mid-flight (observed: profiles hit twice, creator twice,
-/// one suite serving the other's responses). Each suite gets its own
-/// static handler; `makeClient` registers BOTH.
-final class SwitcherAvatarURLProtocol: URLProtocol, @unchecked Sendable {
-    nonisolated(unsafe) static var handler:
-        (@Sendable (URLRequest) throws -> (HTTPURLResponse, Data))?
-
-    static override func canInit(with request: URLRequest) -> Bool { true }
-    static override func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-
-    override func startLoading() {
-        guard let handler = Self.handler else {
-            client?.urlProtocol(
-                self, didFailWithError: URLError(.unsupportedURL)
-            )
-            return
-        }
-        do {
-            let (response, data) = try handler(request)
-            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-            client?.urlProtocol(self, didLoad: data)
-            client?.urlProtocolDidFinishLoading(self)
-        } catch {
-            client?.urlProtocol(self, didFailWithError: error)
-        }
-    }
-
-    override func stopLoading() {}
-}
-
-/// See `SwitcherAvatarURLProtocol` — this one backs the name/switch suite.
-final class SwitcherNameURLProtocol: URLProtocol, @unchecked Sendable {
-    nonisolated(unsafe) static var handler:
-        (@Sendable (URLRequest) throws -> (HTTPURLResponse, Data))?
-
-    static override func canInit(with request: URLRequest) -> Bool { true }
-    static override func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-
-    override func startLoading() {
-        guard let handler = Self.handler else {
-            client?.urlProtocol(
-                self, didFailWithError: URLError(.unsupportedURL)
-            )
-            return
-        }
-        do {
-            let (response, data) = try handler(request)
-            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-            client?.urlProtocol(self, didLoad: data)
-            client?.urlProtocolDidFinishLoading(self)
-        } catch {
-            client?.urlProtocol(self, didFailWithError: error)
-        }
-    }
-
-    override func stopLoading() {}
-}
-
-final class RequestRecorder: @unchecked Sendable {
-    private let lock = NSLock()
-    private var storedRequests: [URLRequest] = []
-    private var storedBodies: [String] = []
-
-    var requests: [URLRequest] {
-        lock.lock()
-        defer { lock.unlock() }
-        return storedRequests
-    }
-
-    var requestBodies: [String] {
-        lock.lock()
-        defer { lock.unlock() }
-        return storedBodies
-    }
-
-    func record(_ request: URLRequest) {
-        lock.lock()
-        defer { lock.unlock() }
-        storedRequests.append(request)
-        if let body = request.httpBody ?? request.bodyStreamData {
-            storedBodies.append(String(data: body, encoding: .utf8) ?? "")
         }
     }
 }

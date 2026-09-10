@@ -6,14 +6,14 @@ import Foundation
 /// bounds.
 ///
 /// The switcher's list has three layers, each best-effort:
-///   1. INSTANT local rows — principals from the JWT-seeded
+///   1. INSTANT local rows — subjects from the JWT-seeded
 ///      `AIIdentitiesStore`, pseudonym-name fallbacks, GobGob avatars.
-///   2. AVATAR overlay — one batch read of ALL row principals (main +
+///   2. AVATAR overlay — one batch read of ALL row subjects (main +
 ///      bots) from the SpacetimeDB profile table overlays the DURABLE
 ///      hosted URLs (written at creation). The main row gets its OWN
 ///      picture — never the active bot's (the double-avatar bug).
 ///   3. NAME overlay — one creator call (`GET /api/v1/creator/
-///      influencer­ers`, `id == principal` verified live) overlays the
+///      influencers`, `id == subject` verified live) overlays the
 ///      bots' real names. The profile table carries no displayable
 ///      name, and the locally stored username exists only on the
 ///      creating device — without this overlay every device but the
@@ -23,53 +23,53 @@ import Foundation
 extension AuthClient {
 
     /// The switcher's instant local list — main account (from
-    /// MAIN_PRINCIPAL) + AI entries (from AIIdentitiesStore), each with
+    /// MAIN_SUBJECT) + AI entries (from AIIdentitiesStore), each with
     /// resolved username + propic + the active flag. Nil when no main
-    /// principal exists (signed out).
+    /// subject exists (signed out).
     func accountSwitcherEntries() -> AccountSwitcherEntries? {
-        guard let mainPrincipal = keychain.string(forKey: .mainPrincipal) else {
+        guard let mainSubject = keychain.string(forKey: .mainSubject) else {
             return nil
         }
-        let activePrincipal = sessionStore.userPrincipal
+        let activeSubject = sessionStore.userSubject
         // Main row: its OWN session pic when the main account is the
         // active one; the GobGob fallback otherwise (never the active
         // bot's picture — that was the double-avatar bug).
         let mainAvatarURL: String
-        if mainPrincipal == activePrincipal, let sessionPic = sessionStore.profilePic {
+        if mainSubject == activeSubject, let sessionPic = sessionStore.profilePic {
             mainAvatarURL = sessionPic
         } else {
-            mainAvatarURL = ProfilePicture.url(fromPrincipal: mainPrincipal)
+            mainAvatarURL = ProfilePicture.url(fromSubject: mainSubject)
         }
         let mainEntry = AccountSwitcherEntry(
-            principal: mainPrincipal,
+            subject: mainSubject,
             // No server-side display name in the profile table yet —
             // deterministic pseudonym fallback (never the raw identifier
             // as a name).
             username: UsernameGenerator.resolveUsername(
-                preferred: nil, principal: mainPrincipal
-            ) ?? mainPrincipal,
+                preferred: nil, subject: mainSubject
+            ) ?? mainSubject,
             avatarURL: mainAvatarURL,
             isBot: false,
-            isActive: mainPrincipal == activePrincipal
+            isActive: mainSubject == activeSubject
         )
         let botEntries = AIIdentitiesStore.entries(defaults: defaults)
-            .filter { $0.principal != mainPrincipal }
+            .filter { $0.subject != mainSubject }
             .map { entry in
                 AccountSwitcherEntry(
-                    principal: entry.principal,
+                    subject: entry.subject,
                     // Stored username (creation device only) when we have
                     // it; deterministic pseudonym fallback otherwise. The
                     // creator-name overlay replaces pseudonyms with the
                     // real names once loaded.
                     username: UsernameGenerator.resolveUsername(
-                        preferred: entry.username, principal: entry.principal
-                    ) ?? entry.principal,
+                        preferred: entry.username, subject: entry.subject
+                    ) ?? entry.subject,
                     // GobGob deterministic fallback — `refreshedAccountSwitcherEntries()`
                     // overlays the hosted URL from the profile table when
                     // the switcher is opened.
-                    avatarURL: ProfilePicture.url(fromPrincipal: entry.principal),
+                    avatarURL: ProfilePicture.url(fromSubject: entry.subject),
                     isBot: true,
-                    isActive: entry.principal == activePrincipal
+                    isActive: entry.subject == activeSubject
                 )
             }
         return AccountSwitcherEntries(mainAccount: mainEntry, aiAccounts: botEntries)
@@ -82,19 +82,19 @@ extension AuthClient {
         guard var entries = accountSwitcherEntries() else { return nil }
         // Overlay 1 — avatars: ALL rows in one batch read (main + bots),
         // so the main row shows its OWN picture, never the active bot's.
-        var allPrincipals = entries.aiAccounts.map(\.principal)
-        if let mainPrincipal = keychain.string(forKey: .mainPrincipal) {
-            allPrincipals.append(mainPrincipal)
+        var allSubjects = entries.aiAccounts.map(\.subject)
+        if let mainSubject = keychain.string(forKey: .mainSubject) {
+            allSubjects.append(mainSubject)
         }
         if let profiles = try? await spacetimeDataSource.getUsersProfileDetails(
-            oauthSubjects: allPrincipals
+            oauthSubjects: allSubjects
         ) {
             entries.aiAccounts = Self.applyProfilePictures(
                 to: entries.aiAccounts,
                 from: profiles
             )
-            if let mainPrincipal = keychain.string(forKey: .mainPrincipal),
-               let mainProfile = profiles.first(where: { $0.oauthSubject == mainPrincipal }),
+            if let mainSubject = keychain.string(forKey: .mainSubject),
+               let mainProfile = profiles.first(where: { $0.oauthSubject == mainSubject }),
                let mainPicture = mainProfile.profilePicture,
                !mainPicture.url.isEmpty {
                 entries.mainAccount.avatarURL = mainPicture.url
@@ -121,7 +121,7 @@ extension AuthClient {
         to entries: [AccountSwitcherEntry],
         from profiles: [SpacetimeUserProfile]
     ) -> [AccountSwitcherEntry] {
-        let pictureURLsByPrincipal: [String: String] = Dictionary(
+        let pictureURLsBySubject: [String: String] = Dictionary(
             uniqueKeysWithValues: profiles.compactMap { profile -> (String, String)? in
                 guard let picture = profile.profilePicture,
                       !picture.url.isEmpty
@@ -130,7 +130,7 @@ extension AuthClient {
             }
         )
         return entries.map { entry in
-            guard let hostedURL = pictureURLsByPrincipal[entry.principal] else { return entry }
+            guard let hostedURL = pictureURLsBySubject[entry.subject] else { return entry }
             var refreshed = entry
             refreshed.avatarURL = hostedURL
             return refreshed
@@ -143,11 +143,11 @@ extension AuthClient {
         to entries: [AccountSwitcherEntry],
         from influencers: [CreatorInfluencer]
     ) -> [AccountSwitcherEntry] {
-        let namesByPrincipal = Dictionary(
-            uniqueKeysWithValues: influencers.map { ($0.principal, $0.name) }
+        let namesBySubject = Dictionary(
+            uniqueKeysWithValues: influencers.map { ($0.subject, $0.name) }
         )
         return entries.map { entry in
-            guard let realName = namesByPrincipal[entry.principal],
+            guard let realName = namesBySubject[entry.subject],
                   !realName.isEmpty
             else { return entry }
             var refreshed = entry
@@ -157,7 +157,7 @@ extension AuthClient {
     }
 
     /// Switches the active account — CLIENT-SIDE session construction:
-    /// build the session directly from the principal, update the store,
+    /// build the session directly from the subject, update the store,
     /// persist the cached session fields, and set LAST_ACTIVE_PRINCIPAL.
     /// AI switches skip token refresh (the parent's tokens stay active);
     /// switching back to main refreshes + reauthorizes.
@@ -174,38 +174,38 @@ extension AuthClient {
     /// headers show it too (the local store only knows names on the
     /// creating device). Falls back to the stored/pseudonym name.
     func switchToAccount(
-        principal: String,
+        subject: String,
         avatarURL: String? = nil,
         username: String? = nil
     ) {
         // No-op when already active (Kotlin returns early).
-        guard sessionStore.userPrincipal != principal else { return }
+        guard sessionStore.userSubject != subject else { return }
 
-        let storedMainPrincipal = keychain.string(forKey: .mainPrincipal)
+        let storedMainSubject = keychain.string(forKey: .mainSubject)
         var isBot = true
         // Live row name first (creator overlay), then the locally stored
         // one; the pseudonym fallback resolves below.
         var botUsername = username
-        if principal == storedMainPrincipal {
+        if subject == storedMainSubject {
             isBot = false
         } else {
             let storedBots = AIIdentitiesStore.entries(defaults: defaults)
-            guard let match = storedBots.first(where: { $0.principal == principal }) else {
+            guard let match = storedBots.first(where: { $0.subject == subject }) else {
                 return
             }
             botUsername = botUsername ?? match.username
         }
 
         let profilePic = avatarURL
-            ?? ProfilePicture.url(fromPrincipal: principal)
+            ?? ProfilePicture.url(fromSubject: subject)
         // Live/stored username when present; deterministic pseudonym
         // fallback otherwise.
         let session = Session(
-            canisterID: principal,
-            userPrincipal: principal,
+            canisterID: subject,
+            userSubject: subject,
             profilePic: profilePic,
             username: UsernameGenerator.resolveUsername(
-                preferred: botUsername, principal: principal
+                preferred: botUsername, subject: subject
             ),
             bio: nil,
             isCreatedFromServiceCanister: true,
@@ -213,13 +213,13 @@ extension AuthClient {
         )
         sessionStore.updateState(.signedIn(session))
         cacheSession(
-            canisterID: principal,
-            userPrincipal: principal,
+            canisterID: subject,
+            userSubject: subject,
             profilePic: profilePic,
             username: botUsername,
             isAIAccount: isBot
         )
-        keychain.setString(principal, forKey: .lastActivePrincipal)
+        keychain.setString(subject, forKey: .lastActiveSubject)
         if isBot {
             // AI accounts share the parent's tokens — do NOT overwrite the
             // session with parent-token auth state.
