@@ -1,3 +1,13 @@
+# Grafana → Google Chat contact point. NOTE: this is Grafana's OWN alerting path,
+# separate from the Alertmanager (Prometheus alerts) → alertmanager-google-chat-relay
+# path that also delivers to the same chat space.
+#
+# TODO: Verify that Grafana alert notifications are actually being sent to the Google
+# Chat webhook. As of 2026-09-15 only Alertmanager (Prometheus) notifications arrive —
+# none from Grafana's own alert rules (resource-saturation). Investigate: whether the
+# alerts sidecar provisions this contact point and the notification policy correctly,
+# whether the rules evaluate and fire, and whether this googlechat receiver succeeds
+# where the Alertmanager relay does.
 apiVersion: v1
 kind: ConfigMap
 metadata:
