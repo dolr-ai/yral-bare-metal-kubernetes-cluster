@@ -321,10 +321,6 @@ url = "https://github.com/cargo-bins/cargo-binstall/releases/download/v1.23.0/ca
 url_api = "https://api.github.com/repos/cargo-bins/cargo-binstall/releases/assets/546062212"
 provenance = "github-attestations"
 
-[[tools."cargo:cargo-zigbuild"]]
-version = "0.23.4"
-backend = "cargo:cargo-zigbuild"
-
 [[tools."cargo:trunk"]]
 version = "0.21.14"
 backend = "cargo:trunk"
@@ -402,24 +398,28 @@ checksum = "sha256:d81a90ac6860947e24d6cfccb83102fab2899836c4144e1f8992f2c51749d
 url = "https://github.com/jdx/fnox/releases/download/v1.35.1/fnox-aarch64-unknown-linux-gnu.tar.gz"
 url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/546210948"
 provenance = "github-attestations"
+signer = "sigstore-oidc:https://github.com/jdx/fnox/.github/workflows/release.yml"
 
 [tools.fnox."platforms.linux-arm64-musl"]
 checksum = "sha256:ea87196c4169fdf6170a7246c3ee3643cf6e9fd57d38c39a0626ef05c2531d91"
 url = "https://github.com/jdx/fnox/releases/download/v1.35.1/fnox-aarch64-unknown-linux-musl.tar.gz"
 url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/546210949"
 provenance = "github-attestations"
+signer = "sigstore-oidc:https://github.com/jdx/fnox/.github/workflows/release.yml"
 
 [tools.fnox."platforms.linux-x64"]
 checksum = "sha256:ecdbccd01cac2d5e32601636cc0a7b1d8b1501151b4683d660b1c024763ced45"
 url = "https://github.com/jdx/fnox/releases/download/v1.35.1/fnox-x86_64-unknown-linux-gnu.tar.gz"
 url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/546210980"
 provenance = "github-attestations"
+signer = "sigstore-oidc:https://github.com/jdx/fnox/.github/workflows/release.yml"
 
 [tools.fnox."platforms.linux-x64-musl"]
 checksum = "sha256:491aaab498435e9edfdd8561ddc571a684cec49cee653f294544bcdf04857cca"
 url = "https://github.com/jdx/fnox/releases/download/v1.35.1/fnox-x86_64-unknown-linux-musl.tar.gz"
 url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/546210978"
 provenance = "github-attestations"
+signer = "sigstore-oidc:https://github.com/jdx/fnox/.github/workflows/release.yml"
 
 [tools.fnox."platforms.macos-arm64"]
 checksum = "sha256:9b733a2b9e3e893e73131cc3c7d64c8596de4c7210b47f3695ed4011d798a1e6"
@@ -427,18 +427,21 @@ url = "https://github.com/jdx/fnox/releases/download/v1.35.1/fnox-aarch64-apple-
 url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/546210951"
 provenance = "github-attestations"
 provenance_verified = true
+signer = "sigstore-oidc:https://github.com/jdx/fnox/.github/workflows/release.yml"
 
 [tools.fnox."platforms.macos-x64"]
 checksum = "sha256:77e920b21e42af9df0d6bf1bba58ad95cbf28557009f172c73db2fea651c9962"
 url = "https://github.com/jdx/fnox/releases/download/v1.35.1/fnox-x86_64-apple-darwin.tar.gz"
 url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/546210947"
 provenance = "github-attestations"
+signer = "sigstore-oidc:https://github.com/jdx/fnox/.github/workflows/release.yml"
 
 [tools.fnox."platforms.windows-x64"]
 checksum = "sha256:4a8ac72394d0b678fc603add1559f7d4572212b0b08fc4884426b69af036d632"
 url = "https://github.com/jdx/fnox/releases/download/v1.35.1/fnox-x86_64-pc-windows-msvc.zip"
 url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/546210974"
 provenance = "github-attestations"
+signer = "sigstore-oidc:https://github.com/jdx/fnox/.github/workflows/release.yml"
 
 [[tools.gh]]
 version = "2.100.0"
@@ -557,33 +560,6 @@ url = "https://get.helm.sh/helm-v4.2.4-darwin-amd64.tar.gz"
 checksum = "sha256:38cbdab1c7d4f0412d571c3aeefc700bcdc7b663be481832a11dfed01ee67c36"
 url = "https://get.helm.sh/helm-v4.2.4-windows-amd64.tar.gz"
 
-[[tools.java]]
-version = "21.0.2"
-backend = "core:java"
-
-[tools.java.options]
-shorthand_vendor = "openjdk"
-
-[tools.java."platforms.linux-arm64"]
-checksum = "sha256:08db1392a48d4eb5ea5315cf8f18b89dbaf36cda663ba882cf03c704c9257ec2"
-url = "https://download.java.net/java/GA/jdk21.0.2/f2283984656d49d69e91c558476027ac/13/GPL/openjdk-21.0.2_linux-aarch64_bin.tar.gz"
-
-[tools.java."platforms.linux-x64"]
-checksum = "sha256:a2def047a73941e01a73739f92755f86b895811afb1f91243db214cff5bdac3f"
-url = "https://download.java.net/java/GA/jdk21.0.2/f2283984656d49d69e91c558476027ac/13/GPL/openjdk-21.0.2_linux-x64_bin.tar.gz"
-
-[tools.java."platforms.macos-arm64"]
-checksum = "sha256:b3d588e16ec1e0ef9805d8a696591bd518a5cea62567da8f53b5ce32d11d22e4"
-url = "https://download.java.net/java/GA/jdk21.0.2/f2283984656d49d69e91c558476027ac/13/GPL/openjdk-21.0.2_macos-aarch64_bin.tar.gz"
-
-[tools.java."platforms.macos-x64"]
-checksum = "sha256:8fd09e15dc406387a0aba70bf5d99692874e999bf9cd9208b452b5d76ac922d3"
-url = "https://download.java.net/java/GA/jdk21.0.2/f2283984656d49d69e91c558476027ac/13/GPL/openjdk-21.0.2_macos-x64_bin.tar.gz"
-
-[tools.java."platforms.windows-x64"]
-checksum = "sha256:b6c17e747ae78cdd6de4d7532b3164b277daee97c007d3eaa2b39cca99882664"
-url = "https://download.java.net/java/GA/jdk21.0.2/f2283984656d49d69e91c558476027ac/13/GPL/openjdk-21.0.2_windows-x64_bin.zip"
-
 [[tools.kubectl]]
 version = "1.37.0"
 backend = "aqua:kubernetes/kubernetes/kubectl"
@@ -695,21 +671,25 @@ backend = "aqua:jdx/pitchfork"
 checksum = "sha256:3b95c60978d404f7b92a8ac9610f2266fca07a8db4941c1d8f0fca8a6e9fb963"
 url = "https://github.com/jdx/pitchfork/releases/download/v2.24.2/pitchfork-aarch64-unknown-linux-gnu.tar.gz"
 url_api = "https://api.github.com/repos/jdx/pitchfork/releases/assets/546295885"
+signer = "sigstore-oidc:https://github.com/jdx/pitchfork/.github/workflows/release.yml"
 
 [tools.pitchfork."platforms.linux-x64"]
 checksum = "sha256:e1196b2d347299651b53cafb45f30d8fa62ba3fee680e8c954b9cd578f461177"
 url = "https://github.com/jdx/pitchfork/releases/download/v2.24.2/pitchfork-x86_64-unknown-linux-gnu.tar.gz"
 url_api = "https://api.github.com/repos/jdx/pitchfork/releases/assets/546296761"
+signer = "sigstore-oidc:https://github.com/jdx/pitchfork/.github/workflows/release.yml"
 
 [tools.pitchfork."platforms.macos-arm64"]
 checksum = "sha256:6659397ed9c94b8ebecc3458431500e94efd3463cba29ef28372f13ddd5b7789"
 url = "https://github.com/jdx/pitchfork/releases/download/v2.24.2/pitchfork-aarch64-apple-darwin.tar.gz"
 url_api = "https://api.github.com/repos/jdx/pitchfork/releases/assets/546306059"
+signer = "sigstore-oidc:https://github.com/jdx/pitchfork/.github/workflows/release.yml"
 
 [tools.pitchfork."platforms.windows-x64"]
 checksum = "sha256:f221bce02b7ce651e4f872dbd7a0e44cbf77223ca47d8206b02169e7e9cd4d57"
 url = "https://github.com/jdx/pitchfork/releases/download/v2.24.2/pitchfork-x86_64-pc-windows-msvc.zip"
 url_api = "https://api.github.com/repos/jdx/pitchfork/releases/assets/546304274"
+signer = "sigstore-oidc:https://github.com/jdx/pitchfork/.github/workflows/release.yml"
 
 [[tools.podman]]
 version = "6.1.1"
@@ -745,45 +725,6 @@ checksum = "sha256:68766f21aebec379ec34cfee46d0550b025ec6d79c02fbdcb61a80bc7191e
 url = "https://github.com/podman-container-tools/podman/releases/download/v6.1.1/podman-remote-release-windows_amd64.zip"
 url_api = "https://api.github.com/repos/podman-container-tools/podman/releases/assets/541455789"
 
-[[tools.protobuf]]
-version = "36.1"
-backend = "aqua:protocolbuffers/protobuf/protoc"
-
-[tools.protobuf."platforms.linux-arm64"]
-checksum = "sha256:237a68856edf1bd28b6204bddd0596c1cf46d298bc29c620012540b2e44c73e7"
-url = "https://github.com/protocolbuffers/protobuf/releases/download/v36.1/protoc-36.1-linux-aarch_64.zip"
-url_api = "https://api.github.com/repos/protocolbuffers/protobuf/releases/assets/538583148"
-
-[tools.protobuf."platforms.linux-arm64-musl"]
-checksum = "sha256:237a68856edf1bd28b6204bddd0596c1cf46d298bc29c620012540b2e44c73e7"
-url = "https://github.com/protocolbuffers/protobuf/releases/download/v36.1/protoc-36.1-linux-aarch_64.zip"
-url_api = "https://api.github.com/repos/protocolbuffers/protobuf/releases/assets/538583148"
-
-[tools.protobuf."platforms.linux-x64"]
-checksum = "sha256:c4bc672d9d49214dc8cafdceadf4df92182d6ca8e3ec65a56b2d7de5602669b4"
-url = "https://github.com/protocolbuffers/protobuf/releases/download/v36.1/protoc-36.1-linux-x86_64.zip"
-url_api = "https://api.github.com/repos/protocolbuffers/protobuf/releases/assets/538583183"
-
-[tools.protobuf."platforms.linux-x64-musl"]
-checksum = "sha256:c4bc672d9d49214dc8cafdceadf4df92182d6ca8e3ec65a56b2d7de5602669b4"
-url = "https://github.com/protocolbuffers/protobuf/releases/download/v36.1/protoc-36.1-linux-x86_64.zip"
-url_api = "https://api.github.com/repos/protocolbuffers/protobuf/releases/assets/538583183"
-
-[tools.protobuf."platforms.macos-arm64"]
-checksum = "sha256:de56d57afe30c5d191b11d24ff93dd4025728d7fb43b773886b2d3613e0bdbb2"
-url = "https://github.com/protocolbuffers/protobuf/releases/download/v36.1/protoc-36.1-osx-aarch_64.zip"
-url_api = "https://api.github.com/repos/protocolbuffers/protobuf/releases/assets/538583189"
-
-[tools.protobuf."platforms.macos-x64"]
-checksum = "sha256:ee2c5496e4af0aa6a224894bc0f7025145260e004d890487d510725ce8b473eb"
-url = "https://github.com/protocolbuffers/protobuf/releases/download/v36.1/protoc-36.1-osx-x86_64.zip"
-url_api = "https://api.github.com/repos/protocolbuffers/protobuf/releases/assets/538583191"
-
-[tools.protobuf."platforms.windows-x64"]
-checksum = "sha256:390e515cb456e6a978553bdb57baf087b054885077fd6da7f7ff0160279c07d6"
-url = "https://github.com/protocolbuffers/protobuf/releases/download/v36.1/protoc-36.1-win64.zip"
-url_api = "https://api.github.com/repos/protocolbuffers/protobuf/releases/assets/538583199"
-
 [[tools.python]]
 version = "3.14.7"
 backend = "core:python"
@@ -799,7 +740,7 @@ url = "https://github.com/astral-sh/python-build-standalone/releases/download/20
 provenance = "github-attestations"
 
 [tools.python."platforms.linux-x64"]
-checksum = "blake3:48291078406921f1f6259e6f54693986336c9b15cd81352a99277063ab8c4ea0"
+checksum = "sha256:a0f39e822fd3b96a2605f30f954acf9a2cdf91faa1385a13e24bc407a41e05ea"
 url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260825/cpython-3.14.7+20260825-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
 provenance = "github-attestations"
 
@@ -822,51 +763,6 @@ provenance = "github-attestations"
 checksum = "sha256:dec3faa3445d9efc4979e6c74a839be0d1039877367db32ee9c5f6bc91fae3c8"
 url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260825/cpython-3.14.7+20260825-x86_64-pc-windows-msvc-install_only_stripped.tar.gz"
 provenance = "github-attestations"
-
-[[tools.ruby]]
-version = "3.4.10"
-backend = "core:ruby"
-
-[tools.ruby."platforms.windows-x64"]
-checksum = "sha256:89e3c5e235ac88b9b7e8daaf639eaaab74d7c470667354f6bf0f7432f3191ebb"
-url = "https://github.com/oneclick/rubyinstaller2/releases/download/RubyInstaller-3.4.10-1/rubyinstaller-3.4.10-1-x64.7z"
-
-[[tools.ruby]]
-version = "3.4.10"
-backend = "core:ruby"
-
-[tools.ruby.options]
-compile = "false"
-precompiled_url = "jdx/ruby"
-ruby_build_repo = "https://github.com/rbenv/ruby-build.git"
-ruby_install = "false"
-
-[tools.ruby."platforms.linux-arm64"]
-checksum = "sha256:c0a3e9f1d7847e66b044aeeab394ba5d41f63c3da7ad99017c4b2578e31b205a"
-url = "https://github.com/jdx/ruby/releases/download/3.4.10-2/ruby-3.4.10.arm64_linux.tar.gz"
-provenance = "github-attestations"
-
-[tools.ruby."platforms.linux-arm64-musl"]
-checksum = "sha256:ecee2d072a14f2d14347dd56dfd8fe5c3130abf5117bfaacbda0f4ef9cc429ec"
-url = "https://cache.ruby-lang.org/pub/ruby/3.4/ruby-3.4.10.tar.gz"
-
-[tools.ruby."platforms.linux-x64"]
-checksum = "sha256:81ce58b056ee2765e46785b4c6befb9852d9c3e50ff9385e7eb1cf3e0314d0bd"
-url = "https://github.com/jdx/ruby/releases/download/3.4.10-2/ruby-3.4.10.x86_64_linux.tar.gz"
-provenance = "github-attestations"
-
-[tools.ruby."platforms.linux-x64-musl"]
-checksum = "sha256:ecee2d072a14f2d14347dd56dfd8fe5c3130abf5117bfaacbda0f4ef9cc429ec"
-url = "https://cache.ruby-lang.org/pub/ruby/3.4/ruby-3.4.10.tar.gz"
-
-[tools.ruby."platforms.macos-arm64"]
-checksum = "sha256:5aac8b6e16b0938a14f6d23346b5487020d1fea6b5856a33392e5eb37fa1ef62"
-url = "https://github.com/jdx/ruby/releases/download/3.4.10-2/ruby-3.4.10.macos.tar.gz"
-provenance = "github-attestations"
-
-[tools.ruby."platforms.macos-x64"]
-checksum = "sha256:ecee2d072a14f2d14347dd56dfd8fe5c3130abf5117bfaacbda0f4ef9cc429ec"
-url = "https://cache.ruby-lang.org/pub/ruby/3.4/ruby-3.4.10.tar.gz"
 
 [[tools.ruff]]
 version = "0.16.6"
@@ -1081,20 +977,6 @@ conda_deps = [
     "vcomp14-14.51.36247-habf1de7_41",
 ]
 
-[[tools.swift]]
-version = "6.3.3"
-backend = "core:swift"
-
-[tools.swift."platforms.macos-arm64"]
-checksum = "blake3:2a9e6afeb9f796a60fb8183f4063960c2ff683476f5cf94464332586a9e86cd3"
-
-[[tools.swift]]
-version = "6.3.3"
-backend = "core:swift"
-
-[tools.swift.options]
-swift_platform = "ubuntu24.04"
-
 [[tools.swiftlint]]
 version = "0.65.1"
 backend = "aqua:realm/SwiftLint"
@@ -1128,36 +1010,3 @@ url_api = "https://api.github.com/repos/realm/SwiftLint/releases/assets/52418756
 checksum = "sha256:c1e429b0599cf1b516f369a2d9ec04eaf0e436f3c12b637df8851fa52ff694d0"
 url = "https://github.com/realm/SwiftLint/releases/download/0.65.1/portable_swiftlint.zip"
 url_api = "https://api.github.com/repos/realm/SwiftLint/releases/assets/524187565"
-
-[[tools.zig]]
-version = "0.16.0"
-backend = "core:zig"
-
-[tools.zig."platforms.linux-arm64"]
-checksum = "sha256:ea4b09bfb22ec6f6c6ceac57ab63efb6b46e17ab08d21f69f3a48b38e1534f17"
-url = "https://ziglang.org/download/0.16.0/zig-aarch64-linux-0.16.0.tar.xz"
-
-[tools.zig."platforms.linux-arm64-musl"]
-checksum = "sha256:ea4b09bfb22ec6f6c6ceac57ab63efb6b46e17ab08d21f69f3a48b38e1534f17"
-url = "https://ziglang.org/download/0.16.0/zig-aarch64-linux-0.16.0.tar.xz"
-
-[tools.zig."platforms.linux-x64"]
-checksum = "sha256:70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00"
-url = "https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz"
-
-[tools.zig."platforms.linux-x64-musl"]
-checksum = "sha256:70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00"
-url = "https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz"
-
-[tools.zig."platforms.macos-arm64"]
-checksum = "sha256:b23d70deaa879b5c2d486ed3316f7eaa53e84acf6fc9cc747de152450d401489"
-url = "https://ziglang.org/download/0.16.0/zig-aarch64-macos-0.16.0.tar.xz"
-provenance = "minisign"
-
-[tools.zig."platforms.macos-x64"]
-checksum = "sha256:0387557ed1877bc6a2e1802c8391953baddba76081876301c522f52977b52ba7"
-url = "https://ziglang.org/download/0.16.0/zig-x86_64-macos-0.16.0.tar.xz"
-
-[tools.zig."platforms.windows-x64"]
-checksum = "sha256:68659eb5f1e4eb1437a722f1dd889c5a322c9954607f5edcf337bc3684a75a7e"
-url = "https://ziglang.org/download/0.16.0/zig-x86_64-windows-0.16.0.zip"

@@ -7,12 +7,15 @@ extension SpacetimeDBRemoteDataSource {
 
     /// `follow_user` — JWT required.
     public func followUser(followeeSubject: String) async throws {
-        try await callReducer(name: "follow_user", arguments: FollowUserArguments(followeeSubject: followeeSubject))
+        try await callReducer(
+            name: "follow_user", arguments: FollowUserArguments(followeeSubject: followeeSubject))
     }
 
     /// `unfollow_user` — JWT required.
     public func unfollowUser(followeeSubject: String) async throws {
-        try await callReducer(name: "unfollow_user", arguments: UnfollowUserArguments(followeeSubject: followeeSubject))
+        try await callReducer(
+            name: "unfollow_user",
+            arguments: UnfollowUserArguments(followeeSubject: followeeSubject))
     }
 
     /// `register_new_user` — JWT required.
@@ -101,6 +104,7 @@ extension SpacetimeDBRemoteDataSource {
 
     /// `update_user_last_access_time` — JWT required.
     public func updateUserLastAccessTime() async throws {
-        try await callReducer(name: "update_user_last_access_time", arguments: SpacetimeNoArguments())
+        try await callReducer(
+            name: "update_user_last_access_time", arguments: SpacetimeNoArguments())
     }
 }

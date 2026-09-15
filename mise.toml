@@ -1,6 +1,20 @@
 # Monorepo-wide mise configuration.
 # Run from the repository root; this drives the local toolchain for the whole workspace.
 
+# TODO(evaluate-mise-daemons): mise v2026.9.6 added an experimental
+# `[daemons]` section (plus `mise daemons start|stop|restart|ls|status|
+# logs|tui`) that wraps pitchfork — the same tool our root
+# `pitchfork.toml` already drives directly. Revisit moving our 17 daemons
+# here when BOTH hold: (a) the feature leaves `experimental` (it needs
+# `settings.experimental = true`, currently unset), and (b) we actually
+# want its PostgreSQL/Redis presets — we run neither locally (real
+# SpacetimeDB Maincloud + in-cluster services instead). Why we're not
+# migrating yet: our pitchfork config leans on `ready_http`, OS-conditional
+# `run` blocks, `[daemons.*.hooks]`, and `pitchfork activate`; the presets
+# are Unix-only; and the win (config colocated with tools) is small against
+# the regression risk on a working dev environment. Rationale recorded so
+# this isn't re-litigated from scratch each release.
+
 [tools]
 age = "latest"
 # binaryen (wasm-opt) PINNED to 131: version 132's output broke the
@@ -44,7 +58,14 @@ rust = { version = "stable", targets = [
 ] }
 sops = "latest"
 sqlite = "latest"
-swift = { version = "latest" }
+# NOTE: `swift` is intentionally NOT declared here. On macOS Xcode ships a
+# complete, SDK-matched toolchain (`xcrun --find swift`), and a mise-installed
+# swift.org toolchain SHADOWS it with an older release — Xcode 27's SDK passes
+# `-target-arch-variant`, which swift 6.3.3's driver does not understand, so
+# manifest compilation died with signal 11 across every SwiftPM command. We no
+# longer build Swift on Linux, so there is nothing for mise to provide.
+# If a Linux Swift toolchain is ever needed again, declare it OS-scoped:
+#   swift = { version = "...", os = ["linux"] }
 swiftlint = { version = "latest", os = ["macos"] }
 
 # System packages — project-specific build dependencies (apt on Debian/Ubuntu).
@@ -53,12 +74,6 @@ swiftlint = { version = "latest", os = ["macos"] }
 # Machine-baseline packages (build-essential, curl, git, etc.) live in ~/.dotfiles/mise.linux.toml.
 [bootstrap.packages]
 "apt:bind9-dnsutils" = "latest"
-# Swift toolchain: swift.org publishes no Ubuntu 26.04 builds, so mise falls
-# back to the ubuntu24.04 toolchain, whose binaries link against the narrow
-# libncurses.so.6. Ubuntu 26.04 ships only libncursesw6 by default, so without
-# this package `swift --version` fails with "libncurses.so.6: cannot open
-# shared object file" (exit 127) and mise rolls back the swift install.
-"apt:libncurses6" = "latest"
 "apt:libssl-dev" = "latest"
 "apt:musl-tools" = "latest"
 "apt:pkg-config" = "latest"
