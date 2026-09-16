@@ -21,8 +21,10 @@ struct AccountSwitcherMachineTests {
         ]
     )
 
-    private func initial() -> AccountSwitcherMachine.Snapshot {
-        AccountSwitcherMachine.Snapshot.initial
+    private func showing() -> AccountSwitcherMachine.State {
+        AccountSwitcherMachine.transition(
+            .initial, .appeared(localEntries: localEntries)
+        ).state
     }
 
     // MARK: - Happy path
@@ -30,48 +32,51 @@ struct AccountSwitcherMachineTests {
     @Test("appearing shows local rows immediately and starts the overlays")
     func appearingShowsLocalAndLoadsOverlays() {
         let (next, effect) = AccountSwitcherMachine.transition(
-            initial(), .appeared(localEntries: localEntries)
+            .initial, .appeared(localEntries: localEntries)
         )
-        #expect(next.state == .showingLocal(localEntries))
+        #expect(next == .showingLocal(localEntries))
         #expect(effect == .loadOverlays)
         // The list is usable before the overlays land — that is the point
         // of the two-layer design.
-        #expect(next.state.entries?.aiAccounts.count == 1)
+        #expect(next.entries?.aiAccounts.count == 1)
     }
 
     @Test("overlays upgrade the showing state to ready")
     func overlaysUpgradeToReady() {
-        let first = AccountSwitcherMachine.transition(
-            initial(), .appeared(localEntries: localEntries)
-        ).snapshot
         let (next, effect) = AccountSwitcherMachine.transition(
-            first, .overlaysResolved(localEntries)
+            showing(), .overlaysResolved(localEntries)
         )
-        #expect(next.state == .ready(localEntries))
+        #expect(next == .ready(localEntries))
         #expect(effect == .none)
     }
 
     @Test("appearing with no main subject goes to empty")
     func appearingWithoutMainSubjectIsEmpty() {
         let (next, effect) = AccountSwitcherMachine.transition(
-            initial(), .appeared(localEntries: nil)
+            .initial, .appeared(localEntries: nil)
         )
-        #expect(next.state == .empty)
+        #expect(next == .empty)
         #expect(effect == .none)
-        #expect(next.state.entries == nil)
+        #expect(next.entries == nil)
+    }
+
+    @Test("overlays resolving to nil fall back to empty")
+    func overlaysResolvingNilFallsBackToEmpty() {
+        let (next, effect) = AccountSwitcherMachine.transition(
+            showing(), .overlaysResolved(nil)
+        )
+        #expect(next == .empty)
+        #expect(effect == .none)
     }
 
     @Test("tapping a row switches and carries that row's identity")
     func tapSwitchesWithRowIdentity() {
-        let showing = AccountSwitcherMachine.transition(
-            initial(), .appeared(localEntries: localEntries)
-        ).snapshot
         let (next, effect) = AccountSwitcherMachine.transition(
-            showing,
+            showing(),
             .rowTapped(subject: "bot-subject", avatarURL: "https://a/bot", username: "Bot")
         )
         #expect(
-            next.state == .switching(
+            next == .switching(
                 subject: "bot-subject", avatarURL: "https://a/bot", username: "Bot"
             )
         )
@@ -82,52 +87,48 @@ struct AccountSwitcherMachineTests {
         )
     }
 
-    @Test("a completed switch dismisses")
-    func switchCompletedDismisses() {
-        let switching = AccountSwitcherMachine.Snapshot(
-            state: .switching(subject: "bot", avatarURL: "u", username: "n"),
-            context: .init()
-        )
+    @Test("a tap works from the ready state too — overlays are not a barrier")
+    func tapWorksFromReady() {
         let (next, effect) = AccountSwitcherMachine.transition(
-            switching, .switchCompleted(failed: false)
+            .ready(localEntries),
+            .rowTapped(subject: "bot-subject", avatarURL: "https://a/bot", username: "Bot")
         )
-        #expect(next.state == .dismissed)
-        #expect(effect == .dismiss)
-        #expect(next.context.lastSwitchFailed == false)
+        #expect(
+            next == .switching(
+                subject: "bot-subject", avatarURL: "https://a/bot", username: "Bot"
+            )
+        )
+        #expect(effect == .performSwitch(
+            subject: "bot-subject", avatarURL: "https://a/bot", username: "Bot"
+        ))
     }
 
-    @Test("a failed switch still dismisses but is recorded")
-    func failedSwitchDismissesAndRecords() {
-        let switching = AccountSwitcherMachine.Snapshot(
-            state: .switching(subject: "bot", avatarURL: "u", username: "n"),
-            context: .init()
-        )
-        let (next, effect) = AccountSwitcherMachine.transition(
-            switching, .switchCompleted(failed: true)
-        )
+    @Test("a completed switch dismisses")
+    func switchCompletedDismisses() {
+        let switching = AccountSwitcherMachine.State
+            .switching(subject: "bot", avatarURL: "u", username: "n")
+        let (next, effect) = AccountSwitcherMachine.transition(switching, .switchCompleted)
+        #expect(next == .dismissed)
         #expect(effect == .dismiss)
-        #expect(next.context.lastSwitchFailed == true)
     }
 
     // MARK: - Illegal states are unreachable
 
     @Test("a second tap while switching is a no-op — no overlapping switches")
     func doubleTapIsNoOp() {
-        let showing = AccountSwitcherMachine.transition(
-            initial(), .appeared(localEntries: localEntries)
-        ).snapshot
         let switching = AccountSwitcherMachine.transition(
-            showing,
+            showing(),
             .rowTapped(subject: "bot-subject", avatarURL: "https://a/bot", username: "Bot")
-        ).snapshot
+        ).state
 
         let (next, effect) = AccountSwitcherMachine.transition(
             switching,
             .rowTapped(subject: "main-subject", avatarURL: "https://a/main", username: "Main")
         )
-        // Still on the FIRST switch — the second never took effect.
+        // Still on the FIRST switch — the second never took effect, so two
+        // switchToAccount calls cannot overlap.
         #expect(
-            next.state == .switching(
+            next == .switching(
                 subject: "bot-subject", avatarURL: "https://a/bot", username: "Bot"
             )
         )
@@ -137,9 +138,18 @@ struct AccountSwitcherMachineTests {
     @Test("a tap with no rows on screen is a no-op")
     func tapWhenEmptyIsNoOp() {
         let (next, effect) = AccountSwitcherMachine.transition(
-            initial(), .rowTapped(subject: "bot", avatarURL: "u", username: "n")
+            .initial, .rowTapped(subject: "bot", avatarURL: "u", username: "n")
         )
-        #expect(next.state == .empty)
+        #expect(next == .empty)
+        #expect(effect == .none)
+    }
+
+    @Test("a tap after dismissal is a no-op — the sheet is on its way out")
+    func tapAfterDismissIsNoOp() {
+        let (next, effect) = AccountSwitcherMachine.transition(
+            .dismissed, .rowTapped(subject: "bot", avatarURL: "u", username: "n")
+        )
+        #expect(next == .dismissed)
         #expect(effect == .none)
     }
 
@@ -147,44 +157,50 @@ struct AccountSwitcherMachineTests {
 
     @Test("overlays landing mid-switch do not overwrite the switch state")
     func overlaysDuringSwitchAreIgnored() {
-        let switching = AccountSwitcherMachine.Snapshot(
-            state: .switching(subject: "bot", avatarURL: "u", username: "n"),
-            context: .init()
-        )
+        let switching = AccountSwitcherMachine.State
+            .switching(subject: "bot", avatarURL: "u", username: "n")
         let (next, effect) = AccountSwitcherMachine.transition(
             switching, .overlaysResolved(localEntries)
         )
-        #expect(
-            next.state == .switching(subject: "bot", avatarURL: "u", username: "n")
-        )
+        #expect(next == switching)
         #expect(effect == .none)
     }
 
     @Test("overlays landing after dismissal are ignored")
     func overlaysAfterDismissAreIgnored() {
-        let dismissed = AccountSwitcherMachine.Snapshot(state: .dismissed, context: .init())
         let (next, effect) = AccountSwitcherMachine.transition(
-            dismissed, .overlaysResolved(localEntries)
+            .dismissed, .overlaysResolved(localEntries)
         )
-        #expect(next.state == .dismissed)
+        #expect(next == .dismissed)
         #expect(effect == .none)
     }
 
-    @Test("an unhandled event leaves the snapshot untouched")
-    func unhandledEventDoesNotChangeState() {
-        let ready = AccountSwitcherMachine.Snapshot(state: .ready(localEntries), context: .init())
-        let (next, effect) = AccountSwitcherMachine.transition(
-            ready, .switchCompleted(failed: true)
-        )
-        // switchCompleted outside .switching takes no transition.
+    @Test("a switch completing outside .switching is a no-op")
+    func completionOutsideSwitchingIsNoOp() {
+        let ready = AccountSwitcherMachine.State.ready(localEntries)
+        let (next, effect) = AccountSwitcherMachine.transition(ready, .switchCompleted)
         #expect(next == ready)
         #expect(effect == .none)
     }
 
-    // MARK: - Snapshot shape
+    @Test("a late overlay result cannot override a captured switch")
+    func lateOverlayCannotOverrideCapturedSwitch() {
+        // A tap already captured its row: the switch must win over a
+        // duplicate/empty overlay result.
+        let switching = AccountSwitcherMachine.State
+            .switching(subject: "bot", avatarURL: "u", username: "n")
+        let (next, effect) = AccountSwitcherMachine.transition(
+            switching, .overlaysResolved(nil)
+        )
+        #expect(next == switching)
+        #expect(effect == .none)
+    }
+
+    // MARK: - State shape
 
     @Test("entries are only exposed by the content-bearing states")
     func entriesOnlyForContentStates() {
+        #expect(AccountSwitcherMachine.State.initial.entries == nil)
         #expect(AccountSwitcherMachine.State.empty.entries == nil)
         #expect(AccountSwitcherMachine.State.dismissed.entries == nil)
         #expect(
@@ -193,14 +209,5 @@ struct AccountSwitcherMachineTests {
         )
         #expect(AccountSwitcherMachine.State.showingLocal(localEntries).entries != nil)
         #expect(AccountSwitcherMachine.State.ready(localEntries).entries != nil)
-    }
-
-    @Test("isSwitching is readable without pattern-matching at the call site")
-    func isSwitchingReflectsState() {
-        #expect(!AccountSwitcherMachine.State.ready(localEntries).isSwitching)
-        #expect(
-            AccountSwitcherMachine.State
-                .switching(subject: "s", avatarURL: "u", username: "n").isSwitching
-        )
     }
 }

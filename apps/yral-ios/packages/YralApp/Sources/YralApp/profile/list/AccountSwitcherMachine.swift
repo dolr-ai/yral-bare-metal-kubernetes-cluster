@@ -5,15 +5,14 @@ import Foundation
 /// The view used to hold two independent `@State` values (`entries` and
 /// `isSwitching`), which made illegal states representable — e.g.
 /// `isSwitching == true` while `entries == nil`, or a tap landing while a
-/// previous switch was still in flight. Every transition below is total:
-/// the view sends events, the machine decides, and the view renders
-/// whatever `(state, context)` it observes.
+/// previous switch was still in flight. Now the view observes one value and
+/// sends events; every transition is total.
 ///
-/// Mirrors the XState model (see the root AGENTS.md "Finite State
-/// Machines for Stateful Logic" rule): `State` is the finite state, the
-/// enum variant carries state-specific payload, and `Context` holds the
-/// data every state shares. `transition` is pure — it returns the
-/// `Effect` to run rather than performing I/O itself.
+/// Mirrors the XState model (see the root AGENTS.md "Finite State Machines
+/// for Stateful Logic" rule): the enum is the finite state and each variant
+/// carries its own payload. There is deliberately no separate context bag —
+/// no data is shared across states, so adding one would be an empty struct.
+/// `transition` is pure: it returns the `Effect` to run instead of doing I/O.
 enum AccountSwitcherMachine {
 
     // MARK: - Finite state
@@ -35,6 +34,8 @@ enum AccountSwitcherMachine {
         /// Switch completed; the sheet dismisses. Terminal for this sheet.
         case dismissed
 
+        static let initial = State.empty
+
         /// The rows to render, when this state has any.
         var entries: AccountSwitcherEntries? {
             switch self {
@@ -42,29 +43,6 @@ enum AccountSwitcherMachine {
             case .empty, .switching, .dismissed: nil
             }
         }
-
-        /// True while a switch is in flight — disables further taps.
-        var isSwitching: Bool {
-            if case .switching = self { return true }
-            return false
-        }
-    }
-
-    /// Data shared across every state. Kept deliberately small: anything
-    /// only meaningful in one state belongs in that variant instead.
-    struct Context: Equatable, Sendable {
-        /// The sheet is presented/dismissed. Tracked separately from
-        /// `State` because presentation outlives the sheet's own content
-        /// states (an empty switcher is still a presented sheet).
-        var lastSwitchFailed: Bool = false
-    }
-
-    /// A machine snapshot — exactly `(state, context)`, matching XState.
-    struct Snapshot: Equatable, Sendable {
-        var state: State
-        var context: Context
-
-        static let initial = Snapshot(state: .empty, context: Context())
     }
 
     // MARK: - Events
@@ -78,8 +56,8 @@ enum AccountSwitcherMachine {
         case overlaysResolved(AccountSwitcherEntries?)
         /// A row was tapped.
         case rowTapped(subject: String, avatarURL: String, username: String)
-        /// The switch action finished (success or reported failure).
-        case switchCompleted(failed: Bool)
+        /// The switch action finished.
+        case switchCompleted
     }
 
     // MARK: - Effects
@@ -99,7 +77,7 @@ enum AccountSwitcherMachine {
 
     // MARK: - Transition
 
-    /// Pure: `(state, event) -> (nextState, context, effect)`.
+    /// Pure: `(state, event) -> (nextState, effect)`.
     ///
     /// Only the transitions that DO something are listed. Anything else
     /// falls to `default`, which is XState's documented behaviour for an
@@ -107,31 +85,22 @@ enum AccountSwitcherMachine {
     /// state does not change**. Enumerating the no-ops individually would
     /// add no safety — `default` satisfies exhaustiveness just as well —
     /// so it would be ceremony, not rigour.
-    static func transition(
-        _ snapshot: Snapshot,
-        _ event: Event
-    ) -> (snapshot: Snapshot, effect: Effect) {
-        var context = snapshot.context
-        switch (snapshot.state, event) {
+    static func transition(_ state: State, _ event: Event) -> (state: State, effect: Effect) {
+        switch (state, event) {
 
         // The sheet appeared: show local rows immediately, overlays in
-        // flight. Recomputed from any state — it is idempotent, and a
-        // re-presented sheet legitimately starts here again.
+        // flight. Presentation-scoped, so it is accepted from any state and
+        // is idempotent — a re-presented sheet starts here again.
         case (_, .appeared(let localEntries)):
-            guard let localEntries else {
-                return (Snapshot(state: .empty, context: context), .none)
-            }
-            return (
-                Snapshot(state: .showingLocal(localEntries), context: context),
-                .loadOverlays
-            )
+            guard let localEntries else { return (.empty, .none) }
+            return (.showingLocal(localEntries), .loadOverlays)
 
-        // Overlays landed while local rows are showing → upgrade them.
+        // Overlays landed while local rows are showing → upgrade them. A
+        // nil result means the overlays could not even build local rows
+        // (signed out meanwhile).
         case (.showingLocal, .overlaysResolved(let entries)):
-            guard let entries else {
-                return (Snapshot(state: .empty, context: context), .none)
-            }
-            return (Snapshot(state: .ready(entries), context: context), .none)
+            guard let entries else { return (.empty, .none) }
+            return (.ready(entries), .none)
 
         // A tap is legal only with rows on screen. This guard is what
         // makes a double-tap impossible: `.switching` is unreachable from
@@ -139,21 +108,17 @@ enum AccountSwitcherMachine {
         case (.showingLocal, .rowTapped(let subject, let avatarURL, let username)),
              (.ready, .rowTapped(let subject, let avatarURL, let username)):
             return (
-                Snapshot(
-                    state: .switching(subject: subject, avatarURL: avatarURL, username: username),
-                    context: context
-                ),
+                .switching(subject: subject, avatarURL: avatarURL, username: username),
                 .performSwitch(subject: subject, avatarURL: avatarURL, username: username)
             )
 
-        // Switch finished → dismiss, recording the outcome for callers.
-        case (.switching, .switchCompleted(let failed)):
-            context.lastSwitchFailed = failed
-            return (Snapshot(state: .dismissed, context: context), .dismiss)
+        // Switch finished → dismiss.
+        case (.switching, .switchCompleted):
+            return (.dismissed, .dismiss)
 
         // No transition taken — the state does not change.
         default:
-            return (snapshot, .none)
+            return (state, .none)
         }
     }
 }

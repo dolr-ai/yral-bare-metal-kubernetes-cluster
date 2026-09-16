@@ -1,18 +1,16 @@
 import SwiftUI
 
-/// Account switcher sheet — SwiftUI port of Kotlin `AccountSwitchSheet`
-/// (`RootScreen.kt`): "Main Profile" + "AI Influencer profiles" sections,
-/// one row per account (avatar, name, active check); tap switches the
-/// client-side session. State inline (@State), actions via `AuthClient` —
-/// same pattern as the other screens.
+/// Account switcher sheet — "Main Profile" + "AI Influencer profiles"
+/// sections, one row per account (avatar, name, active check); tap switches
+/// the client-side session.
 struct AccountSwitcherView: View {
 
     let authClient: AuthClient
-    /// The switcher's machine snapshot — the view OBSERVES this and renders
-    /// from it; it never holds its own list/switching flags. See
+    /// The switcher's state — the view OBSERVES this and renders from it;
+    /// it never holds its own list/switching flags. See
     /// `AccountSwitcherMachine` for why (the old pair of independent
     /// `@State` values made illegal states representable).
-    @State private var snapshot = AccountSwitcherMachine.Snapshot.initial
+    @State private var state = AccountSwitcherMachine.State.initial
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -34,7 +32,7 @@ struct AccountSwitcherView: View {
             }
             .padding(.top, 26)
 
-            if let entries = snapshot.state.entries {
+            if let entries = state.entries {
                 // Scrollable — a creator can have many AI accounts; without
                 // this the rows past the 2/3 detent's height were simply
                 // unreachable.
@@ -71,12 +69,7 @@ struct AccountSwitcherView: View {
             // avatar URLs from the SpacetimeDB profile table — the source
             // of truth written at creation. Best-effort: on failure the
             // GobGob fallback rows remain.
-            let (next, effect) = AccountSwitcherMachine.transition(
-                snapshot,
-                .appeared(localEntries: authClient.accountSwitcherEntries())
-            )
-            snapshot = next
-            run(effect)
+            send(.appeared(localEntries: authClient.accountSwitcherEntries()))
         }
     }
 
@@ -95,8 +88,10 @@ struct AccountSwitcherView: View {
                 avatarURL: avatarURL,
                 username: username
             )
-            send(.switchCompleted(failed: false))
-            dismiss()
+            // `switchToAccount` is synchronous and reports no outcome, so
+            // completion follows immediately. When it grows a failure path,
+            // that becomes the payload and `.dismiss` stops being automatic.
+            send(.switchCompleted)
         case .dismiss:
             dismiss()
         case .none:
@@ -106,8 +101,8 @@ struct AccountSwitcherView: View {
 
     /// Send an event to the machine and act on whatever it decides.
     private func send(_ event: AccountSwitcherMachine.Event) {
-        let (next, effect) = AccountSwitcherMachine.transition(snapshot, event)
-        snapshot = next
+        let (next, effect) = AccountSwitcherMachine.transition(state, event)
+        state = next
         run(effect)
     }
 

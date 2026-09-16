@@ -214,6 +214,8 @@ These are **two separate things** in XState, and conflating them is the most com
 
 So a machine's snapshot is `(state, context)` — one enum saying *where* you are, one struct holding *what you know*. `context` is **immutable**; it is updated only by an `assign` action within a transition, never by direct mutation. **State-specific data belongs inside the enum variant** (via nested/compound states), never as optionals on the shared context that only make sense in some modes.
 
+**`context` is for data that is genuinely shared across states — a machine whose states share nothing should have no context at all.** An empty `Context` struct (or one whose fields nobody reads) is speculative structure: it adds a wrapper to every return and implies shared state that does not exist. XState lets `context` be `undefined` for exactly this reason. Add it when a second state actually needs the same datum, not preemptively — the same "colocate, don't pre-create" rule as everywhere else.
+
 ```swift
 // YES — finite state carries its own payload; context holds only what all states share
 enum State {
