@@ -1,8 +1,19 @@
 //! Auth key-value store.
 //!
-//! yral-auth stores 5 families of key-value data (user identity keys,
-//! OAuth mappings, AI account keys, AI account reverse lookups, backend
-//! service identities) in SpacetimeDB.
+//! yral-auth stores 5 families of key-value data in SpacetimeDB:
+//!
+//! | Key | Value | Purpose |
+//! |---|---|---|
+//! | `{provider}-login-{sub}` | user_id | OAuth identity → user id |
+//! | `user:{user_id}` | `"1"` | revocation flag — see below |
+//! | `ai-account:{bot_id}` | owner user_id | bot → owner reverse lookup |
+//! | `{owner}-ai-accounts` | `["bot-id", …]` | owner's bot list |
+//! | `internal-login-{client_id}` | user_id | backend service identities |
+//!
+//! `user:{user_id}` is checked ONLY for key existence (`has_key`) — never
+//! its value. Present = the identity may be granted tokens; absent =
+//! revoked ("unknown user"). This makes key deletion the revocation
+//! mechanism, and means overwriting the value with `""` revokes nothing.
 //!
 //! This is a simple String→String KV store. The table is private (not public)
 //! — only yral-auth (via the admin identity) reads and writes it. All

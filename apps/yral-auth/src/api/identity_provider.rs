@@ -10,7 +10,17 @@ pub fn oauth_lookup_key(provider: SupportedOAuthProviders, sub_id: &str) -> Stri
     format!("{provider}-login-{sub_id}")
 }
 
-/// KV key for user existence marker.
+/// KV key for a user's revocation flag: `user:{user_id}`.
+///
+/// Despite the "existence marker" naming this carries no information in its
+/// VALUE — every reader tests only whether the key is PRESENT, via
+/// `has_key`. Its presence means "this identity may be granted tokens";
+/// its absence means revoked. `generate_access_token` checks it on every
+/// grant (OAuth, refresh, bot, backend service), which is why it is the
+/// single revocation point: drop the key to cut an identity off.
+///
+/// Corollary for writers: overwriting the value (e.g. with `""`) does NOT
+/// revoke. The key must be deleted.
 fn user_existence_key(user_id: &str) -> String {
     format!("user:{user_id}")
 }

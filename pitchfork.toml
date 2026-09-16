@@ -133,10 +133,19 @@ retry = 3
 # the yral-auth-dev daemon decrypt it via `fnox exec`.
 
 [daemons.spacetimedb-dev]
+# NOTE: the mktemp template's X's must be the LAST characters. Trailing them
+# with ".pem" makes mktemp treat the whole string as a literal name — it then
+# creates that one fixed path, and every restart after the first fails with
+# "mkstemp failed ... File exists" (which is why the daemon would not start
+# after an unclean stop). The extension was cosmetic: `spacetime start` reads
+# the PEM content, not the filename. The key files are also cleaned up on
+# exit so they don't linger in /tmp carrying the JWT signing key.
 run = '''
-JWT_PUB_FILE=$(mktemp /tmp/spacetimedb-jwt-pub-XXXXXX.pem) && \
-JWT_PRIV_FILE=$(mktemp /tmp/spacetimedb-jwt-priv-XXXXXX.pem) && \
+JWT_PUB_FILE=$(mktemp /tmp/spacetimedb-jwt-pub-XXXXXX) && \
+JWT_PRIV_FILE=$(mktemp /tmp/spacetimedb-jwt-priv-XXXXXX) && \
+trap 'rm -f "$JWT_PUB_FILE" "$JWT_PRIV_FILE"' EXIT && \
 printf '%s' "$JWT_PUB_EC_PEM" > "$JWT_PUB_FILE" && \
+chmod 600 "$JWT_PUB_FILE" "$JWT_PRIV_FILE" && \
 fnox get JWT_EC_PEM --non-interactive > "$JWT_PRIV_FILE" && \
 exec spacetime start --in-memory --listen-addr 127.0.0.1:3000 --non-interactive --jwt-pub-key-path "$JWT_PUB_FILE" --jwt-priv-key-path "$JWT_PRIV_FILE"
 '''

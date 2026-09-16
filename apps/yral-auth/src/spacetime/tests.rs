@@ -81,17 +81,27 @@ fn test_jwt_minted_by_yral_auth_produces_correct_identity() {
     // adds ext_delegated_identity, email, etc. — but SpacetimeDB only
     // reads iss + sub for identity derivation.
 
-    use jsonwebtoken::{encode, decode, EncodingKey, DecodingKey, Header, Algorithm, Validation};
+    use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 
     let issuer = "http://localhost:8080";
     let user_id = "test-user-jwt-1";
 
     // Generate a test ES256 (P-256/secp256r1) key pair.
     // jsonwebtoken's ES256 requires P-256, NOT secp256k1 (k256).
+    //
+    // `Generate::try_generate()` is the current API — it draws from the
+    // system RNG itself. (elliptic-curve 0.14 deprecated `SecretKey::random`,
+    // and rand 0.10 dropped `rngs::OsRng` in favour of `rngs::SysRng`, which
+    // is fallible, so the old `&mut OsRng` call has no direct equivalent.)
+    use p256::elliptic_curve::Generate;
     use p256::pkcs8::{EncodePrivateKey, LineEnding};
-    let secret = p256::SecretKey::random(&mut rand::rngs::OsRng);
-    let pkcs8 = secret.to_pkcs8_der().expect("failed to encode key as PKCS8");
-    let pem = pkcs8.to_pem("PRIVATE KEY", LineEnding::LF).expect("failed to create PEM");
+    let secret = p256::SecretKey::try_generate().expect("system RNG failed");
+    let pkcs8 = secret
+        .to_pkcs8_der()
+        .expect("failed to encode key as PKCS8");
+    let pem = pkcs8
+        .to_pem("PRIVATE KEY", LineEnding::LF)
+        .expect("failed to create PEM");
     let encoding_key = EncodingKey::from_ec_pem(pem.as_bytes())
         .expect("failed to create encoding key from test EC key");
 
@@ -116,10 +126,8 @@ fn test_jwt_minted_by_yral_auth_produces_correct_identity() {
     let public_key = secret.public_key();
     let affine = public_key.to_sec1_bytes();
     // SEC1 point = 0x04 || x[32] || y[32] for uncompressed P-256
-    let x = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .encode(&affine[1..33]);
-    let y = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .encode(&affine[33..65]);
+    let x = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&affine[1..33]);
+    let y = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&affine[33..65]);
     let decoding_key = DecodingKey::from_ec_components(&x, &y)
         .expect("failed to create decoding key from test EC public components");
 

@@ -186,7 +186,15 @@ pub async fn delete_account_impl() -> Result<(), ServerFnError> {
         .map_err(|e| ServerFnError::new(format!("Failed to call delete API: {e}")))?;
 
     if response.status().is_success() {
-        // 4. Delete user data from KV
+        // 4. Clear the user's KV state.
+        //
+        // NOTE: writing "" does NOT revoke — `generate_access_token` tests
+        // only whether `user:{user_id}` is PRESENT (`has_key`), so the
+        // identity stays fully token-eligible. This block is part of the
+        // outstanding TODO(migrate-to-delete-user-procedure) at the top of
+        // lib.rs; that migration replaces this with the `delete_user`
+        // procedure, which runs the real cascade. Do not treat this write
+        // as a deletion.
         let existence_key = format!("user:{user_id}");
         ctx.kv_store
             .write(existence_key, "".to_string())

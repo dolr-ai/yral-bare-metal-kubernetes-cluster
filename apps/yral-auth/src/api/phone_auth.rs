@@ -12,7 +12,9 @@ use crate::{
 use axum_extra::extract::{cookie::Cookie, PrivateCookieJar};
 use leptos::prelude::expect_context;
 use leptos_axum::{extract_with_state, ResponseOptions};
-use rand::Rng;
+// rand 0.10 split the range helpers out of `Rng` into the new `RngExt`
+// trait — `random_range` is no longer reachable via `use rand::Rng`.
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{ops::Add, sync::Arc, time::Duration};

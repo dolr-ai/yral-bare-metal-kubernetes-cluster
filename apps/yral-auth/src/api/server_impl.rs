@@ -77,7 +77,15 @@ fn build_token_grant(
     TokenGrantRes::new(access_token, id_token, refresh_token)
 }
 
-/// KV key for storing/retrieving a user's existence marker.
+/// KV key for a user's revocation flag: `user:{user_id}`.
+///
+/// Only the key's PRESENCE is meaningful — `generate_access_token` calls
+/// `has_key` on it and refuses the grant with "unknown user" when absent.
+/// The stored value is never read. Deleting the key revokes the identity;
+/// overwriting the value does not.
+///
+/// Mirrors `user_existence_key` in `api/identity_provider.rs` — keep the
+/// two in sync.
 fn user_existence_key(user_id: &str) -> String {
     format!("user:{user_id}")
 }
