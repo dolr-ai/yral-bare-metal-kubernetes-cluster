@@ -106,7 +106,7 @@ enum AccountSwitcherMachine {
         // makes a double-tap impossible: `.switching` is unreachable from
         // `.switching`, so two switches can never overlap.
         case (.showingLocal, .rowTapped(let subject, let avatarURL, let username)),
-             (.ready, .rowTapped(let subject, let avatarURL, let username)):
+            (.ready, .rowTapped(let subject, let avatarURL, let username)):
             return (
                 .switching(subject: subject, avatarURL: avatarURL, username: username),
                 .performSwitch(subject: subject, avatarURL: avatarURL, username: username)
