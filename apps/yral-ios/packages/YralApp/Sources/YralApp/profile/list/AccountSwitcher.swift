@@ -17,10 +17,32 @@ struct AIIdentityEntry: Codable, Equatable, Sendable {
 }
 
 /// UserDefaults-backed store (Kotlin used its Preferences — display data,
-/// not secrets). JSON-encoded array under BOT_IDENTITIES.
+/// not secrets). JSON-encoded array under BOT_IDENTITIES, tombstones under
+/// DELETED_BOT_SUBJECTS.
 enum AIIdentitiesStore {
 
     private static let storageKey = "BOT_IDENTITIES"
+    private static let deletedSubjectsKey = "DELETED_BOT_SUBJECTS"
+
+    /// Every subject deleted on this device.
+    ///
+    /// The local store is display-only, but it is *seeded* from the JWT's
+    /// `ext_ai_account_ids` on each refresh (`saveTokens`). A token minted
+    /// before a deletion still names the deleted bot, so without a
+    /// tombstone the union merge in `mergeFromTokenAIAccountIds` re-adds it
+    /// to the switcher as a zombie. The server prunes the KV list that
+    /// feeds that claim, but this device's cached token can be stale — the
+    /// tombstone makes the client self-consistent regardless.
+    static func deletedSubjects(defaults: UserDefaults = .standard) -> Set<String> {
+        Set(defaults.stringArray(forKey: deletedSubjectsKey) ?? [])
+    }
+
+    /// Remember a deletion so the token merge can never re-add the subject.
+    static func markDeleted(subject: String, defaults: UserDefaults = .standard) {
+        var deleted = deletedSubjects(defaults: defaults)
+        guard deleted.insert(subject).inserted else { return }
+        defaults.set(Array(deleted), forKey: deletedSubjectsKey)
+    }
 
     /// Decode errors (corrupt/corrupt-by-upgrade data) load as empty —
     /// the next token merge re-seeds the list.
@@ -42,13 +64,15 @@ enum AIIdentitiesStore {
         defaults.removeObject(forKey: storageKey)
     }
 
-    /// Drops one AI identity — the account-deletion flow calls this so
-    /// the deleted bot disappears from the switcher's AI section (the
-    /// next token merge re-seeds from `ext_ai_account_ids`).
+    /// Drops one AI identity and tombstones it. The account-deletion flow
+    /// calls this so the deleted bot disappears from the switcher's AI
+    /// section — and stays gone even if a stale token still claims it
+    /// (`mergeFromTokenAIAccountIds` filters tombstoned subjects).
     static func removeIdentity(
         subject: String,
         defaults: UserDefaults = .standard
     ) {
+        markDeleted(subject: subject, defaults: defaults)
         let current = entries(defaults: defaults)
         let remaining = current.filter { $0.subject != subject }
         if remaining.count == current.count { return }
@@ -74,23 +98,39 @@ enum AIIdentitiesStore {
     /// Kotlin `mergeFromTokenBotAccountIds`: union of stored + token-claimed
     /// identities, keyed by subject; the most recent non-blank username
     /// wins. Returns nil when the merge would change nothing (empty input).
+    ///
+    /// Tombstoned subjects are dropped from BOTH sides: a token minted
+    /// before a deletion still lists the deleted bot, so the merge would
+    /// otherwise resurrect it (see `markDeleted`).
     @discardableResult
     static func mergeFromTokenAIAccountIds(
         _ aiAccountIds: [String],
         defaults: UserDefaults = .standard
     ) -> MergeResult? {
+        let deleted = deletedSubjects(defaults: defaults)
         let newEntries = aiAccountIds
-            .filter { !$0.isBlank }
+            .filter { !$0.isBlank && !deleted.contains($0) }
             .map { AIIdentityEntry(subject: $0, username: nil) }
-        guard !newEntries.isEmpty else { return nil }
-        let existing = entries(defaults: defaults)
+        let stored = entries(defaults: defaults)
+        // Prune stored entries BEFORE the empty-input early return: a
+        // tombstoned subject already persisted (written before the
+        // tombstone existed, or by an older build) must be cleared out even
+        // when this refresh carries no new ids.
+        let existing = stored.filter { !deleted.contains($0.subject) }
+        let prunedStored = existing.count != stored.count
+
         let merged = merge(existing: existing, additions: newEntries)
-        guard merged != existing else {
-            return MergeResult(
-                existingCount: existing.count,
-                addedCount: 0,
-                mergedCount: existing.count
-            )
+        // Write when the merge changed something OR the prune did — the
+        // latter is the only way a tombstone takes effect for an entry that
+        // is still on disk.
+        guard merged != existing || prunedStored else {
+            return newEntries.isEmpty
+                ? nil
+                : MergeResult(
+                    existingCount: existing.count,
+                    addedCount: 0,
+                    mergedCount: existing.count
+                )
         }
         put(merged, defaults: defaults)
         return MergeResult(

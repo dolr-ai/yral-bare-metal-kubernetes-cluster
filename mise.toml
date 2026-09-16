@@ -52,12 +52,25 @@ python = "latest"
 ruff = "latest"
 # Rust — latest STABLE via mise.lock resolution (committed lock pins the
 # exact resolved version per `mise lock`, so builds stay reproducible while
-# `mise run setup` on a fresh checkout pulls the newest stable). Nightly was
-# a leftover with zero real dependents: no #![feature] gates anywhere,
-# SpacetimeDB's `unstable` is a crate feature (stable-fine), and
-# nightly-2026-09-08's wasm codegen drifted into breaking
-# `spacetime generate`. The leptos `nightly` cargo-features and
-# cargo-leptos --hot-reload (nightly-only beta) are removed with this move.
+# `mise run setup` on a fresh checkout pulls the newest stable).
+#
+# Stable is correct repo-wide: no #![feature] gates anywhere (SpacetimeDB's
+# `unstable` is a crate feature, stable-fine), and nightly-2026-09-08's wasm
+# codegen drifted into breaking `spacetime generate`.
+#
+# CAVEAT — mise manages rust by installing its own toolchain and exporting
+# `RUSTUP_TOOLCHAIN=stable`, which TAKES PRECEDENCE over any
+# rust-toolchain.toml. That silently bypasses apps/yral-web/rust-toolchain.toml
+# (channel = "nightly"):
+#   local build with mise active → stable
+#   container build (no mise)    → nightly
+# so the prod image compiles with a different compiler than local builds.
+# nightly is genuinely needed there for `cargo leptos watch --hot-reload`
+# (see that file for the verified reasoning — the leptos `nightly`
+# cargo-features are inert on stable and are NOT the reason).
+# TODO(unify-yral-web-toolchain): make local and container agree — either
+# pin the container to stable and drop --hot-reload, or have the yral-web
+# tasks set RUSTUP_TOOLCHAIN=nightly explicitly.
 rust = { version = "stable", targets = [
   "wasm32-unknown-unknown",
   "x86_64-unknown-linux-musl",

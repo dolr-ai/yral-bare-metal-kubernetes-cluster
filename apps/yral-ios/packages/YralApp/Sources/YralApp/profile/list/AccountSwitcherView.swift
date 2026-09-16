@@ -8,8 +8,11 @@ import SwiftUI
 struct AccountSwitcherView: View {
 
     let authClient: AuthClient
-    @State private var entries: AccountSwitcherEntries?
-    @State private var isSwitching = false
+    /// The switcher's machine snapshot — the view OBSERVES this and renders
+    /// from it; it never holds its own list/switching flags. See
+    /// `AccountSwitcherMachine` for why (the old pair of independent
+    /// `@State` values made illegal states representable).
+    @State private var snapshot = AccountSwitcherMachine.Snapshot.initial
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -31,7 +34,7 @@ struct AccountSwitcherView: View {
             }
             .padding(.top, 26)
 
-            if let entries {
+            if let entries = snapshot.state.entries {
                 // Scrollable — a creator can have many AI accounts; without
                 // this the rows past the 2/3 detent's height were simply
                 // unreachable.
@@ -68,11 +71,44 @@ struct AccountSwitcherView: View {
             // avatar URLs from the SpacetimeDB profile table — the source
             // of truth written at creation. Best-effort: on failure the
             // GobGob fallback rows remain.
-            entries = authClient.accountSwitcherEntries()
-            Task { @MainActor in
-                entries = await authClient.refreshedAccountSwitcherEntries()
-            }
+            let (next, effect) = AccountSwitcherMachine.transition(
+                snapshot,
+                .appeared(localEntries: authClient.accountSwitcherEntries())
+            )
+            snapshot = next
+            run(effect)
         }
+    }
+
+    /// Perform the effect the transition returned. The machine is pure; the
+    /// I/O happens here and is reported back as an event.
+    private func run(_ effect: AccountSwitcherMachine.Effect) {
+        switch effect {
+        case .loadOverlays:
+            Task { @MainActor in
+                let refreshed = await authClient.refreshedAccountSwitcherEntries()
+                send(.overlaysResolved(refreshed))
+            }
+        case .performSwitch(let subject, let avatarURL, let username):
+            authClient.switchToAccount(
+                subject: subject,
+                avatarURL: avatarURL,
+                username: username
+            )
+            send(.switchCompleted(failed: false))
+            dismiss()
+        case .dismiss:
+            dismiss()
+        case .none:
+            break
+        }
+    }
+
+    /// Send an event to the machine and act on whatever it decides.
+    private func send(_ event: AccountSwitcherMachine.Event) {
+        let (next, effect) = AccountSwitcherMachine.transition(snapshot, event)
+        snapshot = next
+        run(effect)
     }
 
     /// Kotlin `SheetSection` — section title + rows.
@@ -99,18 +135,16 @@ struct AccountSwitcherView: View {
     /// Kotlin `AccountRow` — avatar, name, active checkmark.
     private func accountRow(_ account: AccountSwitcherEntry) -> some View {
         Button {
-            guard !isSwitching else { return }
-            isSwitching = true
-            // The row's URL + name go into the session + PROFILE_PIC /
-            // USERNAME caches — after `refreshedAccountSwitcherEntries()`
-            // these are the bot's hosted avatar and REAL name, so the
-            // profile/settings headers show them too.
-            authClient.switchToAccount(
-                subject: account.subject,
-                avatarURL: account.avatarURL,
-                username: account.username
+            // The machine decides whether a tap is legal (e.g. a second tap
+            // during an in-flight switch is a no-op, not a race) and
+            // returns the switch effect.
+            send(
+                .rowTapped(
+                    subject: account.subject,
+                    avatarURL: account.avatarURL,
+                    username: account.username
+                )
             )
-            dismiss()
         } label: {
             HStack(spacing: 10) {
                 AsyncImage(url: URL(string: account.avatarURL)) { image in

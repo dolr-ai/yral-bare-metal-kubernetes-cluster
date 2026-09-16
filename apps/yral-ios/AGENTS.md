@@ -13,6 +13,18 @@ documentation.
 
 ## Architecture rules
 
+- **Kotlin is reference material, never a spec (Hard Rule).** The legacy
+  Kotlin app is consulted ONLY to learn which backend endpoints a flow
+  calls, with what payloads, and in what order — that wire behavior is worth
+  matching. Its *architecture* is not: do NOT reproduce Kotlin's layers
+  (repositories, managers, service classes, DTO mapping tiers), its
+  `Yral`-prefixed names, its `Dto` suffixes, or its state model. This app
+  follows the minimal architecture set out in this file — inline by default,
+  folder-per-feature, native SwiftUI, FSMs for stateful logic. When porting,
+  port the *behavior over the wire*, then express it the Swift way. A port
+  that "matches Kotlin" by adding a layer this file forbids is a bug, not
+  fidelity.
+
 - **Inline by default (Hard Rule).** Do not create unnecessary abstractions.
   Most code lives inline at its call site. Introduce a
   helper/wrapper/protocol/manager ONLY when duplication is massive AND an
@@ -25,6 +37,15 @@ documentation.
     the layer.
   - Prefer deleting a wrapper over adding one when its body is a single
     expression repeated a few times.
+
+- **Stateful logic is a finite state machine (Hard Rule).** Any type with
+  more than one meaningful mode — session, account deletion, upload job,
+  AI-account creation — is an FSM: top-level state as an enum with
+  state-specific payloads inside the variants, held in a `context` property,
+  mutated only through one pure `transition(event:)`, wrapped in an `actor`
+  when it has concurrent work. See the "Finite State Machines for Stateful
+  Logic" rule in the root AGENTS.md for the full contract and rationale.
+  Convert flat-state types when you next touch them — no big-bang rewrite.
 
 - **Folder per top-level screen/feature (Hard Rule).** Sources live under
   `Sources/YralApp/<feature>/` — ONE folder per top-level screen/feature

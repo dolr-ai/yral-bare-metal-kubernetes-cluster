@@ -198,6 +198,86 @@ When `#[cfg]` feature gates cause a variable/function/import to be unused in som
 
 **Surface upstream API errors verbatim — never bury them in generic custom messages (Hard Rule).** In ALL API-consumer code (Swift data sources, Rust service clients, reducers calling external services, CLI wrappers), error paths must carry the upstream status code AND response body through to the user-facing error — the API's own words ("Name 'X' is already taken", FastAPI's `detail` array, the provider's error JSON) are the message. Never replace them with invented generic text like "unexpected response (spec drift)" or "something went wrong": it misclassifies real server failures as contract bugs and sends diagnosis to the wrong layer (observed: a live HTTP 500 from LLM generation was reported as "spec drift" — the iOS `undocumented()` mapping discarded the status and body the generated client already carried). Rules: (1) error types propagate `statusCode` + `body`, (2) response bodies are surfaced verbatim (cap buffering, e.g. 1 MB), (3) custom text is a FALLBACK only when the upstream body is unreadable, and it must include the status code, (4) `LocalizedError`/display mappings prefer the upstream body first. Handled errors are ALSO reported to the app's crash reporter — see the iOS AGENTS.md Firebase section for the Crashlytics rule and `CrashReporter` facade.
 
+### Finite State Machines for Stateful Logic (Hard Rule)
+**Model anything stateful as a finite state machine.** Applies to both Swift and Rust — any code with more than one meaningful mode, any lifecycle with transitions, any "which screen/step/phase are we in" logic. The reference model is **XState** (https://stately.ai/docs — read the docs, not this summary, before designing a machine); we **port the model, not the library**.
+
+**Why:** state bugs come from invalid states being *representable* — a boolean pair that should never be `(true, true)`, a phase enum plus three optionals that must agree, a "deleted" flag on an entity that is also still listed. An FSM makes illegal states unrepresentable and illegal transitions explicit, so the bug cannot be *written* rather than merely not-yet-observed. (Concrete precedent: the deleted-bot resurrection — a profile row, an id list, and an existence marker that could all disagree, with no single owner of the invariant.)
+
+#### The core model: a snapshot is finite state PLUS context
+
+These are **two separate things** in XState, and conflating them is the most common modelling mistake:
+
+| XState | What it is | Swift/Rust equivalent |
+|---|---|---|
+| `state.value` | the **finite state** — a small, enumerable set of modes, possibly nested (`{ form: 'invalid' }`) | the **enum** (`state`) |
+| `state.context` | **extended state** — a data bag (tokens, ids, counts) that exists across *all* states | the **data struct** (`context`) |
+
+So a machine's snapshot is `(state, context)` — one enum saying *where* you are, one struct holding *what you know*. `context` is **immutable**; it is updated only by an `assign` action within a transition, never by direct mutation. **State-specific data belongs inside the enum variant** (via nested/compound states), never as optionals on the shared context that only make sense in some modes.
+
+```swift
+// YES — finite state carries its own payload; context holds only what all states share
+enum State {
+    case signedOut
+    case signingIn(provider: AuthenticationProvider)
+    case signedIn(Session)                  // tokens + subject live HERE
+}
+struct Context {                         // shared across every state
+    var lastActiveSubject: String?
+    var deviceId: String
+}
+struct Machine { var state: State; var context: Context }   // snapshot = (state, context)
+
+// NO — one flat bag where illegal combinations are representable
+struct Machine { var tokens: Tokens?; var isRefreshing: Bool; var subject: String?; var provider: String? }
+```
+
+#### States are typed: atomic, compound, parallel, final
+
+- **Atomic** — no children. A leaf mode.
+- **Compound (parent)** — has children; one child is active at a time, and a parent state **must declare its own initial child**. Only *one* top-level initial state exists per machine (with several, the machine wouldn't know where to start).
+- **Parallel** — all regions active **simultaneously**, each with its own initial child. One event may transition several regions at once (`target: ['.mode.dark', '.theme.custom']`). Use this instead of cross-multiplying orthogonal concerns into one enum.
+- **Final** — `type: 'final'`; the machine reaches `status == 'done'` and emits an `output`. This is how a lifecycle *ends* — don't model completion as a bool.
+
+#### Transitions are deterministic, selected deepest-first
+
+An **event** is `{ type, ...payload }`. Given `(state, event)` the next state is always the same — that determinism is what makes the machine testable.
+
+Selection algorithm, in order:
+1. Start at the deepest **active atomic** states.
+2. Take the transition if it is **enabled** — no `guard`, or its guard evaluates `true`. Guards are pure predicates (see the Pure Functions rule): they filter, they never mutate.
+3. Otherwise walk **up to the parent**, repeat.
+4. If nothing is enabled, **the state does not change.**
+
+Two special forms worth knowing: a **forbidden transition** (`{}` — an explicitly empty transition) *stops* the parent search rather than continuing up, which is how a child blocks a parent's catch-all; and a **wildcard** (`'*'`, `'mouse.*'`) has the **lowest priority**, matching only when nothing else did.
+
+In a typed port, `default:` IS the wildcard: it satisfies exhaustiveness, and it is the correct home for "no enabled transition". Do **not** enumerate no-op pairs explicitly — that is ceremony, not rigour (it adds a line whenever a state is added without forcing any real decision). Enumerate only the transitions that *do* something; the safety that matters comes from those being explicit and from the machine being total. Reserve an explicit no-op for the case where you are deliberately **blocking** a transition a parent would otherwise handle — that is the forbidden-transition form, and the comment should say so.
+
+#### Actions: the only place side effects and context changes happen
+
+- **`assign`** updates `context` — declaratively in the transition, never by mutation. Assignments are computed from `({ context, event })`.
+- **Entry / exit actions** run on entering/leaving a state node (`entry: [...]`, `exit: [...]`) — not only on transitions. Use exit actions to tear down what an entry action set up.
+- **`raise`** sends an event to the machine itself, queued internally and processed FIFO **after** the current transition completes; external events are only handled once that internal queue drains. This is how you sequence multi-step work without side effects mid-transition.
+
+#### Actors: invoked vs spawned
+
+A running machine **is an actor** — it owns its state, processes **one event at a time** from a mailbox, and shares state with others *only* by sending events (never by shared mutable memory). Two lifecycle flavours:
+
+- **Invoked** — started when the parent *enters* the invoking state, stopped when it *exits*. Use for a fixed, state-bound side task (an in-flight request, a stream).
+- **Spawned** — started dynamically in a transition, stopped explicitly (`stopChild`) or when the parent stops. Use for a dynamic number of children.
+
+`context` holding an in-flight task's handle is the normal pattern — the actor's lifecycle is then tied to the state that owns it, not to a stray callback.
+
+#### Pure transition functions
+
+XState exposes `initialTransition(machine)` and `transition(machine, state, event)` — **pure** functions returning `(nextState, actions)`. Port this: the machine's `transition` decides the next state and *returns* the effects; the caller performs the I/O. That makes every transition unit-testable with no network, no database, no clock.
+
+#### Corollaries
+- **One typed `transition(_ event:)` per machine.** No direct mutation from views, data sources, or callbacks — they send events. Everything stateful flows through it.
+- **Every transition gets a test.** Drive the machine through the event that was previously mishandled and assert the resulting `(state, context)`. This is the UI-state half of the Regression Tests rule.
+- **Model the real lifecycle, not the screen.** One machine per lifecycle (session, account deletion, upload job, generation job) — views read the state and send events.
+- **Wrap in an `actor` (Swift) / task-isolated type (Rust) where there is concurrency** — in-flight requests, streams, timers — rather than sharing mutable state across call sites.
+- **Gradual migration.** Convert when touching a file; do not big-bang rewrite. Existing flat-state types get folded in as they are next modified.
+
 ### Pure Functions & Thin API Wrappers (Hard Rule)
 All business logic must be implemented as **pure functions** — no I/O, no side effects, no external service calls. Functions that call external APIs (HTTP, database, KV store, SpacetimeDB, etc.) must be **thin wrappers** that delegate to pure functions for all logic. This applies to all application code (Rust, Kotlin, TypeScript, etc.):
 

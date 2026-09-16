@@ -1,15 +1,29 @@
 [toolchain]
-# NIGHTLY — this app only. Two real dependents:
-#  1. leptos `nightly` cargo-features (ssr/Cargo.toml) require a nightly
-#     rustc to compile leptos's nightly-mode APIs.
-#  2. cargo leptos watch --hot-reload (the yral-web-watch mise task) is a
-#     nightly-only beta feature.
+# NIGHTLY — this app only.
+#
+# Real dependents (verified against leptos 0.8.17 source):
+#  1. `cargo leptos watch --hot-reload` (the `yral-web-watch` mise task) is a
+#     nightly-only beta feature. This is the ACTUAL reason nightly is needed.
+#  2. The leptos `nightly` cargo-features on our manifests (ssr/Cargo.toml
+#     etc.) only unlock `proc_macro_span` for better macro error spans. That
+#     attribute is `cfg_attr(all(feature = "nightly", rustc_nightly), ...)`,
+#     and `rustc_nightly` is set by leptos's OWN build.rs only when it detects
+#     a nightly compiler — so on stable the feature is inert and the crates
+#     still compile. It is NOT the reason nightly is required.
+#
+# CAUTION — this file is BYPASSED locally. mise manages rust as `stable` and
+# exports `RUSTUP_TOOLCHAIN=stable`, which takes precedence over a
+# rust-toolchain.toml. So:
+#   local  (mise active) → stable
+#   container (Dockerfile) → nightly  ← this file wins; no mise override
+# The prod image therefore compiles with a DIFFERENT compiler than local
+# builds. (An earlier version of this comment claimed "nightly, same as
+# local" — that was wrong.) Unifying the two is tracked in mise.toml.
+#
 # Everything OUTSIDE this directory resolves to the repo root's latest
-# STABLE (rust-toolchain.toml) — including the SpacetimeDB module, whose
-# wasm must stay parseable by the spacetimedb CLI (nightly codegen drift
-# broke `spacetime generate` once already). The prod image builds
-# in-container from the repo root copy of this file — nightly, same as
-# local, so what you test locally is what ships.
+# STABLE — including the SpacetimeDB module, whose wasm must stay parseable
+# by the spacetimedb CLI (nightly codegen drift broke `spacetime generate`
+# once already).
 channel = "nightly"
 components = ["rustfmt", "clippy", "rust-src", "rust-analyzer"]
 targets = ["wasm32-unknown-unknown", "x86_64-unknown-linux-musl"]
