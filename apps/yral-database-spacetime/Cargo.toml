@@ -5,7 +5,7 @@ edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-# `crate-type = ["cdylib"]` is required — `spacetimedb-cli build` needs a
+# `crate-type = ["cdylib"]` is required — `spacetime build` needs a
 # standalone wasm artifact, not the default `rlib`. Without it, `wasm-opt`
 # fails to find the right artifact for optimization.
 [lib]
@@ -14,7 +14,8 @@ crate-type = ["cdylib"]
 [dependencies]
 log = { workspace = true }
 # `features = ["unstable"]` enables `#[spacetimedb::procedure]` and
-# `#[spacetimedb::http::handler]` (unstable-gated in spacetimedb 2.6.1).
+# `#[spacetimedb::http::handler]` (unstable-gated in the pinned spacetimedb
+# crate — see `[workspace.dependencies]` in the root Cargo.toml).
 # Required by the `posts` feature (procedures + HTTP handler).
 spacetimedb = { workspace = true, features = ["unstable"] }
 # Reads the `ext_ai_account_ids` claim off the caller's JWT, via

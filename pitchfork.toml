@@ -109,11 +109,11 @@ stop_signal = "SIGINT"
 
 # ── SpacetimeDB standalone server ───────────────────────────────────────────
 # Local SpacetimeDB instance for the yral-database-spacetime module.
-# Required by `spacetimedb-cli dev` (which publishes to http://127.0.0.1:3000).
+# Required by `spacetime dev` (which publishes to http://127.0.0.1:3000).
 # In-memory mode — data is lost on restart, which is fine for dev.
 
 [daemons.spacetimedb]
-run = "exec spacetimedb-cli start --in-memory --listen-addr 127.0.0.1:3000"
+run = "exec spacetime start --in-memory --listen-addr 127.0.0.1:3000"
 ready_http = "http://127.0.0.1:3000/v1/health"
 stop_signal = "SIGINT"
 retry = 3
@@ -138,7 +138,7 @@ JWT_PUB_FILE=$(mktemp /tmp/spacetimedb-jwt-pub-XXXXXX.pem) && \
 JWT_PRIV_FILE=$(mktemp /tmp/spacetimedb-jwt-priv-XXXXXX.pem) && \
 printf '%s' "$JWT_PUB_EC_PEM" > "$JWT_PUB_FILE" && \
 fnox get JWT_EC_PEM --non-interactive > "$JWT_PRIV_FILE" && \
-exec spacetimedb-cli start --in-memory --listen-addr 127.0.0.1:3000 --non-interactive --jwt-pub-key-path "$JWT_PUB_FILE" --jwt-priv-key-path "$JWT_PRIV_FILE"
+exec spacetime start --in-memory --listen-addr 127.0.0.1:3000 --non-interactive --jwt-pub-key-path "$JWT_PUB_FILE" --jwt-priv-key-path "$JWT_PRIV_FILE"
 '''
 ready_http = "http://127.0.0.1:3000/v1/health"
 stop_signal = "SIGINT"
@@ -148,7 +148,7 @@ retry = 3
 [daemons.spacetimedb-dev.hooks]
 # Publish the module to the local server once it's ready.
 # --env dev loads spacetime.dev.json (server: local) on top of spacetime.json.
-on_ready = "spacetimedb-cli build -p apps/yral-database-spacetime && spacetimedb-cli publish --env dev --yes --server local yral-database-spacetime-4lbo7"
+on_ready = "spacetime build -p apps/yral-database-spacetime && spacetime publish --env dev --yes --server local yral-database-spacetime-4lbo7"
 
 # ── yral-auth dev server (release binary) ──────────────────────────────────
 # Runs the NATIVE binary (arm64 on macOS, gnu on Linux/WSL — runs/debugs

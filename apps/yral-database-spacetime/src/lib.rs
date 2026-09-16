@@ -6,7 +6,7 @@
 //! login checks are handled by the Prakash video-storage-service backend).
 //! Future features (yral-auth, yral-metadata migration) will go here.
 //!
-//! ## SpacetimeDB conventions (spacetimedb 2.6.1)
+//! ## SpacetimeDB conventions
 //! - **No raw SQL from application code** (hard rule, see AGENTS.md). Rust
 //!   services use the generated `spacetimedb-sdk` bindings; mobile/non-SDK
 //!   clients call procedures via REST (`POST /v1/database/{db}/call/:name`).
@@ -15,7 +15,7 @@
 //!   typed `SpacetimeType`); **HTTP handlers** for truly public/identity-agnostic
 //!   endpoints (bypass auth, arbitrary `http::Response`).
 //! - Procedures + HTTP handlers require `features = ["unstable"]` in this
-//!   crate's `Cargo.toml` (unstable-gated in spacetimedb 2.6.1).
+//!   crate's `Cargo.toml` (unstable-gated in the pinned spacetimedb crate).
 //! - Table index macro: `index(accessor = by_x_y, btree(columns = [x, y]))`
 //!   — `accessor` takes a bare ident (NOT `name =`); `#[unique]` auto-creates
 //!   a unique btree index (no separate `index(...)` needed).

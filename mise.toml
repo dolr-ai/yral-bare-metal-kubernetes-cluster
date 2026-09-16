@@ -17,12 +17,17 @@
 
 [tools]
 age = "latest"
-# binaryen (wasm-opt) PINNED to 131: version 132's output broke the
-# SpacetimeDB CLI 2.10's wasm parser ("invalid leading byte (0x7f) for
-# external kind") — `spacetime generate` failed on the optimized module
-# while the un-optimized wasm parsed fine (isolated via --bin-path).
-# Bump only together with a verified `spacetime generate` + `spacetime
-# publish` cycle (spacetime-all).
+# binaryen (wasm-opt) PINNED to 131 — do NOT let `mise upgrade --bump` float
+# this ("latest" resolves to 132, which is broken; see below). SpacetimeDB
+# bundles no wasm-opt, so `spacetime build` optimises with whatever `wasm-opt`
+# is on PATH — i.e. this version. 132's output breaks the SpacetimeDB 2.10
+# wasm parser: `spacetime build` still SUCCEEDS (it only optimises), but the
+# publish pre-publish check rejects the module with "failed to parse
+# WebAssembly module: invalid leading byte (0x7e) for external kind", while
+# the un-optimized wasm parses fine (isolated via --bin-path). Re-verified
+# failing against 2.10.0 — `mise run spacetime-run` reproduces it locally via
+# the local server's pre-publish check, so no Maincloud access is needed.
+# Bump only together with a verified `spacetime build` + publish cycle.
 "aqua:WebAssembly/binaryen" = "131"
 cargo-binstall = "latest"
 "cargo:trunk" = "latest"
@@ -31,7 +36,13 @@ flux2 = "2.9.5"
 fnox = "latest"
 gh = "latest"
 helm = "latest"
-"github:clockworklabs/SpacetimeDB" = "latest"
+# SpacetimeDB CLI. The release tarball names its binary `spacetimedb-cli`,
+# but the canonical, documented invocation is `spacetime` (see
+# https://spacetimedb.com/docs/cli-reference and the official installer) —
+# `rename_exe` exposes the pinned version under the canonical name so PATH
+# resolution never falls through to a stale installer-managed binary.
+# `spacetimedb-standalone` stays untouched: `spacetime start` execs it.
+"github:clockworklabs/SpacetimeDB" = { version = "latest", rename_exe = { "spacetimedb-cli" = "spacetime" } }
 kubectl = "latest"
 maestro = { version = "latest", os = ["macos"] }
 node = "latest"
@@ -319,11 +330,11 @@ run = "mise bootstrap packages apply --yes && mise install && mise run bootstrap
 
 [tasks.spacetime-build]
 description = "Build the yral-database-spacetime wasm module (release)"
-run = "spacetimedb-cli build -p apps/yral-database-spacetime"
+run = "spacetime build -p apps/yral-database-spacetime"
 
 [tasks.spacetime-generate]
 description = "Regenerate Rust client bindings from the live Maincloud database schema (reads spacetime.json). Must be run after spacetime-publish to reflect schema changes."
-run = "spacetimedb-cli generate"
+run = "spacetime generate"
 
 [tasks.spacetime-test]
 description = "Run yral-database-spacetime tests"
@@ -333,11 +344,11 @@ run = "cargo test"
 [tasks.spacetime-run]
 description = "Start local SpacetimeDB server (pitchfork) and publish the module locally (--env dev reads spacetime.dev.json → local server)"
 depends = ["spacetime-build"]
-run = "pitchfork start spacetimedb && spacetimedb-cli publish --env dev --yes"
+run = "pitchfork start spacetimedb && spacetime publish --env dev --yes"
 
 [tasks.spacetime-dev]
 description = "Start SpacetimeDB server (pitchfork) and run dev mode (build, generate bindings, publish, watch for changes)"
-run = "pitchfork start spacetimedb && spacetimedb-cli dev"
+run = "pitchfork start spacetimedb && spacetime dev"
 
 [tasks.spacetime-stop]
 description = "Stop SpacetimeDB server via pitchfork"
@@ -349,13 +360,13 @@ run = "pitchfork stop spacetimedb"
 [tasks.spacetime-publish]
 description = "Publish to SpacetimeDB Maincloud (interactive — reads migration plan), then regenerate client bindings. Order: build → publish → generate."
 depends = ["spacetime-build"]
-run = "spacetimedb-cli publish && mise run spacetime-generate"
+run = "spacetime publish && mise run spacetime-generate"
 
 [tasks.spacetime-validate]
 description = "Validate yral-database-spacetime on Maincloud (read-only checks: tables, row counts, procedure calls)"
 run = '''
 echo "=== Tables ==="
-TABLES_OUT=$(spacetimedb-cli sql --server maincloud $SPACETIMEDB_DB_NAME "SELECT table_name, table_access FROM st_table WHERE table_type = 'user'")
+TABLES_OUT=$(spacetime sql --server maincloud $SPACETIMEDB_DB_NAME "SELECT table_name, table_access FROM st_table WHERE table_type = 'user'")
 echo "$TABLES_OUT"
 echo ""
 echo "=== Row counts ==="
@@ -363,7 +374,7 @@ echo "=== Row counts ==="
 TABLES=$(echo "$TABLES_OUT" | awk -F'|' '/^ "/ {gsub(/[" \t]/, "", $1); print $1}')
 for t in $TABLES; do
   echo -n "$t: "
-  spacetimedb-cli sql --server maincloud $SPACETIMEDB_DB_NAME "SELECT count(*) AS cnt FROM $t"
+  spacetime sql --server maincloud $SPACETIMEDB_DB_NAME "SELECT count(*) AS cnt FROM $t"
 done
 '''
 

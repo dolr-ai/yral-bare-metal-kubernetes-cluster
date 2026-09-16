@@ -26,9 +26,9 @@ SpacetimeDB is a relational database that is also a server. It lets you upload a
 
 ## Debugging Checklist
 
-1. Is SpacetimeDB server running? (`spacetime start`)
-2. Is the module published? (`spacetime publish`)
-3. Are client bindings generated? (`spacetime generate`)
+1. Is the local server running? (`mise run spacetime-run` starts it via pitchfork)
+2. Is the module published? (`mise run spacetime-publish` → Maincloud; `mise run spacetime-run` → local)
+3. Are client bindings generated? (`mise run spacetime-generate`)
 4. Check server logs for errors (`spacetime logs <db-name>`)
 5. Is the reducer actually being called from the client?
 
@@ -80,11 +80,11 @@ Modules are WebAssembly bundles containing application logic that runs inside th
 - **Reducers**: Define callable functions that modify state
 - **Event Tables**: Broadcast reducer-specific data to clients
 - **Views**: Read-only functions that expose computed subsets of data to clients
-- **Procedures**: (Unstable) Functions that can have side effects (HTTP requests, `ctx.withTx`)
+- **Procedures**: (Unstable) Functions that can have side effects (HTTP requests, `ctx.with_tx`)
 
 Server-side modules can be written in: Rust, C#, TypeScript, C++
 
-Lifecycle: Write → Compile → Publish (`spacetime publish`) → Hot-swap (republish without disconnecting clients)
+Lifecycle: Write → Compile → Publish (`mise run spacetime-publish`) → Hot-swap (republish without disconnecting clients)
 
 ## Identity
 
@@ -98,6 +98,29 @@ SpacetimeDB works with many OIDC providers, including SpacetimeAuth (built-in), 
 # SpacetimeDB CLI
 
 Use this skill when the user needs help with the `spacetime` CLI tool - initializing projects, building modules, publishing databases, querying data, managing servers, or troubleshooting CLI issues.
+
+## Invoking the CLI — `spacetime`, never `spacetimedb-cli` (Hard Rule)
+
+The release tarball ships its binary as `spacetimedb-cli`, but the canonical, documented
+invocation is `spacetime` — see the [CLI reference](https://spacetimedb.com/docs/cli-reference),
+and the official installer at `spacetimedb.com/install` produces a binary named `spacetime`.
+
+The root `mise.toml` bridges the two at install time:
+
+```toml
+"github:clockworklabs/SpacetimeDB" = { version = "latest", rename_exe = { "spacetimedb-cli" = "spacetime" } }
+```
+
+`rename_exe` exposes the pinned version under the canonical name, so a single `spacetime`
+shim serves every invocation. Use `spacetime` in all commands, mise tasks, docs, and doc
+comments — never `spacetimedb-cli`.
+
+- **`spacetimedb-standalone` is a separate binary** that `spacetime start` execs internally.
+  Leave it untouched: renaming or removing it breaks local server startup.
+- **Never install SpacetimeDB via the official shell installer alongside mise.** It writes
+  its own `~/.local/bin/spacetime`, which drifts from — and before the rename, shadowed —
+  the mise-managed version (a stale 2.6.0 shadowed the pinned release this way). `mise install`
+  is the only supported install path, keeping the toolchain reproducible from `mise.toml` alone.
 
 ## Quick Reference
 
@@ -122,15 +145,32 @@ spacetime generate --lang typescript|csharp|rust|unrealcpp --out-dir ./bindings 
 
 ### Publishing & Deployment
 
+> **Every operation goes through a mise task — never an ad hoc `spacetime` command.** The tasks own
+> the whole workflow: local server lifecycle, config layering (`spacetime.json` → production,
+> `spacetime.dev.json` → local), binding regeneration, and the migration-plan review on Maincloud.
+> Calling the raw CLI skips that setup, so it's only acceptable when the user explicitly asks.
+
+| Task | Does |
+|------|------|
+| `mise run spacetime-build` | Release-build the wasm module |
+| `mise run spacetime-run` | Start the local server (pitchfork) + publish locally (`--env dev`) |
+| `mise run spacetime-dev` | Local dev mode: build, publish, generate bindings, watch for changes |
+| `mise run spacetime-stop` | Stop the local server |
+| `mise run spacetime-publish` | Publish to Maincloud — **interactive**, shows the migration plan — then regenerate bindings |
+| `mise run spacetime-validate` | Read-only post-deploy checks (tables, row counts, procedures) |
+| `mise run spacetime-all` | Full workflow end to end |
+
+The local server is a pitchfork daemon, so `spacetime-run`/`spacetime-dev` start it for you — never
+run `spacetime start` by hand.
+
 ```bash
-# Publish to Maincloud (default)
-spacetime publish my-database --yes
+# Maincloud deploy (interactive — the migration plan is shown before it applies)
+mise run spacetime-publish
 
-# Publish to local server
-spacetime publish my-database --server local --yes
-
-# Clear database and republish
-spacetime publish my-database --delete-data always --yes
+# Local dev loop
+mise run spacetime-run     # one-shot: start server + publish
+mise run spacetime-dev     # watch mode
+mise run spacetime-stop    # when done
 ```
 
 ### Database Interaction
@@ -158,14 +198,16 @@ spacetime describe my-database reducer my_reducer --json
 
 ### Database Management
 
+> **`spacetime delete` destroys a database and every row in it — never run it against a Maincloud
+> database.** `spacetime rename` likewise re-points clients. Both are destructive, non-declarative
+> operations with no place in a normal workflow; the schema lives in git and is deployed by
+> publishing. Only use these on a throwaway local instance, and only when explicitly asked.
+
 ```bash
-# List databases
+# List databases (read-only, always safe)
 spacetime list
 
-# Delete database
-spacetime delete my-database
-
-# Rename database
+# Rename database (local only)
 spacetime rename <database-identity> --to new-name
 ```
 
@@ -240,8 +282,11 @@ spacetime server ping <server>
 
 ### "Schema conflict"
 ```bash
-# Clear data and republish
-spacetime publish my-db --delete-data always --yes
+# Local instance only — recreate it from the module in git.
+# NEVER do this on Maincloud: --delete-data wipes every table including KV stores.
+# On Maincloud, schema changes follow the incremental-migration pattern
+# (see the root AGENTS.md "Schema migrations" rule).
+spacetime publish my-db --server local --delete-data always --yes
 ```
 
 ### "Build failed"
