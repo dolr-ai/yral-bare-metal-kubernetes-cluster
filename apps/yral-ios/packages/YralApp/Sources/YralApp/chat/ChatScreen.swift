@@ -3,7 +3,7 @@ import SwiftUI
 /// Chat — the past-conversations list. The chat feature phase builds the
 /// real list (conversation rows, unread badges, navigation into a
 /// conversation); this placeholder is the tab's anchor until then.
-struct ChatView: View {
+struct ChatScreen: View {
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: "bubble.left.and.bubble.right.fill")
@@ -21,5 +21,5 @@ struct ChatView: View {
 }
 
 #Preview {
-    ChatView()
+    ChatScreen()
 }

@@ -11,7 +11,7 @@ import UIKit
 ///
 /// The sound plays in sync (AudioServices system sound — no audio
 /// session juggling for a one-shot effect).
-struct CelebrationView: View {
+struct CelebrationComponent: View {
     /// Confetti flakes, seeded once — pure value structs, updated by
     /// elapsed time inside the Canvas draw (no @State churn per frame).
     private let flakes: [ConfettiFlake]
@@ -139,7 +139,7 @@ struct ConfettiFlake {
 #Preview {
     ZStack {
         Color.black.ignoresSafeArea()
-        CelebrationView()
+        CelebrationComponent()
         VStack(spacing: 16) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 48))

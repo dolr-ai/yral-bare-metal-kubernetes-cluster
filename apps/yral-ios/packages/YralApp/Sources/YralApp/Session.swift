@@ -27,12 +27,10 @@ public struct Session: Equatable, Sendable {
     }
 }
 
-/// Auth lifecycle — port of Kotlin `SessionState`.
-public enum SessionState: Equatable, Sendable {
-    case initial
-    case loading
-    case signedIn(Session)
-}
+/// Auth lifecycle — the machine's finite state. Port of Kotlin
+/// `SessionState`, extended with the states that distinction needed (see
+/// `AuthMachine` for why `.initial` had to split from `.signedOut`).
+public typealias SessionState = AuthMachine.State
 
 /// Session-adjacent state — port of Kotlin `SessionProperties`. Fields whose
 /// consumers land in later phases (follow sets, pro details, mandatory
@@ -124,84 +122,87 @@ public struct AccountDirectory: Codable, Equatable, Sendable {
     }
 }
 
-/// Observable session state — port of Kotlin `SessionManager`
-/// (MutableStateFlow state + properties → `@Observable`).
-/// Kotlin's VideoGenerationTracker reset in `updateState` lands with the
-/// video phase.
+/// Observable auth session — drives the UI from `AuthMachine`. Port of
+/// Kotlin `SessionManager` (MutableStateFlow state + properties →
+/// `@Observable`).
+///
+/// The store OWNS the snapshot and is the only thing that mutates it, but
+/// it never decides the next state itself: every change goes through
+/// `AuthMachine.transition`, so the state graph and the property-reset rule
+/// stay pure and testable (see that file for the defects this replaced).
 @MainActor @Observable
 public final class SessionStore {
 
-    public private(set) var state: SessionState = .initial
-    public private(set) var properties = SessionProperties()
+    public private(set) var snapshot = AuthMachine.Snapshot.initial
+
+    public var state: SessionState { snapshot.state }
+    public var properties: SessionProperties { snapshot.context.properties }
 
     public init() {}
 
     // MARK: - Signed-in session accessors
 
-    public var userSubject: String? {
-        if case let .signedIn(session) = state { return session.userSubject }
-        return nil
-    }
+    public var userSubject: String? { state.session?.userSubject }
 
-    public var profilePic: String? {
-        if case let .signedIn(session) = state { return session.profilePic }
-        return nil
-    }
+    public var profilePic: String? { state.session?.profilePic }
 
-    public var username: String? {
-        if case let .signedIn(session) = state { return session.username }
-        return nil
-    }
+    public var username: String? { state.session?.username }
 
-    public var isAIAccount: Bool? {
-        if case let .signedIn(session) = state { return session.isAIAccount }
-        return nil
-    }
+    /// True only for a bot session (`nil` when not signed in) — previously
+    /// a `Bool?` read off the payload, now off the state, so it cannot
+    /// disagree with the session it describes.
+    public var isBotSession: Bool? { state.session == nil ? nil : state.isBotSession }
 
-    // MARK: - State updates
+    // MARK: - Events
 
-    /// Replaces the session state and resets per-session properties
-    /// (preserving device-level values, exactly as Kotlin does).
-    public func updateState(_ newState: SessionState) {
-        state = newState
-        properties = SessionProperties(
-            botCount: properties.botCount,
-            accountDirectory: properties.accountDirectory,
-            isYralProAvailable: properties.isYralProAvailable
-        )
+    /// The machine's I/O effects, performed by `AuthClient` — the store
+    /// holds no keychain reference.
+    ///
+    /// Set once at construction (`AuthClient` owns the credential store,
+    /// the store owns the state; neither reaches into the other). Defaults
+    /// to a no-op so tests can drive transitions without a keychain.
+    var effectHandler: (AuthMachine.Effect) -> Void = { _ in }
+
+    /// Sends an event through the machine and applies whatever it decides.
+    /// The single entry point for state change — no caller sets state.
+    func send(_ event: AuthMachine.Event) {
+        let (next, effect) = AuthMachine.transition(snapshot, event)
+        snapshot = next
+        effectHandler(effect)
     }
 
     public func updateCoinBalance(_ newBalance: Int64) {
-        properties.coinBalance = newBalance
+        snapshot.context.properties.coinBalance = newBalance
     }
 
     public func updateSocialSignInStatus(_ isSocialSignIn: Bool) {
-        properties.isSocialSignIn = isSocialSignIn
+        snapshot.context.properties.isSocialSignIn = isSocialSignIn
     }
 
     public func updateLoggedInUserEmail(_ email: String?) {
-        properties.emailID = email
+        snapshot.context.properties.emailID = email
     }
 
     public func updatePhoneNumber(_ phoneNumber: String?) {
-        properties.phoneNumber = phoneNumber
+        snapshot.context.properties.phoneNumber = phoneNumber
     }
 
     public func updateFirebaseLoginState(_ isLoggedIn: Bool) {
-        properties.isFirebaseLoggedIn = isLoggedIn
+        snapshot.context.properties.isFirebaseLoggedIn = isLoggedIn
     }
 
     /// Logout-scoped property reset — port of Kotlin
     /// `resetSessionProperties` (coin balance 0, counts cleared, social
     /// sign-in off; pro availability is device-level and survives).
     public func resetSessionProperties() {
-        properties = SessionProperties(
+        let preserved = snapshot.context.properties.isYralProAvailable
+        snapshot.context.properties = SessionProperties(
             coinBalance: 0,
             isSocialSignIn: false,
             profileVideosCount: 0,
             botCount: nil,
             accountDirectory: nil,
-            isYralProAvailable: properties.isYralProAvailable
+            isYralProAvailable: preserved
         )
     }
 }

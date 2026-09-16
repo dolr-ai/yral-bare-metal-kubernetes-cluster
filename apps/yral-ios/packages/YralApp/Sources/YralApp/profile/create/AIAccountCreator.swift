@@ -240,7 +240,7 @@ enum AIAccountCreator {
             bio: profile.description,
             isAIAccount: true
         )
-        context.sessionStore.updateState(.signedIn(aiSession))
+        context.sessionStore.send(.sessionEstablished(aiSession))
         context.authClient.cacheSession(
             userSubject: aiSubject,
             profilePic: hostedAvatarURL,

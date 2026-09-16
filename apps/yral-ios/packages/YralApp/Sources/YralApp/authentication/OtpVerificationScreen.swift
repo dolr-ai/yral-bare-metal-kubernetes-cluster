@@ -8,7 +8,7 @@ import SwiftUI
 /// No view model — the OTP code + error state live HERE; the sign-in
 /// screen owns the phone number and resend timer (the resend is its
 /// request, so its state).
-public struct OtpVerificationView: View {
+public struct OtpVerificationScreen: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var otpCode = ""
@@ -198,3 +198,33 @@ private struct OtpInputField: View {
         index == code.count
     }
 }
+
+#if DEBUG
+#Preview("resend counting down") {
+    OtpVerificationScreen(
+        authClient: AuthClient(
+            authDataSource: AuthDataSource(),
+            redirectScheme: "com.yral.iosApp",
+            sessionStore: SessionStore()
+        ),
+        sentToPhoneNumber: "+91 98765 43210",
+        onResend: {},
+        resendTimerSeconds: 15
+    )
+    .preferredColorScheme(.dark)
+}
+
+#Preview("resend available") {
+    OtpVerificationScreen(
+        authClient: AuthClient(
+            authDataSource: AuthDataSource(),
+            redirectScheme: "com.yral.iosApp",
+            sessionStore: SessionStore()
+        ),
+        sentToPhoneNumber: "+91 98765 43210",
+        onResend: {},
+        resendTimerSeconds: nil
+    )
+    .preferredColorScheme(.dark)
+}
+#endif

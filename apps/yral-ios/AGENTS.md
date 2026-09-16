@@ -40,12 +40,14 @@ documentation.
 
 - **Stateful logic is a finite state machine (Hard Rule).** Any type with
   more than one meaningful mode — session, account deletion, upload job,
-  AI-account creation — is an FSM: top-level state as an enum with
-  state-specific payloads inside the variants, held in a `context` property,
-  mutated only through one pure `transition(event:)`, wrapped in an `actor`
-  when it has concurrent work. See the "Finite State Machines for Stateful
-  Logic" rule in the root AGENTS.md for the full contract and rationale.
-  Convert flat-state types when you next touch them — no big-bang rewrite.
+  AI-account creation, the account switcher — is an FSM: top-level state as
+  an enum with state-specific payloads inside the variants, mutated only
+  through one pure `transition(_ event:)`, wrapped in an `actor` when it has
+  concurrent work. Add a shared `context` only when several states genuinely
+  need the same datum — a machine whose states share nothing has none. See
+  the "Finite State Machines for Stateful Logic" rule in the root AGENTS.md
+  for the full contract and rationale. Convert flat-state types when you
+  next touch them — no big-bang rewrite.
 
 - **Folder per top-level screen/feature (Hard Rule).** Sources live under
   `Sources/YralApp/<feature>/` — ONE folder per top-level screen/feature
@@ -61,6 +63,91 @@ documentation.
   earns its place. Do NOT create a feature folder ahead of its first
   real screen, and do NOT pre-create route subfolders with no code in
   them (profile/detail/ appears when the detail screen does).
+
+- **Every UI file declares its kind with a filename suffix (Hard Rule).**
+  The suffix says what the file IS, so a filename is self-describing
+  without opening it. Four suffixes, and every Swift file has exactly one:
+
+  | Suffix | What it is | Lives in | Has a preview? |
+  |---|---|---|---|
+  | `Screen` | A screen — a routable surface (a tab, a sheet, a full-screen flow) | `<feature>/` or `<feature>/<route>/` | Yes |
+  | `Component` | A reusable, presentation-only view piece | `<feature>/` or `components/<tier>/` | Yes |
+  | `Machine` | A finite state machine (the `State`/`Event`/`Effect` types + pure `transition`) | Beside its UI | No (pure — tested instead) |
+  | *(none)* | Logic: clients, data sources, parsers/validation, persistence, wire models, config | Beside the UI that calls it | No |
+
+  So `SignInScreen.swift` is a screen, `AICreationHeaderComponent.swift` is a
+  piece of UI, `AuthMachine.swift` is a state machine, and `AuthClient.swift`
+  is logic. Rename on touch — no big-bang rewrite. The name itself stays the
+  domain noun (`AccountSwitcherScreen`, `AuthClient`), never the `Yral`
+  prefix (see the no-prefix rule above).
+
+  **A machine never carries a `Screen`/`Component` suffix**, and a
+  `Screen`/`Component` file never holds a machine. This is what the FSM rule's
+  "state lives in one transition function" looks like on disk: the machine
+  is its own file precisely so its purity is visible.
+
+  **One type per file, filename == type name.** Where a screen's private
+  helper views would push it past the lint file-length bound, split them into
+  their own `Component` files rather than letting one file hold several
+  unrelated things (this is why `CountryPickerButtonComponent.swift` exists
+  separately from `SignInScreen.swift`).
+
+- **Every `Screen` and `Component` file ships a preview (Hard Rule).** A UI
+  file is openable in Xcode and immediately inspectable — `#Preview` (the
+  iOS 17+ macro, not the legacy `PreviewProvider`) with enough state wired
+  that the component renders without a running app. A UI file with no
+  preview is not finished. Previews are **not** dead code: they are the
+  component's manual test, and they are the only place a component's
+  variations (empty / populated / error / long-content) should be
+  enumerated — use named previews (`#Preview("error")`) for those
+  variations.
+
+  Previews must not require the network or a real `KeychainStore` — inject
+  stubs/fixtures, exactly as the tests do. A preview that cannot render
+  offline is a preview nobody runs.
+
+- **Reusable UI lives in `components/`, tiered by atomic design (Hard Rule).**
+  Anything reused across features goes to
+  `Sources/YralApp/components/<atoms|molecules|organisms>/`, named with the
+  `Component` suffix. Feature-local pieces stay in the feature folder — the
+  promotion trigger is a SECOND feature consuming it, never anticipation
+  (same rule as every other shared module).
+  
+  The tiers, per Brad Frost's *Atomic Design* (chapter 2 — the canonical
+  source; read it before arguing about which tier something is):
+  - **atoms** — the indivisible primitives. A button, an icon, a label, a
+    text style. Cannot be broken down further without ceasing to function.
+    Atoms in SwiftUI are often close to the platform built-ins plus our
+    styling — that is fine; the value is that all base styling is
+    reviewable at a glance in one place.
+  - **molecules** — a few atoms bonded into a simple unit with its own
+    behaviour: a label + field + button forming a search form. Single
+    responsibility; reusable wherever that functionality is needed.
+  - **organisms** — relatively complex assemblies forming a *discrete
+    section* of an interface: a header (logo + nav + search), a feed row, a
+    card. May compose molecules, atoms, and other organisms.
+
+  **The three tiers are a mental model, not a build order and not a
+  maturity ladder.** Frost is explicit: "It would be foolish to design
+  buttons and other elements in isolation, then cross our fingers and hope
+  everything comes together" — the stages work *concurrently*. Atoms are not
+  "more reusable" than organisms, and an organism is not a promoted
+  molecule. Place a piece by **what it is**, never by "how shared" it feels.
+  If a piece resists categorisation, that is usually a sign it is doing two
+  jobs — split it rather than inventing a fourth tier.
+
+  **We deliberately stop at organisms.** Frost's taxonomy continues with
+  *templates* (layout skeletons) and *pages* (templates + real content).
+  We already have both, and they are the feature folders: a `View` file IS
+  the page (a specific instance with real content), and its body is the
+  template (the layout skeleton). Adding `templates/` and `pages/` would
+  create two homes for the same concept — exactly the structure the
+  "inline by default / folder-per-feature" rules exist to prevent. Do not
+  add those two folders.
+
+  **Atomic design is technology-agnostic** (Frost applies it to native
+  Instagram). It is not a CSS or Swift-specific technique — for us it is
+  purely a placement and naming taxonomy for reusable view code.
 
 - **Tests mirror their subjects by filename AND folder (Hard Rule).** SPM
   requires one directory per target — a test file CANNOT live inside

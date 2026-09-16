@@ -4,7 +4,7 @@ import SwiftUI
 /// subject). Phase 4 builds the real profile surface (posts grid,
 /// stats, edit); this placeholder is the tab's anchor until then,
 /// showing live session data.
-struct ProfileView: View {
+struct ProfileScreen: View {
 
     let sessionStore: SessionStore
 
@@ -32,7 +32,7 @@ struct ProfileView: View {
                     .truncationMode(.middle)
                     .padding(.horizontal, 32)
             }
-            if sessionStore.isAIAccount == true {
+            if sessionStore.isBotSession == true {
                 Text("AI account")
                     .font(.caption.weight(.semibold))
                     .padding(.horizontal, 10)
@@ -50,5 +50,5 @@ struct ProfileView: View {
 }
 
 #Preview {
-    ProfileView(sessionStore: SessionStore())
+    ProfileScreen(sessionStore: SessionStore())
 }

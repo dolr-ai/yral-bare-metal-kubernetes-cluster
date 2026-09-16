@@ -154,14 +154,46 @@ enum BrowserAuthSession {
     /// Presentation anchor — bridges SwiftUI to AuthenticationServices
     /// (Kotlin `OAuthPresentationAnchorProvider` resolving the front
     /// window).
+    ///
+    /// `MainActor.assumeIsolated`: `UIApplication.shared.connectedScenes` is
+    /// main-actor isolated and the protocol requirement is nonisolated; this
+    /// delegate is only ever invoked by AuthenticationServices on the main
+    /// thread while presenting, so the assertion holds.
+    ///
+    /// The anchor is resolved from the scene rather than constructed
+    /// scene-lessly: `UIWindow.init()` and `init(frame:)` are both deprecated
+    /// in iOS 26 (per UIWindow.h: "Use init(windowScene:) instead").
     private final class PresentationAnchorProvider: NSObject,
         ASWebAuthenticationPresentationContextProviding {
         func presentationAnchor(
             for session: ASWebAuthenticationSession
         ) -> ASPresentationAnchor {
-            (UIApplication.shared.connectedScenes
-                .compactMap { ($0 as? UIWindowScene)?.keyWindow }
-                .first) ?? ASPresentationAnchor()
+            MainActor.assumeIsolated {
+                let windowScenes = UIApplication.shared.connectedScenes
+                    .compactMap { $0 as? UIWindowScene }
+                // The presenting window when one exists...
+                if let keyWindow = windowScenes.compactMap(\.keyWindow).first {
+                    return keyWindow
+                }
+                if let existing = windowScenes.first(where: { !$0.windows.isEmpty })?
+                    .windows.first {
+                    return existing
+                }
+                // ...otherwise a window for the scene, which is the
+                // non-deprecated scene-based initializer.
+                //
+                // Unreachable in this app: it declares a
+                // UIApplicationSceneManifest, and a web-auth presentation
+                // cannot start without a scene to present from. Stated
+                // explicitly rather than silently constructing a scene-less
+                // window, which iOS 26 deprecated.
+                guard let scene = windowScenes.first else {
+                    preconditionFailure(
+                        "Web auth presentation requires a UIWindowScene — the app declares a scene manifest"
+                    )
+                }
+                return UIWindow(windowScene: scene)
+            }
         }
     }
     #else

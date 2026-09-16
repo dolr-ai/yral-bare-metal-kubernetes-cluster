@@ -177,7 +177,7 @@ struct AuthClientTests {
 
         #expect(counter.calls == 0)
         #expect(sessionStore.userSubject == Self.aiSubject)
-        #expect(sessionStore.isAIAccount == true)
+        #expect(sessionStore.isBotSession == true)
         #expect(keychain.string(forKey: .idToken) == validIDToken)
     }
 
@@ -264,7 +264,7 @@ struct AuthClientTests {
         #expect(recorder.refreshCalls == 1)
         #expect(recorder.lastRefreshToken == validRefreshToken)
         #expect(sessionStore.userSubject == Self.aiSubject)
-        #expect(sessionStore.isAIAccount == true)
+        #expect(sessionStore.isBotSession == true)
         #expect(keychain.string(forKey: .idToken) == refreshedIDToken)
         #expect(keychain.string(forKey: .refreshToken) == "refreshed-refresh-token")
         #expect(keychain.string(forKey: .accessToken) == "refreshed-access-token")

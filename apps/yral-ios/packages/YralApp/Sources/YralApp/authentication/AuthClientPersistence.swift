@@ -231,7 +231,7 @@ extension AuthClient {
                 defaults: defaults
             )
         }
-        if sessionStore.isAIAccount == true {
+        if sessionStore.isBotSession == true {
             // Deleted a BOT — switch back to the main account rather
             // than logging out (the user is still signed in as main).
             guard let mainSubject = keychain.string(forKey: .mainSubject) else {
@@ -249,10 +249,22 @@ extension AuthClient {
     /// path with its cause (analytics event lands with the analytics phase).
     func trackAndLogoutForTokenExpiry(cause: AuthExpiryCause) async {
         lastLogoutCause = cause
-        await logoutInternal()
+        await logoutInternal(cause: cause)
     }
 
-    func logoutInternal() async {
+    /// `cause` is non-nil for an expiry (tokens died) and nil for a
+    /// deliberate sign-out — the machine routes them to the SAME state with
+    /// different payload, so the analytics dimension lives in the state
+    /// instead of a separate field.
+    func logoutInternal(cause: AuthExpiryCause? = nil) async {
+        // The machine owns the credential clearing: `.clearStoredSession` is
+        // this function, wired in at construction — see the handler below.
+        sessionStore.send(cause.map(AuthMachine.Event.sessionExpired) ?? .userSignedOut)
+    }
+
+    /// Performs the machine's `clearStoredSession` effect. The keychain/
+    /// defaults teardown lives here (the store holds no credential refs).
+    func clearStoredSessionData() {
         keychain.removeValue(forKey: .refreshToken)
         keychain.removeValue(forKey: .accessToken)
         keychain.removeValue(forKey: .idToken)
@@ -266,6 +278,5 @@ extension AuthClient {
         resetCachedSessionData()
         sessionStore.resetSessionProperties()
         sessionStore.updateFirebaseLoginState(false)
-        sessionStore.updateState(.initial)
     }
 }

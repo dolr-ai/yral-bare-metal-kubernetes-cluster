@@ -96,7 +96,7 @@ struct AuthDataSourceTests {
             username: "test-user",
             isAIAccount: isAIAccount
         )
-        sessionStore.updateState(.signedIn(session))
+        sessionStore.send(.sessionEstablished(session))
         let client = AuthClient(
             authDataSource: AuthDataSource(session: mockSession),
             redirectScheme: "com.yral.iosApp",
@@ -160,7 +160,7 @@ struct AuthDataSourceTests {
         #expect(try capturedProcedureTarget(recorder: recorder) == botSubject)
         // UI switched back to the main account (still signed in).
         #expect(signedIn.sessionStore.userSubject == mainSubject)
-        #expect(signedIn.sessionStore.isAIAccount == false)
+        #expect(signedIn.sessionStore.isBotSession == false)
         #expect(signedIn.keychain.string(forKey: .idToken) != nil)
     }
 

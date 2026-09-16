@@ -1,0 +1,30 @@
+{
+  // SourceKit-LSP configuration for the YralApp SPM package.
+  //
+  // WHY THIS EXISTS: SwiftPM builds for the HOST by default (macOS), even
+  // though Package.swift declares `.iOS(.v26)` first. Declaring iOS means
+  // "iOS is allowed", not "iOS is current" — with `.macOS` also declared,
+  // the host wins. The consequence is that the compiler evaluates
+  // `@available` against the macOS deployment floor and compiles the macOS
+  // branch of every `#if canImport(UIKit)`, so **iOS-only deprecations and
+  // iOS-only code never produce diagnostics in the editor**.
+  //
+  // Verified before/after (same sources, two targets):
+  //   target                          regionCode  Sendable  init()  Text+
+  //   arm64-apple-macosx14.0               ✗         ✗        ✗       ✗
+  //   arm64-apple-ios26.0-simulator        ✓         ✓        ✓       ✓
+  //
+  // `triple` alone is enough — `--triple arm64-apple-ios26.0-simulator`
+  // builds without an explicit `--sdk` because the SDK is inferred. Pinning
+  // an `--sdk` path would break on every Xcode upgrade (the SDKs dir has no
+  // version-less symlink; `xcrun --show-sdk-version` currently returns 27.0).
+  // The trade-off is that the version here must exist in the installed SDK.
+  //
+  // Keep this in sync with Package.swift's `.iOS(...)` floor.
+  //
+  // Reference: SourceKit-LSP config schema —
+  // https://github.com/swiftlang/sourcekit-lsp/blob/main/Documentation/Configuration%20File.md
+  "swiftPM": {
+    "triple": "arm64-apple-ios26.0-simulator"
+  }
+}

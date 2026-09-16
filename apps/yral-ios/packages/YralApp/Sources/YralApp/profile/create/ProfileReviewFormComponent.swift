@@ -7,7 +7,7 @@ import SwiftUI
 /// the button flips to a tick + "Go to Profile" — NO separate done
 /// screen; the celebration (confetti + horn) plays over THIS form
 /// (operator request 2026-09-01).
-struct ProfileReviewForm: View {
+struct ProfileReviewFormComponent: View {
     @Binding var profile: AIProfileDetails
     let isWorking: Bool
     let hasSucceeded: Bool
@@ -120,7 +120,7 @@ struct ProfileReviewForm: View {
 
 #if DEBUG
     #Preview("idle") {
-        ProfileReviewForm(
+        ProfileReviewFormComponent(
             profile: .constant(
                 AIProfileDetails(
                     systemInstructions: "You are a witty travel photographer…",
@@ -149,7 +149,7 @@ struct ProfileReviewForm: View {
     }
 
     #Preview("working (inline spinner)") {
-        ProfileReviewForm(
+        ProfileReviewFormComponent(
             profile: .constant(
                 AIProfileDetails(
                     systemInstructions: "You are a witty travel photographer…",
@@ -175,7 +175,7 @@ struct ProfileReviewForm: View {
     }
 
     #Preview("succeeded (tick + Go to Profile)") {
-        ProfileReviewForm(
+        ProfileReviewFormComponent(
             profile: .constant(
                 AIProfileDetails(
                     systemInstructions: "You are a witty travel photographer…",

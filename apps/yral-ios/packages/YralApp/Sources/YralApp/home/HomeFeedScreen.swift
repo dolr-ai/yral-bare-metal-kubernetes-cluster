@@ -3,7 +3,7 @@ import SwiftUI
 /// Home feed — the AI-influencer feed. Phase 3 builds the real feed
 /// (video surface, recsys calls); this placeholder is the tab's anchor
 /// until then.
-struct HomeFeedView: View {
+struct HomeFeedScreen: View {
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: "play.rectangle.fill")
@@ -21,5 +21,5 @@ struct HomeFeedView: View {
 }
 
 #Preview {
-    HomeFeedView()
+    HomeFeedScreen()
 }

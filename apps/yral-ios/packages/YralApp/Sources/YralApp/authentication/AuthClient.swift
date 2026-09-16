@@ -120,6 +120,17 @@ public final class AuthClient {
         self.influencerDataSource = influencerDataSource
             ?? AIInfluencerDataSource()
         self.sessionStore = sessionStore
+        // Wire the machine's effects once, here: the store owns the state,
+        // AuthClient owns the credentials. Assigning AFTER all stored
+        // properties are initialised is what makes capturing self legal.
+        sessionStore.effectHandler = { [weak self] effect in
+            switch effect {
+            case .clearStoredSession:
+                self?.clearStoredSessionData()
+            case .none:
+                break
+            }
+        }
     }
 
     // MARK: - Cold start (initialize + refreshAuthIfNeeded)
@@ -132,7 +143,7 @@ public final class AuthClient {
     ///     (valid refresh → refresh; else logout with cause).
     ///  3. Nothing cached → anonymous identity.
     public func initialize() async {
-        sessionStore.updateState(.loading)
+        sessionStore.send(.restoreStarted)
         await refreshAuthIfNeeded()
     }
 
@@ -144,7 +155,7 @@ public final class AuthClient {
         if let lastActiveSubject, lastActiveSubject != mainSubject {
             if let cached = cachedSession(),
                cached.userSubject == lastActiveSubject {
-                sessionStore.updateState(.signedIn(cached))
+                sessionStore.send(.sessionEstablished(cached))
                 await refreshBotColdStartTokensIfNeeded()
                 return
             }
@@ -221,9 +232,10 @@ public final class AuthClient {
             sessionStore.updateSocialSignInStatus(false)
         } catch {
             // Kotlin rethrows YralAuthException; without a session there is
-            // nothing to restore — back to .initial for a retry on next
-            // launch (surfaced to the UI by the state machine).
-            sessionStore.updateState(.initial)
+            // nothing to restore — back to the sign-in surface (a fresh
+            // install that could not get an anonymous identity, NOT an
+            // expiry: `.nothingCached` keeps that distinction).
+            sessionStore.send(.nothingCached)
         }
     }
 
@@ -293,7 +305,7 @@ public final class AuthClient {
            subject != storedMainSubject {
             if let cachedMain = cachedSession(),
                cachedMain.userSubject == storedMainSubject {
-                sessionStore.updateState(.signedIn(cachedMain))
+                sessionStore.send(.sessionEstablished(cachedMain))
                 sessionStore.updateFirebaseLoginState(true)
             }
             return
@@ -317,8 +329,10 @@ public final class AuthClient {
             ),
             isAIAccount: false
         )
-        sessionStore.updateCoinBalance(0)
-        sessionStore.updateState(.signedIn(session))
+        // NOTE: no `updateCoinBalance(0)` here — the `.sessionEstablished`
+        // transition clears per-session properties (coin balance included),
+        // so the explicit call was immediately overwritten and removed.
+        sessionStore.send(.sessionEstablished(session))
         sessionStore.updateFirebaseLoginState(true)
         postLogin()
     }
@@ -363,34 +377,4 @@ public final class AuthClient {
             CrashReporter.record(error, context: "manual-token-refresh")
         }
     }
-}
-
-// MARK: - Supporting types
-
-/// Social providers — port of Kotlin `SocialProvider`.
-public enum SocialProvider: String, Sendable {
-    case google
-    case apple
-    case phone
-
-    /// Wire value of the OAuth `provider` query parameter.
-    public var wireValue: String { rawValue }
-
-    /// Kotlin `responseMode()`: Apple uses form_post; Google uses query.
-    public var responseMode: String {
-        self == .apple ? "form_post" : "query"
-    }
-
-    /// Kotlin `authScope()`: Apple gets name+email; others get openid.
-    public var authScope: String {
-        self == .apple ? "name email" : "openid"
-    }
-}
-
-/// Token-expiry logout causes — Kotlin `AuthSessionCause` (the analytics
-/// event lands with the analytics phase; tests assert on the cause).
-public enum AuthExpiryCause: String, Sendable {
-    case refreshTokenMissing = "REFRESH_TOKEN_MISSING"
-    case refreshTokenExpiredOrInvalid = "REFRESH_TOKEN_EXPIRED_OR_INVALID"
-    case refreshAccessTokenFailed = "REFRESH_ACCESS_TOKEN_FAILED"
 }

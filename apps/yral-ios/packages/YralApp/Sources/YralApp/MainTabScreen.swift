@@ -10,7 +10,7 @@ import SwiftUI
 ///
 /// Tab content = the five views above; the system tab bar renders as
 /// Liquid Glass on iOS 26 (native chrome — no custom styling).
-struct MainTabView: View {
+struct MainTabScreen: View {
 
     let authClient: AuthClient
     let sessionStore: SessionStore
@@ -28,11 +28,11 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeFeedView()
+            HomeFeedScreen()
                 .tabItem { Label("Home", systemImage: "house.fill") }
                 .tag(Tab.home)
 
-            ChatView()
+            ChatScreen()
                 .tabItem { Label("Chat", systemImage: "bubble.left.and.bubble.right.fill") }
                 .tag(Tab.chat)
 
@@ -42,11 +42,11 @@ struct MainTabView: View {
                 .tabItem { Label("Create", systemImage: "plus") }
                 .tag(Tab.create)
 
-            ProfileView(sessionStore: sessionStore)
+            ProfileScreen(sessionStore: sessionStore)
                 .tabItem { Label("Profile", systemImage: "person.fill") }
                 .tag(Tab.profile)
 
-            MenuView(authClient: authClient, sessionStore: sessionStore)
+            MenuScreen(authClient: authClient, sessionStore: sessionStore)
                 .tabItem { Label("Menu", systemImage: "line.3.horizontal") }
                 .tag(Tab.menu)
         }
@@ -58,7 +58,7 @@ struct MainTabView: View {
             )
         ) {
             NavigationStack {
-                AIAccountCreationView(
+                AIAccountCreationScreen(
                     authClient: authClient,
                     sessionStore: sessionStore,
                     onCreationCompleted: { selectedTab = .profile },
@@ -77,7 +77,7 @@ struct MainTabView: View {
 
 #Preview {
     let sessionStore = SessionStore()
-    MainTabView(
+    MainTabScreen(
         authClient: AuthClient(
             authDataSource: AuthDataSource(),
             redirectScheme: "com.yral.iosApp",

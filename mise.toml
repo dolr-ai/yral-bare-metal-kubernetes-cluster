@@ -746,8 +746,7 @@ xcodebuild build \
   -destination 'generic/platform=iOS Simulator' \
   -configuration Debug \
   CODE_SIGNING_ALLOWED=NO \
-  -skipPackagePluginValidation \
-  -quiet
+  -skipPackagePluginValidation
 '''
 
 [tasks.yral-ios-test]

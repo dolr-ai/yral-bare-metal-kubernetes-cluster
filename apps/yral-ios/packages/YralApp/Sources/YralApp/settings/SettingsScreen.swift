@@ -10,7 +10,7 @@ import SwiftUI
 ///
 /// No view model — state is @State here; actions call `AuthClient` /
 /// `AuthDataSource` directly (same inline pattern as the sign-in screens).
-struct SettingsView: View {
+struct SettingsScreen: View {
 
     let authClient: AuthClient
     let sessionStore: SessionStore
@@ -149,7 +149,7 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .sheet(isPresented: $isAccountSwitcherShown) {
-                AccountSwitcherView(authClient: authClient)
+                AccountSwitcherScreen(authClient: authClient)
             }
 
             Button {
@@ -200,5 +200,5 @@ struct SettingsView: View {
         redirectScheme: "com.yral.iosApp",
         sessionStore: sessionStore
     )
-    return SettingsView(authClient: authClient, sessionStore: sessionStore)
+    return SettingsScreen(authClient: authClient, sessionStore: sessionStore)
 }

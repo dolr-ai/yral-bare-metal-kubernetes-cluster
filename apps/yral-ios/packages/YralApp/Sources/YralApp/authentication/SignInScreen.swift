@@ -11,7 +11,7 @@ import AuthenticationServices
 /// No view model — screen state lives HERE as @State; the auth actions
 /// call `AuthClient` directly (inline by default; the resend countdown
 /// is a 15-second Task beside the state it drives).
-public struct SignInView: View {
+public struct SignInScreen: View {
 
     // MARK: - Screen state (no view model — colocated @State)
 
@@ -84,7 +84,7 @@ public struct SignInView: View {
                 )
             ) {
                 if let phoneNumber = sentToPhoneNumber {
-                    OtpVerificationView(
+                    OtpVerificationScreen(
                         authClient: authClient,
                         sentToPhoneNumber: phoneNumber,
                         onResend: { Task { await requestOTP(for: phoneNumber) } },
@@ -93,7 +93,7 @@ public struct SignInView: View {
                 }
             }
             .navigationDestination(isPresented: $isCountrySelectorShown) {
-                CountrySelectorView(
+                CountrySelectorScreen(
                     onSelect: { country in
                         selectedCountry = country
                         isCountrySelectorShown = false
@@ -113,10 +113,13 @@ public struct SignInView: View {
         guard selectedCountry == nil else { return }
         let deviceLanguage = (Locale.current.language.languageCode?.identifier ?? "")
             .lowercased()
+        // `region.identifier` (iOS 16+) — `regionCode` is deprecated. The
+        // language and region are independent, so `region` is read directly
+        // rather than via the deprecated string accessor.
         let regionCode =
             deviceLanguage == "en"
             ? "IN"
-            : Locale.current.region?.identifier ?? Locale.current.regionCode
+            : Locale.current.region?.identifier
         selectedCountry =
             regionCode.flatMap { CountriesDataSource.country(byCode: $0) }
             ?? CountriesDataSource.country(byCode: "US")
@@ -127,11 +130,11 @@ public struct SignInView: View {
     private var phoneSection: some View {
         VStack(spacing: 12) {
             HStack(spacing: 8) {
-                CountryPickerButton(country: selectedCountry) {
+                CountryPickerButtonComponent(country: selectedCountry) {
                     isCountrySelectorShown = true
                 }
 
-                PhoneInputRow(
+                PhoneInputRowComponent(
                     nationalNumber: $phoneNumber,
                     selectedCountry: selectedCountry,
                     isError: phoneValidationError != nil
@@ -236,19 +239,25 @@ public struct SignInView: View {
     // MARK: - Terms consent (Kotlin TermsOfServiceText)
 
     private var termsOfServiceText: some View {
-        (Text("By continuing, you agree to our ")
-            + Text("Terms of Service").underline().foregroundStyle(.pink))
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                // Terms link — Kotlin `LoginViewModel.getTncLink()`
-                // (flag-managed; the production value).
-                if let termsURL = URL(string: "https://www.yral.com/terms") {
-                    openURL(termsURL)
-                }
+        // `Text` interpolation (not `Text + Text`, which iOS 26 deprecated) —
+        // the embedded Text keeps its own underline + colour.
+        Text(
+            """
+            By continuing, you agree to our \
+            \(Text("Terms of Service").underline().foregroundStyle(.pink))
+            """
+        )
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            // Terms link — Kotlin `LoginViewModel.getTncLink()` (the
+            // flag-managed production value).
+            if let termsURL = URL(string: "https://www.yral.com/terms") {
+                openURL(termsURL)
             }
+        }
     }
 
     // MARK: - "or" divider (Kotlin OrDivider)
@@ -309,88 +318,8 @@ public struct SignInView: View {
     }
 }
 
-/// Country picker button — Kotlin `CountryPickerButton`: flag + dial code
-/// + chevron; navigates to `CountrySelectorView`.
-private struct CountryPickerButton: View {
-    let country: Country?
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                if let flagURL = country?.flagURL {
-                    AsyncImage(url: flagURL) { image in
-                        image.resizable().scaledToFit()
-                    } placeholder: {
-                        Color.gray.opacity(0.25)
-                    }
-                    .frame(width: 24, height: 16)
-                    .clipShape(RoundedRectangle(cornerRadius: 2))
-                }
-                Text(country?.dialCode ?? "+1")
-                    .font(.subheadline.weight(.semibold))
-                Image(systemName: "chevron.down")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 12)
-            .frame(height: 44)
-            .background(
-                Color.gray.opacity(0.2),
-                in: RoundedRectangle(cornerRadius: 8)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.gray.opacity(0.35), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-/// Dial-code prefix + digit-only number field — Kotlin `PhoneInputField`:
-/// digits filtered and capped at the country's max length.
-private struct PhoneInputRow: View {
-    @Binding var nationalNumber: String
-    let selectedCountry: Country?
-    let isError: Bool
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Text(selectedCountry?.dialCode ?? "+1")
-                .font(.subheadline.weight(.semibold))
-            TextField("Enter mobile number", text: Binding(
-                get: { nationalNumber },
-                set: { newValue in
-                    let maximumLength = selectedCountry?.maxLength ?? 15
-                    nationalNumber = String(
-                        newValue.filter(\.isNumber).prefix(maximumLength)
-                    )
-                }
-            ))
-            #if canImport(UIKit)
-            .keyboardType(.numberPad)
-            #endif
-        }
-        .padding(.horizontal, 12)
-        .frame(height: 44)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            Color.gray.opacity(0.2),
-            in: RoundedRectangle(cornerRadius: 8)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(
-                    isError ? Color.pink : Color.gray.opacity(0.35),
-                    lineWidth: 1
-                )
-        )
-    }
-}
-
 #Preview {
-    SignInView(
+    SignInScreen(
         authClient: AuthClient(
             authDataSource: AuthDataSource(),
             redirectScheme: "com.yral.iosApp",

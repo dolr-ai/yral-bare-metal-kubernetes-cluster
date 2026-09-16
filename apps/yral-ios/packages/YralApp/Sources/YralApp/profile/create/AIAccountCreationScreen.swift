@@ -24,7 +24,7 @@ import SwiftUI
 /// fields): re-advancing with UNCHANGED description/instructions reuses
 /// what this draft generated earlier — the API is hit only when the
 /// input changed.
-struct AIAccountCreationView: View {
+struct AIAccountCreationScreen: View {
 
     // TODO(create-offline-resumability): the draft survives SHEET
     // dismissal (hoisted into MainTabView) but is in-memory only —
@@ -64,15 +64,19 @@ struct AIAccountCreationView: View {
 
     let influencerDataSource = AIInfluencerDataSource()
     var spacetime: SpacetimeDBRemoteDataSource {
-        SpacetimeDBRemoteDataSource(idTokenProvider: { [weak authClient] in
-            authClient?.idToken
+        // Capture the Sendable KeychainStore, not the MainActor-isolated
+        // AuthClient: `idToken` is MainActor state, so reading it inside the
+        // @Sendable provider was a data race (Swift 6 error, not a warning).
+        let keychain = authClient.keychain
+        return SpacetimeDBRemoteDataSource(idTokenProvider: {
+            keychain.string(forKey: .idToken)
         })
     }
 
     var body: some View {
         VStack(spacing: 16) {
             if draft.step.showsHeader {
-                AICreationHeader(
+                AICreationHeaderComponent(
                     showsBackButton: draft.step.showsBackButton,
                     onBack: goBack,
                     onReset: requestReset
@@ -106,7 +110,7 @@ struct AIAccountCreationView: View {
         #if canImport(UIKit)
             .overlay {
                 if draft.step == .succeeded {
-                    CelebrationView()
+                    CelebrationComponent()
                 }
             }
         #endif
@@ -140,7 +144,7 @@ struct AIAccountCreationView: View {
     private var stepContent: some View {
         switch draft.step {
         case .descriptionEntry, .generatingPersona:
-            DescriptionEntryForm(
+            DescriptionEntryFormComponent(
                 descriptionText: $draft.descriptionText,
                 characterLimit: promptCharacterLimit,
                 isWorking: draft.step.isWorking
@@ -148,7 +152,7 @@ struct AIAccountCreationView: View {
                 flowTask = Task { await generatePersona() }
             }
         case .personaReview, .generatingMetadata:
-            PersonaReviewForm(
+            PersonaReviewFormComponent(
                 instructionsText: $draft.instructionsText,
                 isWorking: draft.step.isWorking
             ) {
@@ -156,7 +160,7 @@ struct AIAccountCreationView: View {
             }
         case .reviewProfile, .creating, .succeeded:
             if let profileUnderReview = draft.profileUnderReview {
-                ProfileReviewForm(
+                ProfileReviewFormComponent(
                     profile: Binding(
                         get: { draft.profileUnderReview ?? profileUnderReview },
                         set: { draft.profileUnderReview = $0 }
@@ -259,7 +263,7 @@ struct AIAccountCreationView: View {
 #if DEBUG
 #Preview("wizard — describe your AI") {
     let sessionStore = SessionStore()
-    AIAccountCreationView(
+    AIAccountCreationScreen(
         authClient: AuthClient(
             authDataSource: AuthDataSource(),
             redirectScheme: "com.yral.iosApp",
@@ -274,7 +278,7 @@ struct AIAccountCreationView: View {
 
 #Preview("wizard — done (confetti over the review form)") {
     let sessionStore = SessionStore()
-    AIAccountCreationView(
+    AIAccountCreationScreen(
         authClient: AuthClient(
             authDataSource: AuthDataSource(),
             redirectScheme: "com.yral.iosApp",

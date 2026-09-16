@@ -222,7 +222,7 @@ extension AuthClient {
             bio: nil,
             isAIAccount: isBot
         )
-        sessionStore.updateState(.signedIn(session))
+        sessionStore.send(.sessionEstablished(session))
         cacheSession(
             userSubject: subject,
             profilePic: profilePic,

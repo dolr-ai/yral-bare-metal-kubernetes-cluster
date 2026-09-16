@@ -3,7 +3,7 @@ import SwiftUI
 /// Step 2 — review/edit the generated persona instructions
 /// (Kotlin PersonaReview). While the profile generates, the form stays
 /// put and the button becomes a spinner (inline loading).
-struct PersonaReviewForm: View {
+struct PersonaReviewFormComponent: View {
     @Binding var instructionsText: String
     let isWorking: Bool
     let onContinue: () -> Void
@@ -47,7 +47,7 @@ struct PersonaReviewForm: View {
 
 #if DEBUG
 #Preview("idle") {
-    PersonaReviewForm(
+    PersonaReviewFormComponent(
         instructionsText: .constant("You are a witty travel photographer…"),
         isWorking: false,
         onContinue: {}
@@ -58,7 +58,7 @@ struct PersonaReviewForm: View {
 }
 
 #Preview("working (inline spinner)") {
-    PersonaReviewForm(
+    PersonaReviewFormComponent(
         instructionsText: .constant("You are a witty travel photographer…"),
         isWorking: true,
         onContinue: {}

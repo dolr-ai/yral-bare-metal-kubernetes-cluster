@@ -2,13 +2,11 @@ import SwiftUI
 
 /// The root SwiftUI scene content for the Yral app.
 ///
-/// Session-driven: `SessionStore.state` decides the surface —
-/// `.loading` shows the splash (cold start restores the cached session
-/// via `AuthClient.initialize()`), `.initial` shows the sign-in
-/// screen (an anonymous session signs in silently, so `.initial` here
-/// means the sign-in surface is wanted — e.g. a fresh install before
-/// the first anonymous identity, or a logged-out state), `.signedIn`
-/// shows the app placeholder (feed phase replaces it).
+/// Session-driven: `SessionStore.state` (the `AuthMachine`) decides the
+/// surface — `.initial` (never signed in) and `.signedOut` (session ended)
+/// both show the sign-in screen, `.restoring` shows the splash, and either
+/// signed-in variant shows the app. `isRestoring` drives the splash so the
+/// two sign-in states do not need a third route.
 struct RootScene: View {
 
     @State private var authClient: AuthClient
@@ -28,12 +26,12 @@ struct RootScene: View {
     var body: some View {
         Group {
             switch sessionStore.state {
-            case .initial:
-                SignInView(authClient: authClient)
-            case .loading:
+            case .initial, .signedOut:
+                SignInScreen(authClient: authClient)
+            case .restoring:
                 splash
-            case .signedIn:
-                MainTabView(authClient: authClient, sessionStore: sessionStore)
+            case .signedIn, .signedInAsBot:
+                MainTabScreen(authClient: authClient, sessionStore: sessionStore)
             }
         }
         .task { await authClient.initialize() }

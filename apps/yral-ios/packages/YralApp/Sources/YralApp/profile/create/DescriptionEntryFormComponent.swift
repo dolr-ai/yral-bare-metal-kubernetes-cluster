@@ -3,7 +3,7 @@ import SwiftUI
 /// Step 1 — describe the AI account (Kotlin DescriptionEntry). While
 /// the persona generates, the form stays put and Continue becomes a
 /// spinner (inline loading — no full-screen waiting step).
-struct DescriptionEntryForm: View {
+struct DescriptionEntryFormComponent: View {
     @Binding var descriptionText: String
     let characterLimit: Int
     let isWorking: Bool
@@ -75,7 +75,7 @@ struct DescriptionEntryForm: View {
 
 #if DEBUG
 #Preview("idle") {
-    DescriptionEntryForm(
+    DescriptionEntryFormComponent(
         descriptionText: .constant("A witty travel photographer sharing hidden gems"),
         characterLimit: 400,
         isWorking: false,
@@ -87,7 +87,7 @@ struct DescriptionEntryForm: View {
 }
 
 #Preview("working (inline spinner)") {
-    DescriptionEntryForm(
+    DescriptionEntryFormComponent(
         descriptionText: .constant("A witty travel photographer"),
         characterLimit: 400,
         isWorking: true,

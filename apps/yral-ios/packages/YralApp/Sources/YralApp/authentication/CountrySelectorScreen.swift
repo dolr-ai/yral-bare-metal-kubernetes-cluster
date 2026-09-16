@@ -4,7 +4,7 @@ import SwiftUI
 /// search bar + flag/name/dial-code list; tapping a row returns it to the
 /// sign-in screen. State lives HERE (@State) — search filters
 /// `CountriesDataSource.searchCountries` (name/dial-code/code match).
-struct CountrySelectorView: View {
+struct CountrySelectorScreen: View {
 
     /// Selection callback — the sign-in screen passes a binding-style
     /// closure (Kotlin `CountrySelectorComponent.onCountrySelected`).
@@ -115,7 +115,7 @@ private struct CountryRow: View {
 }
 
 #Preview {
-    CountrySelectorView(
+    CountrySelectorScreen(
         onSelect: { _ in },
         onBack: {}
     )

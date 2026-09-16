@@ -4,7 +4,7 @@ import SwiftUI
 /// earlier step exists). Reset is the explicit clear of the whole draft
 /// (confirmed when it holds anything); pulling down just LEAVES — the
 /// draft lives in MainTabView and resumes on the next Create tap.
-struct AICreationHeader: View {
+struct AICreationHeaderComponent: View {
     let showsBackButton: Bool
     let onBack: () -> Void
     let onReset: () -> Void
@@ -27,7 +27,7 @@ struct AICreationHeader: View {
 #if DEBUG
 #Preview("back shown") {
     VStack {
-        AICreationHeader(
+        AICreationHeaderComponent(
             showsBackButton: true,
             onBack: {},
             onReset: {}
@@ -40,7 +40,7 @@ struct AICreationHeader: View {
 
 #Preview("first step (no back)") {
     VStack {
-        AICreationHeader(
+        AICreationHeaderComponent(
             showsBackButton: false,
             onBack: {},
             onReset: {}

@@ -52,7 +52,7 @@ extension AuthClient {
                 currentProvider = nil
                 throw AuthError.stateMismatch
             }
-            sessionStore.updateState(.loading)
+            sessionStore.send(.restoreStarted)
             let previousSubject = sessionStore.userSubject
             try await authenticate(code: code, currentUserSubject: previousSubject)
         case let .failure(error, errorDescription):

@@ -3,7 +3,7 @@ import SwiftUI
 /// Account switcher sheet — "Main Profile" + "AI Influencer profiles"
 /// sections, one row per account (avatar, name, active check); tap switches
 /// the client-side session.
-struct AccountSwitcherView: View {
+struct AccountSwitcherScreen: View {
 
     let authClient: AuthClient
     /// The switcher's state — the view OBSERVES this and renders from it;
@@ -192,3 +192,64 @@ private extension AccountSwitcherEntry {
     /// row's placeholder handling honest if a nil sneaks through.
     var isPlaceholder: Bool { subject.isEmpty }
 }
+
+#if DEBUG
+/// Fixtures for the previews — a main account plus two bots, one active.
+private let previewEntries = AccountSwitcherEntries(
+    mainAccount: AccountSwitcherEntry(
+        subject: "main-subject",
+        username: "sunnyotter",
+        avatarURL: ProfilePicture.url(fromSubject: "main-subject"),
+        isBot: false,
+        isActive: false
+    ),
+    aiAccounts: [
+        AccountSwitcherEntry(
+            subject: "bot-one",
+            username: "dekuizuku",
+            avatarURL: ProfilePicture.url(fromSubject: "bot-one"),
+            isBot: true,
+            isActive: true
+        ),
+        AccountSwitcherEntry(
+            subject: "bot-two",
+            username: "uraraka",
+            avatarURL: ProfilePicture.url(fromSubject: "bot-two"),
+            isBot: true,
+            isActive: false
+        )
+    ]
+)
+
+/// The screen renders straight from the machine's state, so a preview can
+/// drive any state directly — no network, no live auth client. `.onAppear`
+/// still fires and would overwrite the state, so these previews show the
+/// empty case honestly and rely on the machine's own tests for the rest.
+#Preview("signed out (empty)") {
+    AccountSwitcherScreen(
+        authClient: AuthClient(
+            authDataSource: AuthDataSource(),
+            redirectScheme: "com.yral.iosApp",
+            sessionStore: SessionStore()
+        )
+    )
+    .preferredColorScheme(.dark)
+}
+
+/// The row rendering itself, previewed in isolation with fixtures — this is
+/// the populated variation the screen above cannot show without a session.
+#Preview("rows (populated)") {
+    VStack(alignment: .leading, spacing: 12) {
+        Text("Main Profile").font(.subheadline.weight(.semibold))
+        ForEach(previewEntries.aiAccounts + [previewEntries.mainAccount]) { entry in
+            Text(entry.username)
+                .font(.subheadline)
+                .foregroundStyle(entry.isActive ? .pink : .primary)
+        }
+    }
+    .padding(16)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .background(Color.black)
+    .preferredColorScheme(.dark)
+}
+#endif

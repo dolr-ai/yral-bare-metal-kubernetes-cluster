@@ -172,6 +172,28 @@ When the operator makes manual changes in parallel with agent work (dependency b
 
 **Colocate logic beside its caller (Hard Rule).** Business/data logic lives in the same folder as the UI (or other code) that calls it — feature-local by default, not in a parallel "core/common/utils" tree. Only when MULTIPLE features consume the same logic should it graduate to a shared location (and ask before creating that shared module). Do not pre-create shared/core modules "for later" — dead code ahead of its first consumer is speculative structure. Example (yral-ios): a feature's API client belongs in `Features/<Feature>/`, not `Core/Networking/`; promote to shared only when a second feature imports it.
 
+### UI File Organisation: Suffixes, Previews, Atomic Components (Hard Rule)
+**Applies to every UI we write, in every stack** — SwiftUI (`apps/yral-ios`), Leptos (`apps/yral-web`, `apps/yral-auth`, `apps/my-website`), and any future UI. The platform-specific spelling is in the app's own AGENTS.md (see `apps/yral-ios/AGENTS.md` for the Swift version, which includes the exact suffix table); the shape is the same everywhere:
+
+1. **Organise by top-level feature, one folder per feature.** Logic is colocated inside the feature folder beside the UI that calls it — no per-layer folders, no core/utils tree (this is the Colocated Code rule above, applied to UI).
+
+2. **Every UI file's filename states what it is, via a suffix.** A reader must know from the filename alone whether a file is a screen, a reusable component, a state machine, or logic — without opening it. `Screen` / `Component` / `Machine` / no suffix (logic) are the four kinds. This is the Descriptive Naming rule applied to file names, and it is what stops `FooView.swift` from silently holding five unrelated things.
+
+3. **Every screen and component file ships a live preview** in the same file, so opening it renders something immediately. Previews are not optional polish and not dead code: they are the component's manual test and the canonical place its variations (empty / populated / error / long-content) are enumerated. A UI file without a preview is unfinished. Previews must render offline with injected fixtures — a preview that needs the network or real credentials is one nobody runs.
+
+4. **Reusable UI lives in a single top-level `components/` folder, tiered by atomic design:** `components/atoms|molecules|organisms/`. Per Brad Frost's *Atomic Design* (https://atomicdesign.bradfrost.com/chapter-2 — the canonical source; read it, do not argue from memory):
+   - **atoms** — indivisible primitives (button, icon, label, text style).
+   - **molecules** — a few atoms bonded into a simple unit with one responsibility (label + field + button = a search form).
+   - **organisms** — relatively complex assemblies forming a discrete interface *section* (a header, a feed row, a card).
+
+   **The tiers are a mental model, not a build order, not a maturity ladder.** Frost is explicit that the stages work *concurrently* and that it "would be foolish to design buttons in isolation, then cross your fingers and hope everything comes together". Atoms are not "more reusable" than organisms; an organism is not a promoted molecule. Place a piece by **what it is**, never by how shared it feels. If it resists categorisation, it is usually doing two jobs — split it rather than inventing a tier.
+
+   **Stop at organisms — do not add `templates/` or `pages/` folders.** We already have both, and they are the feature folders: a screen file *is* the page (a specific instance with real content) and its markup *is* the template (the layout skeleton). Adding those folders would create two homes for one concept, which the Colocated Code rule exists to prevent.
+
+   **Promotion trigger is a second consumer, never anticipation** — the same rule as every other shared module. Feature-local UI stays in the feature folder until a second feature actually uses it.
+
+   Atomic design is technology-agnostic (Frost applies it to native Instagram, not CSS) — the taxonomy is for placement and naming, not for a particular framework.
+
 ### Zero Warnings in Maintained Code (Hard Rule)
 Code we maintain compiles and lints with **zero warnings** — not "acceptable" warnings, zero. A warning is a fix-item, never background noise: it either gets fixed in the same change that introduced it, or the change isn't done. This covers compiler warnings, linter violations, and generator/tool warnings emitted while processing our inputs. Warnings originating in an upstream dependency's OUTPUT (e.g. swift-openapi-generator warnings caused by anyOf-null schemas in a service's OpenAPI spec) are fixed by a PR to the upstream repo — the same contract-improvement flow as spec defects — never ignored. The bar: `mise run <app>-checks` (or the equivalent suite) ends clean, including the toolchain's warning output.
 
@@ -199,9 +221,20 @@ When `#[cfg]` feature gates cause a variable/function/import to be unused in som
 **Surface upstream API errors verbatim — never bury them in generic custom messages (Hard Rule).** In ALL API-consumer code (Swift data sources, Rust service clients, reducers calling external services, CLI wrappers), error paths must carry the upstream status code AND response body through to the user-facing error — the API's own words ("Name 'X' is already taken", FastAPI's `detail` array, the provider's error JSON) are the message. Never replace them with invented generic text like "unexpected response (spec drift)" or "something went wrong": it misclassifies real server failures as contract bugs and sends diagnosis to the wrong layer (observed: a live HTTP 500 from LLM generation was reported as "spec drift" — the iOS `undocumented()` mapping discarded the status and body the generated client already carried). Rules: (1) error types propagate `statusCode` + `body`, (2) response bodies are surfaced verbatim (cap buffering, e.g. 1 MB), (3) custom text is a FALLBACK only when the upstream body is unreadable, and it must include the status code, (4) `LocalizedError`/display mappings prefer the upstream body first. Handled errors are ALSO reported to the app's crash reporter — see the iOS AGENTS.md Firebase section for the Crashlytics rule and `CrashReporter` facade.
 
 ### Finite State Machines for Stateful Logic (Hard Rule)
-**Model anything stateful as a finite state machine.** Applies to both Swift and Rust — any code with more than one meaningful mode, any lifecycle with transitions, any "which screen/step/phase are we in" logic. The reference model is **XState** (https://stately.ai/docs — read the docs, not this summary, before designing a machine); we **port the model, not the library**.
+**Model anything stateful as a finite state machine — in any language, not just UI.** The trigger is not "is this a screen?" but **"does this hold more than one meaningful mode?"** If a type has a lifecycle with transitions, a phase/step/stage, a status that moves through stages, or two or more fields that must agree, it is a state machine — model it as one. Applies to Swift, Rust, TypeScript, Python, Ansible/ops code — everything.
+
+In scope (non-exhaustive):
+- **UI/screen lifecycle** — a sheet, form, wizard, or flow (which screen/step/phase are we in).
+- **Application/service lifecycle** — sign-in/session state, account creation or deletion, upload/generation jobs, ETL or migration progress, retry/backoff cycles.
+- **Background work** — a job with queued → running → succeeded/failed, a stream with connecting → streaming → closed, a poller with idle → polling → error.
+- **Protocol/wire state** — a handshake, an auth flow, a multi-step negotiation, a cursor advancing through pages.
+- **Domain entity status** — an order/row/record moving through stages, an entity that can be created/deleted/suspended.
+
+The reference model is **XState** (https://stately.ai/docs — read the docs, not this summary, before designing a machine); we **port the model, not the library**.
 
 **Why:** state bugs come from invalid states being *representable* — a boolean pair that should never be `(true, true)`, a phase enum plus three optionals that must agree, a "deleted" flag on an entity that is also still listed. An FSM makes illegal states unrepresentable and illegal transitions explicit, so the bug cannot be *written* rather than merely not-yet-observed. (Concrete precedent: the deleted-bot resurrection — a profile row, an id list, and an existence marker that could all disagree, with no single owner of the invariant.)
+
+**Do not model a machine where there is genuinely no state change.** A pure function, a stateless transformation, or a value with one mode is not a state machine — wrapping it in one is ceremony. The rule is "anything *stateful* is a machine", not "everything is a machine".
 
 #### The core model: a snapshot is finite state PLUS context
 
@@ -275,9 +308,10 @@ XState exposes `initialTransition(machine)` and `transition(machine, state, even
 
 #### Corollaries
 - **One typed `transition(_ event:)` per machine.** No direct mutation from views, data sources, or callbacks — they send events. Everything stateful flows through it.
-- **Every transition gets a test.** Drive the machine through the event that was previously mishandled and assert the resulting `(state, context)`. This is the UI-state half of the Regression Tests rule.
-- **Model the real lifecycle, not the screen.** One machine per lifecycle (session, account deletion, upload job, generation job) — views read the state and send events.
+- **Every transition gets a test.** Drive the machine through the event that was previously mishandled and assert the resulting `(state, context)`. This is the state half of the Regression Tests rule.
+- **Model the real lifecycle, not the screen.** One machine per lifecycle (session, account deletion, upload job, ETL cursor, generation job) — callers read the state and send events. A machine is not inherently a UI object; service/background/domain lifecycles get one too.
 - **Wrap in an `actor` (Swift) / task-isolated type (Rust) where there is concurrency** — in-flight requests, streams, timers — rather than sharing mutable state across call sites.
+- **A boolean flag pair that must agree is a machine that hasn't been written yet.** Two `Bool`s, or an enum plus optionals describing the same concern, are the trigger — collapse them into one enum whose variants carry their own payload.
 - **Gradual migration.** Convert when touching a file; do not big-bang rewrite. Existing flat-state types get folded in as they are next modified.
 
 ### Pure Functions & Thin API Wrappers (Hard Rule)

@@ -5,7 +5,7 @@ import Foundation
 // lint limits; the actions are the wizard's I/O half — the pure flow
 // semantics live on FlowStep/AICreationDraft).
 
-extension AIAccountCreationView {
+extension AIAccountCreationScreen {
 
     func generatePersona() async {
         errorMessage = nil
