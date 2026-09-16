@@ -35,7 +35,7 @@ extension AuthClient {
             URLQueryItem(name: "code_challenge", value: codeChallenge),
             URLQueryItem(name: "code_challenge_method", value: "S256"),
             URLQueryItem(name: "login_hint", value: ""),
-            URLQueryItem(name: "state", value: codeChallenge)
+            URLQueryItem(name: "state", value: codeChallenge),
         ]
         guard let url = components.url else {
             throw AuthError.oauthFailed(errorDescription: "OAuth URL construction failed")
@@ -47,7 +47,7 @@ extension AuthClient {
     /// `handleOAuthCallback`. `state` mismatch → error (possible CSRF).
     public func handleOAuthCallbackResult(_ result: OAuthResult) async throws {
         switch result {
-        case let .success(code, state):
+        case .success(let code, let state):
             guard state == currentCodeChallenge else {
                 currentProvider = nil
                 throw AuthError.stateMismatch
@@ -55,7 +55,7 @@ extension AuthClient {
             sessionStore.send(.restoreStarted)
             let previousSubject = sessionStore.userSubject
             try await authenticate(code: code, currentUserSubject: previousSubject)
-        case let .failure(error, errorDescription):
+        case .failure(let error, let errorDescription):
             currentProvider = nil
             throw AuthError.oauthFailed(
                 errorDescription: errorDescription.map { "\(error): \($0)" } ?? error
@@ -122,7 +122,7 @@ extension AuthClient {
         ) {
         case .success:
             return codeChallenge
-        case let .error(errorPayload):
+        case .error(let errorPayload):
             throw AuthError.oauthFailed(
                 errorDescription: "\(errorPayload.error) - \(errorPayload.errorDescription)"
             )
@@ -142,7 +142,7 @@ extension AuthClient {
             code: code,
             clientState: clientState
         ) {
-        case let .success(idTokenCode, _):
+        case .success(let idTokenCode, _):
             defaults.set(phoneNumber, forKey: CachedSessionKey.phoneNumber.rawValue)
             sessionStore.updatePhoneNumber(phoneNumber)
             currentProvider = .phone
@@ -152,7 +152,7 @@ extension AuthClient {
                 )
             }
             try await authenticate(code: idTokenCode, currentUserSubject: userSubject)
-        case let .error(errorPayload):
+        case .error(let errorPayload):
             throw AuthError.oauthFailed(
                 errorDescription:
                     "Phone auth verification failed - \(errorPayload.error) - \(errorPayload.errorDescription)"
