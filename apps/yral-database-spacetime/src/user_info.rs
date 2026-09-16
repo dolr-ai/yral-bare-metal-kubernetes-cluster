@@ -39,7 +39,9 @@
 //! - `remove_pro_plan_free_video_credits(oauth_subject, credits)` — admin only
 //! - `upsert_user_profile_batch(profiles)` — admin only, backfill (writes to `user_profiles_2`)
 //! - `upsert_user_follow_batch(follows)` — admin only, backfill (writes to `user_follows_2`)
-//! - `migrate_user_profiles_to_2()` — admin only, one-time backfill from old tables
+//! - `migrate_user_profiles_to_2(batch_limit)` — admin only, one-time backfill from old tables
+//! - `prune_deleted_ai_accounts_from_kv(batch_limit)` — admin only, one-time repair of
+//!   `{owner}-ai-accounts` lists still naming deleted bots (call until the log says 0)
 
 use spacetimedb::{ProcedureContext, ReducerContext, SpacetimeType, Table, Timestamp};
 
@@ -834,6 +836,13 @@ fn cascade_delete_user(
                         .update(owner_profile);
                 }
             }
+            // Repair yral-auth's AI-account list as well. Dropping the bot
+            // from the profile-side `bots` list alone leaves its id in
+            // `{owner}-ai-accounts`, so the next token refresh mints a JWT
+            // whose `ext_ai_account_ids` still names the deleted bot and the
+            // client resurrects it as a zombie (account switcher entry that
+            // can no longer authenticate).
+            remove_deleted_bot_from_owner_ai_accounts(ctx, owner.as_str(), subject_to_delete);
         }
     }
 
@@ -908,6 +917,24 @@ fn cascade_delete_user(
                 .filter(|entry| entry.value == *subject)
                 .map(|entry| entry.key),
         );
+        // Every list whose VALUE is a JSON array containing this subject
+        // (i.e. `{owner}-ai-accounts`) is not caught by either check above:
+        // its value is the array, not the bare subject, and its key is
+        // derived from the OWNER, not the subject. Drop the subject from
+        // each so a deleted bot can't be resurrected via a token refresh.
+        let ai_account_lists_containing_subject: Vec<String> = ctx
+            .db
+            .auth_kv()
+            .iter()
+            .filter(|entry| ai_account_list_json_contains(&entry.value, subject))
+            .map(|entry| entry.key)
+            .collect();
+        for key in ai_account_lists_containing_subject {
+            remove_subject_from_ai_account_list(ctx, &key, subject);
+            // The sweep rewrote a key that may also be in the delete set
+            // (a self-owned list); drop it now that it's been pruned.
+            kv_keys_to_delete.retain(|candidate| candidate != &key);
+        }
         for key in kv_keys_to_delete {
             ctx.db.auth_kv().key().delete(key);
         }
@@ -1084,6 +1111,136 @@ fn auth_kv_deletable_keys(subject: &str) -> Vec<String> {
         format!("ai-account:{subject}"),
         format!("{subject}-ai-accounts"),
     ]
+}
+
+/// yral-auth's key for a user's AI-account id list
+/// (`apps/yral-auth/src/api/ai_accounts.rs` `ai_account_list_key`).
+fn ai_account_list_key(owner_user_id: &str) -> String {
+    format!("{owner_user_id}-ai-accounts")
+}
+
+/// Pure: does this AI-account list payload name `subject`?
+/// Unparseable payloads answer `false` (they are not our shape).
+fn ai_account_list_json_contains(value: &str, subject: &str) -> bool {
+    serde_json::from_str::<Vec<String>>(value).is_ok_and(|ids| ids.iter().any(|id| id == subject))
+}
+
+/// Pure: rewrite an AI-account list payload without `subject_to_remove`.
+///
+/// Returns `None` when there is nothing to write — the payload is not a
+/// JSON id array, or it never named the subject — which is what keeps the
+/// caller's KV read from turning into a needless write.
+fn ai_account_list_json_without(value: &str, subject_to_remove: &str) -> Option<String> {
+    let mut ai_account_ids: Vec<String> = serde_json::from_str(value).ok()?;
+    let original_length = ai_account_ids.len();
+    ai_account_ids.retain(|ai_account_id| ai_account_id != subject_to_remove);
+    if ai_account_ids.len() == original_length {
+        return None;
+    }
+    serde_json::to_string(&ai_account_ids).ok()
+}
+
+/// Drop ONE deleted subject from the AI-account list at `list_key`,
+/// leaving every other entry intact.
+///
+/// Writing the filtered list — rather than the `{subject}-ai-accounts`
+/// delete in `auth_kv_deletable_keys`, which only fires when the deleted
+/// subject is itself a list owner — is what actually severs the owner →
+/// bot edge. No-op when the key is absent, unparseable, or already free
+/// of the subject.
+fn remove_subject_from_ai_account_list(
+    ctx: &ReducerContext,
+    list_key: &str,
+    subject_to_remove: &str,
+) {
+    let Some(mut entry) = ctx.db.auth_kv().key().find(list_key.to_string()) else {
+        return;
+    };
+    let Some(updated_json) = ai_account_list_json_without(&entry.value, subject_to_remove) else {
+        return;
+    };
+    entry.value = updated_json;
+    ctx.db.auth_kv().key().update(entry);
+}
+
+/// Prune a deleted bot from its owner's `{owner}-ai-accounts` list.
+/// The owner is known from the bot's `BotAccount` variant, so only that
+/// one key is touched — a plain `{subject}-ai-accounts` delete would miss
+/// the list that actually holds the bot's id.
+fn remove_deleted_bot_from_owner_ai_accounts(
+    ctx: &ReducerContext,
+    owner_subject: &str,
+    bot_subject: &str,
+) {
+    remove_subject_from_ai_account_list(ctx, &ai_account_list_key(owner_subject), bot_subject);
+}
+
+/// Pure: rewrite an AI-account list to keep only ids that still have a
+/// profile. `None` when the payload is not a JSON id array or every listed
+/// id is live (nothing to write), which keeps the caller's read from
+/// turning into a needless write.
+fn ai_account_list_restricted_to_live(
+    value: &str,
+    is_live: impl Fn(&str) -> bool,
+) -> Option<String> {
+    let ai_account_ids: Vec<String> = serde_json::from_str(value).ok()?;
+    if ai_account_ids.iter().all(|ai_account_id| is_live(ai_account_id)) {
+        return None;
+    }
+    let surviving_ids: Vec<String> = ai_account_ids
+        .into_iter()
+        .filter(|ai_account_id| is_live(ai_account_id))
+        .collect();
+    serde_json::to_string(&surviving_ids).ok()
+}
+
+/// Repair `{owner}-ai-accounts` lists that still name ALREADY-deleted bots.
+///
+/// The delete cascade above now prunes these lists, but ids orphaned before
+/// that fix are still live. yral-auth mints `ext_ai_account_ids` straight
+/// from this list, so a deleted bot keeps reappearing in the client's
+/// account switcher as a zombie that can no longer authenticate. This
+/// retrofits the repair over existing data.
+///
+/// Admin-only, and a no-op once clean. Reducers cannot return values, so the
+/// number of lists rewritten is logged (`info!`) rather than returned — call
+/// repeatedly until it logs 0, which means every list is clean.
+#[spacetimedb::reducer]
+pub fn prune_deleted_ai_accounts_from_kv(
+    ctx: &ReducerContext,
+    batch_limit: u32,
+) -> Result<(), String> {
+    if !crate::constants::ADMINS.contains(&ctx.sender()) {
+        return Err("Unauthorized".to_string());
+    }
+
+    // Every live subject, so membership is a set lookup rather than a
+    // per-id table scan.
+    let live_subjects: std::collections::HashSet<String> = ctx
+        .db
+        .user_profiles_2()
+        .iter()
+        .map(|profile| profile.oauth_subject)
+        .collect();
+
+    let mut repaired_list_count: u32 = 0;
+    for entry in ctx.db.auth_kv().iter() {
+        if repaired_list_count >= batch_limit {
+            break;
+        }
+        let Some(updated_json) =
+            ai_account_list_restricted_to_live(&entry.value, |id| live_subjects.contains(id))
+        else {
+            continue;
+        };
+        ctx.db.auth_kv().key().update(crate::auth_kv::AuthKvEntry {
+            key: entry.key,
+            value: updated_json,
+        });
+        repaired_list_count += 1;
+    }
+    log::info!("prune_deleted_ai_accounts_from_kv repaired {repaired_list_count} ai-account list(s)");
+    Ok(())
 }
 
 /// Update the caller's last access time to the current timestamp.
@@ -1938,6 +2095,117 @@ mod tests {
         assert!(keys.contains(&format!("ai-account:{subject}")));
         assert!(keys.contains(&format!("{subject}-ai-accounts")));
         assert_eq!(keys.len(), 3);
+    }
+
+    // ── ai-account list repair (the resurrected-bot bug) ──
+    //
+    // Deleting a bot used to drop it from the profile's `bots` list only,
+    // leaving its id in yral-auth's `{owner}-ai-accounts` KV list. The next
+    // token refresh then minted a JWT whose `ext_ai_account_ids` still named
+    // the deleted bot, and the client re-added it to the account switcher as
+    // a zombie that could no longer authenticate. These pin the repair.
+
+    const OWNER: &str = "100014004491598860137";
+    const BOT: &str = "1bdbf13a-61fd-4e90-8649-171d31da60c8";
+    const OTHER_BOT: &str = "5ccf3dd9-317a-48ad-a273-53e138530907";
+
+    #[test]
+    fn test_ai_account_list_key_matches_yral_auth_format() {
+        // Mirrors `ai_account_list_key` in
+        // apps/yral-auth/src/api/ai_accounts.rs — the two crates must agree
+        // on this shape or the repair silently writes to the wrong key.
+        assert_eq!(ai_account_list_key(OWNER), format!("{OWNER}-ai-accounts"));
+    }
+
+    #[test]
+    fn test_ai_account_list_detects_membership() {
+        let value = format!(r#"["{BOT}","{OTHER_BOT}"]"#);
+        assert!(ai_account_list_json_contains(&value, BOT));
+        assert!(ai_account_list_json_contains(&value, OTHER_BOT));
+        assert!(!ai_account_list_json_contains(&value, "someone-else"));
+    }
+
+    #[test]
+    fn test_ai_account_list_ignores_non_list_payloads() {
+        // A provider-login mapping stores a bare subject, not a JSON array.
+        // It must never be mistaken for a list and rewritten.
+        assert!(!ai_account_list_json_contains("auth0|user-77", BOT));
+        assert_eq!(ai_account_list_json_without("auth0|user-77", BOT), None);
+        assert_eq!(ai_account_list_json_without("", BOT), None);
+        assert_eq!(ai_account_list_json_without("not json at all", BOT), None);
+    }
+
+    #[test]
+    fn test_ai_account_list_removes_only_the_deleted_bot() {
+        let value = format!(r#"["{BOT}","{OTHER_BOT}"]"#);
+        let repaired = ai_account_list_json_without(&value, BOT).expect("bot was in the list");
+        // The deleted bot is gone...
+        assert!(!ai_account_list_json_contains(&repaired, BOT));
+        // ...and the surviving bot is untouched (the original bug's blast
+        // radius was whichever bot happened to be deleted, not the list).
+        assert!(ai_account_list_json_contains(&repaired, OTHER_BOT));
+    }
+
+    #[test]
+    fn test_ai_account_list_removal_is_a_noop_when_absent() {
+        // Already repaired (or never listed) → no write, so a repeat delete
+        // is idempotent rather than clobbering the entry.
+        let value = format!(r#"["{OTHER_BOT}"]"#);
+        assert_eq!(ai_account_list_json_without(&value, BOT), None);
+    }
+
+    #[test]
+    fn test_ai_account_list_removal_yields_empty_array_not_deletion() {
+        // Deleting the LAST bot empties the list rather than dropping the
+        // key: the owner still exists and its next AI-account creation
+        // reads this key, where a missing key and "[]" both mean "none".
+        let value = format!(r#"["{BOT}"]"#);
+        let repaired = ai_account_list_json_without(&value, BOT).expect("bot was in the list");
+        assert_eq!(repaired, "[]");
+    }
+
+    #[test]
+    fn test_ai_account_list_removal_preserves_row_order_of_survivors() {
+        let value = format!(r#"["{OTHER_BOT}","{BOT}","third-bot"]"#);
+        let repaired = ai_account_list_json_without(&value, BOT).expect("bot was in the list");
+        assert_eq!(repaired, format!(r#"["{OTHER_BOT}","third-bot"]"#));
+    }
+
+    // ── retroactive repair of already-orphaned lists ──
+
+    #[test]
+    fn test_restrict_to_live_drops_every_deleted_bot() {
+        // The production shape: a long owner list where several bots were
+        // deleted before the cascade learned to prune the list.
+        let live = ["live-1", "live-2"];
+        let value = r#"["live-1","deleted-1","live-2","deleted-2"]"#;
+        let repaired = ai_account_list_restricted_to_live(value, |id| live.contains(&id))
+            .expect("had dead ids to drop");
+        assert_eq!(repaired, r#"["live-1","live-2"]"#);
+    }
+
+    #[test]
+    fn test_restrict_to_live_is_a_noop_when_all_ids_are_live() {
+        let live = ["live-1", "live-2"];
+        let value = r#"["live-1","live-2"]"#;
+        assert_eq!(ai_account_list_restricted_to_live(value, |id| live.contains(&id)), None);
+    }
+
+    #[test]
+    fn test_restrict_to_live_skips_non_list_payloads() {
+        // Provider-login mappings are bare subjects, never JSON id arrays —
+        // the sweep must leave them alone (they're cleaned by the VALUE scan).
+        let value = "yral-auth:some-principal-text";
+        assert_eq!(ai_account_list_restricted_to_live(value, |_| false), None);
+    }
+
+    #[test]
+    fn test_restrict_to_live_empties_a_fully_dead_list_but_keeps_the_key() {
+        // Owner survives; every bot it owned is gone. The list becomes "[]"
+        // rather than the key vanishing — the owner still needs it.
+        let value = r#"["deleted-1","deleted-2"]"#;
+        let repaired = ai_account_list_restricted_to_live(value, |_| false).expect("all dead");
+        assert_eq!(repaired, "[]");
     }
 
     // ── validate_owner_for_bot_creation ──
