@@ -8,11 +8,11 @@
 // and are embedded into the binary at compile time using include_str! macros
 // via the ContentProvider, which is constructed once and shared via context.
 
-pub mod types;
 #[cfg(feature = "ssr")]
 pub mod loader;
 pub mod provider;
 pub mod render;
+pub mod types;
 
 pub use provider::ContentProvider;
 pub use types::{BlogPost, BlogPostFrontmatter, ProjectEntry, ProjectEntryFrontmatter};

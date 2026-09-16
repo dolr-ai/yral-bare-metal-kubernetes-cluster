@@ -1,17 +1,17 @@
-use std::sync::Arc;
+use self::types::PostRequest;
+use crate::app_state::AppState;
+use crate::posts::delete_post::{__path_handle_delete_post, __path_handle_delete_post_v2};
 use axum::middleware;
 use delete_post::{handle_delete_post, handle_delete_post_v2};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tracing::instrument;
-use self::types::PostRequest;
 use utoipa::ToSchema;
 use utoipa_axum::{
     router::{OpenApiRouter, UtoipaMethodRouterExt},
     routes,
 };
 use verify::verify_post_request;
-use crate::posts::delete_post::{__path_handle_delete_post, __path_handle_delete_post_v2};
-use crate::app_state::AppState;
 
 pub mod delete_post;
 pub mod types;

@@ -1,5 +1,5 @@
-use leptos::svg;
 use leptos::prelude::*;
+use leptos::svg;
 
 /// GitHub logo icon (the Octocat silhouette).
 pub fn github_icon(class_name: &str) -> impl IntoView {

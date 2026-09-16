@@ -38,9 +38,11 @@ pub trait get_posts_of_user_by_principal {
         offset: u64,
         limit: u64,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<PostListOffset, __sdk::InternalError>)
-            + Send
-            + 'static,
+        __callback: impl FnOnce(
+            &super::ProcedureEventContext,
+            Result<PostListOffset, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     );
 }
 
@@ -51,9 +53,11 @@ impl get_posts_of_user_by_principal for super::RemoteProcedures {
         offset: u64,
         limit: u64,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<PostListOffset, __sdk::InternalError>)
-            + Send
-            + 'static,
+        __callback: impl FnOnce(
+            &super::ProcedureEventContext,
+            Result<PostListOffset, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     ) {
         self.imp
             .invoke_procedure_with_callback::<_, PostListOffset>(

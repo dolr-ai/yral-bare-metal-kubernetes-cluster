@@ -46,11 +46,7 @@ impl SpacetimeKV {
         )
     }
 
-    pub fn from_env(
-        url: String,
-        db_name: String,
-        token: String,
-    ) -> Result<Self, anyhow::Error> {
+    pub fn from_env(url: String, db_name: String, token: String) -> Result<Self, anyhow::Error> {
         Ok(Self {
             client: reqwest::Client::new(),
             url,
@@ -88,10 +84,7 @@ impl SpacetimeKV {
         let status = resp.status();
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
-            return Err(anyhow::anyhow!(
-                "SpacetimeDB {name} returned {status}: {body}"
-            )
-            .into());
+            return Err(anyhow::anyhow!("SpacetimeDB {name} returned {status}: {body}").into());
         }
 
         let parsed: T = resp
@@ -104,11 +97,7 @@ impl SpacetimeKV {
 
     /// POST a JSON array of positional arguments to a reducer. Reducers return
     /// no meaningful body, so we only check for HTTP success.
-    async fn call_reducer(
-        &self,
-        name: &str,
-        args: serde_json::Value,
-    ) -> Result<(), KVError> {
+    async fn call_reducer(&self, name: &str, args: serde_json::Value) -> Result<(), KVError> {
         let resp = self
             .client
             .post(self.call_url(name))
@@ -121,10 +110,7 @@ impl SpacetimeKV {
         let status = resp.status();
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
-            return Err(anyhow::anyhow!(
-                "SpacetimeDB {name} returned {status}: {body}"
-            )
-            .into());
+            return Err(anyhow::anyhow!("SpacetimeDB {name} returned {status}: {body}").into());
         }
 
         Ok(())
@@ -133,8 +119,9 @@ impl SpacetimeKV {
 
 impl KVStore for SpacetimeKV {
     async fn read(&self, key: String) -> Result<Option<String>, KVError> {
-        let resp: Vec<KvGetRestResponse> =
-            self.call_procedure("kv_get", serde_json::json!([key])).await?;
+        let resp: Vec<KvGetRestResponse> = self
+            .call_procedure("kv_get", serde_json::json!([key]))
+            .await?;
         // The REST API wraps the result in an outer array. We expect exactly
         // one element. Extract the `Option<String>` from the variant.
         let result = resp
@@ -144,10 +131,7 @@ impl KVStore for SpacetimeKV {
         Ok(match result {
             KvGetRestResponse::Some((_, value)) => Some(value),
             KvGetRestResponse::None((variant_index, _payload)) => {
-                debug_assert_eq!(
-                    variant_index, 1,
-                    "None variant should use index 1"
-                );
+                debug_assert_eq!(variant_index, 1, "None variant should use index 1");
                 None
             }
         })
@@ -159,8 +143,9 @@ impl KVStore for SpacetimeKV {
     }
 
     async fn has_key(&self, key: String) -> Result<bool, KVError> {
-        let resp: Vec<KvGetRestResponse> =
-            self.call_procedure("kv_get", serde_json::json!([key])).await?;
+        let resp: Vec<KvGetRestResponse> = self
+            .call_procedure("kv_get", serde_json::json!([key]))
+            .await?;
         let result = resp
             .into_iter()
             .next()
@@ -168,10 +153,7 @@ impl KVStore for SpacetimeKV {
         Ok(match result {
             KvGetRestResponse::Some(_) => true,
             KvGetRestResponse::None((variant_index, _payload)) => {
-                debug_assert_eq!(
-                    variant_index, 1,
-                    "None variant should use index 1"
-                );
+                debug_assert_eq!(variant_index, 1, "None variant should use index 1");
                 false
             }
         })

@@ -76,7 +76,9 @@ impl ContentProvider {
     /// Finds a project entry by its slug (URL path component, e.g. "go-bazzinga").
     pub fn find_project_entry(&self, slug: &str) -> Option<&ProjectEntry> {
         let full_slug = format!("/projects/entries/{slug}");
-        self.project_entries.iter().find(|entry| entry.slug == full_slug)
+        self.project_entries
+            .iter()
+            .find(|entry| entry.slug == full_slug)
     }
 
     /// Returns the top N most recent blog posts.

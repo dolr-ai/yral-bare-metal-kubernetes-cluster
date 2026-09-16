@@ -15,10 +15,7 @@ use candid::Principal;
 use ic_agent::agent::EnvelopeContent;
 use ic_agent::identity::Delegation as AgentDelegation;
 
-use super::{
-    Error, Result, Signature, SignedDelegation, msg_builder::Message,
-    current_epoch,
-};
+use super::{current_epoch, msg_builder::Message, Error, Result, Signature, SignedDelegation};
 
 /// Domain separator prepended to the request_id hash before signing/verifying.
 const IC_REQUEST_DOMAIN_SEPARATOR: &[u8] = b"\x0Aic-request";
@@ -36,7 +33,9 @@ impl Signature {
         let now_ns = current_epoch().as_nanos();
         let expiry_ns = self.ingress_expiry.as_nanos();
         if now_ns > expiry_ns {
-            return Err(Error::SignatureVerification("ingress message expired".into()));
+            return Err(Error::SignatureVerification(
+                "ingress message expired".into(),
+            ));
         }
 
         // 2. Reconstruct the EnvelopeContent::Call and compute request_id.
@@ -58,10 +57,7 @@ impl Signature {
         //
         // The sender principal is derived from the head pubkey.
 
-        let head_pubkey = self
-            .public_key
-            .as_deref()
-            .ok_or(Error::MissingSignature)?;
+        let head_pubkey = self.public_key.as_deref().ok_or(Error::MissingSignature)?;
 
         // 4. Derive the sender principal from the head public key.
         let derived_sender = Principal::self_authenticating(head_pubkey);
@@ -77,10 +73,7 @@ impl Signature {
         };
 
         // 6. Verify the main signature over "\x0Aic-request" || request_id.
-        let sig = self
-            .sig
-            .as_deref()
-            .ok_or(Error::MissingSignature)?;
+        let sig = self.sig.as_deref().ok_or(Error::MissingSignature)?;
 
         let mut signable = Vec::with_capacity(IC_REQUEST_DOMAIN_SEPARATOR.len() + 32);
         signable.extend_from_slice(IC_REQUEST_DOMAIN_SEPARATOR);
@@ -109,7 +102,9 @@ fn verify_delegation_chain(
     head_pubkey: &[u8],
 ) -> Result<Vec<u8>> {
     if delegations.is_empty() {
-        return Err(Error::SignatureVerification("empty delegation chain".into()));
+        return Err(Error::SignatureVerification(
+            "empty delegation chain".into(),
+        ));
     }
 
     let mut current_key: Vec<u8> = head_pubkey.to_vec();
@@ -129,9 +124,7 @@ fn verify_delegation_chain(
         // Check delegation hasn't expired.
         let now_ns = current_epoch().as_nanos();
         if now_ns > u64::try_from(sd.delegation.expiration_ns).unwrap_or(u64::MAX) as u128 {
-            return Err(Error::SignatureVerification(
-                "delegation expired".into(),
-            ));
+            return Err(Error::SignatureVerification("delegation expired".into()));
         }
 
         current_key = sd.delegation.pubkey.clone();
@@ -145,12 +138,8 @@ fn verify_delegation_chain(
 /// The IC uses DER-encoded SubjectPublicKeyInfo for secp256k1 keys (the same
 /// format that `k256::PublicKey::from_sec1_bytes` / `from_public_key_der`
 /// accepts). We try SEC1 raw format first, then DER.
-fn verify_secp256k1_signature(
-    pubkey_der: &[u8],
-    signature: &[u8],
-    message: &[u8],
-) -> Result<()> {
-    use k256::ecdsa::{VerifyingKey, signature::Verifier};
+fn verify_secp256k1_signature(pubkey_der: &[u8], signature: &[u8], message: &[u8]) -> Result<()> {
+    use k256::ecdsa::{signature::Verifier, VerifyingKey};
 
     // Try SEC1 compressed/uncompressed first, then DER SPKI.
     let vk = VerifyingKey::from_sec1_bytes(pubkey_der)

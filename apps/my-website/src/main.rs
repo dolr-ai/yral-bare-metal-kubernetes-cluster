@@ -1,14 +1,17 @@
 use axum::{
+    Router,
     body::Body as AxumBody,
     extract::State,
     http::Request,
     response::{IntoResponse, Response},
     routing::get,
-    Router,
 };
 use leptos::{config::get_configuration, logging::log, prelude::provide_context};
-use leptos_axum::{generate_route_list, LeptosRoutes};
-use my_website::{app::{shell, app}, content::ContentProvider};
+use leptos_axum::{LeptosRoutes, generate_route_list};
+use my_website::{
+    app::{app, shell},
+    content::ContentProvider,
+};
 
 #[derive(Clone, axum::extract::FromRef)]
 pub struct ServerState {

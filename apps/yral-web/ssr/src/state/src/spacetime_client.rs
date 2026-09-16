@@ -74,8 +74,8 @@ fn is_token_expiring_soon(token: &str) -> bool {
 /// Called during hydration. Reads the id_token cookie, refreshes if needed,
 /// and creates a `DbConnection`. Stores it in Leptos context.
 pub async fn init_client_spacetime() -> Option<Arc<DbConnection>> {
-    let spacetime_url =
-        std::env::var("SPACETIMEDB_URL").unwrap_or_else(|_| "wss://maincloud.spacetimedb.com".to_string());
+    let spacetime_url = std::env::var("SPACETIMEDB_URL")
+        .unwrap_or_else(|_| "wss://maincloud.spacetimedb.com".to_string());
     let db_name = std::env::var("SPACETIMEDB_DB_NAME")
         .unwrap_or_else(|_| "yral-database-spacetime-4lbo7".to_string());
 

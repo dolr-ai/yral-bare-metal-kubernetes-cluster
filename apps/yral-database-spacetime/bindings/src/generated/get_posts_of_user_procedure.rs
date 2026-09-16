@@ -34,8 +34,8 @@ pub trait get_posts_of_user {
         cursor: Option<String>,
 
         __callback: impl FnOnce(&super::ProcedureEventContext, Result<PostPage, __sdk::InternalError>)
-            + Send
-            + 'static,
+        + Send
+        + 'static,
     );
 }
 
@@ -47,8 +47,8 @@ impl get_posts_of_user for super::RemoteProcedures {
         cursor: Option<String>,
 
         __callback: impl FnOnce(&super::ProcedureEventContext, Result<PostPage, __sdk::InternalError>)
-            + Send
-            + 'static,
+        + Send
+        + 'static,
     ) {
         self.imp.invoke_procedure_with_callback::<_, PostPage>(
             "get_posts_of_user",

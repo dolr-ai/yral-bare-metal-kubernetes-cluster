@@ -11,6 +11,7 @@ use reqwest::{
     Url,
 };
 use std::collections::HashMap;
+use types::identity::sign_message;
 use types::{
     ApiResult, BulkGetUserMetadataReq, BulkGetUserMetadataRes, BulkUsers, GetUserMetadataRes,
     GetUserMetadataV2Res, RegisterDeviceReq, RegisterDeviceRes, SetUserEmailMetadataReq,
@@ -18,7 +19,6 @@ use types::{
     SetUserSignedInMetadataReq, UnregisterDeviceReq, UnregisterDeviceRes, UserMetadata,
     UserMetadataV2,
 };
-use types::identity::sign_message;
 
 pub use types::{DeviceRegistrationToken, NotificationKey};
 

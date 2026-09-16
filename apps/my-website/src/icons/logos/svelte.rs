@@ -1,5 +1,5 @@
-use leptos::svg;
 use leptos::prelude::*;
+use leptos::svg;
 
 /// Svelte logo icon (orange blob with white S curve).
 pub fn svelte_icon(class_name: &str) -> impl IntoView {

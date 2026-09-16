@@ -15,24 +15,28 @@ pub fn projects_page() -> impl IntoView {
         ),
         html::main()
             .attr("class", "max-w-screen-md mx-auto p-2")
-            .child(html::h1()
-                .attr("class", "text-3xl text-center my-8")
-                .child("Things I've Built"))
-            .child(html::ul().child(
-                project_entries
-                    .iter()
-                    .map(|entry| {
-                        project_entry_card(
-                            entry.title.clone(),
-                            entry.description.clone(),
-                            entry.technologies_used.clone(),
-                            entry.start_date.clone(),
-                            entry.end_date.clone(),
-                            entry.cover_photo.clone(),
-                            entry.slug.clone(),
-                        )
-                    })
-                    .collect::<Vec<_>>(),
-            )),
+            .child(
+                html::h1()
+                    .attr("class", "text-3xl text-center my-8")
+                    .child("Things I've Built"),
+            )
+            .child(
+                html::ul().child(
+                    project_entries
+                        .iter()
+                        .map(|entry| {
+                            project_entry_card(
+                                entry.title.clone(),
+                                entry.description.clone(),
+                                entry.technologies_used.clone(),
+                                entry.start_date.clone(),
+                                entry.end_date.clone(),
+                                entry.cover_photo.clone(),
+                                entry.slug.clone(),
+                            )
+                        })
+                        .collect::<Vec<_>>(),
+                ),
+            ),
     )
 }

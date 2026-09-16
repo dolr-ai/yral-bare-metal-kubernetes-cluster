@@ -9,8 +9,8 @@ use leptos::html;
 use leptos::prelude::*;
 
 use crate::content::render::{
-    blog_post_icon_url, format_date_display, format_month_year, format_tags,
-    format_technologies, project_cover_photo_url,
+    blog_post_icon_url, format_date_display, format_month_year, format_tags, format_technologies,
+    project_cover_photo_url,
 };
 
 /// Renders a single blog post as a card-shaped link.

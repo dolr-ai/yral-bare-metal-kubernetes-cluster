@@ -30,10 +30,10 @@ pub trait get_users_profile_details {
         oauth_subjects: Vec<String>,
 
         __callback: impl FnOnce(
-                &super::ProcedureEventContext,
-                Result<Vec<UserProfileDetails>, __sdk::InternalError>,
-            ) + Send
-            + 'static,
+            &super::ProcedureEventContext,
+            Result<Vec<UserProfileDetails>, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     );
 }
 
@@ -43,10 +43,10 @@ impl get_users_profile_details for super::RemoteProcedures {
         oauth_subjects: Vec<String>,
 
         __callback: impl FnOnce(
-                &super::ProcedureEventContext,
-                Result<Vec<UserProfileDetails>, __sdk::InternalError>,
-            ) + Send
-            + 'static,
+            &super::ProcedureEventContext,
+            Result<Vec<UserProfileDetails>, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     ) {
         self.imp
             .invoke_procedure_with_callback::<_, Vec<UserProfileDetails>>(

@@ -12,9 +12,7 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "ssr")]
 use {
-    crate::error::AuthErrorKind,
-    crate::oauth::client_validation::ClientIdValidator,
-    std::sync::Arc,
+    crate::error::AuthErrorKind, crate::oauth::client_validation::ClientIdValidator, std::sync::Arc,
 };
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize, Params)]

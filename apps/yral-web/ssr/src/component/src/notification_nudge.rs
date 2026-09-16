@@ -6,7 +6,8 @@ use leptos_use::storage::use_local_storage;
 use state::canisters::auth_state;
 
 use crate::{
-    buttons::highlighted_button, icons::notification_nudge::NotificationNudgeIcon,
+    buttons::highlighted_button,
+    icons::notification_nudge::NotificationNudgeIcon,
     overlay::{ShadowOverlay, ShadowOverlayProps},
 };
 

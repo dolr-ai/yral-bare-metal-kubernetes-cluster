@@ -89,12 +89,10 @@ async fn do_session_auth(
 
         let conn = crate::spacetime::spacetime_conn();
         let (tx, rx) = oneshot::channel();
-        conn.procedures.get_user_profile_details_then(
-            user_id.clone(),
-            move |_ctx, result| {
+        conn.procedures
+            .get_user_profile_details_then(user_id.clone(), move |_ctx, result| {
                 let _ = tx.send(result.ok().flatten());
-            },
-        );
+            });
 
         let profile = if let Some(p) = rx.await.unwrap_or(None) {
             ProfileDetails {
@@ -295,7 +293,9 @@ impl AuthState {
             .set(Some(is_logged_in_with_oauth));
 
         self.user_canister_id_cookie.1.set(None);
-        self.user_id_cookie.1.set(Some(new_identity.user_id.clone()));
+        self.user_id_cookie
+            .1
+            .set(Some(new_identity.user_id.clone()));
         self.new_identity_setter.set(Some(new_identity));
     }
 
@@ -328,7 +328,9 @@ impl AuthState {
 
         let session = self.canisters_resource.await?;
         let canister_id = session.user_id();
-        self.user_canister_id_cookie.1.set(Some(canister_id.clone()));
+        self.user_canister_id_cookie
+            .1
+            .set(Some(canister_id.clone()));
 
         Ok(canister_id)
     }
@@ -361,8 +363,8 @@ impl AuthState {
 
     #[cfg(feature = "hydrate")]
     pub fn auth_cans_if_available(&self) -> Option<AuthSession> {
-        use std::future::IntoFuture;
         use futures::FutureExt;
+        use std::future::IntoFuture;
         self.canisters_resource
             .into_future()
             .now_or_never()

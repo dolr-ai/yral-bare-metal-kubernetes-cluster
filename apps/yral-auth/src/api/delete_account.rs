@@ -90,10 +90,7 @@ pub async fn clear_session_principal() -> Result<(), ServerFnError> {
 
     // Build an explicit removal cookie with matching Path to ensure the browser
     // deletes the original cookie. Browsers require Path to match.
-    let removal_cookie = Cookie::build((
-        DELETE_ACCOUNT_SESSION_COOKIE,
-        "",
-    ))
+    let removal_cookie = Cookie::build((DELETE_ACCOUNT_SESSION_COOKIE, ""))
         .same_site(SameSite::Lax)
         .secure(true)
         .path("/")
@@ -172,7 +169,8 @@ pub async fn delete_account_impl() -> Result<(), ServerFnError> {
         None,
         Vec::new(),
         &server_url,
-    ).0; // Take only the access token
+    )
+    .0; // Take only the access token
 
     // 3. Call the off-chain agent's delete endpoint with Bearer token
     let client = reqwest::Client::new();

@@ -64,11 +64,7 @@ impl SpacetimeClient {
     }
 
     /// Call a SpacetimeDB reducer (write). Returns OK on success.
-    pub async fn call_reducer(
-        &self,
-        name: &str,
-        args: serde_json::Value,
-    ) -> Result<()> {
+    pub async fn call_reducer(&self, name: &str, args: serde_json::Value) -> Result<()> {
         let resp = self
             .http
             .post(self.call_url(name))
@@ -99,15 +95,19 @@ pub struct AppState {
 
 impl AppState {
     pub async fn new(app_config: &AppConfig) -> Result<Self> {
-        let spacetime_url =
-            std::env::var("SPACETIMEDB_URL").map_err(|_| Error::Unknown("SPACETIMEDB_URL not set".into()))?;
+        let spacetime_url = std::env::var("SPACETIMEDB_URL")
+            .map_err(|_| Error::Unknown("SPACETIMEDB_URL not set".into()))?;
         let spacetime_db = std::env::var("SPACETIMEDB_DB_NAME")
             .map_err(|_| Error::Unknown("SPACETIMEDB_DB_NAME not set".into()))?;
         let spacetime_token = std::env::var("SPACETIMEDB_ADMIN_TOKEN")
             .map_err(|_| Error::Unknown("SPACETIMEDB_ADMIN_TOKEN not set".into()))?;
 
         Ok(AppState {
-            spacetime: Arc::new(SpacetimeClient::new(spacetime_url, spacetime_db, spacetime_token)),
+            spacetime: Arc::new(SpacetimeClient::new(
+                spacetime_url,
+                spacetime_db,
+                spacetime_token,
+            )),
             jwt_details: init_jwt(app_config)?,
             yral_auth_jwt: YralAuthJwt::init(app_config.yral_auth_public_key.clone())?,
         })

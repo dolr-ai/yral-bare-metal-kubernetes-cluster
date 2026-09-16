@@ -1,5 +1,5 @@
-use leptos::svg;
 use leptos::prelude::*;
+use leptos::svg;
 
 /// Gmail (Google Mail) logo icon with the multi-colored M envelope.
 pub fn gmail_icon(class_name: &str) -> impl IntoView {

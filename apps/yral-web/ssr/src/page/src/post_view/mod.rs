@@ -5,8 +5,8 @@ pub mod video_loader;
 
 use leptos::prelude::*;
 use std::collections::HashMap;
-use utils::types::PostId;
 use utils::posts::PostDetails;
+use utils::types::PostId;
 
 #[derive(Clone, Default)]
 pub struct PostDetailsCacheCtx {

@@ -34,7 +34,11 @@ pub fn go_back_or_fallback(fallback: &str) {
 
 pub fn back_button(fallback: Signal<String>) -> impl IntoView {
     html::button()
-        .on(ev::click, move |_| go_back_or_fallback(&fallback.get_untracked()))
+        .on(ev::click, move |_| {
+            go_back_or_fallback(&fallback.get_untracked())
+        })
         .attr("class", "items-center")
-        .child(Icon(IconProps::builder().icon(icondata::AiLeftOutlined).build()))
+        .child(Icon(
+            IconProps::builder().icon(icondata::AiLeftOutlined).build(),
+        ))
 }

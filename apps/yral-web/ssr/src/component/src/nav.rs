@@ -1,9 +1,6 @@
 use crate::nav_icons::*;
 use codee::string::FromToStringCodec;
-use consts::{
-    AUTH_UTIL_COOKIES_MAX_AGE_MS,
-    USER_PRINCIPAL_STORE,
-};
+use consts::{AUTH_UTIL_COOKIES_MAX_AGE_MS, USER_PRINCIPAL_STORE};
 use leptos::prelude::*;
 use leptos_icons::*;
 use leptos_router::hooks::use_location;
@@ -34,22 +31,20 @@ fn yral_nav_items() -> Vec<NavItem> {
             .max_age(AUTH_UTIL_COOKIES_MAX_AGE_MS),
     );
 
-    vec![
-        NavItem {
-            render_data: NavItemRenderData::Icon {
-                icon: WalletSymbol,
-                filled_icon: Some(WalletSymbolFilled),
-                href: "/wallet".into(),
-            },
-            cur_selected: Signal::derive(move || {
-                // is selected only if the user is viewing their own wallet
-                let Some(user_id) = user_id.get() else {
-                    return false;
-                };
-                path.get().starts_with(&format!("/wallet/{user_id}"))
-            }),
+    vec![NavItem {
+        render_data: NavItemRenderData::Icon {
+            icon: WalletSymbol,
+            filled_icon: Some(WalletSymbolFilled),
+            href: "/wallet".into(),
         },
-    ]
+        cur_selected: Signal::derive(move || {
+            // is selected only if the user is viewing their own wallet
+            let Some(user_id) = user_id.get() else {
+                return false;
+            };
+            path.get().starts_with(&format!("/wallet/{user_id}"))
+        }),
+    }]
 }
 
 fn get_nav_items() -> Vec<NavItem> {

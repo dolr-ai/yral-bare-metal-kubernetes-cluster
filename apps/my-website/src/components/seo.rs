@@ -16,8 +16,7 @@ use leptos::prelude::*;
 use leptos_meta::{Meta, MetaProps, Title, TitleProps};
 
 /// The default social preview image used across all pages.
-const SOCIAL_PREVIEW_IMAGE_URL: &str =
-    "https://saikat.dev/assets/logos/logo-square-192.png";
+const SOCIAL_PREVIEW_IMAGE_URL: &str = "https://saikat.dev/assets/logos/logo-square-192.png";
 
 /// The Twitter `@handle` for the site author.
 const TWITTER_HANDLE: &str = "@saikatdas0790";

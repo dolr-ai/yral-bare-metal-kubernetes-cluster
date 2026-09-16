@@ -1,5 +1,5 @@
-use leptos::svg;
 use leptos::prelude::*;
+use leptos::svg;
 
 /// Flat-color deployment (server rack) icon.
 pub fn deployment_icon(class_name: &str) -> impl IntoView {

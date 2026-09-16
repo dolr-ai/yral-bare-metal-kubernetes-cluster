@@ -31,9 +31,11 @@ pub trait delete_user {
         subject_to_delete: String,
         id_token: String,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<DeleteUserResult, __sdk::InternalError>)
-            + Send
-            + 'static,
+        __callback: impl FnOnce(
+            &super::ProcedureEventContext,
+            Result<DeleteUserResult, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     );
 }
 
@@ -43,9 +45,11 @@ impl delete_user for super::RemoteProcedures {
         subject_to_delete: String,
         id_token: String,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<DeleteUserResult, __sdk::InternalError>)
-            + Send
-            + 'static,
+        __callback: impl FnOnce(
+            &super::ProcedureEventContext,
+            Result<DeleteUserResult, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     ) {
         self.imp
             .invoke_procedure_with_callback::<_, DeleteUserResult>(

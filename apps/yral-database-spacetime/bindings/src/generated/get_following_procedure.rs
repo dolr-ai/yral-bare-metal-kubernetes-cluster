@@ -33,9 +33,11 @@ pub trait get_following {
         limit: u64,
         cursor: Option<String>,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<FollowingPage, __sdk::InternalError>)
-            + Send
-            + 'static,
+        __callback: impl FnOnce(
+            &super::ProcedureEventContext,
+            Result<FollowingPage, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     );
 }
 
@@ -46,9 +48,11 @@ impl get_following for super::RemoteProcedures {
         limit: u64,
         cursor: Option<String>,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<FollowingPage, __sdk::InternalError>)
-            + Send
-            + 'static,
+        __callback: impl FnOnce(
+            &super::ProcedureEventContext,
+            Result<FollowingPage, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     ) {
         self.imp.invoke_procedure_with_callback::<_, FollowingPage>(
             "get_following",

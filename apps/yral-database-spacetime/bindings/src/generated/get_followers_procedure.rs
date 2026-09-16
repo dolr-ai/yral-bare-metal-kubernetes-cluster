@@ -33,9 +33,11 @@ pub trait get_followers {
         limit: u64,
         cursor: Option<String>,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<FollowersPage, __sdk::InternalError>)
-            + Send
-            + 'static,
+        __callback: impl FnOnce(
+            &super::ProcedureEventContext,
+            Result<FollowersPage, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     );
 }
 
@@ -46,9 +48,11 @@ impl get_followers for super::RemoteProcedures {
         limit: u64,
         cursor: Option<String>,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<FollowersPage, __sdk::InternalError>)
-            + Send
-            + 'static,
+        __callback: impl FnOnce(
+            &super::ProcedureEventContext,
+            Result<FollowersPage, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     ) {
         self.imp.invoke_procedure_with_callback::<_, FollowersPage>(
             "get_followers",

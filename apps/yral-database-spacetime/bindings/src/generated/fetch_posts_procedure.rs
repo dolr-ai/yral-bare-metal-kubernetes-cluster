@@ -31,9 +31,11 @@ pub trait fetch_posts {
         limit: u64,
         cursor: Option<String>,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<FetchPostsResult, __sdk::InternalError>)
-            + Send
-            + 'static,
+        __callback: impl FnOnce(
+            &super::ProcedureEventContext,
+            Result<FetchPostsResult, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     );
 }
 
@@ -43,9 +45,11 @@ impl fetch_posts for super::RemoteProcedures {
         limit: u64,
         cursor: Option<String>,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<FetchPostsResult, __sdk::InternalError>)
-            + Send
-            + 'static,
+        __callback: impl FnOnce(
+            &super::ProcedureEventContext,
+            Result<FetchPostsResult, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     ) {
         self.imp
             .invoke_procedure_with_callback::<_, FetchPostsResult>(

@@ -1,8 +1,4 @@
-use axum::{
-    extract::State,
-    http::HeaderMap,
-    Json,
-};
+use axum::{extract::State, http::HeaderMap, Json};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use types::ApiResult;
@@ -50,10 +46,7 @@ pub async fn update_session_as_registered_v2(
     headers: HeaderMap,
     Json(req_payload): Json<UpdateUserSessionRequest>,
 ) -> Result<Json<ApiResult<()>>> {
-    log::info!(
-        "Update session v2 for user: {}",
-        req_payload.user_principal
-    );
+    log::info!("Update session v2 for user: {}", req_payload.user_principal);
 
     let Some(auth_header) = headers.get("Authorization") else {
         log::warn!("Auth token missing");
@@ -71,7 +64,10 @@ pub async fn update_session_as_registered_v2(
     // via the accept_new_user_registration reducer. This endpoint now just verifies
     // the JWT and returns OK. Will be deleted entirely once all consumers are
     // migrated to call SpacetimeDB directly.
-    log::info!("Session update acknowledged for user: {}", req_payload.user_principal);
+    log::info!(
+        "Session update acknowledged for user: {}",
+        req_payload.user_principal
+    );
 
     Ok(Json(Ok(())))
 }

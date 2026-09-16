@@ -77,7 +77,8 @@ pub fn share_content(
 fn social_share(share_link: String, message: String) -> impl IntoView {
     let encoded_message = urlencoding::encode(&message);
 
-    let facebook_url = format!("http://www.facebook.com/share.php?u={share_link}&quote={encoded_message}");
+    let facebook_url =
+        format!("http://www.facebook.com/share.php?u={share_link}&quote={encoded_message}");
     let whatsapp_url = format!("https://wa.me/?text={encoded_message}");
     let twitter_url = format!("https://twitter.com/intent/tweet?text={encoded_message}");
     let telegram_url = format!("https://telegram.me/share/url?url={}", &share_link);
@@ -86,20 +87,41 @@ fn social_share(share_link: String, message: String) -> impl IntoView {
         &share_link, encoded_message
     );
 
-    let social_icon = |icon: &'static icondata_core::IconData, class: &'static str, href: String| {
-        html::a()
-            .attr("href", href)
-            .attr("target", "_blank")
-            .child(Icon(IconProps::builder().icon(icon).build()).attr("class", class))
-    };
+    let social_icon =
+        |icon: &'static icondata_core::IconData, class: &'static str, href: String| {
+            html::a()
+                .attr("href", href)
+                .attr("target", "_blank")
+                .child(Icon(IconProps::builder().icon(icon).build()).attr("class", class))
+        };
 
     html::div()
         .attr("class", "flex gap-4")
-        .child(social_icon(icondata::BsFacebook, "text-3xl md:text-4xl text-primary-600", facebook_url))
-        .child(social_icon(icondata::BsTwitterX, "text-3xl md:text-4xl text-primary-600", twitter_url))
-        .child(social_icon(icondata::FaSquareWhatsappBrands, "text-3xl md:text-4xl text-primary-600", whatsapp_url))
-        .child(social_icon(icondata::TbBrandLinkedinFilled, "text-3xl md:text-4xl text-primary-600", linkedin_url))
-        .child(social_icon(icondata::TbBrandTelegramOutline, "text-3xl md:text-4xl text-primary-600", telegram_url))
+        .child(social_icon(
+            icondata::BsFacebook,
+            "text-3xl md:text-4xl text-primary-600",
+            facebook_url,
+        ))
+        .child(social_icon(
+            icondata::BsTwitterX,
+            "text-3xl md:text-4xl text-primary-600",
+            twitter_url,
+        ))
+        .child(social_icon(
+            icondata::FaSquareWhatsappBrands,
+            "text-3xl md:text-4xl text-primary-600",
+            whatsapp_url,
+        ))
+        .child(social_icon(
+            icondata::TbBrandLinkedinFilled,
+            "text-3xl md:text-4xl text-primary-600",
+            linkedin_url,
+        ))
+        .child(social_icon(
+            icondata::TbBrandTelegramOutline,
+            "text-3xl md:text-4xl text-primary-600",
+            telegram_url,
+        ))
 }
 
 pub fn share_button_with_fallback_popup(

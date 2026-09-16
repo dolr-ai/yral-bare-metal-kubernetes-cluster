@@ -12,7 +12,9 @@ use http::header;
 use leptos::prelude::*;
 use leptos_axum::{extract_with_state, ResponseOptions};
 
-use consts::auth::{ID_TOKEN_COOKIE, ID_TOKEN_MAX_AGE, ONE_HOUR_SECS, REFRESH_MAX_AGE, REFRESH_TOKEN_COOKIE};
+use consts::auth::{
+    ID_TOKEN_COOKIE, ID_TOKEN_MAX_AGE, ONE_HOUR_SECS, REFRESH_MAX_AGE, REFRESH_TOKEN_COOKIE,
+};
 
 use crate::{AnonymousIdentity, ExtractedIdentity};
 
@@ -88,7 +90,9 @@ pub fn set_id_token_cookie(
 /// Decode the `exp` claim from a JWT without verifying the signature.
 /// Returns the expiry as a Unix timestamp in seconds.
 fn decode_jwt_exp(token: &str) -> Option<usize> {
-    decode_jwt_claim(token, "exp").and_then(|v| v.as_u64()).map(|e| e as usize)
+    decode_jwt_claim(token, "exp")
+        .and_then(|v| v.as_u64())
+        .map(|e| e as usize)
 }
 
 /// Decode the `sub` claim from a JWT without verifying the signature.
@@ -219,9 +223,7 @@ pub async fn get_user_identifier_impl() -> Result<Option<String>, ServerFnError>
         .map_err(|e| ServerFnError::new(format!("Failed to parse JWT claims: {e}")))?;
 
     // The `sub` claim is the IC Principal text
-    let user_identifier = claims["sub"]
-        .as_str()
-        .map(|s| s.to_string());
+    let user_identifier = claims["sub"].as_str().map(|s| s.to_string());
 
     Ok(user_identifier)
 }

@@ -1,5 +1,5 @@
-use leptos::svg;
 use leptos::prelude::*;
+use leptos::svg;
 
 /// Flat-color share icon (three connected nodes).
 pub fn share_icon(class_name: &str) -> impl IntoView {

@@ -1,5 +1,5 @@
-use leptos::svg;
 use leptos::prelude::*;
+use leptos::svg;
 
 /// LinkedIn logo icon (the "in" wordmark inside a square).
 pub fn linkedin_icon(class_name: &str) -> impl IntoView {

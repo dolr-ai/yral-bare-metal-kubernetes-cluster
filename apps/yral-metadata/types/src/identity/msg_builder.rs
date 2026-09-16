@@ -1,8 +1,8 @@
 use web_time::Duration;
 
-use candid::{Principal, encode_args, utils::ArgumentEncoder};
+use candid::{encode_args, utils::ArgumentEncoder, Principal};
 
-use super::{Result, current_epoch};
+use super::{current_epoch, Result};
 
 /// Signable Message
 #[derive(Clone, Debug)]

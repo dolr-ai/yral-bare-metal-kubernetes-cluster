@@ -366,14 +366,14 @@ async fn client_credentials_grant_for_backend(
 
     let lookup_key = backend_service_lookup_key(&client_id);
 
-    let existing_user_id = ctx
-        .kv_store
-        .read(lookup_key.clone())
-        .await
-        .map_err(|e| TokenGrantError {
-            error: TokenGrantErrorKind::ServerError,
-            error_description: e.to_string(),
-        })?;
+    let existing_user_id =
+        ctx.kv_store
+            .read(lookup_key.clone())
+            .await
+            .map_err(|e| TokenGrantError {
+                error: TokenGrantErrorKind::ServerError,
+                error_description: e.to_string(),
+            })?;
 
     if let Some(user_id) = existing_user_id {
         return generate_access_token(

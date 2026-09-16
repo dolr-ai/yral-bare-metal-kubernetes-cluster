@@ -7,9 +7,8 @@ use axum::{
 use candid::Principal;
 use std::sync::Arc;
 use types::{
-    ApiResult, BulkGetUserMetadataReq, BulkGetUserMetadataRes, BulkUsers,
-    DeleteMetadataBulkRes, GetUserMetadataV2Res, SetUserMetadataReq,
-    SetUserMetadataRes,
+    ApiResult, BulkGetUserMetadataReq, BulkGetUserMetadataRes, BulkUsers, DeleteMetadataBulkRes,
+    GetUserMetadataV2Res, SetUserMetadataReq, SetUserMetadataRes,
 };
 
 use crate::{

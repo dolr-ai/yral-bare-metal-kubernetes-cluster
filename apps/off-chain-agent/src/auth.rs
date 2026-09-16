@@ -28,13 +28,11 @@ fn decoding_key() -> Result<&'static DecodingKey, anyhow::Error> {
         return Ok(key);
     }
 
-    let pub_pem = env::var("JWT_PUB_EC_PEM").map_err(|_| {
-        anyhow::anyhow!("JWT_PUB_EC_PEM is not set — cannot verify access tokens")
-    })?;
+    let pub_pem = env::var("JWT_PUB_EC_PEM")
+        .map_err(|_| anyhow::anyhow!("JWT_PUB_EC_PEM is not set — cannot verify access tokens"))?;
 
-    let key = DecodingKey::from_ec_pem(pub_pem.as_bytes()).map_err(|e| {
-        anyhow::anyhow!("Invalid JWT_PUB_EC_PEM — not a valid EC public key: {e}")
-    })?;
+    let key = DecodingKey::from_ec_pem(pub_pem.as_bytes())
+        .map_err(|e| anyhow::anyhow!("Invalid JWT_PUB_EC_PEM — not a valid EC public key: {e}"))?;
 
     // get_or_init is race-safe; the first writer wins.
     Ok(DECODING_KEY.get_or_init(|| key))
@@ -59,9 +57,7 @@ pub fn verify_access_token(jwt: &str) -> Result<AccessTokenClaims, anyhow::Error
 
 /// Extract and verify a Bearer JWT from the `Authorization` header.
 /// Returns the user_id (`sub` claim) on success.
-pub fn extract_user_id_from_headers(
-    headers: &HeaderMap,
-) -> Result<String, (String, u16)> {
+pub fn extract_user_id_from_headers(headers: &HeaderMap) -> Result<String, (String, u16)> {
     let jwt = headers
         .get("Authorization")
         .ok_or_else(|| ("missing Authorization header".to_string(), 401))?;
@@ -71,13 +67,14 @@ pub fn extract_user_id_from_headers(
         .map_err(|_| ("invalid Authorization header".to_string(), 401))?;
 
     if !jwt.starts_with("Bearer ") {
-        return Err(("invalid Authorization header — expected Bearer token".to_string(), 401));
+        return Err((
+            "invalid Authorization header — expected Bearer token".to_string(),
+            401,
+        ));
     }
 
     let jwt = &jwt[7..];
-    let claims = verify_access_token(jwt).map_err(|e| {
-        (format!("invalid JWT: {e}"), 401)
-    })?;
+    let claims = verify_access_token(jwt).map_err(|e| (format!("invalid JWT: {e}"), 401))?;
 
     Ok(claims.sub)
 }

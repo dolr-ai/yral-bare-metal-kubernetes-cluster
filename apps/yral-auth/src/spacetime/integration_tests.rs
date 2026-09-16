@@ -32,8 +32,8 @@ fn mint_jwt(issuer: &str, user_id: &str) -> String {
 
     let jwt_pem = std::env::var("JWT_EC_PEM")
         .expect("`JWT_EC_PEM` must be set (run via `fnox exec --` or set manually)");
-    let encoding_key =
-        EncodingKey::from_ec_pem(jwt_pem.as_bytes()).expect("invalid `JWT_EC_PEM` — not a valid EC PEM");
+    let encoding_key = EncodingKey::from_ec_pem(jwt_pem.as_bytes())
+        .expect("invalid `JWT_EC_PEM` — not a valid EC PEM");
 
     let claims = serde_json::json!({
         "iss": issuer,
@@ -55,8 +55,8 @@ fn mint_jwt(issuer: &str, user_id: &str) -> String {
 /// Uses `on_connect` callback to capture the identity, then runs the message
 /// loop until the callback fires (or times out).
 fn connect_and_get_identity(token: &str) -> spacetimedb_sdk::Identity {
-    let url = std::env::var("SPACETIMEDB_URL")
-        .unwrap_or_else(|_| "http://127.0.0.1:3000".to_string());
+    let url =
+        std::env::var("SPACETIMEDB_URL").unwrap_or_else(|_| "http://127.0.0.1:3000".to_string());
     let db_name = std::env::var("SPACETIMEDB_DB_NAME")
         .unwrap_or_else(|_| "yral-database-spacetime-4lbo7".to_string());
 
@@ -115,7 +115,8 @@ fn test_jwt_produces_matching_spacetime_identity() {
 
     // 4. Verify they match.
     assert_eq!(
-        expected_identity, actual_identity,
+        expected_identity,
+        actual_identity,
         "SpacetimeDB identity from JWT connection should match spacetime_identity_for_user_id.\n\
          Expected: {}\n\
          Actual:   {}",
@@ -152,7 +153,8 @@ fn test_identity_matches_for_simple_user_id() {
     let actual = connect_and_get_identity(&jwt);
 
     assert_eq!(
-        expected, actual,
+        expected,
+        actual,
         "Identity should match.\nExpected: {}\nActual:   {}",
         expected.to_hex(),
         actual.to_hex()

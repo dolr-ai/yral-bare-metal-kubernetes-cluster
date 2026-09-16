@@ -190,12 +190,10 @@ pub fn WalletImpl(id: String) -> impl IntoView {
             let user_id = id.with_value(|id| id.clone());
             let conn = spacetime_conn();
             let (tx, rx) = oneshot::channel();
-            conn.procedures.get_user_profile_details_then(
-                user_id.clone(),
-                move |_ctx, result| {
+            conn.procedures
+                .get_user_profile_details_then(user_id.clone(), move |_ctx, result| {
                     let _ = tx.send(result.ok().flatten());
-                },
-            );
+                });
             let p = rx.await.unwrap_or(None);
             let profile = if let Some(p) = p {
                 Some(utils::user_identity::ProfileDetails {
@@ -243,12 +241,10 @@ pub fn WalletImpl(id: String) -> impl IntoView {
             let user_id = id.get_value();
             let conn = spacetime_conn();
             let (tx, rx) = oneshot::channel();
-            conn.procedures.get_user_profile_details_then(
-                user_id.clone(),
-                move |_ctx, result| {
+            conn.procedures
+                .get_user_profile_details_then(user_id.clone(), move |_ctx, result| {
                     let _ = tx.send(result.ok().flatten());
-                },
-            );
+                });
             let p = rx.await.unwrap_or(None);
             let profile = if let Some(p) = p {
                 Some(utils::user_identity::ProfileDetails {

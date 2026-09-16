@@ -213,5 +213,3 @@ async fn repeated_wrong_otp_guesses_are_always_rejected() {
         "at least one wrong guess must have been tested"
     );
 }
-
-

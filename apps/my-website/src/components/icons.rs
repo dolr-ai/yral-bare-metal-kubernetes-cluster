@@ -5,6 +5,6 @@
 // so component code can import icons from the components namespace when
 // convenient.
 
+pub use crate::icons::flat_color;
 pub use crate::icons::logos;
 pub use crate::icons::twemoji;
-pub use crate::icons::flat_color;

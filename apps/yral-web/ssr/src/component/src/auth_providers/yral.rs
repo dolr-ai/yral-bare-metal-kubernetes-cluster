@@ -1,12 +1,7 @@
 use codee::string::FromToStringCodec;
-use consts::{
-    LoginProvider, NOTIFICATIONS_ENABLED_STORE,
-};
+use consts::{LoginProvider, NOTIFICATIONS_ENABLED_STORE};
 use leptos::{ev, html, prelude::*};
-use leptos_use::{
-    storage::use_local_storage, use_event_listener, use_interval_fn,
-    use_window,
-};
+use leptos_use::{storage::use_local_storage, use_event_listener, use_interval_fn, use_window};
 use state::canisters::auth_state;
 use utils::types::NewIdentity;
 

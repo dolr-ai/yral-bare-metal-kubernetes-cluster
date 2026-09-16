@@ -108,21 +108,20 @@ pub async fn http_logging_middleware(
         let request_body_str = request_body_bytes.as_ref().and_then(parse_and_scrub_bytes);
 
         // Buffer response body bytes
-        let (res, response_body_bytes) =
-            if should_capture_body(response_content_type.as_deref()) {
-                match buffer_response_body_bytes(res).await {
-                    Ok(result) => result,
-                    Err(e) => {
-                        log::warn!("Failed to buffer response body: {}", e);
-                        return Err((
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            "Failed to process response".to_string(),
-                        ));
-                    }
+        let (res, response_body_bytes) = if should_capture_body(response_content_type.as_deref()) {
+            match buffer_response_body_bytes(res).await {
+                Ok(result) => result,
+                Err(e) => {
+                    log::warn!("Failed to buffer response body: {}", e);
+                    return Err((
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Failed to process response".to_string(),
+                    ));
                 }
-            } else {
-                (res, None)
-            };
+            }
+        } else {
+            (res, None)
+        };
 
         // Parse and scrub response body (only on errors)
         let response_body_str = response_body_bytes.as_ref().and_then(parse_and_scrub_bytes);
@@ -288,7 +287,10 @@ fn extract_safe_headers(headers: &http::HeaderMap) -> BTreeMap<String, serde_jso
 fn add_lightweight_breadcrumb(method: &str, path: &str, status: u16, duration_ms: u64) {
     log::info!(
         "http.request: {} {} {} ({}ms)",
-        method, path, status, duration_ms
+        method,
+        path,
+        status,
+        duration_ms
     );
 }
 
@@ -322,21 +324,27 @@ fn add_response_breadcrumb(
     if status >= 500 {
         log::error!(
             "http.response [{}] HTTP {} ({}ms) | headers: {} | body: {}",
-            request_id, status, duration_ms,
+            request_id,
+            status,
+            duration_ms,
             serde_json::to_string(headers).unwrap_or_default(),
             body_str
         );
     } else if status >= 400 {
         log::warn!(
             "http.response [{}] HTTP {} ({}ms) | headers: {} | body: {}",
-            request_id, status, duration_ms,
+            request_id,
+            status,
+            duration_ms,
             serde_json::to_string(headers).unwrap_or_default(),
             body_str
         );
     } else {
         log::info!(
             "http.response [{}] HTTP {} ({}ms)",
-            request_id, status, duration_ms
+            request_id,
+            status,
+            duration_ms
         );
     }
 }

@@ -56,9 +56,11 @@ pub trait update_profile_picture_nsfw_info {
         oauth_subject: String,
         nsfw_info: NsfwInfo,
 
-        callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
-            + Send
-            + 'static,
+        callback: impl FnOnce(
+            &super::ReducerEventContext,
+            Result<Result<(), String>, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     ) -> __sdk::Result<()>;
 }
 
@@ -68,9 +70,11 @@ impl update_profile_picture_nsfw_info for super::RemoteReducers {
         oauth_subject: String,
         nsfw_info: NsfwInfo,
 
-        callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
-            + Send
-            + 'static,
+        callback: impl FnOnce(
+            &super::ReducerEventContext,
+            Result<Result<(), String>, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     ) -> __sdk::Result<()> {
         self.imp.invoke_reducer_with_callback(
             UpdateProfilePictureNsfwInfoArgs {

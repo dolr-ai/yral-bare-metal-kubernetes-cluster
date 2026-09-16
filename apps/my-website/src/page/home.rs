@@ -1,11 +1,11 @@
 use leptos::html;
 use leptos::prelude::*;
 
-use crate::components::seo::seo_meta_header;
 use crate::components::sections::{
-    intro_section, find_me_on_section, about_me_section,
-    what_im_learning_section, what_im_working_on_section,
+    about_me_section, find_me_on_section, intro_section, what_im_learning_section,
+    what_im_working_on_section,
 };
+use crate::components::seo::seo_meta_header;
 
 pub fn home_page() -> impl IntoView {
     (

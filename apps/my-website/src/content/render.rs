@@ -64,9 +64,7 @@ pub fn project_cover_photo_url(cover_photo: &str) -> String {
 /// Extracts the slug path component from a full blog post slug URL.
 /// E.g. "/blog/posts/react-hooks-usestate" → "react-hooks-usestate"
 pub fn extract_blog_post_slug(post: &BlogPost) -> &str {
-    post.slug
-        .strip_prefix("/blog/posts/")
-        .unwrap_or(&post.slug)
+    post.slug.strip_prefix("/blog/posts/").unwrap_or(&post.slug)
 }
 
 /// Extracts the slug path component from a full project entry slug URL.

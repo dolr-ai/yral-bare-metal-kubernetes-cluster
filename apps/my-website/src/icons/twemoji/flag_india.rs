@@ -1,5 +1,5 @@
-use leptos::svg;
 use leptos::prelude::*;
+use leptos::svg;
 
 /// Twemoji Indian flag icon (saffron-white-green tricolour with Ashoka Chakra).
 pub fn flag_india_icon(class_name: &str) -> impl IntoView {

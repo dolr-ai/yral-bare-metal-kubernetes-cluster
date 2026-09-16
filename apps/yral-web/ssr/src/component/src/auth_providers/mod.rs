@@ -10,9 +10,9 @@ use leptos_icons::{Icon, IconProps};
 use leptos_router::hooks::use_navigate;
 use state::canisters::auth_state;
 use state::canisters::AuthSession;
-use utils::ProviderKind;
 use utils::send_wrap;
 use utils::types::NewIdentity;
+use utils::ProviderKind;
 
 #[server]
 async fn mark_user_registered(user_id: String) -> Result<bool, ServerFnError> {
@@ -62,7 +62,9 @@ fn login_prov_button<Cb: Fn(ev::MouseEvent) + 'static>(
     let click_action = Action::new(move |()| async move {});
 
     html::button()
-        .attr("disabled", move || ctx.processing.get().is_some() || disabled.get())
+        .attr("disabled", move || {
+            ctx.processing.get().is_some() || disabled.get()
+        })
         .attr("class", class)
         .on(ev::click, move |event| {
             ctx.set_processing.set(Some(prov));

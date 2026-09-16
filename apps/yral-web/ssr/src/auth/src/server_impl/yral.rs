@@ -10,14 +10,12 @@ use leptos_axum::{extract_with_state, ResponseOptions};
 use openidconnect::{
     core::{
         CoreAuthDisplay, CoreAuthPrompt, CoreAuthenticationFlow, CoreErrorResponseType,
-        CoreGenderClaim, CoreIdTokenVerifier, CoreJsonWebKey,
-        CoreJweContentEncryptionAlgorithm, CoreJwsSigningAlgorithm,
-        CoreRevocableToken, CoreTokenType,
+        CoreGenderClaim, CoreIdTokenVerifier, CoreJsonWebKey, CoreJweContentEncryptionAlgorithm,
+        CoreJwsSigningAlgorithm, CoreRevocableToken, CoreTokenType,
     },
-    AdditionalClaims, AuthorizationCode, CsrfToken, EmptyExtraTokenFields, IdTokenFields,
-    EndpointNotSet, EndpointSet,
-    LoginHint, Nonce, OAuth2TokenResponse, PkceCodeChallenge, PkceCodeVerifier, Scope,
-    StandardErrorResponse, StandardTokenResponse,
+    AdditionalClaims, AuthorizationCode, CsrfToken, EmptyExtraTokenFields, EndpointNotSet,
+    EndpointSet, IdTokenFields, LoginHint, Nonce, OAuth2TokenResponse, PkceCodeChallenge,
+    PkceCodeVerifier, Scope, StandardErrorResponse, StandardTokenResponse,
 };
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -64,10 +62,7 @@ pub type YralOAuthClient = openidconnect::Client<
         >,
         CoreTokenType,
     >,
-    openidconnect::StandardTokenIntrospectionResponse<
-        EmptyExtraTokenFields,
-        CoreTokenType,
-    >,
+    openidconnect::StandardTokenIntrospectionResponse<EmptyExtraTokenFields, CoreTokenType>,
     CoreRevocableToken,
     StandardErrorResponse<CoreErrorResponseType>,
     EndpointSet,

@@ -1,19 +1,19 @@
 #![recursion_limit = "256"]
-use axum::{Router, routing::get};
 use axum::{
     body::Body as AxumBody,
     extract::State,
     http::Request,
     response::{IntoResponse, Response},
 };
+use axum::{routing::get, Router};
 use state::server::AppState;
 use tracing::instrument;
 use yral_web::fallback::file_and_error_handler;
 
-use http::{HeaderName, Method, header};
+use http::{header, HeaderName, Method};
 use leptos::prelude::*;
 use leptos_axum::handle_server_fns_with_context;
-use leptos_axum::{LeptosRoutes, generate_route_list};
+use leptos_axum::{generate_route_list, LeptosRoutes};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use yral_web::app::shell;
 use yral_web::{app::App, init::AppStateBuilder};
@@ -31,7 +31,6 @@ pub async fn server_fn_handler(
             {
                 provide_context(app_state.yral_oauth_client.clone());
             }
-
 
             #[cfg(feature = "ssr")]
             provide_context(app_state.spacetime_conn.clone());

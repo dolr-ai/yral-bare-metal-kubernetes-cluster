@@ -3,9 +3,9 @@
 //! delegation types, and IC ingress-message signing/verification.
 
 mod error;
-mod msg_builder;
 #[cfg(feature = "ic-agent")]
 mod ic_agent;
+mod msg_builder;
 #[cfg(feature = "verify")]
 mod verify;
 

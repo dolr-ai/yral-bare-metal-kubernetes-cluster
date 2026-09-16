@@ -1,6 +1,6 @@
-use ic_agent::{Identity, agent::EnvelopeContent};
+use ic_agent::{agent::EnvelopeContent, Identity};
 
-use super::{Delegation, Error, Result, Signature, SignedDelegation, msg_builder::Message};
+use super::{msg_builder::Message, Delegation, Error, Result, Signature, SignedDelegation};
 
 pub fn sign_message(identity: &impl Identity, mut msg: Message) -> Result<Signature> {
     let sender = identity.sender().map_err(|_| Error::SenderNotFound)?;

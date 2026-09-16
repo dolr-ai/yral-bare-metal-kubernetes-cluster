@@ -27,9 +27,11 @@ pub trait get_notification_tokens {
         &self,
         user_id: String,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<Vec<String>, __sdk::InternalError>)
-            + Send
-            + 'static,
+        __callback: impl FnOnce(
+            &super::ProcedureEventContext,
+            Result<Vec<String>, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     );
 }
 
@@ -38,9 +40,11 @@ impl get_notification_tokens for super::RemoteProcedures {
         &self,
         user_id: String,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<Vec<String>, __sdk::InternalError>)
-            + Send
-            + 'static,
+        __callback: impl FnOnce(
+            &super::ProcedureEventContext,
+            Result<Vec<String>, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     ) {
         self.imp.invoke_procedure_with_callback::<_, Vec<String>>(
             "get_notification_tokens",

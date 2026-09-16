@@ -48,11 +48,10 @@ pub async fn handle_follow_user(
     headers: HeaderMap,
     Json(request): Json<FollowUserRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let follower_user_id =
-        extract_user_id_from_headers(&headers).map_err(|(msg, code)| {
-            let status = StatusCode::from_u16(code).unwrap_or(StatusCode::UNAUTHORIZED);
-            (status, msg)
-        })?;
+    let follower_user_id = extract_user_id_from_headers(&headers).map_err(|(msg, code)| {
+        let status = StatusCode::from_u16(code).unwrap_or(StatusCode::UNAUTHORIZED);
+        (status, msg)
+    })?;
 
     // Don't allow users to follow themselves
     if follower_user_id == request.target_user_id {
@@ -96,11 +95,10 @@ pub async fn handle_follow_user_notification(
     headers: HeaderMap,
     Json(request): Json<FollowUserRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let follower_user_id =
-        extract_user_id_from_headers(&headers).map_err(|(msg, code)| {
-            let status = StatusCode::from_u16(code).unwrap_or(StatusCode::UNAUTHORIZED);
-            (status, msg)
-        })?;
+    let follower_user_id = extract_user_id_from_headers(&headers).map_err(|(msg, code)| {
+        let status = StatusCode::from_u16(code).unwrap_or(StatusCode::UNAUTHORIZED);
+        (status, msg)
+    })?;
 
     // Push notifications are decommissioned. Log the event for backwards compat.
     log::info!(

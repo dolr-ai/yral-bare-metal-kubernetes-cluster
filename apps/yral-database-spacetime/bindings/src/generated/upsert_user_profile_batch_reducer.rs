@@ -49,9 +49,11 @@ pub trait upsert_user_profile_batch {
         &self,
         profiles: Vec<UserProfileBatchEntry>,
 
-        callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
-            + Send
-            + 'static,
+        callback: impl FnOnce(
+            &super::ReducerEventContext,
+            Result<Result<(), String>, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     ) -> __sdk::Result<()>;
 }
 
@@ -60,9 +62,11 @@ impl upsert_user_profile_batch for super::RemoteReducers {
         &self,
         profiles: Vec<UserProfileBatchEntry>,
 
-        callback: impl FnOnce(&super::ReducerEventContext, Result<Result<(), String>, __sdk::InternalError>)
-            + Send
-            + 'static,
+        callback: impl FnOnce(
+            &super::ReducerEventContext,
+            Result<Result<(), String>, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     ) -> __sdk::Result<()> {
         self.imp
             .invoke_reducer_with_callback(UpsertUserProfileBatchArgs { profiles }, callback)

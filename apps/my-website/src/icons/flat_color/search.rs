@@ -1,5 +1,5 @@
-use leptos::svg;
 use leptos::prelude::*;
+use leptos::svg;
 
 /// Flat-color search (magnifying glass) icon.
 pub fn search_icon(class_name: &str) -> impl IntoView {

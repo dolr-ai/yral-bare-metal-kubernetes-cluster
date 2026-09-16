@@ -6,16 +6,16 @@ pub async fn mark_user_registered(user_id: String) -> Result<bool, ServerFnError
     // Check if user already exists in SpacetimeDB.
     #[cfg(feature = "ssr")]
     {
-        use yral_database_spacetime_bindings::get_user_profile_details;
-        use tokio::sync::oneshot;
         use state::spacetime::spacetime_conn;
+        use tokio::sync::oneshot;
+        use yral_database_spacetime_bindings::get_user_profile_details;
 
         let conn = spacetime_conn();
         let (tx, rx) = oneshot::channel();
-        conn.procedures.get_user_profile_details_then(
-            user_id.clone(),
-            move |_ctx, result| { let _ = tx.send(result.ok().flatten()); },
-        );
+        conn.procedures
+            .get_user_profile_details_then(user_id.clone(), move |_ctx, result| {
+                let _ = tx.send(result.ok().flatten());
+            });
         let existing = rx.await.unwrap_or(None);
         if existing.is_some() {
             return Ok(false); // returning user
@@ -23,11 +23,8 @@ pub async fn mark_user_registered(user_id: String) -> Result<bool, ServerFnError
 
         // New user — register via SpacetimeDB reducer.
         use yral_database_spacetime_bindings::accept_new_user_registration_v_2;
-        conn.reducers.accept_new_user_registration_v_2(
-            user_id,
-            true,
-            None,
-        )?;
+        conn.reducers
+            .accept_new_user_registration_v_2(user_id, true, None)?;
         Ok(true)
     }
     #[cfg(not(feature = "ssr"))]
@@ -42,7 +39,7 @@ async fn ensure_user_logged_in_with_oauth(user_id: String) -> Result<(), ServerF
         use std::env;
 
         use auth::server_impl::yral::YralAuthRefreshTokenClaims;
-        use axum_extra::extract::{SignedCookieJar, cookie::Key};
+        use axum_extra::extract::{cookie::Key, SignedCookieJar};
         use consts::{
             auth::REFRESH_TOKEN_COOKIE,
             yral_auth::{YRAL_AUTH_CLIENT_ID_ENV, YRAL_AUTH_ISSUER_URL, YRAL_AUTH_TRUSTED_KEY},

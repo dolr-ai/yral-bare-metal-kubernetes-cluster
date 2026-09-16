@@ -29,9 +29,11 @@ pub trait kv_get {
         &self,
         key: String,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<KvGetResult, __sdk::InternalError>)
-            + Send
-            + 'static,
+        __callback: impl FnOnce(
+            &super::ProcedureEventContext,
+            Result<KvGetResult, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     );
 }
 
@@ -40,9 +42,11 @@ impl kv_get for super::RemoteProcedures {
         &self,
         key: String,
 
-        __callback: impl FnOnce(&super::ProcedureEventContext, Result<KvGetResult, __sdk::InternalError>)
-            + Send
-            + 'static,
+        __callback: impl FnOnce(
+            &super::ProcedureEventContext,
+            Result<KvGetResult, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     ) {
         self.imp.invoke_procedure_with_callback::<_, KvGetResult>(
             "kv_get",

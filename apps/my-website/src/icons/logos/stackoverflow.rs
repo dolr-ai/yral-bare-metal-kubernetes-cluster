@@ -1,5 +1,5 @@
-use leptos::svg;
 use leptos::prelude::*;
+use leptos::svg;
 
 /// Stack Overflow logo icon (stack of papers feeding into a box).
 pub fn stackoverflow_icon(class_name: &str) -> impl IntoView {

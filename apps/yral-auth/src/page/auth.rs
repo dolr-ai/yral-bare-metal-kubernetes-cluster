@@ -1,27 +1,15 @@
-use base64::{prelude::BASE64_URL_SAFE, Engine};
-#[cfg(any(feature = "phone-auth", feature = "google-oauth", feature = "apple-oauth"))]
-use leptos::ev;
-use leptos::{
-    children::ToChildren,
-    either::Either,
-    html,
-    prelude::*,
-};
-#[cfg(any(feature = "phone-auth", feature = "google-oauth", feature = "apple-oauth"))]
-use leptos_router::{
-    components::{Redirect, RedirectProps},
-    hooks::{use_navigate, use_query},
-    params::{Params, ParamsError},
-    NavigateOptions,
-};
-#[cfg(not(any(feature = "phone-auth", feature = "google-oauth", feature = "apple-oauth")))]
-use leptos_router::{
-    components::{Redirect, RedirectProps},
-    hooks::use_query,
-    params::{Params, ParamsError},
-};
-use serde::{Deserialize, Serialize};
-use url::Url;
+#[cfg(feature = "apple-oauth")]
+use crate::components::apple_symbol::{AppleSymbol, AppleSymbolProps};
+#[cfg(feature = "google-oauth")]
+use crate::components::google_symbol::{GoogleSymbol, GoogleSymbolProps};
+#[cfg(feature = "phone-auth")]
+use crate::components::whatsapp_symbol::{WhatsAppSymbol, WhatsAppSymbolProps};
+#[cfg(any(
+    feature = "phone-auth",
+    feature = "google-oauth",
+    feature = "apple-oauth"
+))]
+use crate::components::yral_symbol::{YralSymbol, YralSymbolProps};
 use crate::{
     components::spinner::Spinner,
     error::AuthErrorKind,
@@ -31,14 +19,37 @@ use crate::{
         CodeChallengeMethod, SupportedOAuthProviders,
     },
 };
-#[cfg(any(feature = "phone-auth", feature = "google-oauth", feature = "apple-oauth"))]
-use crate::components::yral_symbol::{YralSymbol, YralSymbolProps};
-#[cfg(feature = "phone-auth")]
-use crate::components::whatsapp_symbol::{WhatsAppSymbol, WhatsAppSymbolProps};
-#[cfg(feature = "google-oauth")]
-use crate::components::google_symbol::{GoogleSymbol, GoogleSymbolProps};
-#[cfg(feature = "apple-oauth")]
-use crate::components::apple_symbol::{AppleSymbol, AppleSymbolProps};
+use base64::{prelude::BASE64_URL_SAFE, Engine};
+#[cfg(any(
+    feature = "phone-auth",
+    feature = "google-oauth",
+    feature = "apple-oauth"
+))]
+use leptos::ev;
+use leptos::{children::ToChildren, either::Either, html, prelude::*};
+#[cfg(not(any(
+    feature = "phone-auth",
+    feature = "google-oauth",
+    feature = "apple-oauth"
+)))]
+use leptos_router::{
+    components::{Redirect, RedirectProps},
+    hooks::use_query,
+    params::{Params, ParamsError},
+};
+#[cfg(any(
+    feature = "phone-auth",
+    feature = "google-oauth",
+    feature = "apple-oauth"
+))]
+use leptos_router::{
+    components::{Redirect, RedirectProps},
+    hooks::{use_navigate, use_query},
+    params::{Params, ParamsError},
+    NavigateOptions,
+};
+use serde::{Deserialize, Serialize};
+use url::Url;
 
 #[derive(Debug, Clone, Params, PartialEq)]
 pub struct RedirectUriQuery {
@@ -172,28 +183,54 @@ pub fn auth_page() -> impl IntoView {
     );
 
     html::div()
-        .attr("class", "w-dvw h-dvh flex justify-center items-center bg-neutral-900")
-        .child(Suspense(SuspenseProps::builder().fallback(|| Spinner()).children(ToChildren::to_children(move || {
-            Suspend::new(async move {
-                let auth = auth_query.await;
-                match auth {
-                    Ok(AuthKind::Default(auth)) => {
-                        #[cfg(any(feature = "phone-auth", feature = "google-oauth", feature = "apple-oauth"))]
-                        { Either::Left(login_content(auth)) }
-                        #[cfg(not(any(feature = "phone-auth", feature = "google-oauth", feature = "apple-oauth")))]
-                        {
-                            let _ = auth;
-                            Either::Left(html::div().child("No OAuth providers configured"))
+        .attr(
+            "class",
+            "w-dvw h-dvh flex justify-center items-center bg-neutral-900",
+        )
+        .child(Suspense(
+            SuspenseProps::builder()
+                .fallback(|| Spinner())
+                .children(ToChildren::to_children(move || {
+                    Suspend::new(async move {
+                        let auth = auth_query.await;
+                        match auth {
+                            Ok(AuthKind::Default(auth)) => {
+                                #[cfg(any(
+                                    feature = "phone-auth",
+                                    feature = "google-oauth",
+                                    feature = "apple-oauth"
+                                ))]
+                                {
+                                    Either::Left(login_content(auth))
+                                }
+                                #[cfg(not(any(
+                                    feature = "phone-auth",
+                                    feature = "google-oauth",
+                                    feature = "apple-oauth"
+                                )))]
+                                {
+                                    let _ = auth;
+                                    Either::Left(html::div().child("No OAuth providers configured"))
+                                }
+                            }
+                            Ok(AuthKind::Redirect(path)) => {
+                                Either::Right(Redirect(RedirectProps::builder().path(path).build()))
+                            }
+                            Err(e) => Either::Right(Redirect(
+                                RedirectProps::builder().path(e.to_redirect()).build(),
+                            )),
                         }
-                    }
-                    Ok(AuthKind::Redirect(path)) => Either::Right(Redirect(RedirectProps::builder().path(path).build())),
-                    Err(e) => Either::Right(Redirect(RedirectProps::builder().path(e.to_redirect()).build())),
-                }
-            })
-        })).build()))
+                    })
+                }))
+                .build(),
+        ))
 }
 
-#[cfg(any(feature = "phone-auth", feature = "google-oauth", feature = "apple-oauth"))]
+#[cfg(any(
+    feature = "phone-auth",
+    feature = "google-oauth",
+    feature = "apple-oauth"
+))]
 pub fn login_content(auth: Box<AuthQuery>) -> impl IntoView {
     let auth_store = StoredValue::new(auth);
     let login_buttons = build_login_buttons(auth_store);
@@ -205,7 +242,11 @@ pub fn login_content(auth: Box<AuthQuery>) -> impl IntoView {
                 .class("rounded-full mb-6 text-8xl")
                 .build(),
         ))
-        .child(html::span().attr("class", "text-2xl mb-4").child("Login to Yral"))
+        .child(
+            html::span()
+                .attr("class", "text-2xl mb-4")
+                .child("Login to Yral"),
+        )
         .child(
             html::div()
                 .attr("class", "flex flex-col w-full gap-4 items-center")
@@ -213,7 +254,11 @@ pub fn login_content(auth: Box<AuthQuery>) -> impl IntoView {
         )
 }
 
-#[cfg(any(feature = "phone-auth", feature = "google-oauth", feature = "apple-oauth"))]
+#[cfg(any(
+    feature = "phone-auth",
+    feature = "google-oauth",
+    feature = "apple-oauth"
+))]
 fn build_login_buttons(auth_store: StoredValue<Box<AuthQuery>>) -> Vec<AnyView> {
     // TODO(auth-page-all-providers, 2026-09-01): navigating to
     // auth.yral.com in a BROWSER lands on `/account` (page/account/
@@ -300,7 +345,11 @@ fn build_login_buttons(auth_store: StoredValue<Box<AuthQuery>>) -> Vec<AnyView> 
     login_buttons
 }
 
-#[cfg(any(feature = "phone-auth", feature = "google-oauth", feature = "apple-oauth"))]
+#[cfg(any(
+    feature = "phone-auth",
+    feature = "google-oauth",
+    feature = "apple-oauth"
+))]
 pub fn login_button(
     auth: StoredValue<Box<AuthQuery>>,
     provider: SupportedOAuthProviders,

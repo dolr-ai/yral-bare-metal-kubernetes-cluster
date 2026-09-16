@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use comrak::{markdown_to_html, Options};
+use comrak::{Options, markdown_to_html};
 use noyalib::compat::serde_yaml;
 
 use super::types::{BlogPost, BlogPostFrontmatter, ProjectEntry, ProjectEntryFrontmatter};
@@ -33,7 +33,9 @@ fn split_frontmatter<F: serde::de::DeserializeOwned + 'static>(
         .ok_or("Missing closing frontmatter delimiter")?;
 
     let yaml_content = &after_first_delimiter[..end_of_frontmatter].trim();
-    let body_markdown = after_first_delimiter[end_of_frontmatter + 4..].trim().to_string();
+    let body_markdown = after_first_delimiter[end_of_frontmatter + 4..]
+        .trim()
+        .to_string();
 
     let frontmatter: F =
         serde_yaml::from_str(yaml_content).map_err(|err| format!("YAML parse error: {err}"))?;
@@ -138,7 +140,10 @@ pub fn load_all_project_entries(content_dir: &Path) -> Vec<ProjectEntry> {
     let dir_entries = match std::fs::read_dir(&projects_dir) {
         Ok(entries) => entries,
         Err(err) => {
-            tracing::error!("Failed to read projects directory {:?}: {err}", projects_dir);
+            tracing::error!(
+                "Failed to read projects directory {:?}: {err}",
+                projects_dir
+            );
             return entries;
         }
     };
@@ -198,7 +203,10 @@ pub fn find_blog_post_by_slug<'a>(posts: &'a [BlogPost], slug: &str) -> Option<&
 }
 
 /// Finds a single project entry by its slug (the URL path component, e.g. "go-bazzinga").
-pub fn find_project_entry_by_slug<'a>(entries: &'a [ProjectEntry], slug: &str) -> Option<&'a ProjectEntry> {
+pub fn find_project_entry_by_slug<'a>(
+    entries: &'a [ProjectEntry],
+    slug: &str,
+) -> Option<&'a ProjectEntry> {
     let full_slug = format!("/projects/entries/{slug}");
     entries.iter().find(|entry| entry.slug == full_slug)
 }

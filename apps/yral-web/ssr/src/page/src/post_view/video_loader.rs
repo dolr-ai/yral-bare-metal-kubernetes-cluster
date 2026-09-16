@@ -61,8 +61,9 @@ where
             Some(details) => details,
             None => {
                 let details = send_wrap(resolver.get_post_details()).await?;
-                post_details_cache
-                    .try_update_value(|m| m.insert((canister_id.clone(), post_id.clone()), details.clone()));
+                post_details_cache.try_update_value(|m| {
+                    m.insert((canister_id.clone(), post_id.clone()), details.clone())
+                });
                 details
             }
         };
@@ -70,13 +71,15 @@ where
     });
 
     let uid = move || {
-        post_with_prev.get()
+        post_with_prev
+            .get()
             .as_ref()
             .map(|q| q.get_quick_post_details().video_uid)
             .unwrap_or_default()
     };
     let publisher_user_id = move || {
-        post_with_prev.get()
+        post_with_prev
+            .get()
             .as_ref()
             .map(|q| q.get_quick_post_details().publisher_user_id)
             .unwrap_or_default()

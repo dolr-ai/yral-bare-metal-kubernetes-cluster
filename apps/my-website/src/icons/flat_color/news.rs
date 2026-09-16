@@ -1,5 +1,5 @@
-use leptos::svg;
 use leptos::prelude::*;
+use leptos::svg;
 
 /// Flat-color news (newspaper) icon.
 pub fn news_icon(class_name: &str) -> impl IntoView {

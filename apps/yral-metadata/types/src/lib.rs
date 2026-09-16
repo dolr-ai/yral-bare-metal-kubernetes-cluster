@@ -3,11 +3,11 @@ pub mod identity;
 
 use candid::Principal;
 use error::ApiError;
+pub use identity::{Error, Message, Signature};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use utoipa::ToSchema;
-pub use identity::{Message, Error, Signature};
 
 pub type ApiResult<T> = Result<T, ApiError>;
 

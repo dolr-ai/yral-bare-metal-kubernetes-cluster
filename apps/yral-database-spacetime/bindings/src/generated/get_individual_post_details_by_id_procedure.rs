@@ -30,10 +30,10 @@ pub trait get_individual_post_details_by_id {
         post_id: String,
 
         __callback: impl FnOnce(
-                &super::ProcedureEventContext,
-                Result<Option<PostDetailsForFrontend>, __sdk::InternalError>,
-            ) + Send
-            + 'static,
+            &super::ProcedureEventContext,
+            Result<Option<PostDetailsForFrontend>, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     );
 }
 
@@ -43,10 +43,10 @@ impl get_individual_post_details_by_id for super::RemoteProcedures {
         post_id: String,
 
         __callback: impl FnOnce(
-                &super::ProcedureEventContext,
-                Result<Option<PostDetailsForFrontend>, __sdk::InternalError>,
-            ) + Send
-            + 'static,
+            &super::ProcedureEventContext,
+            Result<Option<PostDetailsForFrontend>, __sdk::InternalError>,
+        ) + Send
+        + 'static,
     ) {
         self.imp
             .invoke_procedure_with_callback::<_, Option<PostDetailsForFrontend>>(

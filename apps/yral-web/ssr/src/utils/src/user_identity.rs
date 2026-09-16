@@ -8,8 +8,8 @@
 //! (from the JWT `sub` claim). We store it as a plain `String` — no need
 //! for `candid::Principal` since we don't make IC canister calls anymore.
 
-use serde::{Deserialize, Serialize};
 use crate::username_generator::random_username_from_identifier;
+use serde::{Deserialize, Serialize};
 
 /// Display-name length cap.
 const USERNAME_MAX_LEN: usize = 29;
@@ -36,18 +36,18 @@ pub struct ProfileDetails {
 
 impl ProfileDetails {
     pub fn username_or_principal(&self) -> String {
-        self.username.clone().unwrap_or_else(|| self.user_identifier.clone())
+        self.username
+            .clone()
+            .unwrap_or_else(|| self.user_identifier.clone())
     }
 
     /// Username, or a consistent random username.
     /// WARN: do not use this method for URLs
     /// use `username_or_principal` instead
     pub fn username_or_fallback(&self) -> String {
-        self.username
-            .clone()
-            .unwrap_or_else(|| {
-                random_username_from_identifier(&self.user_identifier, USERNAME_MAX_LEN)
-            })
+        self.username.clone().unwrap_or_else(|| {
+            random_username_from_identifier(&self.user_identifier, USERNAME_MAX_LEN)
+        })
     }
 
     pub fn principal(&self) -> String {
@@ -99,11 +99,9 @@ impl UserIdentity {
     /// Username, or a deterministic random fallback username.
     /// WARN: do not use for URLs; use `username_or_principal` instead.
     pub fn username_or_fallback(&self) -> String {
-        self.username
-            .clone()
-            .unwrap_or_else(|| {
-                random_username_from_identifier(&self.user_identifier, USERNAME_MAX_LEN)
-            })
+        self.username.clone().unwrap_or_else(|| {
+            random_username_from_identifier(&self.user_identifier, USERNAME_MAX_LEN)
+        })
     }
 
     pub fn principal(&self) -> String {

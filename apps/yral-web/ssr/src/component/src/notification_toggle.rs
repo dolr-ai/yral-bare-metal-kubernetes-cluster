@@ -27,9 +27,7 @@ pub fn NotificationToggle(
     let (notifs_enabled, set_notifs_enabled, _) =
         use_local_storage::<bool, FromToStringCodec>(NOTIFICATIONS_ENABLED_STORE);
 
-    let notifs_enabled_signal = Signal::derive(move || {
-        notifs_enabled.get()
-    });
+    let notifs_enabled_signal = Signal::derive(move || notifs_enabled.get());
 
     let toggle_ref = NodeRef::<Input>::new();
     let auth = auth_state();

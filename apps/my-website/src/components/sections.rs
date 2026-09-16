@@ -118,7 +118,11 @@ fn find_me_on_link(
 /// Email, LinkedIn, Stack Overflow) in a responsive 2/3-column grid.
 pub fn find_me_on_section() -> impl IntoView {
     html::article()
-        .child(html::h2().attr("class", "text-3xl my-8 mt-16").child("Find me at"))
+        .child(
+            html::h2()
+                .attr("class", "text-3xl my-8 mt-16")
+                .child("Find me at"),
+        )
         .child(
             html::ul()
                 .attr("class", "grid grid-cols-2 md:grid-cols-3")
@@ -166,44 +170,38 @@ pub fn find_me_on_section() -> impl IntoView {
 /// but structurally complete.
 pub fn about_me_section() -> impl IntoView {
     (
-        html::h2().attr("class", "text-3xl my-8").child("A bit about me"),
+        html::h2()
+            .attr("class", "text-3xl my-8")
+            .child("A bit about me"),
         html::article()
             .attr("class", "prose prose-emerald")
-            .child(
-                html::p().child(
-                    "I'm elated to have discovered SvelteJS last year and since then have \
+            .child(html::p().child(
+                "I'm elated to have discovered SvelteJS last year and since then have \
                      dived headfirst into the SvelteJS, TypeScript and TailwindCSS \
                      ecosystems. Was tinkering with static site generation, ReactJS and \
                      GatsbyJS prior to that.",
-                ),
-            )
-            .child(
-                html::p().child(
-                    "Have a decent amount of experience with NodeJS / ExpressJS. Have \
+            ))
+            .child(html::p().child(
+                "Have a decent amount of experience with NodeJS / ExpressJS. Have \
                      also gone through the docs on Apollo Server/GraphQL Nexus but \
                      haven't built any GraphQL servers yet. Understand the fundamentals \
                      though, so, shouldn't be difficult at all.",
-                ),
-            )
-            .child(
-                html::p().child(
-                    "Used Firebase (BaaS) for various projects to rapidly accelerate \
+            ))
+            .child(html::p().child(
+                "Used Firebase (BaaS) for various projects to rapidly accelerate \
                      initial time to market. Am also quite competent with Google Cloud \
                      as a whole and used their products extensively. Huge proponent of \
                      the entire serverless movement. Google Cloud Run is a goto choice \
                      for all kinds of deployments.",
-                ),
-            )
-            .child(
-                html::p().child(
-                    "For databases, primarily used PostgreSQL and Firestore. Also used \
+            ))
+            .child(html::p().child(
+                "For databases, primarily used PostgreSQL and Firestore. Also used \
                      MongoDB and found it quite intuitive but haven't built any products \
                      on it as MongoDB Atlas costs are quite prohibitive at scale. Not a \
                      huge SQL fan but have working knowledge. Mostly use Prisma 2 to \
                      interact with PostgreSQL. Have also tinkered with Dgraph and \
                      FaunaDB but found them lacking.",
-                ),
-            )
+            ))
             .child(
                 html::section()
                     .child(
@@ -222,55 +220,51 @@ pub fn about_me_section() -> impl IntoView {
                          Actions.",
                     ),
             )
-            .child(
-                html::p().child(
-                    "Decent experience with Figma to be able to quickly do some \
+            .child(html::p().child(
+                "Decent experience with Figma to be able to quickly do some \
                      wireframes to put thought into form that can be \
                      collaborated/ideated on with a team.",
-                ),
-            ),
-        html::h2().attr("class", "text-3xl my-8").child("Orthogonal Skills"),
-        html::article().attr("class", "prose prose-emerald").child(
-            html::p().child(
+            )),
+        html::h2()
+            .attr("class", "text-3xl my-8")
+            .child("Orthogonal Skills"),
+        html::article()
+            .attr("class", "prose prose-emerald")
+            .child(html::p().child(
                 "Have worked as a product manager before, so I understand what it \
                  takes to build, manage, scale a product and the team behind it. Worked \
                  closely with customer support and on occasion, taken customer \
                  chats/calls to speak directly to end users and get feedback on \
                  products. Managed engineering teams with direct reportees, able to \
                  manage expectations and build rapport.",
-            ),
-        ),
+            )),
     )
 }
 
 /// Renders the "What I'm Learning" section with a list of learning focuses.
 pub fn what_im_learning_section() -> impl IntoView {
     (
-        html::h2().attr("class", "text-3xl my-8").child("What I'm Learning"),
+        html::h2()
+            .attr("class", "text-3xl my-8")
+            .child("What I'm Learning"),
         html::article().attr("class", "prose prose-emerald").child(
             html::ul()
-                .child(
-                    html::li().child(
-                        "Test driven development (TDD) especially in the context of \
+                .child(html::li().child(
+                    "Test driven development (TDD) especially in the context of \
                          testing frontend and backend apps. Exploring unit tests, \
                          integration tests and end-to-end (e2e) tests. As a library \
                          I'm favouring Jest for unit and integration and Playwright \
                          for end-to-end testing.",
-                    ),
-                )
-                .child(
-                    html::li().child(
-                        "Blockchains and building decentralized tokenized apps and \
+                ))
+                .child(html::li().child(
+                    "Blockchains and building decentralized tokenized apps and \
                          smart contracts. I'm favouring Dfinity's Internet Computer \
                          (ICP) for this.",
-                    ),
-                )
-                .child(
-                    html::li().child(
-                        "WebAssembly and how to use them in web apps. Still \
+                ))
+                .child(html::li().child(
+                    "WebAssembly and how to use them in web apps. Still \
                          exploring this space.",
-                    ),
-                ),
+                )),
         ),
     )
 }
@@ -279,27 +273,29 @@ pub fn what_im_learning_section() -> impl IntoView {
 /// Go Bazzinga app and links to its project page and live site.
 pub fn what_im_working_on_section() -> impl IntoView {
     (
-        html::h2().attr("class", "text-3xl my-8").child("What I'm Working On"),
-        html::article()
-            .attr("class", "prose prose-emerald")
-            .child(
-                html::p()
-                    .child("I'm currently building the Go Bazzinga app as a \
+        html::h2()
+            .attr("class", "text-3xl my-8")
+            .child("What I'm Working On"),
+        html::article().attr("class", "prose prose-emerald").child(
+            html::p()
+                .child(
+                    "I'm currently building the Go Bazzinga app as a \
                             progressive web app (PWA). You can check out what it's \
-                            about ")
-                    .child(
-                        html::a()
-                            .attr("href", "/projects/entries/go-bazzinga")
-                            .attr("target", "_blank")
-                            .child("here"),
-                    )
-                    .child(" and the app ")
-                    .child(
-                        html::a()
-                            .attr("href", "https://gobazzinga.io")
-                            .attr("target", "_blank")
-                            .child("here"),
-                    ),
-            ),
+                            about ",
+                )
+                .child(
+                    html::a()
+                        .attr("href", "/projects/entries/go-bazzinga")
+                        .attr("target", "_blank")
+                        .child("here"),
+                )
+                .child(" and the app ")
+                .child(
+                    html::a()
+                        .attr("href", "https://gobazzinga.io")
+                        .attr("target", "_blank")
+                        .child("here"),
+                ),
+        ),
     )
 }

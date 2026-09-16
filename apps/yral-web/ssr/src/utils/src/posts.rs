@@ -1,9 +1,9 @@
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 
+use crate::username_generator::random_username_from_identifier;
 use leptos::prelude::RwSignal;
 use serde::{Deserialize, Serialize};
-use crate::username_generator::random_username_from_identifier;
 use web_time::Duration;
 
 const USERNAME_MAX_LEN: usize = 29;
