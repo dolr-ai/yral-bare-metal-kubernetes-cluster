@@ -32,9 +32,7 @@
 //!
 //! To add/remove an admin, edit the `ADMINS` constant and republish.
 
-use spacetimedb::{
-    Identity, ProcedureContext, ReducerContext, SpacetimeType, Table, Timestamp,
-};
+use spacetimedb::{Identity, ProcedureContext, ReducerContext, SpacetimeType, Table, Timestamp};
 
 // ─────────────────────────────────────────────────────────────────────────
 // Types
@@ -894,8 +892,7 @@ pub fn get_posts_of_user_by_principal(
             .posts_3()
             .iter()
             .filter(|p| {
-                p.creator_oauth_subject == creator_oauth_subject
-                    && is_visible_post(&p.status)
+                p.creator_oauth_subject == creator_oauth_subject && is_visible_post(&p.status)
             })
             .map(|p| post_3_to_details(&p))
             .collect();
@@ -916,11 +913,8 @@ pub fn get_posts_of_user_by_principal(
         // Sort newest-first by created_at, then by id as tiebreaker.
         posts.sort_by(|a, b| b.created_at.cmp(&a.created_at).then(b.id.cmp(&a.id)));
 
-        let page: Vec<PostDetailsForFrontend> = posts
-            .into_iter()
-            .skip(offset)
-            .take(limit)
-            .collect();
+        let page: Vec<PostDetailsForFrontend> =
+            posts.into_iter().skip(offset).take(limit).collect();
 
         PostListOffset { posts: page }
     })
@@ -959,8 +953,7 @@ pub fn get_draft_posts_of_user_by_principal(
             .posts_3()
             .iter()
             .filter(|p| {
-                p.creator_oauth_subject == creator_oauth_subject
-                    && p.status == PostStatus::Draft
+                p.creator_oauth_subject == creator_oauth_subject && p.status == PostStatus::Draft
             })
             .map(|p| post_3_to_details(&p))
             .collect();
@@ -968,11 +961,8 @@ pub fn get_draft_posts_of_user_by_principal(
         // Sort newest-first by created_at, then by id as tiebreaker.
         posts.sort_by(|a, b| b.created_at.cmp(&a.created_at).then(b.id.cmp(&a.id)));
 
-        let page: Vec<PostDetailsForFrontend> = posts
-            .into_iter()
-            .skip(offset)
-            .take(limit)
-            .collect();
+        let page: Vec<PostDetailsForFrontend> =
+            posts.into_iter().skip(offset).take(limit).collect();
 
         PostListOffset { posts: page }
     })

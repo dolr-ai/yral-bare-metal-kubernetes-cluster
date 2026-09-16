@@ -57,6 +57,7 @@ pub mod posts_3_table;
 pub mod posts_table;
 pub mod posts_v_2_table;
 pub mod profile_picture_data_type;
+pub mod prune_deleted_ai_accounts_from_kv_reducer;
 pub mod register_notification_token_reducer;
 pub mod remove_pro_plan_free_video_credits_reducer;
 pub mod set_email_reducer;
@@ -141,6 +142,7 @@ pub use posts_3_table::*;
 pub use posts_table::*;
 pub use posts_v_2_table::*;
 pub use profile_picture_data_type::ProfilePictureData;
+pub use prune_deleted_ai_accounts_from_kv_reducer::prune_deleted_ai_accounts_from_kv;
 pub use register_notification_token_reducer::register_notification_token;
 pub use remove_pro_plan_free_video_credits_reducer::remove_pro_plan_free_video_credits;
 pub use set_email_reducer::set_email;
@@ -238,6 +240,9 @@ pub enum Reducer {
     MigrateUserProfilesTo2 {
         batch_limit: u32,
     },
+    PruneDeletedAiAccountsFromKv {
+        batch_limit: u32,
+    },
     RegisterNotificationToken {
         token: String,
     },
@@ -316,6 +321,7 @@ impl __sdk::Reducer for Reducer {
             Reducer::LinkUserId { .. } => "link_user_id",
             Reducer::MigratePostsTo3 { .. } => "migrate_posts_to_3",
             Reducer::MigrateUserProfilesTo2 { .. } => "migrate_user_profiles_to_2",
+            Reducer::PruneDeletedAiAccountsFromKv { .. } => "prune_deleted_ai_accounts_from_kv",
             Reducer::RegisterNotificationToken { .. } => "register_notification_token",
             Reducer::RemoveProPlanFreeVideoCredits { .. } => "remove_pro_plan_free_video_credits",
             Reducer::SetEmail { .. } => "set_email",
@@ -436,6 +442,11 @@ impl __sdk::Reducer for Reducer {
             }
             Reducer::MigrateUserProfilesTo2 { batch_limit } => __sats::bsatn::to_vec(
                 &migrate_user_profiles_to_2_reducer::MigrateUserProfilesTo2Args {
+                    batch_limit: batch_limit.clone(),
+                },
+            ),
+            Reducer::PruneDeletedAiAccountsFromKv { batch_limit } => __sats::bsatn::to_vec(
+                &prune_deleted_ai_accounts_from_kv_reducer::PruneDeletedAiAccountsFromKvArgs {
                     batch_limit: batch_limit.clone(),
                 },
             ),

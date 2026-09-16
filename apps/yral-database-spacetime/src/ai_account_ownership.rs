@@ -45,7 +45,7 @@ use spacetimedb::{ReducerContext, Table};
 
 // `user_profiles_2` is the generated table-accessor trait; it must be in
 // scope for `ctx.db.user_profiles_2()` to resolve.
-use crate::user_info::{user_profiles_2, UserAccountType};
+use crate::user_info::{UserAccountType, user_profiles_2};
 
 /// The OAuth subject of whoever made this call.
 ///

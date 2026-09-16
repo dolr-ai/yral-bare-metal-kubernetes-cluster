@@ -41,7 +41,9 @@
 //! - `upsert_user_follow_batch(follows)` — admin only, backfill (writes to `user_follows_2`)
 //! - `migrate_user_profiles_to_2(batch_limit)` — admin only, one-time backfill from old tables
 //! - `prune_deleted_ai_accounts_from_kv(batch_limit)` — admin only, one-time repair of
-//!   `{owner}-ai-accounts` lists still naming deleted bots (call until the log says 0)
+//!   `{owner}-ai-accounts` lists still naming deleted bots. Two-phase: the first run
+//!   records row-less ids, a later run (after a 1h grace window) drops them. Call
+//!   repeatedly until the log reports 0 lists repaired.
 
 use spacetimedb::{ProcedureContext, ReducerContext, SpacetimeType, Table, Timestamp};
 
@@ -1052,7 +1054,11 @@ fn soft_delete_influencer_row(
                 bot_subject: bot_subject.to_string(),
                 ok,
                 http_status: status,
-                error: if ok { String::new() } else { body.into_string_lossy() },
+                error: if ok {
+                    String::new()
+                } else {
+                    body.into_string_lossy()
+                },
             }
         }
         Err(error) => BackendDeletionStatus {
@@ -1175,36 +1181,68 @@ fn remove_deleted_bot_from_owner_ai_accounts(
     remove_subject_from_ai_account_list(ctx, &ai_account_list_key(owner_subject), bot_subject);
 }
 
-/// Pure: rewrite an AI-account list to keep only ids that still have a
-/// profile. `None` when the payload is not a JSON id array or every listed
-/// id is live (nothing to write), which keeps the caller's read from
-/// turning into a needless write.
-fn ai_account_list_restricted_to_live(
-    value: &str,
-    is_live: impl Fn(&str) -> bool,
-) -> Option<String> {
-    let ai_account_ids: Vec<String> = serde_json::from_str(value).ok()?;
-    if ai_account_ids.iter().all(|ai_account_id| is_live(ai_account_id)) {
-        return None;
+/// How long a list entry may sit with no profile row before it counts as
+/// deleted rather than mid-creation.
+///
+/// `create_ai_account` (yral-auth) writes the `{owner}-ai-accounts` entry
+/// BEFORE the client calls `accept_new_user_registration` to create the bot's
+/// profile row, so a bot that is being created right now legitimately has no
+/// row for a moment. An id must therefore be observed row-less, then *still*
+/// row-less after this window, before it's dropped — otherwise a sweep racing
+/// a creation would un-list a live bot.
+const AI_ACCOUNT_ORPHAN_GRACE_MICROS: i64 = 60 * 60 * 1_000_000;
+
+/// A pending-observation marker: `orphan-sweep:{ai_account_id}` → the
+/// `ctx.timestamp` (micros) when it was first seen without a profile row.
+fn orphan_sweep_marker_key(ai_account_id: &str) -> String {
+    format!("orphan-sweep:{ai_account_id}")
+}
+
+/// What to do with one listed AI-account id.
+#[derive(Debug, PartialEq, Eq)]
+enum OrphanedAiAccountAction {
+    /// Has a profile row — keep it (and clear any stale pending marker).
+    KeepLive,
+    /// Row-less, but not row-less for long enough yet — keep, and record
+    /// when it was first seen so a later run can judge it.
+    MarkPending,
+    /// Row-less and first seen longer than the grace window ago — the bot is
+    /// gone; drop it from the list.
+    Drop,
+}
+
+/// Pure: decide the fate of one listed id from its liveness and how long it
+/// has already been known to be row-less.
+fn orphaned_ai_account_action(
+    has_profile_row: bool,
+    first_seen_orphaned_micros: Option<i64>,
+    now_micros: i64,
+) -> OrphanedAiAccountAction {
+    if has_profile_row {
+        return OrphanedAiAccountAction::KeepLive;
     }
-    let surviving_ids: Vec<String> = ai_account_ids
-        .into_iter()
-        .filter(|ai_account_id| is_live(ai_account_id))
-        .collect();
-    serde_json::to_string(&surviving_ids).ok()
+    match first_seen_orphaned_micros {
+        Some(first_seen)
+            if now_micros.saturating_sub(first_seen) >= AI_ACCOUNT_ORPHAN_GRACE_MICROS =>
+        {
+            OrphanedAiAccountAction::Drop
+        }
+        _ => OrphanedAiAccountAction::MarkPending,
+    }
 }
 
 /// Repair `{owner}-ai-accounts` lists that still name ALREADY-deleted bots.
 ///
 /// The delete cascade above now prunes these lists, but ids orphaned before
-/// that fix are still live. yral-auth mints `ext_ai_account_ids` straight
-/// from this list, so a deleted bot keeps reappearing in the client's
-/// account switcher as a zombie that can no longer authenticate. This
-/// retrofits the repair over existing data.
+/// that fix are still live. yral-auth mints `ext_ai_account_ids` straight from
+/// this list, so a deleted bot keeps reappearing in the client's account
+/// switcher as a zombie that can no longer authenticate.
 ///
-/// Admin-only, and a no-op once clean. Reducers cannot return values, so the
-/// number of lists rewritten is logged (`info!`) rather than returned — call
-/// repeatedly until it logs 0, which means every list is clean.
+/// Row-less ids are not dropped immediately (see
+/// `AI_ACCOUNT_ORPHAN_GRACE_MICROS`): the first run records when each was
+/// first seen row-less, and only a later run — after the grace window —
+/// removes it. Run repeatedly; once every list is clean this touches nothing.
+/// The count of lists rewritten is logged, since reducers cannot return it.
 #[spacetimedb::reducer]
 pub fn prune_deleted_ai_accounts_from_kv(
     ctx: &ReducerContext,
@@ -1214,8 +1252,7 @@ pub fn prune_deleted_ai_accounts_from_kv(
         return Err("Unauthorized".to_string());
     }
 
-    // Every live subject, so membership is a set lookup rather than a
-    // per-id table scan.
+    let now_micros = ctx.timestamp.to_micros_since_unix_epoch();
     let live_subjects: std::collections::HashSet<String> = ctx
         .db
         .user_profiles_2()
@@ -1228,18 +1265,63 @@ pub fn prune_deleted_ai_accounts_from_kv(
         if repaired_list_count >= batch_limit {
             break;
         }
-        let Some(updated_json) =
-            ai_account_list_restricted_to_live(&entry.value, |id| live_subjects.contains(id))
-        else {
+        let Ok(ai_account_ids) = serde_json::from_str::<Vec<String>>(&entry.value) else {
+            // Not a JSON id array (provider-login mappings are bare
+            // subjects) — not ours to touch.
             continue;
         };
+
+        let mut surviving_ids: Vec<String> = Vec::with_capacity(ai_account_ids.len());
+        let mut dropped_any = false;
+        for ai_account_id in ai_account_ids {
+            let marker_key = orphan_sweep_marker_key(&ai_account_id);
+            let marker = ctx.db.auth_kv().key().find(marker_key.clone());
+            let action = orphaned_ai_account_action(
+                live_subjects.contains(&ai_account_id),
+                marker
+                    .as_ref()
+                    .and_then(|entry| entry.value.parse::<i64>().ok()),
+                now_micros,
+            );
+            match action {
+                OrphanedAiAccountAction::KeepLive => {
+                    // Clear a marker left over from before the profile row
+                    // appeared, so markers can't accumulate forever.
+                    if marker.is_some() {
+                        ctx.db.auth_kv().key().delete(marker_key);
+                    }
+                    surviving_ids.push(ai_account_id);
+                }
+                OrphanedAiAccountAction::MarkPending => {
+                    if marker.is_none() {
+                        ctx.db.auth_kv().insert(crate::auth_kv::AuthKvEntry {
+                            key: marker_key,
+                            value: now_micros.to_string(),
+                        });
+                    }
+                    surviving_ids.push(ai_account_id);
+                }
+                OrphanedAiAccountAction::Drop => {
+                    ctx.db.auth_kv().key().delete(marker_key);
+                    dropped_any = true;
+                    log::info!("prune_deleted_ai_accounts_from_kv dropped orphan {ai_account_id}");
+                }
+            }
+        }
+        if !dropped_any {
+            continue;
+        }
+        let updated_json = serde_json::to_string(&surviving_ids)
+            .map_err(|error| format!("serialising ai-account list failed: {error}"))?;
         ctx.db.auth_kv().key().update(crate::auth_kv::AuthKvEntry {
             key: entry.key,
             value: updated_json,
         });
         repaired_list_count += 1;
     }
-    log::info!("prune_deleted_ai_accounts_from_kv repaired {repaired_list_count} ai-account list(s)");
+    log::info!(
+        "prune_deleted_ai_accounts_from_kv repaired {repaired_list_count} ai-account list(s)"
+    );
     Ok(())
 }
 
@@ -2174,21 +2256,67 @@ mod tests {
     // ── retroactive repair of already-orphaned lists ──
 
     #[test]
-    fn test_restrict_to_live_drops_every_deleted_bot() {
-        // The production shape: a long owner list where several bots were
-        // deleted before the cascade learned to prune the list.
-        let live = ["live-1", "live-2"];
-        let value = r#"["live-1","deleted-1","live-2","deleted-2"]"#;
-        let repaired = ai_account_list_restricted_to_live(value, |id| live.contains(&id))
-            .expect("had dead ids to drop");
-        assert_eq!(repaired, r#"["live-1","live-2"]"#);
+    fn test_orphan_action_keeps_ids_with_a_profile_row() {
+        assert_eq!(
+            orphaned_ai_account_action(true, None, 1_000),
+            OrphanedAiAccountAction::KeepLive
+        );
+        // A live id is kept even if a stale pending marker exists.
+        assert_eq!(
+            orphaned_ai_account_action(true, Some(0), 10_000_000_000),
+            OrphanedAiAccountAction::KeepLive
+        );
     }
 
     #[test]
-    fn test_restrict_to_live_is_a_noop_when_all_ids_are_live() {
-        let live = ["live-1", "live-2"];
-        let value = r#"["live-1","live-2"]"#;
-        assert_eq!(ai_account_list_restricted_to_live(value, |id| live.contains(&id)), None);
+    fn test_orphan_action_pends_a_newly_seen_rowless_id() {
+        // First sighting of a row-less id: keep it and start the clock.
+        // This is the mid-creation case — yral-auth mints the list entry
+        // before the client creates the profile row.
+        assert_eq!(
+            orphaned_ai_account_action(false, None, 1_000),
+            OrphanedAiAccountAction::MarkPending
+        );
+    }
+
+    #[test]
+    fn test_orphan_action_keeps_a_rowless_id_inside_the_grace_window() {
+        let first_seen = 1_000_000_000_i64;
+        let inside_window = first_seen + AI_ACCOUNT_ORPHAN_GRACE_MICROS - 1;
+        assert_eq!(
+            orphaned_ai_account_action(false, Some(first_seen), inside_window),
+            OrphanedAiAccountAction::MarkPending
+        );
+    }
+
+    #[test]
+    fn test_orphan_action_drops_a_rowless_id_past_the_grace_window() {
+        let first_seen = 1_000_000_000_i64;
+        let past_window = first_seen + AI_ACCOUNT_ORPHAN_GRACE_MICROS;
+        assert_eq!(
+            orphaned_ai_account_action(false, Some(first_seen), past_window),
+            OrphanedAiAccountAction::Drop
+        );
+    }
+
+    #[test]
+    fn test_orphan_action_survives_a_clock_going_backwards() {
+        // `saturating_sub` means a marker dated in the future (clock skew)
+        // reads as "just seen" rather than panicking or instantly dropping.
+        assert_eq!(
+            orphaned_ai_account_action(false, Some(9_999_999_999), 1_000),
+            OrphanedAiAccountAction::MarkPending
+        );
+    }
+
+    #[test]
+    fn test_orphan_marker_key_is_distinct_from_ai_account_keys() {
+        // The marker must not collide with the keys the cascade deletes, or
+        // observing an orphan would delete the very entry being observed.
+        let id = "1bdbf13a-61fd-4e90-8649-171d31da60c8";
+        let marker = orphan_sweep_marker_key(id);
+        assert_eq!(marker, format!("orphan-sweep:{id}"));
+        assert!(!auth_kv_deletable_keys(id).contains(&marker));
     }
 
     #[test]
@@ -2196,16 +2324,7 @@ mod tests {
         // Provider-login mappings are bare subjects, never JSON id arrays —
         // the sweep must leave them alone (they're cleaned by the VALUE scan).
         let value = "yral-auth:some-principal-text";
-        assert_eq!(ai_account_list_restricted_to_live(value, |_| false), None);
-    }
-
-    #[test]
-    fn test_restrict_to_live_empties_a_fully_dead_list_but_keeps_the_key() {
-        // Owner survives; every bot it owned is gone. The list becomes "[]"
-        // rather than the key vanishing — the owner still needs it.
-        let value = r#"["deleted-1","deleted-2"]"#;
-        let repaired = ai_account_list_restricted_to_live(value, |_| false).expect("all dead");
-        assert_eq!(repaired, "[]");
+        assert!(serde_json::from_str::<Vec<String>>(value).is_err());
     }
 
     // ── validate_owner_for_bot_creation ──
