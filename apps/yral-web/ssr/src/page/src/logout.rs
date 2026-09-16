@@ -2,6 +2,8 @@ use auth::logout_identity;
 use codee::string::FromToStringCodec;
 use component::loading::Loading;
 use consts::NOTIFICATIONS_ENABLED_STORE;
+#[cfg(feature = "hydrate")]
+use consts::DEVICE_ID;
 use leptos::prelude::*;
 use leptos_router::components::Redirect;
 use leptos_use::storage::use_local_storage;
@@ -15,6 +17,10 @@ pub fn Logout() -> impl IntoView {
 
     let (_, set_notifs_enabled, _) =
         use_local_storage::<bool, FromToStringCodec>(NOTIFICATIONS_ENABLED_STORE);
+    // Rotate the device id on logout so the next session starts with a
+    // fresh one rather than reusing the signed-out session's identifier.
+    #[cfg(feature = "hydrate")]
+    let (_, set_device_id, _) = use_local_storage::<String, FromToStringCodec>(DEVICE_ID);
 
     view! {
         <Loading text="Logging out...".to_string()>

@@ -14,7 +14,6 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use leptos::prelude::*;
-use spacetimedb_sdk::DbContext;
 use yral_database_spacetime_bindings::DbConnection;
 
 /// Initialize a SpacetimeDB connection from environment variables.

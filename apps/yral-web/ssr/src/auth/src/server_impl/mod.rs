@@ -257,8 +257,13 @@ pub async fn extract_identity_impl() -> Result<Option<ExtractedIdentity>, Server
 }
 
 pub async fn logout_identity_impl() -> Result<(), ServerFnError> {
+    // Both are consumed only by the `oauth-ssr` branch below (the cookie
+    // rewrite), so without that feature they'd be dead bindings.
+    #[cfg(feature = "oauth-ssr")]
     let key = cookie_key();
+    #[cfg(feature = "oauth-ssr")]
     let jar: SignedCookieJar = extract_with_state(&key).await?;
+    #[cfg(feature = "oauth-ssr")]
     let resp: ResponseOptions = expect_context();
 
     #[cfg(feature = "oauth-ssr")]

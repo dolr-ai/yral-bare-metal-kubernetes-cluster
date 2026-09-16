@@ -19,6 +19,16 @@ use leptos_router::params::Params;
 use serde::{Deserialize, Serialize};
 use utils::send_wrap;
 use wasm_bindgen_futures::spawn_local;
+#[cfg(feature = "hydrate")]
+use wasm_bindgen_futures::JsFuture;
+
+/// Rishi's agent backend base URL.
+///
+/// Read by the `ssr` server functions and the `hydrate` SSE streamer — the
+/// only two modes that talk to the backend. Without either feature nothing
+/// references it, so it is gated to keep the no-feature build clean.
+#[cfg(any(feature = "ssr", feature = "hydrate"))]
+const AGENT_BACKEND_URL: &str = "https://agent.rishi.yral.com";
 
 // ─── API types ─────────────────────────────────────────────────────────────
 
@@ -189,7 +199,52 @@ pub async fn get_chat_token() -> Result<String, ServerFnError> {
 
 /// Stream a chat message via SSE using the Fetch API's ReadableStream.
 /// Calls `on_token` for each incremental token. Returns the full assistant
-/// text on success, or an error message on failure.
+// ─── Server-sent events ────────────────────────────────────────────────────
+
+/// A single event parsed off the chat stream.
+#[cfg(feature = "hydrate")]
+enum ServerSentEvent {
+    /// Incremental assistant text.
+    Token(String),
+    /// The assistant finished; the accumulated text is the reply.
+    Done,
+    /// The stream failed — carries the server's message.
+    Error(String),
+}
+
+/// Parse one SSE event into its typed form.
+///
+/// `token` and `error` carry JSON payloads (`{"text": …}` / `{"message": …}`)
+/// but fall back to the raw data string when that shape isn't present, so an
+/// unexpected body still surfaces rather than being swallowed.
+#[cfg(feature = "hydrate")]
+fn parse_server_sent_event(event_type: &str, data: &str) -> ServerSentEvent {
+    match event_type {
+        "done" => ServerSentEvent::Done,
+        "error" => {
+            let message = serde_json::from_str::<serde_json::Value>(data)
+                .ok()
+                .and_then(|value| value["message"].as_str().map(str::to_string))
+                .unwrap_or_else(|| data.to_string());
+            ServerSentEvent::Error(message)
+        }
+        _ => {
+            let text = serde_json::from_str::<serde_json::Value>(data)
+                .ok()
+                .and_then(|value| value["text"].as_str().map(str::to_string))
+                .unwrap_or_else(|| data.to_string());
+            ServerSentEvent::Token(text)
+        }
+    }
+}
+
+/// Stream a chat message via SSE using the Fetch API's ReadableStream.
+///
+/// Client-only (hydrate): drives `fetch` + `ReadableStream` directly because
+/// `EventSource` cannot send an Authorization header or a POST body.
+///
+/// Returns the assistant's full text on success, or an error message on
+/// failure.
 #[cfg(feature = "hydrate")]
 async fn stream_message_via_sse(
     conversation_identifier: &str,
@@ -197,6 +252,8 @@ async fn stream_message_via_sse(
     authentication_token: &str,
     on_token: impl Fn(&str) + 'static,
 ) -> Result<String, String> {
+    use wasm_bindgen::JsCast;
+
     let url = format!(
         "{}/api/v1/chat/conversations/{}/messages/stream",
         AGENT_BACKEND_URL, conversation_identifier
@@ -372,6 +429,13 @@ pub fn Chat() -> impl IntoView {
         error_message.set(None);
         input_text.set(String::new());
 
+        let conversation = conversation_resource.get().flatten();
+        let Some(conversation) = conversation.as_ref() else {
+            is_sending.set(false);
+            return;
+        };
+        let conversation_identifier = conversation.identifier.clone();
+
         // Add user message immediately for instant feedback
         messages.update(|message_list| {
             message_list.push(ChatMessage {
@@ -383,19 +447,33 @@ pub fn Chat() -> impl IntoView {
             });
         });
 
+        let messages_signal = messages.clone();
         let is_sending_signal = is_sending.clone();
-        #[cfg(feature = "hydrate")]
-        let error_message_signal = error_message.clone();
-        #[cfg(not(feature = "hydrate"))]
-        let _ = &error_message;
 
-        spawn_local(async move {
-            // Stream the message via SSE — the on_token callback updates
-            // streaming_text in real-time so the user sees tokens appear.
-            // This only runs on the client (hydrate) since it uses the
-            // Fetch API + ReadableStream for SSE streaming.
-            #[cfg(feature = "hydrate")]
-            {
+        // The whole send path is client-only: it fetches a JWT and drives
+        // `fetch` + `ReadableStream` for SSE, neither of which exists during
+        // SSR. Gating the block (rather than each binding inside it) keeps
+        // the SSR build free of signals that no SSR code will ever read.
+        #[cfg(feature = "hydrate")]
+        {
+            let streaming_text_signal = streaming_text.clone();
+            let error_message_signal = error_message.clone();
+
+            spawn_local(async move {
+                // The JWT is fetched client-side: the SSE stream goes straight
+                // to the agent backend from the browser, so it can't rely on
+                // the server function's cookie-derived token.
+                let authentication_token = match get_chat_token().await {
+                    Ok(token) => token,
+                    Err(error) => {
+                        error_message_signal.set(Some(format!("Authentication error: {error}")));
+                        is_sending_signal.set(false);
+                        return;
+                    }
+                };
+
+                // Stream the message via SSE — the on_token callback updates
+                // streaming_text in real-time so the user sees tokens appear.
                 let on_token = move |chunk: &str| {
                     streaming_text_signal.update(|stream| stream.push_str(chunk));
                 };
@@ -425,9 +503,15 @@ pub fn Chat() -> impl IntoView {
                         error_message_signal.set(Some(format!("Stream error: {error}")));
                     }
                 }
-            }
+                is_sending_signal.set(false);
+            });
+        }
+        // Nothing to stream during SSR — release the in-flight flag.
+        #[cfg(not(feature = "hydrate"))]
+        {
+            let _ = (messages_signal, conversation_identifier, text);
             is_sending_signal.set(false);
-        });
+        }
     };
 
     html::div()
@@ -561,13 +645,17 @@ pub fn Chat() -> impl IntoView {
                             "flex-1 bg-neutral-800 text-white rounded-full px-4 py-2 focus:outline-none",
                         )
                         .prop("value", move || input_text.get())
-                        .on(ev::input, move |_| {
+                        .on(ev::input, move |event: ev::Event| {
                             #[cfg(feature = "hydrate")]
                             {
+                                use wasm_bindgen::JsCast;
+
                                 let input_element: web_sys::HtmlInputElement =
-                                    target.dyn_into().unwrap();
+                                    event.target().unwrap().dyn_into().unwrap();
                                 input_text.set(input_element.value());
                             }
+                            #[cfg(not(feature = "hydrate"))]
+                            let _ = event;
                         })
                         .on(ev::keydown, move |event: ev::KeyboardEvent| {
                             if event.key() == "Enter" {

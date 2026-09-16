@@ -22,9 +22,9 @@ pub async fn mark_user_registered(user_id: String) -> Result<bool, ServerFnError
         }
 
         // New user — register via SpacetimeDB reducer.
-        use yral_database_spacetime_bindings::accept_new_user_registration_v_2;
+        use yral_database_spacetime_bindings::accept_new_user_registration;
         conn.reducers
-            .accept_new_user_registration_v_2(user_id, true, None)?;
+            .accept_new_user_registration(user_id, true, None)?;
         Ok(true)
     }
     #[cfg(not(feature = "ssr"))]

@@ -12,20 +12,21 @@ pub fn go_back_or_fallback(fallback: &str) {
     }
     #[cfg(feature = "hydrate")]
     {
+        use gloo::history::{BrowserHistory, History};
+        use leptos_router::hooks::use_navigate;
+        use reqwest::Url;
+
         let win = window();
         let referrer = win
             .document()
             .map(|d| d.referrer())
-            .and_then(|r| url::Url::parse(&r).ok());
-        let cur_url = url::Url::parse(&win.location().href().unwrap_or_default()).ok();
+            .and_then(|r| Url::parse(&r).ok());
+        let cur_url = Url::parse(&win.location().href().unwrap_or_default()).ok();
 
         if cur_url.as_ref().and_then(|u| u.host_str())
             == referrer.as_ref().and_then(|r| r.host_str())
         {
-            let history = leptos::web_sys::window().history();
-            if let Ok(history) = history {
-                _ = history.back();
-            }
+            BrowserHistory::new().back();
         } else {
             use_navigate()(fallback, Default::default());
         }

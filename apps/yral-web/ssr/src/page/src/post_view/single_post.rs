@@ -65,8 +65,19 @@ pub fn SinglePost() -> impl IntoView {
 
     let fetch_post = Resource::new(
         move || params.get(),
-        move |_| {
+        move |params| {
             send_wrap(async move {
+                // `params` is only destructured on SSR; the hydrate branch
+                // renders from data serialized during the SSR pass.
+                #[cfg(feature = "ssr")]
+                let params = params.map_err(|_| PostFetchError::Invalid)?;
+                #[cfg(feature = "ssr")]
+                let canister_id = params.canister_id.ok_or(PostFetchError::Invalid)?;
+                #[cfg(feature = "ssr")]
+                let post_id = params.post_id.ok_or(PostFetchError::Invalid)?;
+                #[cfg(not(feature = "ssr"))]
+                let _ = params;
+
                 // Fetch post from SpacetimeDB (SSR) or IC (hydrate fallback).
                 #[cfg(feature = "ssr")]
                 {
@@ -88,7 +99,6 @@ pub fn SinglePost() -> impl IntoView {
                     // Map SpacetimeDB PostDetailsForFrontend to the PostDetails struct
                     // expected by the rest of the page.
                     let poster_principal = post.creator_oauth_subject.clone();
-                    let poster_principal_text = &poster_principal;
                     Ok(PostDetails {
                         canister_id: canister_id.clone(),
                         post_id: post.id,

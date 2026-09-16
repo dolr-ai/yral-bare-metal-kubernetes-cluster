@@ -28,7 +28,15 @@ macro_rules! try_or_redirect_opt {
     };
 }
 
-pub fn failure_redirect<E: Display>(_: E) {
+pub fn failure_redirect<E: Display>(err: E) {
+    // Each branch below is feature-gated, so without `hydrate` or `ssr` the
+    // binding (and the parameter) would go unused. Bind only when something
+    // can read it.
+    #[cfg(any(feature = "hydrate", feature = "ssr"))]
+    let path = format!("/error?err={err}");
+    #[cfg(not(any(feature = "hydrate", feature = "ssr")))]
+    let _ = err;
+
     #[cfg(feature = "hydrate")]
     {
         let nav = leptos_router::hooks::use_navigate();
@@ -42,6 +50,9 @@ pub fn failure_redirect<E: Display>(_: E) {
 }
 
 pub fn go_to_root() {
+    #[cfg(any(feature = "hydrate", feature = "ssr"))]
+    let path = "/";
+
     #[cfg(feature = "hydrate")]
     {
         let nav = leptos_router::hooks::use_navigate();
