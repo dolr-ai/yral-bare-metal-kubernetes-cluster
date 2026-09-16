@@ -56,6 +56,12 @@ apps/yral-ios/iosApp/GoogleService-Info.plist
 target/
 dist/
 
+# cargo-leptos regenerates this at the repo root on every build (a
+# repo-root relative copy of the per-app configs). It was deliberately
+# removed in 404720d6; the build recreates it, so ignore it rather than
+# let it be re-committed each time a Leptos build runs.
+/tailwind.config.js
+
 spacetime.local.json
 *.pem
 .build
