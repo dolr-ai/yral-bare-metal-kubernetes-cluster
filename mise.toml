@@ -90,7 +90,6 @@ sqlite = "latest"
 # longer build Swift on Linux, so there is nothing for mise to provide.
 # If a Linux Swift toolchain is ever needed again, declare it OS-scoped:
 #   swift = { version = "...", os = ["linux"] }
-swiftlint = { version = "latest", os = ["macos"] }
 
 # System packages — project-specific build dependencies (apt on Debian/Ubuntu).
 # Applied with: mise bootstrap packages apply --yes
@@ -756,9 +755,29 @@ depends = ["yral-ios-sync-rishi-openapi"]
 run = "swift test"
 
 [tasks.yral-ios-lint]
-description = "Lint apps/yral-ios with SwiftLint (strict)"
+description = "Lint the YralApp SPM package with swift-format (Apple's first-party formatter and linter, shipped in the Xcode toolchain)."
 dir = "apps/yral-ios"
-run = "swiftlint lint --strict"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+
+# `swift format` (note the space) is the toolchain-provided entry point — Swift 6
+# ships swift-format inside Xcode 16+, so there is nothing to install via mise.
+# No .swift-format config: we use the toolchain defaults verbatim. That is what
+# makes this consistent with format-on-save, which goes through SourceKit-LSP
+# and therefore applies the SAME defaults (plus the editor's indentation).
+#
+# The codebase is 2-space indented to match swift-format's default. VS Code's
+# `editor.detectIndentation` (default true) matches whatever a file already
+# uses, so saves stay self-consistent in both editors.
+#
+# --strict makes warnings fail the gate. Only the two hand-written trees are
+# passed: the generated OpenAPI sources live under .build/plugins/outputs/, so
+# they are never traversed (their warnings are fixed upstream — see the Zero
+# Warnings rule, not suppressed here).
+swift format lint --strict --recursive \
+  packages/YralApp/Sources packages/YralApp/Tests
+'''
 
 [tasks.yral-ios-checks]
 description = "CI-equivalent check suite: lint + package tests + simulator build (same task local and CI run)"

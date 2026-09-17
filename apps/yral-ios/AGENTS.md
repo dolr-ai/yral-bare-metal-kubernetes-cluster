@@ -246,9 +246,41 @@ catalog work. Adding a Swift file in the package = zero xcodeproj changes.
 mise run yral-ios-setup   # resolve SPM deps
 mise run yral-ios-build   # simulator build (Debug, unsigned)
 mise run yral-ios-test    # package unit tests (Swift Testing)
-mise run yral-ios-lint    # SwiftLint (strict)
+mise run yral-ios-lint    # swift-format lint (strict)
 mise run yral-ios-clean   # clean build outputs
 ```
+
+## Formatting & linting: one first-party toolchain (Hard Rule)
+
+**`swift-format` is the only formatter and the only linter.** It ships inside
+the Xcode toolchain (Swift 6 / Xcode 16+), is invoked as `swift format`, and
+is the same engine SourceKit-LSP uses for format-on-save. SwiftLint was
+REMOVED — it was third-party (`realm/SwiftLint`, mise-installed) and its
+defaults actively contradicted the formatter (`trailing_comma` forbade a comma
+the formatter added; `opening_brace` disagreed on brace placement), so every
+save produced code the lint gate rejected. One tool cannot disagree with
+itself — that is the whole point of the switch.
+
+**No `.swift-format` config.** We use the toolchain defaults verbatim. Do not
+add one: a config is what re-creates the drift this rule exists to prevent.
+
+**2-space indentation, because that is the default.** Code is indented 2
+spaces to match `swift-format`'s built-in default (the formatter's and the
+linter's shared config). VS Code's `editor.detectIndentation` (default true)
+matches whatever a file already uses, so format-on-save stays self-consistent
+in both editors without any per-project setting.
+
+The division of labour: **`swift-format` owns all style** (braces, commas,
+spacing, wrapping, indentation); **`swiftc` owns correctness**; nothing else
+lints. The known gap: `as!` / `try!` / `!` are not flagged by either — force
+unwrapping is a review-time concern, not a tooling one. Treat `!` as a
+deliberate escape hatch that needs a reason (a compile-time-constant config
+string is fine; decoded network data is not).
+
+**Formatting is not optional polish.** `mise run yral-ios-lint` gates on
+`swift format lint --strict`, so any file that drifts from the formatter fails
+CI. Run the formatter (`swift format format --in-place --recursive <paths>`)
+before committing, or let format-on-save handle it.
 
 ## CI / Distribution
 
