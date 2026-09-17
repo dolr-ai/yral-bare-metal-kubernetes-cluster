@@ -6,49 +6,50 @@ import SwiftUI
 /// showing live session data.
 struct ProfileScreen: View {
 
-    let sessionStore: SessionStore
+  let sessionStore: SessionStore
 
-    var body: some View {
-        VStack(spacing: 12) {
-            if let profilePicURL = sessionStore.profilePic,
-               let url = URL(string: profilePicURL) {
-                AsyncImage(url: url) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Color.gray.opacity(0.25)
-                }
-                .frame(width: 88, height: 88)
-                .clipShape(Circle())
-            }
-            Text(sessionStore.username ?? "Anonymous")
-                .font(.title3.weight(.semibold))
-            if let subject = sessionStore.userSubject {
-                // The auth identifier — the JWT `sub` (== subject in
-                // our tokens), labeled so it reads as an ID, not a name.
-                Text("ID: \(subject)")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .padding(.horizontal, 32)
-            }
-            if sessionStore.isBotSession == true {
-                Text("AI account")
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(.pink.opacity(0.2), in: Capsule())
-                    .foregroundStyle(.pink)
-            }
-            Text("Full profile arrives in Phase 4")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+  var body: some View {
+    VStack(spacing: 12) {
+      if let profilePicURL = sessionStore.profilePic,
+        let url = URL(string: profilePicURL)
+      {
+        AsyncImage(url: url) { image in
+          image.resizable().scaledToFill()
+        } placeholder: {
+          Color.gray.opacity(0.25)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black)
+        .frame(width: 88, height: 88)
+        .clipShape(Circle())
+      }
+      Text(sessionStore.username ?? "Anonymous")
+        .font(.title3.weight(.semibold))
+      if let subject = sessionStore.userSubject {
+        // The auth identifier — the JWT `sub` (== subject in
+        // our tokens), labeled so it reads as an ID, not a name.
+        Text("ID: \(subject)")
+          .font(.caption)
+          .foregroundStyle(.tertiary)
+          .lineLimit(1)
+          .truncationMode(.middle)
+          .padding(.horizontal, 32)
+      }
+      if sessionStore.isBotSession == true {
+        Text("AI account")
+          .font(.caption.weight(.semibold))
+          .padding(.horizontal, 10)
+          .padding(.vertical, 4)
+          .background(.pink.opacity(0.2), in: Capsule())
+          .foregroundStyle(.pink)
+      }
+      Text("Full profile arrives in Phase 4")
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(Color.black)
+  }
 }
 
 #Preview {
-    ProfileScreen(sessionStore: SessionStore())
+  ProfileScreen(sessionStore: SessionStore())
 }

@@ -16,244 +16,253 @@ import Foundation
 /// positional arrays. Escaping is framework-handled.
 public struct SpacetimeDBRemoteDataSource: Sendable {
 
-    // TODO(endpoint-input-sanitization): audit ALL endpoints we call —
-    // here (SpacetimeDB procedures/reducers), AIInfluencerDataSource
-    // (agent.rishi.yral.com persona/metadata/influencer/avatar), and
-    // AuthDataSource (yral-auth) — and confirm each one SANITIZES the
-    // inputs it accepts (length caps, character-set/format validation,
-    // injection-safe persistence). The iOS side pre-sanitizes some
-    // (the username field), but client-side checks are UX only — the
-    // server must enforce. Known probe points: the bio (LLM free text),
-    // the username (regex-validity + uniqueness), instructions text
-    // (400+ chars of free text). Verify each backend rejects malformed
-    // input with a specific error BEFORE persisting, and add
-    // server-side tests for the rejections.
+  // TODO(endpoint-input-sanitization): audit ALL endpoints we call —
+  // here (SpacetimeDB procedures/reducers), AIInfluencerDataSource
+  // (agent.rishi.yral.com persona/metadata/influencer/avatar), and
+  // AuthDataSource (yral-auth) — and confirm each one SANITIZES the
+  // inputs it accepts (length caps, character-set/format validation,
+  // injection-safe persistence). The iOS side pre-sanitizes some
+  // (the username field), but client-side checks are UX only — the
+  // server must enforce. Known probe points: the bio (LLM free text),
+  // the username (regex-validity + uniqueness), instructions text
+  // (400+ chars of free text). Verify each backend rejects malformed
+  // input with a specific error BEFORE persisting, and add
+  // server-side tests for the rejections.
 
-    /// Default URLSession — no custom client (30s default timeout matches
-    /// the Kotlin policy; per-endpoint overrides are inline
-    /// `request.timeoutInterval` assignments).
-    private let session: URLSession
+  /// Default URLSession — no custom client (30s default timeout matches
+  /// the Kotlin policy; per-endpoint overrides are inline
+  /// `request.timeoutInterval` assignments).
+  private let session: URLSession
 
-    /// Token provider — nil → anonymous (reads only).
-    private let idTokenProvider: @Sendable () -> String?
+  /// Token provider — nil → anonymous (reads only).
+  private let idTokenProvider: @Sendable () -> String?
 
-    public init(
-        idTokenProvider: @escaping @Sendable () -> String?,
-        session: URLSession = .shared
-    ) {
-        self.session = session
-        self.idTokenProvider = idTokenProvider
+  public init(
+    idTokenProvider: @escaping @Sendable () -> String?,
+    session: URLSession = .shared
+  ) {
+    self.session = session
+    self.idTokenProvider = idTokenProvider
+  }
+
+  // MARK: - Reads (procedures)
+
+  /// `get_post_by_id` → `Option<PostDetails>`.
+  public func getPostByID(_ postID: String) async throws -> SpacetimePostDetails? {
+    try await callReturningOptionPost(
+      "get_post_by_id", arguments: GetPostByIDArguments(postID: postID))
+  }
+
+  /// `get_individual_post_details_by_id` → `Option<PostDetails>`.
+  public func getIndividualPostDetailsByID(_ postID: String) async throws -> SpacetimePostDetails? {
+    try await callReturningOptionPost(
+      "get_individual_post_details_by_id",
+      arguments: GetIndividualPostDetailsByIDArguments(postID: postID)
+    )
+  }
+
+  /// `get_posts_of_user_by_principal` → `PostListOffset` (offset-paginated).
+  public func getPostsOfUser(
+    creatorOauthSubject: String,
+    offset: UInt64,
+    limit: UInt64
+  ) async throws -> SpacetimePostListOffset {
+    try await callReturningPostList(
+      "get_posts_of_user_by_principal",
+      arguments: GetPostsOfUserByPrincipalArguments(
+        creatorOauthSubject: creatorOauthSubject,
+        offset: offset,
+        limit: limit
+      )
+    )
+  }
+
+  /// `get_draft_posts_of_user_by_principal` → `PostListOffset`.
+  public func getDraftPostsOfUser(
+    creatorOauthSubject: String,
+    offset: UInt64,
+    limit: UInt64
+  ) async throws -> SpacetimePostListOffset {
+    try await callReturningPostList(
+      "get_draft_posts_of_user_by_principal",
+      arguments: GetDraftPostsOfUserByPrincipalArguments(
+        creatorOauthSubject: creatorOauthSubject,
+        offset: offset,
+        limit: limit
+      )
+    )
+  }
+
+  /// `get_user_profile_details` → `Option<UserProfileDetails>`.
+  public func getUserProfileDetails(oauthSubject: String) async throws -> SpacetimeUserProfile? {
+    try await callReturningOptionProfile(
+      "get_user_profile_details",
+      arguments: GetUserProfileDetailsArguments(oauthSubject: oauthSubject)
+    )
+  }
+
+  /// `get_users_profile_details` — batch read. NOTE: the subject list is ONE
+  /// positional arg (a nested JSON array), not spread args.
+  public func getUsersProfileDetails(oauthSubjects: [String]) async throws -> [SpacetimeUserProfile]
+  {
+    let responseBody = try await callProcedure(
+      name: "get_users_profile_details",
+      arguments: GetUsersProfileDetailsArguments(oauthSubjects: oauthSubjects),
+      requiresToken: false
+    )
+    let bodyArray = try SpacetimePositionalDecoder.parseArray(responseBody)
+    var profiles: [SpacetimeUserProfile] = []
+    for profileArray in bodyArray {
+      guard let profileArray = profileArray as? [Any] else {
+        throw SpacetimeDecodingError.typeMismatch(expected: "user profile item", index: 0)
+      }
+      profiles.append(try SpacetimeUserProfile.fromPositionalArray(profileArray))
     }
+    return profiles
+  }
 
-    // MARK: - Reads (procedures)
+  /// `get_followers` → `FollowersPage` (cursor-paginated; pass nil cursor
+  /// for the first page).
+  public func getFollowers(
+    oauthSubject: String,
+    limit: UInt64,
+    cursor: String?
+  ) async throws -> SpacetimeFollowersPage {
+    let responseBody = try await callProcedure(
+      name: "get_followers",
+      arguments: GetFollowersArguments(
+        oauthSubject: oauthSubject,
+        limit: limit,
+        cursor: cursor
+      ),
+      requiresToken: false
+    )
+    return try SpacetimeFollowersPage.fromPositionalArray(
+      SpacetimePositionalDecoder.parseArray(responseBody)
+    )
+  }
 
-    /// `get_post_by_id` → `Option<PostDetails>`.
-    public func getPostByID(_ postID: String) async throws -> SpacetimePostDetails? {
-        try await callReturningOptionPost("get_post_by_id", arguments: GetPostByIDArguments(postID: postID))
+  /// `get_following` → `FollowingPage` (cursor-paginated).
+  public func getFollowing(
+    oauthSubject: String,
+    limit: UInt64,
+    cursor: String?
+  ) async throws -> SpacetimeFollowingPage {
+    let responseBody = try await callProcedure(
+      name: "get_following",
+      arguments: GetFollowingArguments(
+        oauthSubject: oauthSubject,
+        limit: limit,
+        cursor: cursor
+      ),
+      requiresToken: false
+    )
+    return try SpacetimeFollowingPage.fromPositionalArray(
+      SpacetimePositionalDecoder.parseArray(responseBody)
+    )
+  }
+
+  // MARK: - Transport
+
+  /// POSTs `{base}/v1/database/{db}/call/{name}` and returns the raw body.
+  /// The response body IS the return value (no wrapper array).
+  /// Internal (not private): the Writes extension file shares it.
+  func callProcedure(
+    name: String,
+    arguments: some Encodable,
+    requiresToken: Bool
+  ) async throws -> String {
+    let token = idTokenProvider()
+    if requiresToken && token == nil {
+      throw NetworkError.notAuthenticated(
+        description: "Not authenticated — no ID token available for \(name)"
+      )
     }
-
-    /// `get_individual_post_details_by_id` → `Option<PostDetails>`.
-    public func getIndividualPostDetailsByID(_ postID: String) async throws -> SpacetimePostDetails? {
-        try await callReturningOptionPost(
-            "get_individual_post_details_by_id",
-            arguments: GetIndividualPostDetailsByIDArguments(postID: postID)
-        )
+    let url = URL(string: "https://\(AppConfiguration.spacetimeDBBaseURL)")!
+      .appending(path: "v1/database/\(AppConfiguration.spacetimeDBDatabaseName)/call/\(name)")
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    if let token {
+      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
     }
-
-    /// `get_posts_of_user_by_principal` → `PostListOffset` (offset-paginated).
-    public func getPostsOfUser(
-        creatorOauthSubject: String,
-        offset: UInt64,
-        limit: UInt64
-    ) async throws -> SpacetimePostListOffset {
-        try await callReturningPostList(
-            "get_posts_of_user_by_principal",
-            arguments: GetPostsOfUserByPrincipalArguments(
-                creatorOauthSubject: creatorOauthSubject,
-                offset: offset,
-                limit: limit
-            )
-        )
+    // Typed wire models + JSONEncoder — escaping handled by the
+    // framework (the hand-rolled string encoder broke on any bio
+    // containing a quote/newline: LLM output does both).
+    // `.withoutEscapingSlashes` → canonical compact JSON (no `\/`).
+    do {
+      let wireEncoder = JSONEncoder()
+      wireEncoder.outputFormatting = .withoutEscapingSlashes
+      request.httpBody = try wireEncoder.encode(arguments)
+    } catch {
+      throw NetworkError.transport(underlying: "Failed to encode \(name) arguments: \(error)")
     }
-
-    /// `get_draft_posts_of_user_by_principal` → `PostListOffset`.
-    public func getDraftPostsOfUser(
-        creatorOauthSubject: String,
-        offset: UInt64,
-        limit: UInt64
-    ) async throws -> SpacetimePostListOffset {
-        try await callReturningPostList(
-            "get_draft_posts_of_user_by_principal",
-            arguments: GetDraftPostsOfUserByPrincipalArguments(
-                creatorOauthSubject: creatorOauthSubject,
-                offset: offset,
-                limit: limit
-            )
-        )
+    let (data, response): (Data, URLResponse)
+    do {
+      (data, response) = try await session.data(for: request)
+    } catch {
+      throw NetworkError.transport(underlying: "\(error)")
     }
-
-    /// `get_user_profile_details` → `Option<UserProfileDetails>`.
-    public func getUserProfileDetails(oauthSubject: String) async throws -> SpacetimeUserProfile? {
-        try await callReturningOptionProfile(
-            "get_user_profile_details",
-            arguments: GetUserProfileDetailsArguments(oauthSubject: oauthSubject)
-        )
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw NetworkError.transport(underlying: "Non-HTTP response")
     }
-
-    /// `get_users_profile_details` — batch read. NOTE: the subject list is ONE
-    /// positional arg (a nested JSON array), not spread args.
-    public func getUsersProfileDetails(oauthSubjects: [String]) async throws -> [SpacetimeUserProfile] {
-        let responseBody = try await callProcedure(
-            name: "get_users_profile_details",
-            arguments: GetUsersProfileDetailsArguments(oauthSubjects: oauthSubjects),
-            requiresToken: false
-        )
-        let bodyArray = try SpacetimePositionalDecoder.parseArray(responseBody)
-        var profiles: [SpacetimeUserProfile] = []
-        for profileArray in bodyArray {
-            guard let profileArray = profileArray as? [Any] else {
-                throw SpacetimeDecodingError.typeMismatch(expected: "user profile item", index: 0)
-            }
-            profiles.append(try SpacetimeUserProfile.fromPositionalArray(profileArray))
-        }
-        return profiles
+    guard (200..<300).contains(httpResponse.statusCode) else {
+      throw NetworkError.http(
+        statusCode: httpResponse.statusCode,
+        body: String(data: data, encoding: .utf8)
+      )
     }
+    return String(data: data, encoding: .utf8) ?? ""
+  }
 
-    /// `get_followers` → `FollowersPage` (cursor-paginated; pass nil cursor
-    /// for the first page).
-    public func getFollowers(
-        oauthSubject: String,
-        limit: UInt64,
-        cursor: String?
-    ) async throws -> SpacetimeFollowersPage {
-        let responseBody = try await callProcedure(
-            name: "get_followers",
-            arguments: GetFollowersArguments(
-                oauthSubject: oauthSubject,
-                limit: limit,
-                cursor: cursor
-            ),
-            requiresToken: false
-        )
-        return try SpacetimeFollowersPage.fromPositionalArray(
-            SpacetimePositionalDecoder.parseArray(responseBody)
-        )
-    }
+  /// Calls a reducer (write) — JWT required; the unit-return body is
+  /// discarded. Internal (not private): the Writes extension shares it.
+  func callReducer(name: String, arguments: some Encodable) async throws {
+    _ = try await callProcedure(name: name, arguments: arguments, requiresToken: true)
+  }
 
-    /// `get_following` → `FollowingPage` (cursor-paginated).
-    public func getFollowing(
-        oauthSubject: String,
-        limit: UInt64,
-        cursor: String?
-    ) async throws -> SpacetimeFollowingPage {
-        let responseBody = try await callProcedure(
-            name: "get_following",
-            arguments: GetFollowingArguments(
-                oauthSubject: oauthSubject,
-                limit: limit,
-                cursor: cursor
-            ),
-            requiresToken: false
-        )
-        return try SpacetimeFollowingPage.fromPositionalArray(
-            SpacetimePositionalDecoder.parseArray(responseBody)
-        )
-    }
+  // MARK: - Response parse helpers (mirroring the Kotlin parse* functions)
 
-    // MARK: - Transport
+  /// The response BODY is the `Option<PostDetails>` sum variant itself:
+  /// `[0, [postArray]]` for Some, `[1, []]` for None.
+  private func callReturningOptionPost(
+    _ name: String,
+    arguments: some Encodable
+  ) async throws -> SpacetimePostDetails? {
+    let responseBody = try await callProcedure(
+      name: name, arguments: arguments, requiresToken: false)
+    guard
+      let payload = try SpacetimePositionalDecoder.optionPayload(
+        SpacetimePositionalDecoder.parseArray(responseBody)
+      )
+    else { return nil }
+    return try SpacetimePostDetails.fromPositionalArray(payload)
+  }
 
-    /// POSTs `{base}/v1/database/{db}/call/{name}` and returns the raw body.
-    /// The response body IS the return value (no wrapper array).
-    /// Internal (not private): the Writes extension file shares it.
-    func callProcedure(
-        name: String,
-        arguments: some Encodable,
-        requiresToken: Bool
-    ) async throws -> String {
-        let token = idTokenProvider()
-        if requiresToken && token == nil {
-            throw NetworkError.notAuthenticated(
-                description: "Not authenticated — no ID token available for \(name)"
-            )
-        }
-        let url = URL(string: "https://\(AppConfiguration.spacetimeDBBaseURL)")!
-            .appending(path: "v1/database/\(AppConfiguration.spacetimeDBDatabaseName)/call/\(name)")
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let token {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-        // Typed wire models + JSONEncoder — escaping handled by the
-        // framework (the hand-rolled string encoder broke on any bio
-        // containing a quote/newline: LLM output does both).
-        // `.withoutEscapingSlashes` → canonical compact JSON (no `\/`).
-        do {
-            let wireEncoder = JSONEncoder()
-            wireEncoder.outputFormatting = .withoutEscapingSlashes
-            request.httpBody = try wireEncoder.encode(arguments)
-        } catch {
-            throw NetworkError.transport(underlying: "Failed to encode \(name) arguments: \(error)")
-        }
-        let (data, response): (Data, URLResponse)
-        do {
-            (data, response) = try await session.data(for: request)
-        } catch {
-            throw NetworkError.transport(underlying: "\(error)")
-        }
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NetworkError.transport(underlying: "Non-HTTP response")
-        }
-        guard (200..<300).contains(httpResponse.statusCode) else {
-            throw NetworkError.http(
-                statusCode: httpResponse.statusCode,
-                body: String(data: data, encoding: .utf8)
-            )
-        }
-        return String(data: data, encoding: .utf8) ?? ""
-    }
+  /// The response BODY is the `Option<UserProfileDetails>` sum variant.
+  private func callReturningOptionProfile(
+    _ name: String,
+    arguments: some Encodable
+  ) async throws -> SpacetimeUserProfile? {
+    let responseBody = try await callProcedure(
+      name: name, arguments: arguments, requiresToken: false)
+    guard
+      let payload = try SpacetimePositionalDecoder.optionPayload(
+        SpacetimePositionalDecoder.parseArray(responseBody)
+      )
+    else { return nil }
+    return try SpacetimeUserProfile.fromPositionalArray(payload)
+  }
 
-    /// Calls a reducer (write) — JWT required; the unit-return body is
-    /// discarded. Internal (not private): the Writes extension shares it.
-    func callReducer(name: String, arguments: some Encodable) async throws {
-        _ = try await callProcedure(name: name, arguments: arguments, requiresToken: true)
-    }
-
-    // MARK: - Response parse helpers (mirroring the Kotlin parse* functions)
-
-    /// The response BODY is the `Option<PostDetails>` sum variant itself:
-    /// `[0, [postArray]]` for Some, `[1, []]` for None.
-    private func callReturningOptionPost(
-        _ name: String,
-        arguments: some Encodable
-    ) async throws -> SpacetimePostDetails? {
-        let responseBody = try await callProcedure(name: name, arguments: arguments, requiresToken: false)
-        guard let payload = try SpacetimePositionalDecoder.optionPayload(
-            SpacetimePositionalDecoder.parseArray(responseBody)
-        ) else { return nil }
-        return try SpacetimePostDetails.fromPositionalArray(payload)
-    }
-
-    /// The response BODY is the `Option<UserProfileDetails>` sum variant.
-    private func callReturningOptionProfile(
-        _ name: String,
-        arguments: some Encodable
-    ) async throws -> SpacetimeUserProfile? {
-        let responseBody = try await callProcedure(name: name, arguments: arguments, requiresToken: false)
-        guard let payload = try SpacetimePositionalDecoder.optionPayload(
-            SpacetimePositionalDecoder.parseArray(responseBody)
-        ) else { return nil }
-        return try SpacetimeUserProfile.fromPositionalArray(payload)
-    }
-
-    /// The response BODY is the struct directly: `[[post, post, …]]`.
-    private func callReturningPostList(
-        _ name: String,
-        arguments: some Encodable
-    ) async throws -> SpacetimePostListOffset {
-        let responseBody = try await callProcedure(name: name, arguments: arguments, requiresToken: false)
-        return try SpacetimePostListOffset.fromPositionalArray(
-            SpacetimePositionalDecoder.parseArray(responseBody)
-        )
-    }
+  /// The response BODY is the struct directly: `[[post, post, …]]`.
+  private func callReturningPostList(
+    _ name: String,
+    arguments: some Encodable
+  ) async throws -> SpacetimePostListOffset {
+    let responseBody = try await callProcedure(
+      name: name, arguments: arguments, requiresToken: false)
+    return try SpacetimePostListOffset.fromPositionalArray(
+      SpacetimePositionalDecoder.parseArray(responseBody)
+    )
+  }
 }

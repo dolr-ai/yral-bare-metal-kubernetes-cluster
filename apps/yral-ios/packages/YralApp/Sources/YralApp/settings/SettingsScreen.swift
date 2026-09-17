@@ -12,193 +12,194 @@ import SwiftUI
 /// `AuthDataSource` directly (same inline pattern as the sign-in screens).
 struct SettingsScreen: View {
 
-    let authClient: AuthClient
-    let sessionStore: SessionStore
+  let authClient: AuthClient
+  let sessionStore: SessionStore
 
-    @State private var isAlertsEnabled = false
-    @State private var isDeleteSheetShown = false
-    @State private var isDeletingAccount = false
-    @State private var isAccountSwitcherShown = false
-    @State private var actionError: String?
-    @Environment(\.openURL) private var openURL
+  @State private var isAlertsEnabled = false
+  @State private var isDeleteSheetShown = false
+  @State private var isDeletingAccount = false
+  @State private var isAccountSwitcherShown = false
+  @State private var actionError: String?
+  @Environment(\.openURL) private var openURL
 
-    /// Kotlin PrefKeys.NOTIFICATION_ALERTS_ENABLED — display-data
-    /// persistence (the actual push registration lands with the push
-    /// phase; the toggle is stored now so it controls that flow later).
-    private let alertsDefaultsKey = "NOTIFICATION_ALERTS_ENABLED"
+  /// Kotlin PrefKeys.NOTIFICATION_ALERTS_ENABLED — display-data
+  /// persistence (the actual push registration lands with the push
+  /// phase; the toggle is stored now so it controls that flow later).
+  private let alertsDefaultsKey = "NOTIFICATION_ALERTS_ENABLED"
 
-    // TODO(push-notifications): wire APNS → Firebase Messaging → the
-    // SpacetimeDB register_notification_token reducer on sign-in
-    // (AuthClient.postLogin stub), and deregister on logout. Requires
-    // pinning the FirebaseMessaging product of the already-pinned
-    // firebase-ios-sdk in Package.swift + the aps-environment entitlement
-    // (already present: development) + server-side APNS key upload to
-    // Firebase console. HOLD: research pending before committing to the
-    // dependency set.
+  // TODO(push-notifications): wire APNS → Firebase Messaging → the
+  // SpacetimeDB register_notification_token reducer on sign-in
+  // (AuthClient.postLogin stub), and deregister on logout. Requires
+  // pinning the FirebaseMessaging product of the already-pinned
+  // firebase-ios-sdk in Package.swift + the aps-environment entitlement
+  // (already present: development) + server-side APNS key upload to
+  // Firebase console. HOLD: research pending before committing to the
+  // dependency set.
 
-    var body: some View {
-        VStack(spacing: 0) {
-            header
+  var body: some View {
+    VStack(spacing: 0) {
+      header
 
-            List {
-                accountSection
-                togglesSection
-                dangerSection
-            }
-            #if canImport(UIKit)
-                .listStyle(.insetGrouped)
-            #else
-                .listStyle(.automatic)
-            #endif
-            .scrollContentBackground(.hidden)
-        }
-        .background(Color.black)
-        #if canImport(UIKit)
-            .toolbar(.hidden, for: .navigationBar)
-        #endif
-        // Native CENTERED alert (not confirmationDialog — that renders
-        // as a bottom action sheet on iPhone and a source-anchored
-        // popover on iPad; the user asked for the standard centered
-        // modal). One destructive decision → alert is the canonical
-        // presentation.
-        .alert(
-            "Delete your account?",
-            isPresented: $isDeleteSheetShown
-        ) {
-            Button("Yes, delete", role: .destructive) {
-                Task { await deleteAccount() }
-            }
-            Button("No, take me back", role: .cancel) {}
-        } message: {
-            Text("This permanently removes your account, posts, and data. This cannot be undone.")
-        }
+      List {
+        accountSection
+        togglesSection
+        dangerSection
+      }
+      #if canImport(UIKit)
+        .listStyle(.insetGrouped)
+      #else
+        .listStyle(.automatic)
+      #endif
+      .scrollContentBackground(.hidden)
     }
-
-    // MARK: - Header (Kotlin AccountsTitle)
-
-    private var header: some View {
-        ZStack {
-            Text("Settings")
-                .font(.title3.bold())
-        }
-        .padding(.vertical, 12)
+    .background(Color.black)
+    #if canImport(UIKit)
+      .toolbar(.hidden, for: .navigationBar)
+    #endif
+    // Native CENTERED alert (not confirmationDialog — that renders
+    // as a bottom action sheet on iPhone and a source-anchored
+    // popover on iPad; the user asked for the standard centered
+    // modal). One destructive decision → alert is the canonical
+    // presentation.
+    .alert(
+      "Delete your account?",
+      isPresented: $isDeleteSheetShown
+    ) {
+      Button("Yes, delete", role: .destructive) {
+        Task { await deleteAccount() }
+      }
+      Button("No, take me back", role: .cancel) {}
+    } message: {
+      Text("This permanently removes your account, posts, and data. This cannot be undone.")
     }
+  }
 
-    // MARK: - Account info (Kotlin AccountInfoView)
+  // MARK: - Header (Kotlin AccountsTitle)
 
-    private var accountSection: some View {
-        Section {
-            HStack(spacing: 12) {
-                if let profilePicURL = sessionStore.profilePic {
-                    AsyncImage(url: URL(string: profilePicURL)) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        Color.gray.opacity(0.25)
-                    }
-                    .frame(width: 44, height: 44)
-                    .clipShape(Circle())
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(sessionStore.username ?? "Anonymous")
-                        .font(.headline)
-                    // The auth identifier — the JWT `sub` (== subject in
-                    // our tokens), labeled so it reads as an ID, not a name.
-                    if let subject = sessionStore.userSubject {
-                        Text("ID: \(subject)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-                }
-            }
-        }
+  private var header: some View {
+    ZStack {
+      Text("Settings")
+        .font(.title3.bold())
     }
+    .padding(.vertical, 12)
+  }
 
-    // MARK: - Toggles (Kotlin alerts row)
+  // MARK: - Account info (Kotlin AccountInfoView)
 
-    private var togglesSection: some View {
-        Section {
-            Toggle(isOn: $isAlertsEnabled) {
-                Text("Notifications")
-            }
-            .tint(.pink)
-            .onChange(of: isAlertsEnabled) { _, enabled in
-                UserDefaults.standard.set(enabled, forKey: alertsDefaultsKey)
-            }
-            .onAppear {
-                isAlertsEnabled = UserDefaults.standard.bool(forKey: alertsDefaultsKey)
-            }
+  private var accountSection: some View {
+    Section {
+      HStack(spacing: 12) {
+        if let profilePicURL = sessionStore.profilePic {
+          AsyncImage(url: URL(string: profilePicURL)) { image in
+            image.resizable().scaledToFill()
+          } placeholder: {
+            Color.gray.opacity(0.25)
+          }
+          .frame(width: 44, height: 44)
+          .clipShape(Circle())
         }
-    }
-
-    // MARK: - Logout + delete (Kotlin HelpLinks logout row + delete sheet)
-
-    // TODO(bury-delete-account): "Delete account" is far too exposed as
-    // a top-level row here — one mistaken tap on the most destructive
-    // action in the app. Restructure: Menu gets a "Settings" top-level
-    // entry, and Delete account moves into a submenu under it (e.g.
-    // Menu → Settings → Account → Delete account) so it takes
-    // deliberate navigation to reach. Sign out stays a top-level row.
-    private var dangerSection: some View {
-        Section {
-            Button {
-                isAccountSwitcherShown = true
-            } label: {
-                Text("Switch account")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .sheet(isPresented: $isAccountSwitcherShown) {
-                AccountSwitcherScreen(authClient: authClient)
-            }
-
-            Button {
-                Task { await authClient.logout() }
-            } label: {
-                Text("Sign out")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            Button {
-                isDeleteSheetShown = true
-            } label: {
-                Text("Delete account")
-                    .foregroundStyle(.pink)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            if let actionError {
-                Text(actionError)
-                    .font(.footnote)
-                    .foregroundStyle(.pink)
-            }
+        VStack(alignment: .leading, spacing: 2) {
+          Text(sessionStore.username ?? "Anonymous")
+            .font(.headline)
+          // The auth identifier — the JWT `sub` (== subject in
+          // our tokens), labeled so it reads as an ID, not a name.
+          if let subject = sessionStore.userSubject {
+            Text("ID: \(subject)")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .lineLimit(1)
+              .truncationMode(.middle)
+          }
         }
+      }
     }
+  }
 
-    /// Kotlin `AccountsViewModel.deleteAccount` (main-account path): call
-    /// the off-chain delete endpoint via the auth client, then logout
-    /// (the client method handles both). AI account accounts need the
-    /// soft-delete-on-AI account-server path — that lands with the AI accounts phase.
-    private func deleteAccount() async {
-        isDeletingAccount = true
-        defer { isDeletingAccount = false }
-        do {
-            try await authClient.deleteAccount()
-        } catch {
-            CrashReporter.record(error, context: "account-deletion")
-            let reason = (error as? LocalizedError)?.errorDescription
-                ?? String(describing: error)
-            actionError = "Failed to delete account: \(reason)"
-        }
+  // MARK: - Toggles (Kotlin alerts row)
+
+  private var togglesSection: some View {
+    Section {
+      Toggle(isOn: $isAlertsEnabled) {
+        Text("Notifications")
+      }
+      .tint(.pink)
+      .onChange(of: isAlertsEnabled) { _, enabled in
+        UserDefaults.standard.set(enabled, forKey: alertsDefaultsKey)
+      }
+      .onAppear {
+        isAlertsEnabled = UserDefaults.standard.bool(forKey: alertsDefaultsKey)
+      }
     }
+  }
+
+  // MARK: - Logout + delete (Kotlin HelpLinks logout row + delete sheet)
+
+  // TODO(bury-delete-account): "Delete account" is far too exposed as
+  // a top-level row here — one mistaken tap on the most destructive
+  // action in the app. Restructure: Menu gets a "Settings" top-level
+  // entry, and Delete account moves into a submenu under it (e.g.
+  // Menu → Settings → Account → Delete account) so it takes
+  // deliberate navigation to reach. Sign out stays a top-level row.
+  private var dangerSection: some View {
+    Section {
+      Button {
+        isAccountSwitcherShown = true
+      } label: {
+        Text("Switch account")
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      .sheet(isPresented: $isAccountSwitcherShown) {
+        AccountSwitcherScreen(authClient: authClient)
+      }
+
+      Button {
+        Task { await authClient.logout() }
+      } label: {
+        Text("Sign out")
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+
+      Button {
+        isDeleteSheetShown = true
+      } label: {
+        Text("Delete account")
+          .foregroundStyle(.pink)
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+
+      if let actionError {
+        Text(actionError)
+          .font(.footnote)
+          .foregroundStyle(.pink)
+      }
+    }
+  }
+
+  /// Kotlin `AccountsViewModel.deleteAccount` (main-account path): call
+  /// the off-chain delete endpoint via the auth client, then logout
+  /// (the client method handles both). AI account accounts need the
+  /// soft-delete-on-AI account-server path — that lands with the AI accounts phase.
+  private func deleteAccount() async {
+    isDeletingAccount = true
+    defer { isDeletingAccount = false }
+    do {
+      try await authClient.deleteAccount()
+    } catch {
+      CrashReporter.record(error, context: "account-deletion")
+      let reason =
+        (error as? LocalizedError)?.errorDescription
+        ?? String(describing: error)
+      actionError = "Failed to delete account: \(reason)"
+    }
+  }
 }
 
 #Preview {
-    let sessionStore = SessionStore()
-    let authClient = AuthClient(
-        authDataSource: AuthDataSource(),
-        redirectScheme: "com.yral.iosApp",
-        sessionStore: sessionStore
-    )
-    return SettingsScreen(authClient: authClient, sessionStore: sessionStore)
+  let sessionStore = SessionStore()
+  let authClient = AuthClient(
+    authDataSource: AuthDataSource(),
+    redirectScheme: "com.yral.iosApp",
+    sessionStore: sessionStore
+  )
+  return SettingsScreen(authClient: authClient, sessionStore: sessionStore)
 }

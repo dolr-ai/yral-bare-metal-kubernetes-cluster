@@ -1,42 +1,43 @@
-import Testing
 import Foundation
+import Testing
+
 @testable import YralApp
 
 /// Tests for `KeychainStore` — the macOS test host has a real Keychain,
 /// so these exercise the actual SecItem round-trip (not a stub).
 struct KeychainStoreTests {
 
-    @Test("set/get/remove round-trips")
-    func roundTrip() {
-        let store = KeychainStore(service: "yral-tests-\(UUID().uuidString)")
-        defer { store.removeAll() }
+  @Test("set/get/remove round-trips")
+  func roundTrip() {
+    let store = KeychainStore(service: "yral-tests-\(UUID().uuidString)")
+    defer { store.removeAll() }
 
-        #expect(store.string(forKey: .idToken) == nil)
-        store.setString("token-1", forKey: .idToken)
-        #expect(store.string(forKey: .idToken) == "token-1")
+    #expect(store.string(forKey: .idToken) == nil)
+    store.setString("token-1", forKey: .idToken)
+    #expect(store.string(forKey: .idToken) == "token-1")
 
-        // Upsert replaces.
-        store.setString("token-2", forKey: .idToken)
-        #expect(store.string(forKey: .idToken) == "token-2")
+    // Upsert replaces.
+    store.setString("token-2", forKey: .idToken)
+    #expect(store.string(forKey: .idToken) == "token-2")
 
-        store.removeValue(forKey: .idToken)
-        #expect(store.string(forKey: .idToken) == nil)
-    }
+    store.removeValue(forKey: .idToken)
+    #expect(store.string(forKey: .idToken) == nil)
+  }
 
-    @Test("removeAll clears every key")
-    func removeAll() {
-        let store = KeychainStore(service: "yral-tests-\(UUID().uuidString)")
-        defer { store.removeAll() }
-        store.setString("id", forKey: .idToken)
-        store.setString("access", forKey: .accessToken)
-        store.setString("refresh", forKey: .refreshToken)
-        store.setString("last-active", forKey: .lastActiveSubject)
-        store.setString("main", forKey: .mainSubject)
-        store.removeAll()
-        #expect(store.string(forKey: .idToken) == nil)
-        #expect(store.string(forKey: .accessToken) == nil)
-        #expect(store.string(forKey: .refreshToken) == nil)
-        #expect(store.string(forKey: .lastActiveSubject) == nil)
-        #expect(store.string(forKey: .mainSubject) == nil)
-    }
+  @Test("removeAll clears every key")
+  func removeAll() {
+    let store = KeychainStore(service: "yral-tests-\(UUID().uuidString)")
+    defer { store.removeAll() }
+    store.setString("id", forKey: .idToken)
+    store.setString("access", forKey: .accessToken)
+    store.setString("refresh", forKey: .refreshToken)
+    store.setString("last-active", forKey: .lastActiveSubject)
+    store.setString("main", forKey: .mainSubject)
+    store.removeAll()
+    #expect(store.string(forKey: .idToken) == nil)
+    #expect(store.string(forKey: .accessToken) == nil)
+    #expect(store.string(forKey: .refreshToken) == nil)
+    #expect(store.string(forKey: .lastActiveSubject) == nil)
+    #expect(store.string(forKey: .mainSubject) == nil)
+  }
 }

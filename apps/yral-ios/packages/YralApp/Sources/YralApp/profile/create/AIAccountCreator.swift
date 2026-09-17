@@ -20,285 +20,285 @@ import Foundation
 /// commented out — it just normalizes and returns `updated = true`), so
 /// this port normalizes only, matching shipped behavior.
 struct AICreationProgress {
-    /// The persona being created (AIProfileDetails.personaKey) — NOT the
-    /// username: a name-collision edit retries the same creation
-    /// without re-minting the AI account.
-    let personaKey: String
-    var aiSubject: String?
-    var ownerRegistered = false
-    var registrationAccepted = false
-    var avatarBytes: Data?
-    var hostedAvatarURL: String?
-    var profileUpdated = false
-    var influencerCreated = false
-    var finalized = false
+  /// The persona being created (AIProfileDetails.personaKey) — NOT the
+  /// username: a name-collision edit retries the same creation
+  /// without re-minting the AI account.
+  let personaKey: String
+  var aiSubject: String?
+  var ownerRegistered = false
+  var registrationAccepted = false
+  var avatarBytes: Data?
+  var hostedAvatarURL: String?
+  var profileUpdated = false
+  var influencerCreated = false
+  var finalized = false
 }
 
 enum AIAccountCreator {
 
-    /// Context — the collaborators of one creation run (thin struct so
-    /// each step function takes a single parameter).
-    @MainActor
-    struct CreationContext {
-        let authClient: AuthClient
-        let sessionStore: SessionStore
-        let influencerDataSource: AIInfluencerDataSource
-        let spacetime: SpacetimeDBRemoteDataSource
+  /// Context — the collaborators of one creation run (thin struct so
+  /// each step function takes a single parameter).
+  @MainActor
+  struct CreationContext {
+    let authClient: AuthClient
+    let sessionStore: SessionStore
+    let influencerDataSource: AIInfluencerDataSource
+    let spacetime: SpacetimeDBRemoteDataSource
+  }
+
+  /// Kotlin `createBotAccount` + `completeBotSetup` end-to-end. Returns
+  /// the created AI subject; the session switch happens on success
+  /// (Kotlin setActiveBotSession).
+  @MainActor
+  static func create(
+    profile: AIProfileDetails,
+    progress: inout AICreationProgress,
+    context: CreationContext
+  ) async throws -> String {
+    guard let ownerSubject = context.sessionStore.userSubject else {
+      throw AuthError.oauthFailed(errorDescription: "Not signed in")
     }
 
-    /// Kotlin `createBotAccount` + `completeBotSetup` end-to-end. Returns
-    /// the created AI subject; the session switch happens on success
-    /// (Kotlin setActiveBotSession).
-    @MainActor
-    static func create(
-        profile: AIProfileDetails,
-        progress: inout AICreationProgress,
-        context: CreationContext
-    ) async throws -> String {
-        guard let ownerSubject = context.sessionStore.userSubject else {
-            throw AuthError.oauthFailed(errorDescription: "Not signed in")
-        }
-
-        if !progress.ownerRegistered {
-            try await registerOwner(ownerSubject: ownerSubject, context: context)
-            progress.ownerRegistered = true
-        }
-
-        if progress.aiSubject == nil {
-            progress.aiSubject = try await mintAIAccount(
-                ownerSubject: ownerSubject, context: context
-            )
-        }
-        let aiSubject = try require(progress.aiSubject)
-
-        if !progress.registrationAccepted {
-            try await attachAIAccount(
-                ownerSubject: ownerSubject,
-                aiSubject: aiSubject,
-                context: context
-            )
-            progress.registrationAccepted = true
-        }
-
-        let hostedAvatarURL = try await updateProfile(
-            profile: profile,
-            aiSubject: aiSubject,
-            progress: &progress,
-            context: context
-        )
-
-        if !progress.influencerCreated {
-            try await createInfluencerRecord(
-                profile: profile,
-                aiSubject: aiSubject,
-                hostedAvatarURL: hostedAvatarURL,
-                context: context
-            )
-            progress.influencerCreated = true
-        }
-
-        if !progress.finalized {
-            finalize(
-                profile: profile,
-                ownerSubject: ownerSubject,
-                aiSubject: aiSubject,
-                hostedAvatarURL: hostedAvatarURL,
-                context: context
-            )
-            progress.finalized = true
-        }
-
-        return aiSubject
+    if !progress.ownerRegistered {
+      try await registerOwner(ownerSubject: ownerSubject, context: context)
+      progress.ownerRegistered = true
     }
 
-    // MARK: - Steps (each idempotent-guarded by the progress record)
+    if progress.aiSubject == nil {
+      progress.aiSubject = try await mintAIAccount(
+        ownerSubject: ownerSubject, context: context
+      )
+    }
+    let aiSubject = try require(progress.aiSubject)
 
-    /// Step 1 — register the OWNER (main account): a MainAccount row must
-    /// exist before an AI account can attach ("Owner not found"
-    /// otherwise). Same reducer with `mainAccount = nil`; idempotent.
-    @MainActor
-    private static func registerOwner(
-        ownerSubject: String,
-        context: CreationContext
-    ) async throws {
-        try await context.spacetime.acceptNewUserRegistration(
-            newSubjectText: ownerSubject,
-            authenticated: true,
-            mainAccountText: nil
-        )
+    if !progress.registrationAccepted {
+      try await attachAIAccount(
+        ownerSubject: ownerSubject,
+        aiSubject: aiSubject,
+        context: context
+      )
+      progress.registrationAccepted = true
     }
 
-    /// Step 2 — mint the AI identity via yral-auth.
-    @MainActor
-    private static func mintAIAccount(
-        ownerSubject: String,
-        context: CreationContext
-    ) async throws -> String {
-        guard let idToken = context.authClient.idToken else {
-            throw AuthError.oauthFailed(errorDescription: "Not signed in")
-        }
-        return try await context.authClient.authDataSource.createAiAccount(
-            userID: ownerSubject,
-            idToken: idToken
-        )
+    let hostedAvatarURL = try await updateProfile(
+      profile: profile,
+      aiSubject: aiSubject,
+      progress: &progress,
+      context: context
+    )
+
+    if !progress.influencerCreated {
+      try await createInfluencerRecord(
+        profile: profile,
+        aiSubject: aiSubject,
+        hostedAvatarURL: hostedAvatarURL,
+        context: context
+      )
+      progress.influencerCreated = true
     }
 
-    /// Step 3 — attach the AI account under the owner.
-    @MainActor
-    private static func attachAIAccount(
-        ownerSubject: String,
-        aiSubject: String,
-        context: CreationContext
-    ) async throws {
-        try await context.spacetime.acceptNewUserRegistration(
-            newSubjectText: aiSubject,
-            authenticated: true,
-            mainAccountText: ownerSubject
-        )
+    if !progress.finalized {
+      finalize(
+        profile: profile,
+        ownerSubject: ownerSubject,
+        aiSubject: aiSubject,
+        hostedAvatarURL: hostedAvatarURL,
+        context: context
+      )
+      progress.finalized = true
     }
 
-    /// Step 4 — avatar download → upload → bio + picture URL
-    /// (Kotlin downloadAvatar + uploadProfileImage + update_profile_details).
-    @MainActor
-    private static func updateProfile(
-        profile: AIProfileDetails,
-        aiSubject: String,
-        progress: inout AICreationProgress,
-        context: CreationContext
-    ) async throws -> String {
-        if let hostedAvatarURL = progress.hostedAvatarURL {
-            return hostedAvatarURL
-        }
-        guard let idToken = context.authClient.idToken else {
-            throw AuthError.oauthFailed(errorDescription: "Not signed in")
-        }
-        let avatarBytes = try await downloadAvatarBytes(
-            profile: profile, progress: &progress, context: context
-        )
-        let hostedAvatarURL = try await context.influencerDataSource.uploadProfileImage(
-            imageBase64: avatarBytes.base64EncodedString(),
-            idToken: idToken
-        )
-        // `update_as_ai_account_id` = the new AI subject — WITHOUT it the
-        // reducer edits the CALLER's (owner's) profile instead of the bot's
-        // (see the reducer's doc comment in user_info.rs). Ownership is
-        // checked server-side (step 3 attached the bot to the owner above).
-        try await context.spacetime.updateProfileDetails(
-            bio: profile.description,
-            websiteURL: nil,
-            profilePictureURL: hostedAvatarURL,
-            updateAsAIAccountID: aiSubject
-        )
-        progress.profileUpdated = true
-        progress.hostedAvatarURL = hostedAvatarURL
-        return hostedAvatarURL
-    }
+    return aiSubject
+  }
 
-    /// Step 5 — the backend influencer record. The backend derives the
-    /// owner from the auth token; the DURABLE hosted avatar URL (from
-    /// step 4) is what the record carries — the short-lived generated
-    /// URL would be reaped after ~2h and the avatar would vanish from
-    /// backend-fed surfaces.
-    @MainActor
-    private static func createInfluencerRecord(
-        profile: AIProfileDetails,
-        aiSubject: String,
-        hostedAvatarURL: String,
-        context: CreationContext
-    ) async throws {
-        guard let idToken = context.authClient.idToken else {
-            throw AuthError.oauthFailed(errorDescription: "Not signed in")
-        }
-        try await context.influencerDataSource.createInfluencer(
-            profile: profile,
-            aiSubjectID: aiSubject,
-            hostedAvatarURL: hostedAvatarURL,
-            idToken: idToken
-        )
-    }
+  // MARK: - Steps (each idempotent-guarded by the progress record)
 
-    /// Step 6 — persist the AI identity + switch the active session
-    /// (Kotlin setActiveBotSession; the AI account becomes last-active so
-    /// relaunches continue as it until switched).
-    @MainActor
-    private static func finalize(
-        profile: AIProfileDetails,
-        ownerSubject: String,
-        aiSubject: String,
-        hostedAvatarURL: String,
-        context: CreationContext
-    ) {
-        AIIdentitiesStore.saveIdentity(
-            subject: aiSubject,
-            username: profile.name,
-            defaults: context.authClient.defaults
-        )
-        let aiSession = Session(
-            userSubject: aiSubject,
-            profilePic: hostedAvatarURL,
-            username: profile.name,
-            bio: profile.description,
-            isAIAccount: true
-        )
-        context.sessionStore.send(.sessionEstablished(aiSession))
-        context.authClient.cacheSession(
-            userSubject: aiSubject,
-            profilePic: hostedAvatarURL,
-            username: profile.name,
-            isAIAccount: true
-        )
-        context.authClient.keychain.setString(aiSubject, forKey: .lastActiveSubject)
-    }
+  /// Step 1 — register the OWNER (main account): a MainAccount row must
+  /// exist before an AI account can attach ("Owner not found"
+  /// otherwise). Same reducer with `mainAccount = nil`; idempotent.
+  @MainActor
+  private static func registerOwner(
+    ownerSubject: String,
+    context: CreationContext
+  ) async throws {
+    try await context.spacetime.acceptNewUserRegistration(
+      newSubjectText: ownerSubject,
+      authenticated: true,
+      mainAccountText: nil
+    )
+  }
 
-    /// Avatar bytes — generated URL download (Kotlin downloadAvatar),
-    /// memoized in the progress record.
-    @MainActor
-    private static func downloadAvatarBytes(
-        profile: AIProfileDetails,
-        progress: inout AICreationProgress,
-        context: CreationContext
-    ) async throws -> Data {
-        if let bytes = progress.avatarBytes {
-            return bytes
-        }
-        guard let avatarURL = URL(string: profile.avatarURL) else {
-            throw NetworkError.transport(underlying: "Profile has a malformed avatar URL")
-        }
-        let bytes = try await context.influencerDataSource.downloadAvatar(url: avatarURL)
-        progress.avatarBytes = bytes
-        return bytes
+  /// Step 2 — mint the AI identity via yral-auth.
+  @MainActor
+  private static func mintAIAccount(
+    ownerSubject: String,
+    context: CreationContext
+  ) async throws -> String {
+    guard let idToken = context.authClient.idToken else {
+      throw AuthError.oauthFailed(errorDescription: "Not signed in")
     }
+    return try await context.authClient.authDataSource.createAiAccount(
+      userID: ownerSubject,
+      idToken: idToken
+    )
+  }
 
-    private static func require<T>(_ value: T?) throws -> T {
-        guard let value else {
-            throw NetworkError.transport(underlying: "Creation state was reset mid-flow")
-        }
-        return value
+  /// Step 3 — attach the AI account under the owner.
+  @MainActor
+  private static func attachAIAccount(
+    ownerSubject: String,
+    aiSubject: String,
+    context: CreationContext
+  ) async throws {
+    try await context.spacetime.acceptNewUserRegistration(
+      newSubjectText: aiSubject,
+      authenticated: true,
+      mainAccountText: ownerSubject
+    )
+  }
+
+  /// Step 4 — avatar download → upload → bio + picture URL
+  /// (Kotlin downloadAvatar + uploadProfileImage + update_profile_details).
+  @MainActor
+  private static func updateProfile(
+    profile: AIProfileDetails,
+    aiSubject: String,
+    progress: inout AICreationProgress,
+    context: CreationContext
+  ) async throws -> String {
+    if let hostedAvatarURL = progress.hostedAvatarURL {
+      return hostedAvatarURL
     }
+    guard let idToken = context.authClient.idToken else {
+      throw AuthError.oauthFailed(errorDescription: "Not signed in")
+    }
+    let avatarBytes = try await downloadAvatarBytes(
+      profile: profile, progress: &progress, context: context
+    )
+    let hostedAvatarURL = try await context.influencerDataSource.uploadProfileImage(
+      imageBase64: avatarBytes.base64EncodedString(),
+      idToken: idToken
+    )
+    // `update_as_ai_account_id` = the new AI subject — WITHOUT it the
+    // reducer edits the CALLER's (owner's) profile instead of the bot's
+    // (see the reducer's doc comment in user_info.rs). Ownership is
+    // checked server-side (step 3 attached the bot to the owner above).
+    try await context.spacetime.updateProfileDetails(
+      bio: profile.description,
+      websiteURL: nil,
+      profilePictureURL: hostedAvatarURL,
+      updateAsAIAccountID: aiSubject
+    )
+    progress.profileUpdated = true
+    progress.hostedAvatarURL = hostedAvatarURL
+    return hostedAvatarURL
+  }
+
+  /// Step 5 — the backend influencer record. The backend derives the
+  /// owner from the auth token; the DURABLE hosted avatar URL (from
+  /// step 4) is what the record carries — the short-lived generated
+  /// URL would be reaped after ~2h and the avatar would vanish from
+  /// backend-fed surfaces.
+  @MainActor
+  private static func createInfluencerRecord(
+    profile: AIProfileDetails,
+    aiSubject: String,
+    hostedAvatarURL: String,
+    context: CreationContext
+  ) async throws {
+    guard let idToken = context.authClient.idToken else {
+      throw AuthError.oauthFailed(errorDescription: "Not signed in")
+    }
+    try await context.influencerDataSource.createInfluencer(
+      profile: profile,
+      aiSubjectID: aiSubject,
+      hostedAvatarURL: hostedAvatarURL,
+      idToken: idToken
+    )
+  }
+
+  /// Step 6 — persist the AI identity + switch the active session
+  /// (Kotlin setActiveBotSession; the AI account becomes last-active so
+  /// relaunches continue as it until switched).
+  @MainActor
+  private static func finalize(
+    profile: AIProfileDetails,
+    ownerSubject: String,
+    aiSubject: String,
+    hostedAvatarURL: String,
+    context: CreationContext
+  ) {
+    AIIdentitiesStore.saveIdentity(
+      subject: aiSubject,
+      username: profile.name,
+      defaults: context.authClient.defaults
+    )
+    let aiSession = Session(
+      userSubject: aiSubject,
+      profilePic: hostedAvatarURL,
+      username: profile.name,
+      bio: profile.description,
+      isAIAccount: true
+    )
+    context.sessionStore.send(.sessionEstablished(aiSession))
+    context.authClient.cacheSession(
+      userSubject: aiSubject,
+      profilePic: hostedAvatarURL,
+      username: profile.name,
+      isAIAccount: true
+    )
+    context.authClient.keychain.setString(aiSubject, forKey: .lastActiveSubject)
+  }
+
+  /// Avatar bytes — generated URL download (Kotlin downloadAvatar),
+  /// memoized in the progress record.
+  @MainActor
+  private static func downloadAvatarBytes(
+    profile: AIProfileDetails,
+    progress: inout AICreationProgress,
+    context: CreationContext
+  ) async throws -> Data {
+    if let bytes = progress.avatarBytes {
+      return bytes
+    }
+    guard let avatarURL = URL(string: profile.avatarURL) else {
+      throw NetworkError.transport(underlying: "Profile has a malformed avatar URL")
+    }
+    let bytes = try await context.influencerDataSource.downloadAvatar(url: avatarURL)
+    progress.avatarBytes = bytes
+    return bytes
+  }
+
+  private static func require<T>(_ value: T?) throws -> T {
+    guard let value else {
+      throw NetworkError.transport(underlying: "Creation state was reset mid-flow")
+    }
+    return value
+  }
 }
 
 /// Kotlin `AiInfluencerStep.ProfileDetails` — the validated creation
 /// payload (everything the backend record + profile need).
 struct AIProfileDetails {
-    var systemInstructions: String
-    var name: String
-    var displayName: String
-    var description: String
-    var avatarURL: String
-    var initialGreeting: String
-    var suggestedMessages: [String]
-    var personalityTraits: [String: String]
-    var category: String
-    var isNSFW: Bool
+  var systemInstructions: String
+  var name: String
+  var displayName: String
+  var description: String
+  var avatarURL: String
+  var initialGreeting: String
+  var suggestedMessages: [String]
+  var personalityTraits: [String: String]
+  var category: String
+  var isNSFW: Bool
 
-    /// Identity of the PERSONA being created — instructions + avatar,
-    /// deliberately EXCLUDING the name: pipeline steps 1–4 (mint,
-    /// attach, profile) are name-independent, so a user editing the
-    /// username after a "Name … already taken" collision retries the
-    /// SAME creation (no re-mint) and only steps 5–6 re-run with the
-    /// new name. Keying on the name would wrongly discard the progress
-    /// record and mint a SECOND AI account on every name edit.
-    var personaKey: String {
-        "\(systemInstructions.hashValue)|\(avatarURL)"
-    }
+  /// Identity of the PERSONA being created — instructions + avatar,
+  /// deliberately EXCLUDING the name: pipeline steps 1–4 (mint,
+  /// attach, profile) are name-independent, so a user editing the
+  /// username after a "Name … already taken" collision retries the
+  /// SAME creation (no re-mint) and only steps 5–6 re-run with the
+  /// new name. Keying on the name would wrongly discard the progress
+  /// record and mint a SECOND AI account on every name edit.
+  var personaKey: String {
+    "\(systemInstructions.hashValue)|\(avatarURL)"
+  }
 }

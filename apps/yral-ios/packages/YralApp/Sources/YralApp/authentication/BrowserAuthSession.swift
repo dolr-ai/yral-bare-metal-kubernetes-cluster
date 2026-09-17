@@ -1,7 +1,8 @@
 import Foundation
+
 #if canImport(UIKit)
-import AuthenticationServices
-import UIKit
+  import AuthenticationServices
+  import UIKit
 #endif
 
 /// Browser-based social sign-in — the yral-auth server-side OIDC flow.
@@ -17,40 +18,41 @@ import UIKit
 /// Kotlin expiry only guarded a double-delivery the native API prevents.
 enum BrowserAuthSession {
 
-    // TODO(auth-native-google): replace the browser flow for the Google tile
-    // with the GoogleSignIn-iOS SDK (OIDC AppAuth under the hood): obtain the
-    // Google identity token natively, then exchange it with yral-auth for our
-    // JWT. Requires the app registered as a Google OAuth client + a yral-auth
-    // endpoint accepting IdP id_tokens.
+  // TODO(auth-native-google): replace the browser flow for the Google tile
+  // with the GoogleSignIn-iOS SDK (OIDC AppAuth under the hood): obtain the
+  // Google identity token natively, then exchange it with yral-auth for our
+  // JWT. Requires the app registered as a Google OAuth client + a yral-auth
+  // endpoint accepting IdP id_tokens.
 
-    // TODO(auth-native-apple): replace the browser flow for the Apple tile with
-    // ASAuthorizationAppleIDButton (AuthenticationServices): obtain the Apple
-    // identity token natively, then exchange it with yral-auth. Apple also
-    // REQUIRES this native path when third-party sign-in is offered — a
-    // compliance item before App Store review.
+  // TODO(auth-native-apple): replace the browser flow for the Apple tile with
+  // ASAuthorizationAppleIDButton (AuthenticationServices): obtain the Apple
+  // identity token natively, then exchange it with yral-auth. Apple also
+  // REQUIRES this native path when third-party sign-in is offered — a
+  // compliance item before App Store review.
 
-    /// Runs the browser auth flow for the provider end-to-end (URL build →
-    /// session → callback parse), returning the OAuthResult.
-    @MainActor
-    static func signIn(
-        provider: SocialProvider,
-        authClient: AuthClient
-    ) async throws -> OAuthResult {
-        let authorizationURL = try authClient.socialAuthorizationURL(provider: provider)
-        let callbackURL = try await runSession(
-            authorizationURL: authorizationURL,
-            redirectScheme: authClient.redirectScheme
-        )
-        return OAuthCallbackParser.parse(
-            callbackURL: callbackURL,
-            redirectScheme: authClient.redirectScheme
-        ) ?? .failure(
-            error: "invalid_callback",
-            errorDescription: "OAuth callback missing required parameters"
-        )
-    }
+  /// Runs the browser auth flow for the provider end-to-end (URL build →
+  /// session → callback parse), returning the OAuthResult.
+  @MainActor
+  static func signIn(
+    provider: SocialProvider,
+    authClient: AuthClient
+  ) async throws -> OAuthResult {
+    let authorizationURL = try authClient.socialAuthorizationURL(provider: provider)
+    let callbackURL = try await runSession(
+      authorizationURL: authorizationURL,
+      redirectScheme: authClient.redirectScheme
+    )
+    return OAuthCallbackParser.parse(
+      callbackURL: callbackURL,
+      redirectScheme: authClient.redirectScheme
+    )
+      ?? .failure(
+        error: "invalid_callback",
+        errorDescription: "OAuth callback missing required parameters"
+      )
+  }
 
-    #if canImport(UIKit)
+  #if canImport(UIKit)
     /// The browser session — Kotlin `IosOAuthUtils.startSession`, with the
     /// ephemeral flag flipped to false (see the call site for why):
     /// callback scheme = the app's redirect scheme. Cancel (user
@@ -84,71 +86,73 @@ enum BrowserAuthSession {
 
     @MainActor
     private static func runSession(
-        authorizationURL: URL,
-        redirectScheme: String
+      authorizationURL: URL,
+      redirectScheme: String
     ) async throws -> URL {
-        // Local (not static) resume flag — captured by both the handler and
-        // the start() branch; both run on the main actor, so plain captured
-        // var access is race-free.
-        final class ResumeFlag: @unchecked Sendable {
-            private let lock = NSLock()
-            private var value = false
-            var hasResumed: Bool {
-                lock.lock(); defer { lock.unlock() }
-                return value
-            }
-            func setResumed() {
-                lock.lock(); defer { lock.unlock() }
-                value = true
-            }
+      // Local (not static) resume flag — captured by both the handler and
+      // the start() branch; both run on the main actor, so plain captured
+      // var access is race-free.
+      final class ResumeFlag: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value = false
+        var hasResumed: Bool {
+          lock.lock()
+          defer { lock.unlock() }
+          return value
         }
-        let resumeFlag = ResumeFlag()
-        return try await withCheckedThrowingContinuation { continuation in
-            let session = ASWebAuthenticationSession(
-                url: authorizationURL,
-                // Must be the SAME scheme the authorize URL's redirect_uri
-                // and the parser use: yral-auth redirects to
-                // `<redirectScheme>://oauth/callback`, and the session only
-                // intercepts a matching callbackURLScheme.
-                callbackURLScheme: redirectScheme
-            ) { callbackURL, error in
-                guard !resumeFlag.hasResumed else { return }
-                resumeFlag.setResumed()
-                Self.retainedSession = nil
-                if let callbackURL {
-                    continuation.resume(returning: callbackURL)
-                } else if let error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume(
-                        throwing: AuthError.oauthFailed(
-                            errorDescription:
-                                "Browser auth session ended without a result"
-                        )
-                    )
-                }
-            }
-            session.presentationContextProvider = Self.anchorProvider
-            // Share Safari cookies (NOT ephemeral): Google/Apple recognize
-            // the existing session — one-tap account chooser instead of a
-            // full login every time. Deliberate deviation from the legacy
-            // Kotlin app, which set ephemeral=true (private-browsing mode —
-            // the reason logins never stuck).
-            session.prefersEphemeralWebBrowserSession = false
-            Self.retainedSession = session
-            if !session.start() && !resumeFlag.hasResumed {
-                // The handler did NOT fire synchronously — start genuinely
-                // failed without a callback. This is the ONLY additional
-                // resume path (Kotlin's "session_start_failed").
-                resumeFlag.setResumed()
-                Self.retainedSession = nil
-                continuation.resume(
-                    throwing: AuthError.oauthFailed(
-                        errorDescription: "Unable to launch the browser auth session"
-                    )
-                )
-            }
+        func setResumed() {
+          lock.lock()
+          defer { lock.unlock() }
+          value = true
         }
+      }
+      let resumeFlag = ResumeFlag()
+      return try await withCheckedThrowingContinuation { continuation in
+        let session = ASWebAuthenticationSession(
+          url: authorizationURL,
+          // Must be the SAME scheme the authorize URL's redirect_uri
+          // and the parser use: yral-auth redirects to
+          // `<redirectScheme>://oauth/callback`, and the session only
+          // intercepts a matching callbackURLScheme.
+          callbackURLScheme: redirectScheme
+        ) { callbackURL, error in
+          guard !resumeFlag.hasResumed else { return }
+          resumeFlag.setResumed()
+          Self.retainedSession = nil
+          if let callbackURL {
+            continuation.resume(returning: callbackURL)
+          } else if let error {
+            continuation.resume(throwing: error)
+          } else {
+            continuation.resume(
+              throwing: AuthError.oauthFailed(
+                errorDescription:
+                  "Browser auth session ended without a result"
+              )
+            )
+          }
+        }
+        session.presentationContextProvider = Self.anchorProvider
+        // Share Safari cookies (NOT ephemeral): Google/Apple recognize
+        // the existing session — one-tap account chooser instead of a
+        // full login every time. Deliberate deviation from the legacy
+        // Kotlin app, which set ephemeral=true (private-browsing mode —
+        // the reason logins never stuck).
+        session.prefersEphemeralWebBrowserSession = false
+        Self.retainedSession = session
+        if !session.start() && !resumeFlag.hasResumed {
+          // The handler did NOT fire synchronously — start genuinely
+          // failed without a callback. This is the ONLY additional
+          // resume path (Kotlin's "session_start_failed").
+          resumeFlag.setResumed()
+          Self.retainedSession = nil
+          continuation.resume(
+            throwing: AuthError.oauthFailed(
+              errorDescription: "Unable to launch the browser auth session"
+            )
+          )
+        }
+      }
     }
 
     /// Presentation anchor — bridges SwiftUI to AuthenticationServices
@@ -164,48 +168,50 @@ enum BrowserAuthSession {
     /// scene-lessly: `UIWindow.init()` and `init(frame:)` are both deprecated
     /// in iOS 26 (per UIWindow.h: "Use init(windowScene:) instead").
     private final class PresentationAnchorProvider: NSObject,
-        ASWebAuthenticationPresentationContextProviding {
-        func presentationAnchor(
-            for session: ASWebAuthenticationSession
-        ) -> ASPresentationAnchor {
-            MainActor.assumeIsolated {
-                let windowScenes = UIApplication.shared.connectedScenes
-                    .compactMap { $0 as? UIWindowScene }
-                // The presenting window when one exists...
-                if let keyWindow = windowScenes.compactMap(\.keyWindow).first {
-                    return keyWindow
-                }
-                if let existing = windowScenes.first(where: { !$0.windows.isEmpty })?
-                    .windows.first {
-                    return existing
-                }
-                // ...otherwise a window for the scene, which is the
-                // non-deprecated scene-based initializer.
-                //
-                // Unreachable in this app: it declares a
-                // UIApplicationSceneManifest, and a web-auth presentation
-                // cannot start without a scene to present from. Stated
-                // explicitly rather than silently constructing a scene-less
-                // window, which iOS 26 deprecated.
-                guard let scene = windowScenes.first else {
-                    preconditionFailure(
-                        "Web auth presentation requires a UIWindowScene — the app declares a scene manifest"
-                    )
-                }
-                return UIWindow(windowScene: scene)
-            }
+      ASWebAuthenticationPresentationContextProviding
+    {
+      func presentationAnchor(
+        for session: ASWebAuthenticationSession
+      ) -> ASPresentationAnchor {
+        MainActor.assumeIsolated {
+          let windowScenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+          // The presenting window when one exists...
+          if let keyWindow = windowScenes.compactMap(\.keyWindow).first {
+            return keyWindow
+          }
+          if let existing = windowScenes.first(where: { !$0.windows.isEmpty })?
+            .windows.first
+          {
+            return existing
+          }
+          // ...otherwise a window for the scene, which is the
+          // non-deprecated scene-based initializer.
+          //
+          // Unreachable in this app: it declares a
+          // UIApplicationSceneManifest, and a web-auth presentation
+          // cannot start without a scene to present from. Stated
+          // explicitly rather than silently constructing a scene-less
+          // window, which iOS 26 deprecated.
+          guard let scene = windowScenes.first else {
+            preconditionFailure(
+              "Web auth presentation requires a UIWindowScene — the app declares a scene manifest"
+            )
+          }
+          return UIWindow(windowScene: scene)
         }
+      }
     }
-    #else
+  #else
     /// macOS test host — the browser session is iOS-only; tests drive
     /// `handleOAuthCallbackResult` directly with fabricated results.
     private static func runSession(
-        authorizationURL: URL,
-        redirectScheme: String
+      authorizationURL: URL,
+      redirectScheme: String
     ) async throws -> URL {
-        throw AuthError.oauthFailed(
-            errorDescription: "Browser auth unavailable on this platform"
-        )
+      throw AuthError.oauthFailed(
+        errorDescription: "Browser auth unavailable on this platform"
+      )
     }
-    #endif
+  #endif
 }

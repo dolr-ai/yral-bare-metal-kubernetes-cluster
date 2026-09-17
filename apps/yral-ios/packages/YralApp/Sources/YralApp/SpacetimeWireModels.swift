@@ -23,37 +23,37 @@ import Foundation
 
 /// `Some(v)` → `[0, payload]`; `None` → `null` (ARG form).
 struct SpacetimeOption<Value: Encodable>: Encodable {
-    let value: Value?
+  let value: Value?
 
-    init(_ value: Value?) {
-        self.value = value
-    }
+  init(_ value: Value?) {
+    self.value = value
+  }
 
-    func encode(to encoder: Encoder) throws {
-        switch value {
-        case let .some(inner):
-            var container = encoder.unkeyedContainer()
-            try container.encode(0)
-            try container.encode(inner)
-        case .none:
-            var single = encoder.singleValueContainer()
-            try single.encodeNil()
-        }
+  func encode(to encoder: Encoder) throws {
+    switch value {
+    case .some(let inner):
+      var container = encoder.unkeyedContainer()
+      try container.encode(0)
+      try container.encode(inner)
+    case .none:
+      var single = encoder.singleValueContainer()
+      try single.encodeNil()
     }
+  }
 }
 
 /// `ProfilePictureData` — the live struct: `{ url: String,
 /// nsfw_info: NSFWInfo }`, positional on the wire. Request-side (the
 /// response-side decoders live in SpacetimeModels.swift).
 struct SpacetimeWireProfilePictureData: Encodable {
-    let url: String
-    let nsfwInfo: SpacetimeWireNSFWInfo
+  let url: String
+  let nsfwInfo: SpacetimeWireNSFWInfo
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-        try container.encode(url)
-        try container.encode(nsfwInfo)
-    }
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.unkeyedContainer()
+    try container.encode(url)
+    try container.encode(nsfwInfo)
+  }
 }
 
 /// `NSFWInfo` — `{ is_nsfw: bool, nsfw_ec: String, nsfw_gore: String,
@@ -62,18 +62,18 @@ struct SpacetimeWireProfilePictureData: Encodable {
 /// Request-side (the response-side decoder is SpacetimeNsfwInfo in
 /// SpacetimeModels.swift).
 struct SpacetimeWireNSFWInfo: Encodable {
-    let isNSFW: Bool
-    let nsfwEC: String
-    let nsfwGore: String
-    let csamDetected: Bool
+  let isNSFW: Bool
+  let nsfwEC: String
+  let nsfwGore: String
+  let csamDetected: Bool
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-        try container.encode(isNSFW)
-        try container.encode(nsfwEC)
-        try container.encode(nsfwGore)
-        try container.encode(csamDetected)
-    }
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.unkeyedContainer()
+    try container.encode(isNSFW)
+    try container.encode(nsfwEC)
+    try container.encode(nsfwGore)
+    try container.encode(csamDetected)
+  }
 }
 
 /// `update_profile_details(bio: Option<String>,
@@ -81,18 +81,18 @@ struct SpacetimeWireNSFWInfo: Encodable {
 /// Option<ProfilePictureData>, update_as_ai_account_id:
 /// Option<String>)` — the LIVE reducer signature.
 struct UpdateProfileDetailsArguments: Encodable {
-    let bio: String?
-    let websiteURL: String?
-    let profilePicture: SpacetimeWireProfilePictureData?
-    let updateAsAIAccountID: String?
+  let bio: String?
+  let websiteURL: String?
+  let profilePicture: SpacetimeWireProfilePictureData?
+  let updateAsAIAccountID: String?
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-        try container.encode(SpacetimeOption(bio))
-        try container.encode(SpacetimeOption(websiteURL))
-        try container.encode(SpacetimeOption(profilePicture))
-        try container.encode(SpacetimeOption(updateAsAIAccountID))
-    }
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.unkeyedContainer()
+    try container.encode(SpacetimeOption(bio))
+    try container.encode(SpacetimeOption(websiteURL))
+    try container.encode(SpacetimeOption(profilePicture))
+    try container.encode(SpacetimeOption(updateAsAIAccountID))
+  }
 }
 
 /// `accept_new_user_registration(new_principal_text: String,
@@ -101,163 +101,163 @@ struct UpdateProfileDetailsArguments: Encodable {
 /// encoding is positional so the Swift property names are Swift-side
 /// only.
 struct AcceptNewUserRegistrationArguments: Encodable {
-    let newSubjectText: String
-    let authenticated: Bool
-    let mainAccountText: String?
+  let newSubjectText: String
+  let authenticated: Bool
+  let mainAccountText: String?
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-        try container.encode(newSubjectText)
-        try container.encode(authenticated)
-        try container.encode(SpacetimeOption(mainAccountText))
-    }
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.unkeyedContainer()
+    try container.encode(newSubjectText)
+    try container.encode(authenticated)
+    try container.encode(SpacetimeOption(mainAccountText))
+  }
 }
 
 /// `get_post_by_id(post_id: String)`.
 struct GetPostByIDArguments: Encodable {
-    let postID: String
+  let postID: String
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-        try container.encode(postID)
-    }
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.unkeyedContainer()
+    try container.encode(postID)
+  }
 }
 
 /// `get_individual_post_details_by_id(post_id: String)`.
 struct GetIndividualPostDetailsByIDArguments: Encodable {
-    let postID: String
+  let postID: String
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-        try container.encode(postID)
-    }
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.unkeyedContainer()
+    try container.encode(postID)
+  }
 }
 
 /// `get_posts_of_user_by_principal(creator_oauth_subject: String,
 /// offset: u64, limit: u64)`.
 struct GetPostsOfUserByPrincipalArguments: Encodable {
-    let creatorOauthSubject: String
-    let offset: UInt64
-    let limit: UInt64
+  let creatorOauthSubject: String
+  let offset: UInt64
+  let limit: UInt64
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-        try container.encode(creatorOauthSubject)
-        try container.encode(offset)
-        try container.encode(limit)
-    }
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.unkeyedContainer()
+    try container.encode(creatorOauthSubject)
+    try container.encode(offset)
+    try container.encode(limit)
+  }
 }
 
 /// `get_draft_posts_of_user_by_principal(creator_oauth_subject: String,
 /// offset: u64, limit: u64)`.
 struct GetDraftPostsOfUserByPrincipalArguments: Encodable {
-    let creatorOauthSubject: String
-    let offset: UInt64
-    let limit: UInt64
+  let creatorOauthSubject: String
+  let offset: UInt64
+  let limit: UInt64
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-        try container.encode(creatorOauthSubject)
-        try container.encode(offset)
-        try container.encode(limit)
-    }
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.unkeyedContainer()
+    try container.encode(creatorOauthSubject)
+    try container.encode(offset)
+    try container.encode(limit)
+  }
 }
 
 /// `get_user_profile_details(oauth_subject: String)`.
 struct GetUserProfileDetailsArguments: Encodable {
-    let oauthSubject: String
+  let oauthSubject: String
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-        try container.encode(oauthSubject)
-    }
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.unkeyedContainer()
+    try container.encode(oauthSubject)
+  }
 }
 
 /// `get_users_profile_details(oauth_subjects: Vec<String>)` — the list
 /// is ONE positional arg (a nested JSON array), not spread args.
 struct GetUsersProfileDetailsArguments: Encodable {
-    let oauthSubjects: [String]
+  let oauthSubjects: [String]
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-        try container.encode(oauthSubjects)
-    }
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.unkeyedContainer()
+    try container.encode(oauthSubjects)
+  }
 }
 
 /// `get_followers(oauth_subject: String, limit: u64,
 /// cursor: Option<String>)`.
 struct GetFollowersArguments: Encodable {
-    let oauthSubject: String
-    let limit: UInt64
-    let cursor: String?
+  let oauthSubject: String
+  let limit: UInt64
+  let cursor: String?
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-        try container.encode(oauthSubject)
-        try container.encode(limit)
-        try container.encode(SpacetimeOption(cursor))
-    }
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.unkeyedContainer()
+    try container.encode(oauthSubject)
+    try container.encode(limit)
+    try container.encode(SpacetimeOption(cursor))
+  }
 }
 
 /// `get_following(oauth_subject: String, limit: u64,
 /// cursor: Option<String>)`.
 struct GetFollowingArguments: Encodable {
-    let oauthSubject: String
-    let limit: UInt64
-    let cursor: String?
+  let oauthSubject: String
+  let limit: UInt64
+  let cursor: String?
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-        try container.encode(oauthSubject)
-        try container.encode(limit)
-        try container.encode(SpacetimeOption(cursor))
-    }
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.unkeyedContainer()
+    try container.encode(oauthSubject)
+    try container.encode(limit)
+    try container.encode(SpacetimeOption(cursor))
+  }
 }
 
 /// `follow_user(followee_subject: String)`.
 struct FollowUserArguments: Encodable {
-    let followeeSubject: String
+  let followeeSubject: String
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-        try container.encode(followeeSubject)
-    }
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.unkeyedContainer()
+    try container.encode(followeeSubject)
+  }
 }
 
 /// `unfollow_user(followee_subject: String)`.
 struct UnfollowUserArguments: Encodable {
-    let followeeSubject: String
+  let followeeSubject: String
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-        try container.encode(followeeSubject)
-    }
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.unkeyedContainer()
+    try container.encode(followeeSubject)
+  }
 }
 
 /// `register_notification_token(token: String)`.
 struct RegisterNotificationTokenArguments: Encodable {
-    let token: String
+  let token: String
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-        try container.encode(token)
-    }
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.unkeyedContainer()
+    try container.encode(token)
+  }
 }
 
 /// `unregister_notification_token(token: String)`.
 struct UnregisterNotificationTokenArguments: Encodable {
-    let token: String
+  let token: String
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-        try container.encode(token)
-    }
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.unkeyedContainer()
+    try container.encode(token)
+  }
 }
 
 /// No-argument calls (`register_new_user`,
 /// `update_user_last_access_time`) — an empty positional-args array.
 struct SpacetimeNoArguments: Encodable {
-    func encode(to encoder: Encoder) throws {
-        _ = encoder.unkeyedContainer()
-    }
+  func encode(to encoder: Encoder) throws {
+    _ = encoder.unkeyedContainer()
+  }
 }

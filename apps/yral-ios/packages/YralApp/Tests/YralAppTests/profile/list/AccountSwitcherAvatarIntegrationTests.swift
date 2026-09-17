@@ -27,153 +27,156 @@ import Testing
 @MainActor
 struct AccountSwitcherAvatarIntegrationTests {
 
-    /// Short alias — the fixture namespace name is long.
-    typealias Fixtures = AccountSwitcherFixtures
+  /// Short alias — the fixture namespace name is long.
+  typealias Fixtures = AccountSwitcherFixtures
 
-    // MARK: - The contract: table URL reaches the switcher row
+  // MARK: - The contract: table URL reaches the switcher row
 
-    @Test("switcher rows carry the hosted avatar URLs from the profile table")
-    func switcherRowsShowHostedAvatars() async throws {
-        let keychain = KeychainStore(service: "switcher-avatar-tests-\(UUID().uuidString)")
-        defer { keychain.removeAll() }
-        let defaults = Fixtures.freshDefaults()
-        let channel = UUID().uuidString
-        defer { ChannelURLProtocol.unregister(channel: channel) }
-        let (client, _) = Fixtures.makeClient(
-                defaults: defaults,
-                keychain: keychain,
-                channel: channel
-            )
+  @Test("switcher rows carry the hosted avatar URLs from the profile table")
+  func switcherRowsShowHostedAvatars() async throws {
+    let keychain = KeychainStore(service: "switcher-avatar-tests-\(UUID().uuidString)")
+    defer { keychain.removeAll() }
+    let defaults = Fixtures.freshDefaults()
+    let channel = UUID().uuidString
+    defer { ChannelURLProtocol.unregister(channel: channel) }
+    let (client, _) = Fixtures.makeClient(
+      defaults: defaults,
+      keychain: keychain,
+      channel: channel
+    )
 
-        let recorder = RequestRecorder()
-        ChannelURLProtocol.register(
-            Fixtures.serveProfilesAndNames(
-                profilesBody: Fixtures.profilesResponseBody(rows: [
-                    Fixtures.profileWireRow(
-                        subject: Fixtures.firstBotSubject,
-                        avatarURL: Fixtures.firstBotHostedAvatar
-                    ),
-                    Fixtures.profileWireRow(
-                        subject: Fixtures.secondBotSubject,
-                        avatarURL: Fixtures.secondBotHostedAvatar
-                    )
-                ]),
-                namesBody: Fixtures.creatorNamesResponseBody(entries: [
-                    (subject: Fixtures.firstBotSubject, name: "dekuizuku"),
-                    (subject: Fixtures.secondBotSubject, name: "uraraka")
-                ]),
-                recorder: recorder
-            ),
-            forChannel: channel
-        )
+    let recorder = RequestRecorder()
+    ChannelURLProtocol.register(
+      Fixtures.serveProfilesAndNames(
+        profilesBody: Fixtures.profilesResponseBody(rows: [
+          Fixtures.profileWireRow(
+            subject: Fixtures.firstBotSubject,
+            avatarURL: Fixtures.firstBotHostedAvatar
+          ),
+          Fixtures.profileWireRow(
+            subject: Fixtures.secondBotSubject,
+            avatarURL: Fixtures.secondBotHostedAvatar
+          ),
+        ]),
+        namesBody: Fixtures.creatorNamesResponseBody(entries: [
+          (subject: Fixtures.firstBotSubject, name: "dekuizuku"),
+          (subject: Fixtures.secondBotSubject, name: "uraraka"),
+        ]),
+        recorder: recorder
+      ),
+      forChannel: channel
+    )
 
-        let entries = await client.refreshedAccountSwitcherEntries()
+    let entries = await client.refreshedAccountSwitcherEntries()
 
-        // THE assertion — the device-reported bug: rows must show the
-        // durable URLs written at creation, not the GobGob fallback.
-        let avatarsBySubject = Dictionary(
-            uniqueKeysWithValues: (entries?.aiAccounts ?? []).map { ($0.subject, $0.avatarURL) }
-        )
-        #expect(avatarsBySubject[Fixtures.firstBotSubject] == Fixtures.firstBotHostedAvatar)
-        #expect(avatarsBySubject[Fixtures.secondBotSubject] == Fixtures.secondBotHostedAvatar)
+    // THE assertion — the device-reported bug: rows must show the
+    // durable URLs written at creation, not the GobGob fallback.
+    let avatarsBySubject = Dictionary(
+      uniqueKeysWithValues: (entries?.aiAccounts ?? []).map { ($0.subject, $0.avatarURL) }
+    )
+    #expect(avatarsBySubject[Fixtures.firstBotSubject] == Fixtures.firstBotHostedAvatar)
+    #expect(avatarsBySubject[Fixtures.secondBotSubject] == Fixtures.secondBotHostedAvatar)
 
-        // Exactly TWO calls: the profiles batch + the creator listing.
-        #expect(recorder.requests.count == 2)
-        guard let profileCall = recorder.requests.first(where: {
-            $0.url?.path.contains("/call/get_users_profile_details") == true
-        }) else {
-            Issue.record("expected a profiles batch call")
-            return
-        }
-        let profileBody = String(
-            data: profileCall.httpBody ?? profileCall.bodyStreamData ?? Data(),
-            encoding: .utf8
-        ) ?? ""
-        #expect(profileBody.contains(Fixtures.firstBotSubject))
-        #expect(profileBody.contains(Fixtures.secondBotSubject))
+    // Exactly TWO calls: the profiles batch + the creator listing.
+    #expect(recorder.requests.count == 2)
+    guard
+      let profileCall = recorder.requests.first(where: {
+        $0.url?.path.contains("/call/get_users_profile_details") == true
+      })
+    else {
+      Issue.record("expected a profiles batch call")
+      return
     }
+    let profileBody =
+      String(
+        data: profileCall.httpBody ?? profileCall.bodyStreamData ?? Data(),
+        encoding: .utf8
+      ) ?? ""
+    #expect(profileBody.contains(Fixtures.firstBotSubject))
+    #expect(profileBody.contains(Fixtures.secondBotSubject))
+  }
 
-    @Test("blank profile rows keep the GobGob fallback (bot whose write never landed)")
-    func blankProfileRowKeepsFallback() async throws {
-        let keychain = KeychainStore(service: "switcher-avatar-tests-\(UUID().uuidString)")
-        defer { keychain.removeAll() }
-        let defaults = Fixtures.freshDefaults()
-        let channel = UUID().uuidString
-        defer { ChannelURLProtocol.unregister(channel: channel) }
-        let (client, _) = Fixtures.makeClient(
-                defaults: defaults,
-                keychain: keychain,
-                channel: channel
-            )
+  @Test("blank profile rows keep the GobGob fallback (bot whose write never landed)")
+  func blankProfileRowKeepsFallback() async throws {
+    let keychain = KeychainStore(service: "switcher-avatar-tests-\(UUID().uuidString)")
+    defer { keychain.removeAll() }
+    let defaults = Fixtures.freshDefaults()
+    let channel = UUID().uuidString
+    defer { ChannelURLProtocol.unregister(channel: channel) }
+    let (client, _) = Fixtures.makeClient(
+      defaults: defaults,
+      keychain: keychain,
+      channel: channel
+    )
 
-        let recorder = RequestRecorder()
-        // One bot with its real picture, one with a None picture (the
-        // pre-wire-fix creations left the table row blank).
-        ChannelURLProtocol.register(
-            Fixtures.serveProfilesAndNames(
-                profilesBody: Fixtures.profilesResponseBody(rows: [
-                    Fixtures.profileWireRow(
-                        subject: Fixtures.firstBotSubject,
-                        avatarURL: Fixtures.firstBotHostedAvatar
-                    ),
-                    Fixtures.profileWireRow(subject: Fixtures.secondBotSubject, avatarURL: nil)
-                ]),
-                namesBody: Fixtures.creatorNamesResponseBody(entries: []),
-                recorder: recorder
-            ),
-            forChannel: channel
-        )
+    let recorder = RequestRecorder()
+    // One bot with its real picture, one with a None picture (the
+    // pre-wire-fix creations left the table row blank).
+    ChannelURLProtocol.register(
+      Fixtures.serveProfilesAndNames(
+        profilesBody: Fixtures.profilesResponseBody(rows: [
+          Fixtures.profileWireRow(
+            subject: Fixtures.firstBotSubject,
+            avatarURL: Fixtures.firstBotHostedAvatar
+          ),
+          Fixtures.profileWireRow(subject: Fixtures.secondBotSubject, avatarURL: nil),
+        ]),
+        namesBody: Fixtures.creatorNamesResponseBody(entries: []),
+        recorder: recorder
+      ),
+      forChannel: channel
+    )
 
-        let entries = await client.refreshedAccountSwitcherEntries()
+    let entries = await client.refreshedAccountSwitcherEntries()
 
-        let avatarsBySubject = Dictionary(
-            uniqueKeysWithValues: (entries?.aiAccounts ?? []).map { ($0.subject, $0.avatarURL) }
-        )
-        #expect(avatarsBySubject[Fixtures.firstBotSubject] == Fixtures.firstBotHostedAvatar)
-        // The GobGob fallback — deterministic per-subject, and (after
-        // the sign-trap fix) always a real avatar index.
-        #expect(
-            avatarsBySubject[Fixtures.secondBotSubject]
-                == ProfilePicture.url(fromSubject: Fixtures.secondBotSubject)
-        )
-        #expect(
-            avatarsBySubject[Fixtures.secondBotSubject]
-                != Fixtures.secondBotHostedAvatar
-        )
-    }
+    let avatarsBySubject = Dictionary(
+      uniqueKeysWithValues: (entries?.aiAccounts ?? []).map { ($0.subject, $0.avatarURL) }
+    )
+    #expect(avatarsBySubject[Fixtures.firstBotSubject] == Fixtures.firstBotHostedAvatar)
+    // The GobGob fallback — deterministic per-subject, and (after
+    // the sign-trap fix) always a real avatar index.
+    #expect(
+      avatarsBySubject[Fixtures.secondBotSubject]
+        == ProfilePicture.url(fromSubject: Fixtures.secondBotSubject)
+    )
+    #expect(
+      avatarsBySubject[Fixtures.secondBotSubject]
+        != Fixtures.secondBotHostedAvatar
+    )
+  }
 
-    @Test("network failure keeps the GobGob fallback rows (offline-safe)")
-    func networkFailureKeepsFallbacks() async throws {
-        let keychain = KeychainStore(service: "switcher-avatar-tests-\(UUID().uuidString)")
-        defer { keychain.removeAll() }
-        let defaults = Fixtures.freshDefaults()
-        let channel = UUID().uuidString
-        defer { ChannelURLProtocol.unregister(channel: channel) }
-        let (client, _) = Fixtures.makeClient(
-                defaults: defaults,
-                keychain: keychain,
-                channel: channel
-            )
+  @Test("network failure keeps the GobGob fallback rows (offline-safe)")
+  func networkFailureKeepsFallbacks() async throws {
+    let keychain = KeychainStore(service: "switcher-avatar-tests-\(UUID().uuidString)")
+    defer { keychain.removeAll() }
+    let defaults = Fixtures.freshDefaults()
+    let channel = UUID().uuidString
+    defer { ChannelURLProtocol.unregister(channel: channel) }
+    let (client, _) = Fixtures.makeClient(
+      defaults: defaults,
+      keychain: keychain,
+      channel: channel
+    )
 
-        // The handler throws — the profile read fails entirely.
-        ChannelURLProtocol.register(
-            { _ in throw URLError(.notConnectedToInternet) },
-            forChannel: channel
-        )
+    // The handler throws — the profile read fails entirely.
+    ChannelURLProtocol.register(
+      { _ in throw URLError(.notConnectedToInternet) },
+      forChannel: channel
+    )
 
-        let entries = await client.refreshedAccountSwitcherEntries()
+    let entries = await client.refreshedAccountSwitcherEntries()
 
-        let avatarsBySubject = Dictionary(
-            uniqueKeysWithValues: (entries?.aiAccounts ?? []).map { ($0.subject, $0.avatarURL) }
-        )
-        #expect(
-            avatarsBySubject[Fixtures.firstBotSubject]
-                == ProfilePicture.url(fromSubject: Fixtures.firstBotSubject)
-        )
-        #expect(
-            avatarsBySubject[Fixtures.secondBotSubject]
-                == ProfilePicture.url(fromSubject: Fixtures.secondBotSubject)
-        )
-    }
+    let avatarsBySubject = Dictionary(
+      uniqueKeysWithValues: (entries?.aiAccounts ?? []).map { ($0.subject, $0.avatarURL) }
+    )
+    #expect(
+      avatarsBySubject[Fixtures.firstBotSubject]
+        == ProfilePicture.url(fromSubject: Fixtures.firstBotSubject)
+    )
+    #expect(
+      avatarsBySubject[Fixtures.secondBotSubject]
+        == ProfilePicture.url(fromSubject: Fixtures.secondBotSubject)
+    )
+  }
 
 }

@@ -1,5 +1,6 @@
-import Testing
 import Foundation
+import Testing
+
 @testable import YralApp
 
 /// Tests for `OAuthCallbackParser` — Kotlin `mapUriToOAuthResult`
@@ -7,56 +8,61 @@ import Foundation
 /// §4.1.2.1 — URLComponents' RFC-3986 decoding does NOT apply here).
 struct OAuthCallbackParserTests {
 
-    @Test("success redirect parses code + state")
-    func callbackSuccess() {
-        let result = OAuthCallbackParser.parse(
-            callbackURL: "com.yral.iosApp://oauth/callback?code=AUTHCODE123&state=st4te",
-            redirectScheme: "com.yral.iosApp"
-        )
-        #expect(result == .success(code: "AUTHCODE123", state: "st4te"))
-    }
+  @Test("success redirect parses code + state")
+  func callbackSuccess() {
+    let result = OAuthCallbackParser.parse(
+      callbackURL: "com.yral.iosApp://oauth/callback?code=AUTHCODE123&state=st4te",
+      redirectScheme: "com.yral.iosApp"
+    )
+    #expect(result == .success(code: "AUTHCODE123", state: "st4te"))
+  }
 
-    @Test("error redirect parses error + description")
-    func callbackError() {
-        let result = OAuthCallbackParser.parse(
-            callbackURL: "com.yral.iosApp://oauth/callback?error=access_denied&error_description=user+said+no",
-            redirectScheme: "com.yral.iosApp"
-        )
-        #expect(result == .failure(error: "access_denied", errorDescription: "user said no"))
-    }
+  @Test("error redirect parses error + description")
+  func callbackError() {
+    let result = OAuthCallbackParser.parse(
+      callbackURL:
+        "com.yral.iosApp://oauth/callback?error=access_denied&error_description=user+said+no",
+      redirectScheme: "com.yral.iosApp"
+    )
+    #expect(result == .failure(error: "access_denied", errorDescription: "user said no"))
+  }
 
-    @Test("matching URL with no code/state yields unknown_error failure")
-    func callbackUnknownError() {
-        let result = OAuthCallbackParser.parse(
-            callbackURL: "com.yral.iosApp://oauth/callback?foo=1",
-            redirectScheme: "com.yral.iosApp"
-        )
-        #expect(result == .failure(error: "unknown_error", errorDescription: "Missing required parameters"))
-    }
+  @Test("matching URL with no code/state yields unknown_error failure")
+  func callbackUnknownError() {
+    let result = OAuthCallbackParser.parse(
+      callbackURL: "com.yral.iosApp://oauth/callback?foo=1",
+      redirectScheme: "com.yral.iosApp"
+    )
+    #expect(
+      result == .failure(error: "unknown_error", errorDescription: "Missing required parameters"))
+  }
 
-    @Test("foreign URLs return nil (ignored, not an error)")
-    func callbackForeignURL() {
-        #expect(OAuthCallbackParser.parse(
-            callbackURL: "https://yral.com/post/42",
-            redirectScheme: "com.yral.iosApp"
-        ) == nil)
-        #expect(OAuthCallbackParser.parse(
-            callbackURL: "yral://oauth/callback?code=c&state=s",
-            redirectScheme: "com.yral.iosApp"
-        ) == nil)
-        #expect(OAuthCallbackParser.parse(
-            callbackURL: "not a url",
-            redirectScheme: "com.yral.iosApp"
-        ) == nil)
-    }
+  @Test("foreign URLs return nil (ignored, not an error)")
+  func callbackForeignURL() {
+    #expect(
+      OAuthCallbackParser.parse(
+        callbackURL: "https://yral.com/post/42",
+        redirectScheme: "com.yral.iosApp"
+      ) == nil)
+    #expect(
+      OAuthCallbackParser.parse(
+        callbackURL: "yral://oauth/callback?code=c&state=s",
+        redirectScheme: "com.yral.iosApp"
+      ) == nil)
+    #expect(
+      OAuthCallbackParser.parse(
+        callbackURL: "not a url",
+        redirectScheme: "com.yral.iosApp"
+      ) == nil)
+  }
 
-    @Test("URL-typed variant agrees with the string variant")
-    func callbackURLTypedVariant() {
-        let url = URL(string: "com.yral.iosApp://oauth/callback?code=c&state=s")!
-        #expect(
-            OAuthCallbackParser.parse(
-                callbackURL: url, redirectScheme: "com.yral.iosApp"
-            ) == .success(code: "c", state: "s")
-        )
-    }
+  @Test("URL-typed variant agrees with the string variant")
+  func callbackURLTypedVariant() {
+    let url = URL(string: "com.yral.iosApp://oauth/callback?code=c&state=s")!
+    #expect(
+      OAuthCallbackParser.parse(
+        callbackURL: url, redirectScheme: "com.yral.iosApp"
+      ) == .success(code: "c", state: "s")
+    )
+  }
 }
