@@ -55,11 +55,41 @@ spec:
         targetPort: 2379
       serviceMonitor:
         scheme: https
-        insecureSkipVerify: false
-        serverName: ""
-        caFile: /etc/prometheus/secrets/etcd-client-cert/ca.crt
-        certFile: /etc/prometheus/secrets/etcd-client-cert/tls.crt
-        keyFile: /etc/prometheus/secrets/etcd-client-cert/tls.key
+        # TLS material MUST live under `tlsConfig`, and as SECRET REFERENCES —
+        # the chart template renders only `.Values.kubeEtcd.serviceMonitor.tlsConfig`
+        # (see templates/exporters/kube-etcd/servicemonitor.yaml), so keys at
+        # this level are silently DROPPED. Declaring caFile/certFile/keyFile
+        # here produced a ServiceMonitor with nothing but
+        # `insecureSkipVerify: false`, Prometheus had no CA to verify the etcd
+        # server cert against, and every one of the 7 targets failed with
+        # "x509: certificate signed by unknown authority" — which surfaced as
+        # TargetDown + etcdMembersDown + etcdInsufficientMembers ("members are
+        # down (7)", "insufficient members (0)") on a cluster whose etcd was
+        # entirely healthy. The alerts were reporting a broken SCRAPE, not a
+        # broken etcd.
+        #
+        # The etcd-client-cert Secret (kubernetes.io/tls: ca.crt/tls.crt/
+        # tls.key) is created by the control-plane-metrics Ansible role from
+        # kubeadm's healthcheck client certificate.
+        #
+        # serverName stays empty: Prometheus then verifies the presented cert
+        # against the scrape URL host (the node IP), which kubeadm includes in
+        # every etcd server cert's SANs.
+        tlsConfig:
+          insecureSkipVerify: false
+          serverName: ""
+          ca:
+            secret:
+              name: etcd-client-cert
+              key: ca.crt
+          cert:
+            secret:
+              name: etcd-client-cert
+              key: tls.crt
+          keySecret:
+            secret:
+              name: etcd-client-cert
+              key: tls.key
 
     # etcdMemberCommunicationSlow threshold override — DOCUMENTED DEVIATION
     # from the chart default (150ms/10m): this cluster's etcd spans two DCs

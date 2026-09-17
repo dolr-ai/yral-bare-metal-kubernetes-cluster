@@ -19,17 +19,32 @@ defaultRules:
 # Secret is created by the control-plane-metrics role. serverName empty:
 # Prometheus verifies against the scrape URL host (node IP), which kubeadm
 # includes in every etcd server cert's SANs. Matches the Flux HelmRelease.
+#
+# TLS material MUST be nested under `tlsConfig` as SECRET REFERENCES — the
+# chart renders only `.Values.kubeEtcd.serviceMonitor.tlsConfig`, so sibling
+# caFile/certFile/keyFile keys are silently dropped (that bug broke etcd
+# scraping cluster-wide; see the Flux HelmRelease for the full writeup).
 kubeEtcd:
   service:
     port: 2379
     targetPort: 2379
   serviceMonitor:
     scheme: https
-    insecureSkipVerify: false
-    serverName: ""
-    caFile: /etc/prometheus/secrets/etcd-client-cert/ca.crt
-    certFile: /etc/prometheus/secrets/etcd-client-cert/tls.crt
-    keyFile: /etc/prometheus/secrets/etcd-client-cert/tls.key
+    tlsConfig:
+      insecureSkipVerify: false
+      serverName: ""
+      ca:
+        secret:
+          name: etcd-client-cert
+          key: ca.crt
+      cert:
+        secret:
+          name: etcd-client-cert
+          key: tls.crt
+      keySecret:
+        secret:
+          name: etcd-client-cert
+          key: tls.key
 
 # Prometheus
 prometheus:
