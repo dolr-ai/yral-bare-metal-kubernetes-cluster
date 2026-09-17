@@ -78,6 +78,11 @@ spec:
         tlsConfig:
           insecureSkipVerify: false
           serverName: ""
+          # NOTE the asymmetric shapes — this is the operator's API, not ours:
+          # `ca` and `cert` are SecretOrConfigMap (wrapped in `secret:`), but
+          # `keySecret` is a bare SecretKeySelector (name/key at this level).
+          # Nesting keySecret under `secret:` fails admission with
+          # "spec.endpoints[0].tlsConfig.keySecret.key: Required value".
           ca:
             secret:
               name: etcd-client-cert
@@ -87,9 +92,8 @@ spec:
               name: etcd-client-cert
               key: tls.crt
           keySecret:
-            secret:
-              name: etcd-client-cert
-              key: tls.key
+            name: etcd-client-cert
+            key: tls.key
 
     # etcdMemberCommunicationSlow threshold override — DOCUMENTED DEVIATION
     # from the chart default (150ms/10m): this cluster's etcd spans two DCs

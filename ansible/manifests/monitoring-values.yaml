@@ -33,6 +33,9 @@ kubeEtcd:
     tlsConfig:
       insecureSkipVerify: false
       serverName: ""
+      # ca/cert are SecretOrConfigMap (wrapped in `secret:`); keySecret is a
+      # bare SecretKeySelector (name/key at this level). Nesting keySecret
+      # under `secret:` fails admission with "keySecret.key: Required value".
       ca:
         secret:
           name: etcd-client-cert
@@ -42,9 +45,8 @@ kubeEtcd:
           name: etcd-client-cert
           key: tls.crt
       keySecret:
-        secret:
-          name: etcd-client-cert
-          key: tls.key
+        name: etcd-client-cert
+        key: tls.key
 
 # Prometheus
 prometheus:
