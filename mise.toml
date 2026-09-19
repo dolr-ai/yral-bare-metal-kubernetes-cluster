@@ -29,6 +29,24 @@ age = "latest"
 # the local server's pre-publish check, so no Maincloud access is needed.
 # Bump only together with a verified `spacetime build` + publish cycle.
 "aqua:WebAssembly/binaryen" = "131"
+# aws-cli — the S3 client for Hetzner Object Storage. Chosen because the
+# credentials in [env] are ALREADY in AWS's standard variable names
+# (AWS_ACCESS_KEY_ID / AWS_ENDPOINT_URL / AWS_DEFAULT_REGION, with
+# AWS_SECRET_ACCESS_KEY in fnox), so aws-cli authenticates against Hetzner
+# with no extra config: `aws s3 ls` just works. Hetzner's Object Storage is
+# S3-compatible, so any S3 client would do — this one needs no new variables
+# and no config file.
+#
+# NOTE the endpoint in [env] is a SINGLE location (fsn1). Buckets live in the
+# location they were created in, and this account has buckets in more than one
+# (fsn1 / hel1 ...), so a listing against AWS_ENDPOINT_URL shows only that
+# location's buckets. To reach another location use `--endpoint-url
+# https://<loc>.your-objectstorage.com` with the same credentials. The etcd
+# backup role does exactly this with hel1 (see ansible/inventory/hosts.yml),
+# which is why its endpoint differs from AWS_ENDPOINT_URL.
+# Read-only usage only — never mutate buckets from a shell (repo rule: the
+# declarative source is Ansible/git; see AGENTS.md "Immutable GitOps").
+aws-cli = "latest"
 cargo-binstall = "latest"
 "cargo:trunk" = "latest"
 cocoapods = { version = "latest", os = ["macos"] }

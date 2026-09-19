@@ -275,6 +275,29 @@ checksum = "sha256:2f4edac1703a2f695254d6ff52ede03481e67db1f094915763d863158c17d
 url = "https://github.com/WebAssembly/binaryen/releases/download/version_131/binaryen-version_131-x86_64-windows.tar.gz"
 url_api = "https://api.github.com/repos/WebAssembly/binaryen/releases/assets/478305109"
 
+[[tools.aws-cli]]
+version = "2.36.49"
+backend = "aqua:aws/aws-cli"
+
+[tools.aws-cli."platforms.linux-arm64"]
+url = "https://awscli.amazonaws.com/awscli-exe-linux-aarch64-2.36.49.zip"
+
+[tools.aws-cli."platforms.linux-arm64-musl"]
+url = "https://awscli.amazonaws.com/awscli-exe-linux-aarch64-2.36.49.zip"
+
+[tools.aws-cli."platforms.linux-x64"]
+url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.36.49.zip"
+
+[tools.aws-cli."platforms.linux-x64-musl"]
+url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.36.49.zip"
+
+[tools.aws-cli."platforms.macos-arm64"]
+checksum = "blake3:90d9fb2a38d6900832bb43f70804704792c016f3e3e6c8077e920401c1aacbf0"
+url = "https://awscli.amazonaws.com/AWSCLIV2-2.36.49.pkg"
+
+[tools.aws-cli."platforms.macos-x64"]
+url = "https://awscli.amazonaws.com/AWSCLIV2-2.36.49.pkg"
+
 [[tools.cargo-binstall]]
 version = "1.23.0"
 backend = "aqua:cargo-bins/cargo-binstall"
