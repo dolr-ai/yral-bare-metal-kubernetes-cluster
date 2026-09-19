@@ -21,9 +21,6 @@ pub const USER_INTERNAL_STORE: &str = "user-internal";
 pub static OFF_CHAIN_AGENT_URL: Lazy<Url> =
     Lazy::new(|| Url::parse("https://offchain.yral.com").unwrap());
 
-pub static ANALYTICS_SERVER_URL: Lazy<Url> =
-    Lazy::new(|| Url::parse("https://analytics.yral.com").unwrap());
-
 pub static SMILEY_GAME_STATS_URL: Lazy<Url> =
     Lazy::new(|| Url::parse("https://us-central1-yral-mobile.cloudfunctions.net").unwrap());
 
