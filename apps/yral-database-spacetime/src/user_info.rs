@@ -781,8 +781,7 @@ pub fn accept_new_user_registration(
 /// to external systems, which orphaned the bots' rows on the agent
 /// service (persona names stayed "taken" forever — see
 /// dolr-ai/yral-rishi-agent#512). Clients call the `delete_user`
-/// PROCEDURE instead. The Kotlin client's migration is tracked in the
-/// yral-mobile repo.
+/// PROCEDURE instead.
 fn cascade_delete_user(
     ctx: &ReducerContext,
     subject_to_delete: &str,

@@ -168,17 +168,6 @@ YRAL_AUTH_CLIENT_ID = "804814798298-taifmq3k6olk9bjr1cqb9gfnp1mssqqb.apps.google
 # Bind address for the Axum server
 BIND_ADDRESS = "0.0.0.0:7000"
 
-# ── yral-mobile ───────────────────────────────────────────────────────────
-# Kafka bridge URL + bearer token for e2e test assertions (checks module).
-# The e2e tests use the Kafka Bridge HTTP REST API (not native Kafka) to
-# consume Snowplow events from the snowplow-raw topic. The bearer token
-# authenticates against the nginx proxy in front of the Kafka Bridge.
-# Token is injected via fnox (KAFKA_BRIDGE_TOKEN secret).
-KAFKA_BRIDGE_URL = "https://kafka-bridge.yral.com"
-# Gradle — use the project wrapper (./gradlew) for all builds.
-# These improve build performance and reliability.
-GRADLE_OPTS = "-Dorg.gradle.daemon=true -Dorg.gradle.caching=true"
-
 # ── yral-ios (App Store Connect identifiers — not secret) ─────────────────
 # yral-ios TestFlight/App Store upload path: xcodebuild archive →
 # xcodebuild -exportArchive → xcrun altool. Secrets for this chain live in
@@ -683,8 +672,7 @@ kubectl -n off-chain-agent logs "$FIRST_POD" --tail=20
 # ── yral-ios ────────────────────────────────────────────────────────────────
 # Native Swift/SwiftUI iOS app (single SPM package + thin Xcode shell).
 # Apple-canonical tooling only: xcodebuild + xcrun altool. No CocoaPods, no
-# fastlane, no Ruby gems. The legacy KMP app (apps/yral-mobile) is frozen —
-# it keeps building via its own CI in the submodule repo.
+# fastlane, no Ruby gems.
 # Prerequisites (not managed by mise — system-level):
 #   - Xcode 26 (iOS 18 deployment target; simulator + device)
 # First-time setup:  mise install && mise run yral-ios-setup

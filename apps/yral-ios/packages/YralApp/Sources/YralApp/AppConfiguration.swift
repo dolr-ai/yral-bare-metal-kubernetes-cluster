@@ -2,9 +2,7 @@ import Foundation
 
 /// Host registry for every backend the Yral iOS app talks to.
 ///
-/// Verbatim port of the Kotlin Multiplatform `AppConfigurations`
-/// (apps/yral-mobile/shared/core/.../AppConfigurations.kt). Hostnames only —
-/// the shared `HttpClientFactory` forces HTTPS for all of these; keep that
+/// Hostnames only — the app forces HTTPS for all of these; keep that
 /// invariant when constructing URLs in Swift.
 public enum AppConfiguration {
 

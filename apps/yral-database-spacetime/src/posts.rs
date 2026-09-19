@@ -108,7 +108,7 @@ pub struct Post {
 
 /// V2 post table — adds `creator_principal_text` (principal text from the
 /// yral-auth JWT) alongside `creator` (Identity, one-way hash). Clients
-/// (yral-mobile) need the original principal text for CDN URL construction,
+/// need the original principal text for CDN URL construction,
 /// propic URLs, username fallback, profile links, and enrichment calls.
 ///
 /// This is a **new table** (not a column on `Post`) to avoid a manual

@@ -13,10 +13,10 @@ use leptos::server_fn::codec::Json;
 use serde::{Deserialize, Serialize};
 use utils::send_wrap;
 
-/// Rishi's agent backend base URL (matches CHAT_BASE_URL in yral-mobile).
+/// Rishi's agent backend base URL.
 #[cfg(feature = "ssr")]
 const AGENT_BASE_URL: &str = "https://agent.rishi.yral.com";
-/// Discovery influencer feed path (v2, matches DISCOVERY_FEED_PATH in mobile).
+/// Discovery influencer feed path (v2).
 #[cfg(feature = "ssr")]
 const DISCOVERY_FEED_PATH: &str = "api/v2/discovery/influencer-feed";
 

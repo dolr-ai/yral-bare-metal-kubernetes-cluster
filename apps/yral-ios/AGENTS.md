@@ -1,8 +1,8 @@
 # Agent Guidelines for apps/yral-ios
 
-Native Swift/SwiftUI iOS app for YRAL. Replaces the legacy Kotlin
-Multiplatform iOS app (`apps/yral-mobile/iosApp/`, frozen — still builds via
-its own CI in the submodule repo).
+Native Swift/SwiftUI iOS app for YRAL. It superseded the legacy Kotlin
+Multiplatform app, which lived in a separate repository
+(`dolr-ai/yral-mobile`) that this monorepo no longer references.
 
 ## Documentation policy (hard rule)
 
@@ -258,14 +258,15 @@ public and unauthenticated (`kubernetes/networking/routes/snowplow-collector.yam
 — the tracker protocol is not a browser-origin-authenticated flow. The
 **Kafka Bridge** (`kafka-bridge.yral.com`) is a different service and is
 READ-ONLY: its `KafkaUser` carries no write ACL. Use it solely to read events
-back when verifying an integration.
+back when verifying an integration. Authenticate with the `X-Bearer-Token`
+header using `fnox get KAFKA_BRIDGE_TOKEN`.
 
 Two Bridge gotchas when verifying (both cost real debugging time):
 
 1. **Consumer group names must start with `bridge-`.** The `KafkaUser` grants
    `Read` only on `bridge-`-prefixed groups; any other name fails with
-   `GroupAuthorizationException` (HTTP 500). This is why `yral-mobile`'s e2e
-   tests use that prefix.
+   `GroupAuthorizationException` (HTTP 500) and the error gives no hint that
+   the prefix is the problem.
 2. **`snowplow-raw` is NOT JSON.** The collector writes Thrift-serialized
    `CollectorPayload` records (`iglu:com.snowplowanalytics.snowplow/CollectorPayload/thrift/1-0-0`),
    so consuming with `format=json` returns HTTP 406
