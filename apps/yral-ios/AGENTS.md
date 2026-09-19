@@ -260,6 +260,22 @@ public and unauthenticated (`kubernetes/networking/routes/snowplow-collector.yam
 READ-ONLY: its `KafkaUser` carries no write ACL. Use it solely to read events
 back when verifying an integration.
 
+Two Bridge gotchas when verifying (both cost real debugging time):
+
+1. **Consumer group names must start with `bridge-`.** The `KafkaUser` grants
+   `Read` only on `bridge-`-prefixed groups; any other name fails with
+   `GroupAuthorizationException` (HTTP 500). This is why `yral-mobile`'s e2e
+   tests use that prefix.
+2. **`snowplow-raw` is NOT JSON.** The collector writes Thrift-serialized
+   `CollectorPayload` records (`iglu:com.snowplowanalytics.snowplow/CollectorPayload/thrift/1-0-0`),
+   so consuming with `format=json` returns HTTP 406
+   (`Failed to decode: Unexpected character`). Use `format=binary` and
+   base64-decode the `value` — the raw POST body, including `se_ca`/`se_ac`/
+   `se_pr`, is embedded as text inside the binary frame. `snowplow-enriched`
+   is the JSON topic. Also consume with `auto.offset.reset=latest` and post
+   the probe after subscribing: `earliest` walks the whole partition and trips
+   the Bridge's response-size cap (HTTP 422).
+
 **Structured events only (Hard Rule).** The Enrich resolver in our cluster
 registers Iglu Central as its ONLY schema repository
 (`kubernetes/infrastructure/snowplow/iglu-resolver-config.yaml`), and Iglu
