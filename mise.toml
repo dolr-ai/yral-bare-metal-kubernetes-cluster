@@ -98,6 +98,20 @@ rust = { version = "stable", targets = [
   "rust-src",
   "rust-analyzer",
 ] }
+# s5cmd — bulk object operations against Hetzner Object Storage. Kept ALONGSIDE
+# aws-cli because they cover different halves of the API and neither does both:
+#   aws-cli → bucket-level admin (ls, versioning, policies) and one-off reads.
+#   s5cmd   → many-object operations (delete/copy/sync over 10^4–10^6 keys).
+# `aws s3 rm --recursive` issues ONE DELETE per object, so emptying a bucket
+# with ~190K objects is ~190K sequential round trips. s5cmd batches through the
+# S3 DeleteObjects API (1000 keys per request) and runs a large worker pool, so
+# the same bucket empties in a fraction of the time. Use it for bucket cleanup
+# and any bulk transfer; use aws-cli for anything bucket-scoped.
+#
+# Same credentials as aws-cli — it reads the standard AWS_* variables from
+# [env] + fnox, and takes the location endpoint via --endpoint-url exactly like
+# aws-cli (see the aws-cli note above for why the location matters).
+s5cmd = "latest"
 sops = "latest"
 sqlite = "latest"
 # NOTE: `swift` is intentionally NOT declared here. On macOS Xcode ships a

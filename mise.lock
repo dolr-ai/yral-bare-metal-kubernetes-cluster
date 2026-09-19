@@ -840,6 +840,45 @@ backend = "core:rust"
 components = "clippy,rust-analyzer,rust-src,rustfmt"
 targets = "wasm32-unknown-unknown,x86_64-unknown-linux-musl"
 
+[[tools.s5cmd]]
+version = "2.3.0"
+backend = "aqua:peak/s5cmd"
+
+[tools.s5cmd."platforms.linux-arm64"]
+checksum = "sha256:1439f0d00ecedcd2a2f1f2c6749bbb0152b2257bf5086f29646ec8ae38798e24"
+url = "https://github.com/peak/s5cmd/releases/download/v2.3.0/s5cmd_2.3.0_Linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/peak/s5cmd/releases/assets/213717270"
+
+[tools.s5cmd."platforms.linux-arm64-musl"]
+checksum = "sha256:1439f0d00ecedcd2a2f1f2c6749bbb0152b2257bf5086f29646ec8ae38798e24"
+url = "https://github.com/peak/s5cmd/releases/download/v2.3.0/s5cmd_2.3.0_Linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/peak/s5cmd/releases/assets/213717270"
+
+[tools.s5cmd."platforms.linux-x64"]
+checksum = "sha256:de0fdbfa3aceae55e069ba81a0fc17b2026567637603734a387b2fca06c299b4"
+url = "https://github.com/peak/s5cmd/releases/download/v2.3.0/s5cmd_2.3.0_Linux-64bit.tar.gz"
+url_api = "https://api.github.com/repos/peak/s5cmd/releases/assets/213717269"
+
+[tools.s5cmd."platforms.linux-x64-musl"]
+checksum = "sha256:de0fdbfa3aceae55e069ba81a0fc17b2026567637603734a387b2fca06c299b4"
+url = "https://github.com/peak/s5cmd/releases/download/v2.3.0/s5cmd_2.3.0_Linux-64bit.tar.gz"
+url_api = "https://api.github.com/repos/peak/s5cmd/releases/assets/213717269"
+
+[tools.s5cmd."platforms.macos-arm64"]
+checksum = "sha256:ae007bc96276f498ae3c1fb017e57630cf93ef260cfe7e97b365522e240c973f"
+url = "https://github.com/peak/s5cmd/releases/download/v2.3.0/s5cmd_2.3.0_macOS-arm64.tar.gz"
+url_api = "https://api.github.com/repos/peak/s5cmd/releases/assets/213717274"
+
+[tools.s5cmd."platforms.macos-x64"]
+checksum = "sha256:df6f76f6d317c4d051ad083219ed36eb8d8e5ebc55ceeeb91f5e66cdc3ac71fb"
+url = "https://github.com/peak/s5cmd/releases/download/v2.3.0/s5cmd_2.3.0_macOS-64bit.tar.gz"
+url_api = "https://api.github.com/repos/peak/s5cmd/releases/assets/213717268"
+
+[tools.s5cmd."platforms.windows-x64"]
+checksum = "sha256:9d8a98c1d9f6284c6d54aeec3daeb5f1412fd101850ae756c1e70dd8ffe52166"
+url = "https://github.com/peak/s5cmd/releases/download/v2.3.0/s5cmd_2.3.0_Windows-64bit.zip"
+url_api = "https://api.github.com/repos/peak/s5cmd/releases/assets/213717275"
+
 [[tools.sops]]
 version = "3.13.3"
 backend = "aqua:getsops/sops"
