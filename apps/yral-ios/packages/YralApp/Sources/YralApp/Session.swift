@@ -138,7 +138,24 @@ public final class SessionStore {
   public var state: SessionState { snapshot.state }
   public var properties: SessionProperties { snapshot.context.properties }
 
+  /// Notified on every transition with the projected analytics identity: the
+  /// current `userSubject`, or nil when anonymous.
+  ///
+  /// Mirrors `effectHandler`'s shape — this store's existing seam — and that
+  /// is the whole reason it is a closure rather than an `AnalyticsClient`
+  /// reference: the store must not depend on the analytics layer, exactly as
+  /// it holds no keychain (`AuthClient` owns credentials, `RootScene` owns
+  /// wiring). A closure also lets a test drive the projection with an array
+  /// instead of a live tracker. Defaults to a no-op.
+  var identityChangeHandler: (String?) -> Void = { _ in }
+
   public init() {}
+
+  /// The user id analytics should attribute to, derived from the current
+  /// state — nil when signed out, or when the session carries no subject.
+  /// Internal so tests can assert the projection after driving real auth
+  /// transitions, with no tracker involved.
+  var analyticsUserId: String? { state.session?.userSubject }
 
   // MARK: - Signed-in session accessors
 
@@ -169,6 +186,23 @@ public final class SessionStore {
     let (next, effect) = AuthMachine.transition(snapshot, event)
     snapshot = next
     effectHandler(effect)
+    mirrorIdentityToAnalytics()
+  }
+
+  /// Projects the auth state onto the analytics identity machine.
+  ///
+  /// Runs on EVERY send, not only on `.sessionEstablished` / `.userSignedOut`:
+  /// the projection is cheap and idempotent (`setIdentity` and `clearIdentity`
+  /// both go through the analytics machine's pure `transition`), and — because
+  /// it recomputes from the CURRENT state rather than reacting to one event —
+  /// it cannot drift if a future transition changes the session without going
+  /// through either of those two cases.
+  ///
+  /// An account switch between a main account and its bot arrives here as a new
+  /// `userSubject` and is therefore re-attributed; that switch is precisely the
+  /// case attribution must not carry the previous user across.
+  private func mirrorIdentityToAnalytics() {
+    identityChangeHandler(analyticsUserId)
   }
 
   public func updateCoinBalance(_ newBalance: Int64) {

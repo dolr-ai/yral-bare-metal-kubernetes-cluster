@@ -79,11 +79,22 @@ extension AuthClient {
       throw AuthError.oauthFailed(errorDescription: "No in-flight OAuth flow")
     }
     pendingCodeVerifier = nil
-    let tokenResponse = try await authDataSource.authenticateToken(
-      code: code,
-      codeVerifier: codeVerifier,
-      redirectScheme: redirectScheme
-    )
+    let tokenResponse: TokenResponse
+    do {
+      tokenResponse = try await authDataSource.authenticateToken(
+        code: code,
+        codeVerifier: codeVerifier,
+        redirectScheme: redirectScheme
+      )
+    } catch {
+      // The token exchange is the step that decides whether a sign-in
+      // attempt succeeded, so the failure event belongs here rather than at
+      // each UI call site (which would be three copies and would miss the
+      // phone path). This handler rethrows, so the existing per-screen error
+      // handling is untouched.
+      analytics?.track(.authFailed(provider: currentProvider ?? .google))
+      throw error
+    }
     defaults.set(true, forKey: CachedSessionKey.socialSignInSuccessful.rawValue)
     sessionStore.updateSocialSignInStatus(true)
     if let phone = defaults.string(forKey: CachedSessionKey.phoneNumber.rawValue) {
@@ -99,9 +110,10 @@ extension AuthClient {
       refreshToken: tokenResponse.refreshToken,
       resetCachedSession: true
     )
-    // Analytics events (onAuthSuccess with new-user flag; provider)
-    // land with the analytics phase.
-    _ = provider
+    // Sign-in succeeded: we hold a session. `provider` was previously
+    // discarded (`_ = provider`) with a note that the event landed "with the
+    // analytics phase" — this is that phase.
+    analytics?.track(.loginSuccess(provider: provider))
     _ = currentUserSubject
   }
 

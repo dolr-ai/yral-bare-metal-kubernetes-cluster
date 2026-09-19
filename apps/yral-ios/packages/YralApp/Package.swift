@@ -20,6 +20,19 @@ import PackageDescription
 
 let firebaseAppleSdkVersion: Version = "12.18.0"
 
+// Snowplow iOS tracker — the analytics SDK. It POSTs events to our SELF-HOSTED
+// collector (snowplow-collector.yral.com), which writes them to the Kafka
+// snowplow-raw topic. That collector is the HTTP entry point into the analytics
+// pipeline; the Kafka Bridge (kafka-bridge.yral.com) is READ-ONLY and cannot
+// accept events (its KafkaUser carries no Write ACL).
+//
+// Why the SDK rather than hand-rolled HTTP: it owns the event store (SQLite
+// persistence across launches), retry-on-failure, and the Snowplow wire format
+// (the `payload_data` envelope). Reimplementing that by hand is a bug farm.
+//
+// The macOS floor is satisfied — the tracker declares iOS 11+/macOS 10.13+, so
+// `swift test` on the host keeps working with no `canImport` gating.
+let snowplowTrackerVersion: Version = "6.3.0"
 // swift-openapi-generator toolchain — same principle as the SpacetimeDB
 // bindings: the OpenAPI spec IS the API contract; generated types make
 // drift a compile error. Versions exact-pinned (repo rule) — latest
@@ -80,6 +93,11 @@ let package = Package(
         .package(
             url: "https://github.com/apple/swift-http-types.git",
             exact: swiftHTTPTypesVersion
+        ),
+        // Analytics — see the snowplowTrackerVersion note above.
+        .package(
+            url: "https://github.com/snowplow/snowplow-ios-tracker.git",
+            exact: snowplowTrackerVersion
         )
     ],
     targets: [
@@ -112,6 +130,11 @@ let package = Package(
                 .product(
                     name: "HTTPTypes",
                     package: "swift-http-types"
+                ),
+                // Analytics tracker (see snowplowTrackerVersion above).
+                .product(
+                    name: "SnowplowTracker",
+                    package: "snowplow-ios-tracker"
                 )
             ],
             swiftSettings: [

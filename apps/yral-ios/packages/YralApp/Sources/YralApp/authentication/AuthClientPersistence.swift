@@ -245,10 +245,11 @@ extension AuthClient {
     }
   }
 
-  /// Kotlin `trackAndLogoutForTokenExpiry` — the token-expiry logout
-  /// path with its cause (analytics event lands with the analytics phase).
+  /// Kotlin `trackAndLogoutForTokenExpiry` — the token-expiry logout path
+  /// with its cause. `lastLogoutCause` and the `auth_session_state_changed`
+  /// event are both set by `logoutInternal`, so this is a pure alias kept for
+  /// the Kotlin call sites' readability.
   func trackAndLogoutForTokenExpiry(cause: AuthExpiryCause) async {
-    lastLogoutCause = cause
     await logoutInternal(cause: cause)
   }
 
@@ -257,9 +258,17 @@ extension AuthClient {
   /// different payload, so the analytics dimension lives in the state
   /// instead of a separate field.
   func logoutInternal(cause: AuthExpiryCause? = nil) async {
+    // Assigned from the parameter (not read back later) so a deliberate
+    // sign-out after an earlier expiry cannot report the STALE cause: the
+    // stored property is the test hook and its documented contract is "nil
+    // after a user logout".
+    lastLogoutCause = cause
     // The machine owns the credential clearing: `.clearStoredSession` is
     // this function, wired in at construction — see the handler below.
     sessionStore.send(cause.map(AuthMachine.Event.sessionExpired) ?? .userSignedOut)
+    // The event carries the same nil-vs-value distinction the auth machine
+    // already made, so the two can never disagree.
+    analytics?.track(.logout(cause: cause))
   }
 
   /// Performs the machine's `clearStoredSession` effect. The keychain/

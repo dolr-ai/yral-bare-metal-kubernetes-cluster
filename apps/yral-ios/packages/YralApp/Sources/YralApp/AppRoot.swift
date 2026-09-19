@@ -17,6 +17,23 @@ import os
 /// BrowserAuthSession.
 public enum YralAppRoot {
 
+  /// The process-wide analytics facade, or nil when analytics was never
+  /// configured (unit-test hosts that never call `configureAnalytics()`).
+  ///
+  /// Held here because the TRACKER's lifecycle is process-wide — the SDK
+  /// keeps one event store per namespace in `Snowplow`, and creating a second
+  /// tracker for the same namespace reconfigures the first — while the
+  /// MACHINE that decides attribution lives inside this client as instance
+  /// state. The `if let` guard in `configureAnalytics()` is the substance: it
+  /// makes repeated setup reuse one tracker. SwiftUI calls a `View`'s `init`
+  /// more than once, so a per-scene client would call `createTracker`
+  /// repeatedly and reset live tracker configuration each time.
+  ///
+  /// `@MainActor` because it holds a main-actor-isolated type (Swift 6
+  /// requires the isolation to be stated, not inferred, for mutable static
+  /// state).
+  @MainActor private(set) static var analytics: AnalyticsClient?
+
   /// Creates the root SwiftUI scene content for the app.
   @MainActor
   public static func makeRootScene() -> some View {
@@ -30,6 +47,22 @@ public enum YralAppRoot {
   @MainActor
   public static func configureFirebase() {
     FirebaseBootstrapper.configure()
+  }
+
+  /// Installs the analytics tracker and returns the facade the app records
+  /// through. Idempotent — a second call returns the existing client rather
+  /// than reconfiguring the tracker.
+  ///
+  /// Separate from `configureFirebase()` on purpose: Firebase and Snowplow
+  /// fail independently, and a tracker problem must not prevent crash
+  /// reporting from starting (Crashlytics is the thing that would tell us
+  /// about it).
+  @MainActor
+  public static func configureAnalytics() -> AnalyticsClient {
+    if let analytics { return analytics }
+    let analytics = AnalyticsClient()
+    self.analytics = analytics
+    return analytics
   }
 }
 

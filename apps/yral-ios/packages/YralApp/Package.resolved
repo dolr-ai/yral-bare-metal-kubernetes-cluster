@@ -1,5 +1,5 @@
 {
-  "originHash" : "dd6c6cc1467a3c8bee8b51276a0ce2a18f3507f67022f679205af3b7fe5136f6",
+  "originHash" : "e1f40282e79160795f35cccb12764cdfbfab504315d94a6a83434016d35c67fd",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -125,6 +125,15 @@
       "state" : {
         "revision" : "f4a19a3c313dc2616c70bb49d29a799fb16be837",
         "version" : "2.4.1"
+      }
+    },
+    {
+      "identity" : "snowplow-ios-tracker",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/snowplow/snowplow-ios-tracker.git",
+      "state" : {
+        "revision" : "6097238d2310b07b60db82596a2050ed3ed208e4",
+        "version" : "6.3.0"
       }
     },
     {

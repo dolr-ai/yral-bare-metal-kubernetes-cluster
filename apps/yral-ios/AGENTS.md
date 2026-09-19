@@ -202,8 +202,82 @@ documentation.
   XcodeGen/Tuist (third-party generator dependency for near-zero churn).
   Prefer editing the committed files directly over regenerating.
 
-## Design rules
+## One environment (preference)
 
+**TestFlight and production are the SAME build.** What we ship to prod is
+exactly what we test on TestFlight — no build-configuration branching, no
+staging host set, no environment enum, no `#if DEBUG` behavior differences.
+`AppConfiguration` is a single flat host registry for this reason: a value
+that differed per channel would need a second one, and it does not exist.
+
+Consequences worth stating because they are easy to "fix" wrongly:
+- **No `DEBUG`/`RELEASE` conditionals around product behavior.** If it must
+  be disabled during development, it is disabled everywhere (e.g. analytics
+  autotracking is left at SDK defaults, `app_id` is always `yral-ios`).
+  A debug-only `print`, an assert, and a preview fixture are fine — they do
+  not change the shipped artifact.
+- **One bundle id, one App Store Connect record, one Firebase project.**
+  TestFlight is a distribution channel on that record, not a second app.
+- **A bug filed from a TestFlight build reproduces on prod.** There is no
+  "works in staging" state to investigate — the difference is which users
+  are on the build, not which code is.
+
+## Analytics (Snowplow)
+
+**The collector is the write path; the Kafka Bridge cannot accept events.**
+The tracker POSTs to our self-hosted Scala Stream Collector
+(`AppConfiguration.snowplowCollectorURL` → `snowplow-collector.yral.com`,
+SDK-appended path `/com.snowplowanalytics.snowplow/tp2`), which writes
+straight to the Kafka `snowplow-raw` topic. That collector is intentionally
+public and unauthenticated (`kubernetes/networking/routes/snowplow-collector.yaml`)
+— the tracker protocol is not a browser-origin-authenticated flow. The
+**Kafka Bridge** (`kafka-bridge.yral.com`) is a different service and is
+READ-ONLY: its `KafkaUser` carries no write ACL. Use it solely to read events
+back when verifying an integration.
+
+**Structured events only (Hard Rule).** The Enrich resolver in our cluster
+registers Iglu Central as its ONLY schema repository
+(`kubernetes/infrastructure/snowplow/iglu-resolver-config.yaml`), and Iglu
+Central holds only Snowplow's own schemas. A custom self-describing event
+(`iglu:com.yral/...`) therefore fails schema resolution and lands in
+`snowplow-enrich-bad`. Every event is an atomic `Structured` event, whose
+schema IS on Iglu Central. Adding a custom schema requires first standing up
+a self-hosted Iglu server and registering it in that resolver config — not a
+client-side change.
+
+**Wire shape mirrors the legacy Kotlin app** so existing dashboards survive
+the migration: `se_ca` = feature name, `se_ac` = event name, `se_pr` = the
+event's fields as a JSON **string**, truncated to 1000 characters (the
+`atomic` schema's `se_property` cap — over-length events become
+`atomic_field_length_exceeded` bad rows). `base64Encoding` is `false` so
+contexts land in the parseable `cx` array rather than the opaque `co` field.
+
+**Screen views are automatic — do not hand-track them.** Snowplow's
+`TrackerDefaults` enable `screenViewAutotracking`, session, lifecycle,
+install, application and platform contexts by default, so the tracker is
+configured with only the deliberate deviations (`appId`,
+`devicePlatform(.mobile)`, `base64Encoding(false)`). Re-stating SDK defaults
+is the drift the root AGENTS.md "Default-First Configuration" rule exists to
+prevent. Add a flag only when a concrete symptom justifies it, and say why in
+a comment beside it.
+
+**Three files, one responsibility each** — mirroring the Crashlytics split:
+
+| File | Kind | Holds |
+| --- | --- | --- |
+| `AnalyticsMachine.swift` | machine | The identity FSM: who events are attributed to. Pure transition. |
+| `AnalyticsEvent.swift` | logic | The typed event catalog + wire mapping. Pure. |
+| `AnalyticsClient.swift` | logic | The only I/O: installs the tracker, consults the machine, sends. |
+
+Emit events through `AnalyticsClient.track(_:)`; never call the Snowplow SDK
+directly from a screen, and never compute attribution anywhere but the
+machine. `SessionStore` projects the auth state onto the machine through its
+`identityChangeHandler` closure (the same seam shape as its `effectHandler`),
+so the store keeps no analytics dependency; `RootScene` wires the two
+together. All three types are tested without a tracker — the machine and the
+projection are pure, and no test constructs an `AnalyticsClient`.
+
+## Design rules
 - **Native Liquid Glass everywhere (Hard Rule).** The app targets iOS 26 and
   adopts its system look wholesale — no custom re-implementations of system
   materials. Standard containers (`TabView`, `NavigationStack`, sheets,

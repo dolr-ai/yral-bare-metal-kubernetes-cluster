@@ -62,6 +62,12 @@ public final class AuthClient {
   /// Session state (the app's observable session).
   let sessionStore: SessionStore
 
+  /// Analytics facade. Optional so tests and previews construct an
+  /// `AuthClient` with no tracker (see `AnalyticsClient`'s "not a singleton"
+  /// note) — a unit test must never enqueue events into Snowplow's SQLite
+  /// store or reach the collector.
+  let analytics: AnalyticsClient?
+
   /// PKCE verifier of the in-flight flow — needed at code exchange
   /// (Kotlin holds it on `AuthRepositoryImpl`).
   var pendingCodeVerifier: String?
@@ -100,12 +106,14 @@ public final class AuthClient {
     defaults: UserDefaults = .standard,
     spacetimeDataSource: SpacetimeDBRemoteDataSource? = nil,
     influencerDataSource: AIInfluencerDataSource? = nil,
-    sessionStore: SessionStore
+    sessionStore: SessionStore,
+    analytics: AnalyticsClient? = nil
   ) {
     self.authDataSource = authDataSource
     self.redirectScheme = redirectScheme
     self.keychain = keychain
     self.defaults = defaults
+    self.analytics = analytics
     // Default: the real client reading the current id token. Built
     // BEFORE the property is assigned — the closure captures self.
     self.spacetimeDataSource =
