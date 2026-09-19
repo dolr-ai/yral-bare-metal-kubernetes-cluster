@@ -202,6 +202,31 @@ documentation.
   XcodeGen/Tuist (third-party generator dependency for near-zero churn).
   Prefer editing the committed files directly over regenerating.
 
+<!-- TODO(xcproj): Migrate the shell's project configuration from the plist
+     `project.pbxproj` (currently `objectVersion = 77`) to Apple's new JSON
+     `project.xcproj`. Do it when the toolchain reaches Xcode 27.2+ — this repo
+     is on 27.0, and Apple documents the JSON format as 27.2+ only
+     (https://developer.apple.com/documentation/xcode/updating-your-xcode-project-configuration-file-format).
+
+     Why we want it: the JSON format is smaller, self-describing, and
+     diff/merge-friendly because changes isolate per key — the plist's
+     whole-file rewrite is why pbxproj conflicts are painful. Apple also calls
+     out that it is easier for coding agents to edit, which matters here
+     because this repo's agent workflow touches the shell.
+
+     How: select the project in Xcode's Project navigator, then File inspector →
+     Project Document → Project Format → JSON. No CLI conversion exists and
+     `xcodebuild` is unaffected either way, so this is a one-time GUI change.
+
+     Notes for the migration: the `.xcodeproj` DIRECTORY stays — only the
+     configuration file inside it changes from `project.pbxproj` to
+     `project.xcproj`. Xcode 27+ reads both, so the change is reversible by
+     discarding the swap in git. `objectVersion` is a plist-format field and
+     disappears with the format. Check the folder-synchronized groups survive
+     (they are what keeps this shell edit-free when files are added), and
+     re-verify the Crashlytics dSYM upload build phase and signing settings,
+     since those live in the same file. -->
+
 ## One environment (preference)
 
 **TestFlight and production are the SAME build.** What we ship to prod is
