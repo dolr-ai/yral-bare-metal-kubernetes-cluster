@@ -67,6 +67,27 @@ node = "latest"
 pitchfork = "latest"
 podman = "latest"
 python = "latest"
+# rclone — third S3 client, for the operations neither of the others covers:
+# `purge` (remove a prefix AND the bucket in one step), `backend
+# list-multipart-uploads` / `backend cleanup` (orphaned upload parts, which are
+# invisible to `ls` but still billed), and `backend cleanup-hidden` (old object
+# versions on a versioned bucket). aws-cli covers bucket-level admin and s5cmd
+# covers bulk object ops; rclone's value here is the backend-command surface
+# plus its native `Hetzner` provider profile.
+#
+# For Hetzner use `--s3-provider Hetzner` — rclone's docs list Hetzner as a
+# first-class provider (regions hel1/fsn1/nbg1), so no `Other` fallback is
+# needed. Credentials come from the same AWS_* variables in [env] + fnox, and
+# `--s3-endpoint` replaces `--endpoint-url`.
+#
+# Two knobs worth knowing when a bucket misbehaves (both are documented rclone
+# flags, and both change the server-side code path — useful when one listing or
+# delete implementation is at fault rather than the data):
+#   --s3-list-version 1        use ListObjects v1 instead of v2 (rclone defaults
+#                              to auto-detecting; v1 is a different code path)
+#   --s3-list-url-encode       toggle URL-encoded listings, which is more
+#                              reliable for awkward object keys
+rclone = "latest"
 ruff = "latest"
 # Rust — latest STABLE via mise.lock resolution (committed lock pins the
 # exact resolved version per `mise lock`, so builds stay reproducible while
