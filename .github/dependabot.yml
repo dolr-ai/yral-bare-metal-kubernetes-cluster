@@ -4,28 +4,28 @@ updates:
     directories:
       - "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
 
   - package-ecosystem: "github-actions"
     directories:
       - "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
 
   - package-ecosystem: "docker"
     directories:
       - "/docker/**"
     schedule:
-      interval: "daily"
+      interval: "weekly"
 
   - package-ecosystem: "cargo"
     directories:
       - "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
 
   - package-ecosystem: "swift"
     directories:
       - "/apps/yral-ios/packages/YralApp/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
