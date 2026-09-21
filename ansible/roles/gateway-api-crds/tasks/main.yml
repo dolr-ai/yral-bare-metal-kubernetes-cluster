@@ -1,8 +1,19 @@
 ---
-# Install Gateway API CRDs (standard channel).
+# Install Gateway API CRDs (standard channel) — BOOTSTRAP ONLY.
 # Must run BEFORE Cilium is deployed so Cilium's gatewayAPI controller can
 # register against the GatewayClass CRD on startup.
 # apply is idempotent — safe to re-run, does nothing if already at the target version.
+#
+# Why this still exists alongside the Flux kustomization
+# (kubernetes/infrastructure/gateway-api): that one is the STEADY-STATE manager,
+# but Flux is bootstrapped manually and only after Cilium (Cilium provides the
+# networking Flux's controllers need). On a fresh control plane there is no Flux
+# yet, so the CRDs must be installed first, by this role. Removing it would break
+# fresh bootstrap — Cilium's gatewayAPI controller would find no GatewayClass CRD.
+#
+# Keep gateway_api_version in defaults/main.yml aligned with the version pinned in
+# the Flux kustomization; both are tracked by Renovate. Flux is authoritative once
+# the cluster is up — this role only has to be close enough for Cilium to start.
 
 - name: Apply Gateway API standard-channel CRDs
   ansible.builtin.command: >
