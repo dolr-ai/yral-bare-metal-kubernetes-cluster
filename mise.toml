@@ -601,12 +601,17 @@ echo "=== step 1/3: abort orphaned multipart uploads ==="
 mise run s3-abort-multipart-uploads -- "$bucket" "$endpoint"
 
 echo "=== step 2/3: delete all object versions ==="
-# s5cmd is run DIRECTLY, not captured into a shell variable: capturing would
-# buffer every line until the command finished, so a long delete (this bucket has
-# ~395k versions) would print nothing at all until the very end and the operator
-# could not follow along while it ran. Streaming to the terminal is the point —
-# every deleted object is logged as it happens, and output is left at s5cmd's
-# default verbosity. Never add --log error (or similar) here.
+# s5cmd is run DIRECTLY, not captured into a shell variable: capturing adds a
+# second, larger buffer on top of the tool's own, so a long delete prints nothing
+# until it finishes and the operator cannot follow along at all.
+#
+# Output is left at s5cmd's default verbosity (one line per deleted object) and
+# must never be quieted with --log error. Note that s5cmd buffers its own stdout
+# internally, so on a long delete the lines arrive in bursts rather than
+# instantly — that is the tool's behaviour, not something added here. For a
+# definitive liveness check while it runs, confirm the first listed key is
+# advancing: `aws s3api list-objects-v2 --bucket <b> --max-keys 1`. The complete
+# per-object log is emitted by the time the command returns.
 #
 # s5cmd rm exits 1 with "no object found" when the pattern matches nothing, which
 # is the normal case for an already-empty bucket (e.g. its only content was the
