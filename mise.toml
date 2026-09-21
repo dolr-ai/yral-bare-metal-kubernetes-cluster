@@ -528,6 +528,130 @@ echo "stopped after $max_chunks chunks with uploads still pending - re-run to co
 exit 1
 '''
 
+# Fully retire a bucket: abort orphaned multipart uploads, delete every object,
+# then delete the bucket. This is the three-step recipe from the note above,
+# collapsed into one command so a bucket can be reclaimed without remembering
+# the order or the Ceph ghost-object repair.
+#
+# Step 1 delegates to s3-abort-multipart-uploads rather than reimplementing the
+# chunked abort loop — that loop is the part with the accumulated hard-won
+# detail (the NextToken phantom record, the exit-code semantics), and it should
+# exist in exactly one place.
+#
+# Step 2 uses `s5cmd rm --all-versions "s3://bucket/*"`, NOT plain `rm`. Per
+# s5cmd's own help: `*` matches across `/` (so nested keys are included) and
+# --all-versions is documented as "delete all versions of all objects in the
+# bucket" — which is what clears old versions and delete markers. Plain `rm`
+# leaves those behind on a versioned bucket, and they block DeleteBucket at
+# step 3 just as surely as real objects do.
+#
+# Step 3 handles the Ceph RGW ghost index entry described in the note above: a
+# key that LIST reports but that does not exist (HeadObject 404s; every delete
+# path returns success while the entry survives listing). Any key still listed
+# after step 2 is exactly that case, so it is repaired by rewriting the key to
+# make the index entry consistent and then deleting it again.
+#
+# DESTRUCTIVE AND IRREVERSIBLE. Because a typo in a bucket name would destroy a
+# live bucket (this account holds e.g. a control-plane backup sink), the task
+# requires the bucket name to be typed back unless `-y` is passed for
+# non-interactive use, and it refuses outright when there is no TTY and no -y.
+[tasks.s3-retire-bucket]
+description = "Delete every object in a bucket and the bucket itself (usage: mise run s3-retire-bucket -- <bucket> [endpoint] [-y])"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+
+bucket="${1:-}"
+endpoint="${2:-${AWS_ENDPOINT_URL:-}}"
+assume_yes="${3:-}"
+
+if [ -z "$bucket" ] || [ -z "$endpoint" ]; then
+  echo "usage: mise run s3-retire-bucket -- <bucket> [endpoint] [-y]" >&2
+  exit 2
+fi
+
+# Same secret injection as s3-abort-multipart-uploads: aws-cli and s5cmd both
+# read the standard AWS_* variables, but only the secret lives in fnox.
+export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-$(fnox get AWS_SECRET_ACCESS_KEY 2>/dev/null || true)}"
+if [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+  echo "AWS_SECRET_ACCESS_KEY unavailable - is fnox configured? (mise run bootstrap)" >&2
+  exit 2
+fi
+
+# aws-cli's interactive pager hijacks output into the alternate buffer, which
+# hides everything this task prints.
+export AWS_PAGER=""
+
+echo "bucket=$bucket endpoint=$endpoint"
+
+if [ "$assume_yes" != "-y" ] && [ "$assume_yes" != "--yes" ]; then
+  echo "This PERMANENTLY deletes every object in '$bucket' and then the bucket itself."
+  if [ ! -t 0 ]; then
+    echo "refusing: no TTY to confirm on - pass -y as the third argument to proceed non-interactively" >&2
+    exit 2
+  fi
+  read -r -p "Type the bucket name to confirm: " typed
+  if [ "$typed" != "$bucket" ]; then
+    echo "aborted - '$typed' does not match '$bucket'" >&2
+    exit 2
+  fi
+fi
+
+echo "=== step 1/3: abort orphaned multipart uploads ==="
+mise run s3-abort-multipart-uploads -- "$bucket" "$endpoint"
+
+echo "=== step 2/3: delete all object versions ==="
+# s5cmd rm exits 1 with "no object found" when the pattern matches nothing, and
+# under `set -e` that would abort the task on an already-empty bucket (a common
+# case: the bucket's only content was the uploads step 1 just aborted). Treat
+# that specific message as success; any other non-zero exit is a real failure.
+rm_status=0
+rm_output=$(s5cmd --endpoint-url "$endpoint" rm --all-versions "s3://$bucket/*" 2>&1) || rm_status=$?
+if [ "$rm_status" -eq 0 ]; then
+  printf '%s\n' "$rm_output"
+elif printf '%s' "$rm_output" | grep -q 'no object found'; then
+  echo "  bucket already empty - nothing to delete"
+else
+  printf '%s\n' "$rm_output" >&2
+  echo "object deletion failed (exit $rm_status)" >&2
+  exit 1
+fi
+
+# Anything still listed after an --all-versions delete is a ghost index entry
+# (see the note on s3-abort-multipart-uploads above). Rewrite then delete.
+#
+# list-objects-v2 --output text emits the literal string "None" when the bucket
+# has no objects left, so it must be filtered out — otherwise the repair loop
+# "repairs" a key literally named None (a spurious PUT+DELETE on every run).
+workdir=$(mktemp -d)
+trap 'rm -rf "$workdir"' EXIT
+aws --no-cli-pager s3api list-objects-v2 --bucket "$bucket" \
+  --query 'Contents[].Key' --output text \
+  --endpoint-url "$endpoint" 2>/dev/null | grep -vx 'None' > "$workdir/remaining.txt" || true
+
+repaired=0
+while IFS= read -r key; do
+  [ -z "$key" ] && continue
+  printf 'repair' > "$workdir/placeholder"
+  aws --no-cli-pager s3api put-object --bucket "$bucket" --key "$key" \
+    --body "$workdir/placeholder" --endpoint-url "$endpoint" >/dev/null 2>&1
+  aws --no-cli-pager s3api delete-object --bucket "$bucket" --key "$key" \
+    --endpoint-url "$endpoint" >/dev/null 2>&1
+  echo "  repaired ghost object: $key"
+  repaired=$((repaired + 1))
+done < "$workdir/remaining.txt"
+[ "$repaired" -gt 0 ] && echo "  repaired $repaired ghost object(s)"
+
+echo "=== step 3/3: delete the bucket ==="
+s5cmd --endpoint-url "$endpoint" rb "s3://$bucket"
+
+if aws --no-cli-pager s3api head-bucket --bucket "$bucket" --endpoint-url "$endpoint" >/dev/null 2>&1; then
+  echo "bucket '$bucket' still exists - deletion did not take effect" >&2
+  exit 1
+fi
+echo "=== DONE: '$bucket' retired (every object deleted, bucket removed) ==="
+'''
+
 # ── SpacetimeDB ─────────────────────────────────────────────────────────────
 # The yral-database-spacetime module is a SpacetimeDB wasm module (cdylib),
 # not a containerized Rust service. The loop is: build (wasm) → generate
