@@ -26,7 +26,7 @@ SpacetimeDB is a relational database that is also a server. It lets you upload a
 
 ## Debugging Checklist
 
-1. Is the local server running? (`mise run spacetime-run` starts it via pitchfork)
+1. Is the local server running? (`mise run spacetime-run` starts the `spacetimedb` daemon for you)
 2. Is the module published? (`mise run spacetime-publish` → Maincloud; `mise run spacetime-run` → local)
 3. Are client bindings generated? (`mise run spacetime-generate`)
 4. Check server logs for errors (`spacetime logs <db-name>`)
@@ -153,15 +153,16 @@ spacetime generate --lang typescript|csharp|rust|unrealcpp --out-dir ./bindings 
 | Task | Does |
 |------|------|
 | `mise run spacetime-build` | Release-build the wasm module |
-| `mise run spacetime-run` | Start the local server (pitchfork) + publish locally (`--env dev`) |
+| `mise run spacetime-run` | Start the local server + publish locally (`--env dev`) — the `spacetimedb` daemon is started by the task's `daemons` option |
 | `mise run spacetime-dev` | Local dev mode: build, publish, generate bindings, watch for changes |
 | `mise run spacetime-stop` | Stop the local server |
 | `mise run spacetime-publish` | Publish to Maincloud — **interactive**, shows the migration plan — then regenerate bindings |
 | `mise run spacetime-validate` | Read-only post-deploy checks (tables, row counts, procedures) |
 | `mise run spacetime-all` | Full workflow end to end |
 
-The local server is a pitchfork daemon, so `spacetime-run`/`spacetime-dev` start it for you — never
-run `spacetime start` by hand.
+The local server is a mise-managed daemon (`spacetimedb` / `spacetimedb-dev` in the root `mise.toml` `[daemons]`),
+so `spacetime-run`/`spacetime-dev` start it for you — never run `spacetime start` by hand.
+Stop it with `mise run spacetime-stop` or `mise daemons stop spacetimedb`.
 
 ```bash
 # Maincloud deploy (interactive — the migration plan is shown before it applies)

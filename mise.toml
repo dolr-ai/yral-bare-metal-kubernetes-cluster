@@ -1,19 +1,6 @@
-# Monorepo-wide mise configuration.
-# Run from the repository root; this drives the local toolchain for the whole workspace.
-
-# TODO(evaluate-mise-daemons): mise v2026.9.6 added an experimental
-# `[daemons]` section (plus `mise daemons start|stop|restart|ls|status|
-# logs|tui`) that wraps pitchfork — the same tool our root
-# `pitchfork.toml` already drives directly. Revisit moving our 17 daemons
-# here when BOTH hold: (a) the feature leaves `experimental` (it needs
-# `settings.experimental = true`, currently unset), and (b) we actually
-# want its PostgreSQL/Redis presets — we run neither locally (real
-# SpacetimeDB Maincloud + in-cluster services instead). Why we're not
-# migrating yet: our pitchfork config leans on `ready_http`, OS-conditional
-# `run` blocks, `[daemons.*.hooks]`, and `pitchfork activate`; the presets
-# are Unix-only; and the win (config colocated with tools) is small against
-# the regression risk on a working dev environment. Rationale recorded so
-# this isn't re-litigated from scratch each release.
+[settings]
+# Required by the `[daemons]` section below (and `mise daemons`).
+experimental = true
 
 [tools]
 age = "latest"
@@ -717,17 +704,19 @@ dir = "apps/yral-database-spacetime"
 run = "cargo test"
 
 [tasks.spacetime-run]
-description = "Start local SpacetimeDB server (pitchfork) and publish the module locally (--env dev reads spacetime.dev.json → local server)"
+description = "Start local SpacetimeDB server and publish the module locally (--env dev reads spacetime.dev.json → local server)"
 depends = ["spacetime-build"]
-run = "pitchfork start spacetimedb && spacetime publish --env dev --yes"
+daemons = ["spacetimedb"]
+run = "spacetime publish --env dev --yes"
 
 [tasks.spacetime-dev]
-description = "Start SpacetimeDB server (pitchfork) and run dev mode (build, generate bindings, publish, watch for changes)"
-run = "pitchfork start spacetimedb && spacetime dev"
+description = "Start SpacetimeDB server and run dev mode (build, generate bindings, publish, watch for changes)"
+daemons = ["spacetimedb"]
+run = "spacetime dev"
 
 [tasks.spacetime-stop]
-description = "Stop SpacetimeDB server via pitchfork"
-run = "pitchfork stop spacetimedb"
+description = "Stop SpacetimeDB server"
+run = "mise daemons stop spacetimedb spacetimedb-dev"
 
 # No --yes: maincloud publish is production — we MUST read the migration plan
 # and breaking-change warnings interactively before accepting. Never
@@ -779,31 +768,31 @@ fi
 '''
 
 [tasks.yral-auth-run]
-description = "Run yral-auth locally via pitchfork (release binary, port 8080)"
+description = "Run yral-auth locally (release binary, port 8080)"
 depends = ["yral-auth-build"]
-run = "pitchfork start yral-auth --force"
+daemons = ["yral-auth"]
+run = "echo 'yral-auth daemon started (mise daemons logs yral-auth to follow)'"
 
 [tasks.yral-auth-test]
-description = "Run yral-auth tests (starts local SpacetimeDB dev server if needed, injects JWT_EC_PEM via fnox)"
+description = "Run yral-auth tests (uses local SpacetimeDB dev server; injects JWT_EC_PEM via fnox)"
 dir = "apps/yral-auth"
+daemons = ["spacetimedb-dev"]
 env = { SPACETIMEDB_URL = "http://127.0.0.1:3000" }
-run = '''
-pitchfork start spacetimedb-dev --force
-fnox exec -- cargo test --features ssr --bins --lib -- --test-threads=1
-'''
+run = "fnox exec -- cargo test --features ssr --bins --lib -- --test-threads=1"
 
 [tasks.yral-auth-image]
 description = "Build the yral-auth container image locally (podman)"
 run = "podman build -f apps/yral-auth/Dockerfile.buildkit -t test/yral-auth --platform linux/amd64 ."
 
 [tasks.yral-auth-image-run]
-description = "Run the yral-auth container image locally via pitchfork (podman, port 8080)"
+description = "Run the yral-auth container image locally (podman, port 8080)"
 depends = ["yral-auth-image"]
-run = "pitchfork start yral-auth-container --force"
+daemons = ["yral-auth-container"]
+run = "echo 'yral-auth-container daemon started (mise daemons logs yral-auth-container to follow)'"
 
 [tasks.yral-auth-stop]
-description = "Stop yral-auth dev server or container via pitchfork"
-run = "pitchfork stop yral-auth yral-auth-container"
+description = "Stop yral-auth dev server and container"
+run = "mise daemons stop yral-auth yral-auth-container"
 
 [tasks.yral-auth-all]
 description = "Full yral-auth workflow: build → test → image → image-run → validate → stop"
@@ -856,9 +845,10 @@ fi
 '''
 
 [tasks.yral-web-run]
-description = "Run yral-web locally via pitchfork (release binary, port 8080)"
+description = "Run yral-web locally (release binary, port 8080)"
 depends = ["yral-web-build"]
-run = "pitchfork start yral-web --force"
+daemons = ["yral-web"]
+run = "echo 'yral-web daemon started (mise daemons logs yral-web to follow)'"
 
 [tasks.yral-web-watch]
 description = "Run yral-web with hot reload via cargo leptos watch (debug, port 8080)"
@@ -867,26 +857,25 @@ run = "fnox exec -- cargo leptos --manifest-path ssr/Cargo.toml watch --hot-relo
 env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
 
 [tasks.yral-web-test]
-description = "Run yral-web tests (ssr feature + fnox secrets; starts local SpacetimeDB dev server for yral-auth integration tests)"
+description = "Run yral-web tests (ssr feature + fnox secrets; uses local SpacetimeDB dev server for yral-auth integration tests)"
 dir = "apps/yral-web"
+daemons = ["spacetimedb-dev"]
 env = { SPACETIMEDB_URL = "http://127.0.0.1:3000" }
-run = '''
-pitchfork start spacetimedb-dev --force
-fnox exec -- cargo test --features ssr --bins --lib -- --test-threads=1
-'''
+run = "fnox exec -- cargo test --features ssr --bins --lib -- --test-threads=1"
 
 [tasks.yral-web-image]
 description = "Build the yral-web container image locally (podman)"
 run = "podman build -f apps/yral-web/Dockerfile.buildkit -t test/yral-web --platform linux/amd64 ."
 
 [tasks.yral-web-image-run]
-description = "Run the yral-web container image locally via pitchfork (podman, port 8080)"
+description = "Run the yral-web container image locally (podman, port 8080)"
 depends = ["yral-web-image"]
-run = "pitchfork start yral-web-container --force"
+daemons = ["yral-web-container"]
+run = "echo 'yral-web-container daemon started (mise daemons logs yral-web-container to follow)'"
 
 [tasks.yral-web-stop]
-description = "Stop yral-web dev server or container via pitchfork"
-run = "pitchfork stop yral-web yral-web-watch yral-web-container"
+description = "Stop yral-web dev server, watch, and container"
+run = "mise daemons stop yral-web yral-web-watch yral-web-container"
 
 [tasks.yral-web-all]
 description = "Full yral-web workflow: build → test → image → image-run → validate → stop"
@@ -912,20 +901,14 @@ FIRST_POD=$(kubectl -n yral-web get pods -l app=yral-web -o jsonpath='{.items[0]
 kubectl -n yral-web logs "$FIRST_POD" --tail=20
 '''
 
-# ── hello-world (Leptos CSR demo app) ─────────────────────────────────────
-
-[tasks.hello-world-build]
-description = "Build hello-world (Trunk release WASM + JS)"
-run = "trunk build --release"
-dir = "apps/hello-world"
-
-[tasks.hello-world-run]
-description = "Run hello-world dev server via pitchfork (Trunk serve, port 8080, hot reload)"
-run = "pitchfork start hello-world --force"
-
-[tasks.hello-world-stop]
-description = "Stop hello-world dev server via pitchfork"
-run = "pitchfork stop hello-world"
+# ── hello-world ─────────────────────────────────────────────────────────────
+# The `leptos-tutorial-builder-syntax` app (and the `hello-world` daemon that
+# pointed at it) were removed in cf6691f9, so this app has no source or Trunk
+# config left — only a stale untracked dist/. Its hello-world-build/-run/-stop
+# tasks were dropped with the migration to [daemons] rather than carried over,
+# since they could never have worked (the old `-run` started a daemon named
+# `hello-world`, which never existed while the daemon that did was named
+# `leptos-tutorial-builder-syntax`). Re-create all three if the app returns.
 
 # ── yral-metadata ───────────────────────────────────────────────────────────
 
@@ -940,9 +923,10 @@ fi
 '''
 
 [tasks.yral-metadata-run]
-description = "Run yral-metadata locally via pitchfork (release binary, port 7000)"
+description = "Run yral-metadata locally (release binary, port 7000)"
 depends = ["yral-metadata-build"]
-run = "pitchfork start yral-metadata --force"
+daemons = ["yral-metadata"]
+run = "echo 'yral-metadata daemon started (mise daemons logs yral-metadata to follow)'"
 
 [tasks.yral-metadata-test]
 description = "Run yral-metadata tests"
@@ -953,13 +937,14 @@ description = "Build the yral-metadata container image locally (podman)"
 run = "podman build -f apps/yral-metadata/Dockerfile.buildkit -t test/yral-metadata --platform linux/amd64 ."
 
 [tasks.yral-metadata-image-run]
-description = "Run the yral-metadata container image locally via pitchfork (podman, port 7000)"
+description = "Run the yral-metadata container image locally (podman, port 7000)"
 depends = ["yral-metadata-image"]
-run = "pitchfork start yral-metadata-container --force"
+daemons = ["yral-metadata-container"]
+run = "echo 'yral-metadata-container daemon started (mise daemons logs yral-metadata-container to follow)'"
 
 [tasks.yral-metadata-stop]
-description = "Stop yral-metadata dev server or container via pitchfork"
-run = "pitchfork stop yral-metadata yral-metadata-container"
+description = "Stop yral-metadata dev server and container"
+run = "mise daemons stop yral-metadata yral-metadata-container"
 
 [tasks.yral-metadata-all]
 description = "Full yral-metadata workflow: build → run → test → image → image-run"
@@ -998,9 +983,10 @@ fi
 '''
 
 [tasks.off-chain-agent-run]
-description = "Run off-chain-agent locally via pitchfork (release binary, port 50051)"
+description = "Run off-chain-agent locally (release binary, port 50051)"
 depends = ["off-chain-agent-build"]
-run = "pitchfork start off-chain-agent --force"
+daemons = ["off-chain-agent"]
+run = "echo 'off-chain-agent daemon started (mise daemons logs off-chain-agent to follow)'"
 
 [tasks.off-chain-agent-test]
 description = "Run off-chain-agent tests"
@@ -1011,13 +997,14 @@ description = "Build the off-chain-agent container image locally (podman)"
 run = "podman build -f apps/off-chain-agent/Dockerfile.buildkit -t test/off-chain-agent --platform linux/amd64 ."
 
 [tasks.off-chain-agent-image-run]
-description = "Run the off-chain-agent container image locally via pitchfork (podman, port 50051)"
+description = "Run the off-chain-agent container image locally (podman, port 50051)"
 depends = ["off-chain-agent-image"]
-run = "pitchfork start off-chain-agent-container --force"
+daemons = ["off-chain-agent-container"]
+run = "echo 'off-chain-agent-container daemon started (mise daemons logs off-chain-agent-container to follow)'"
 
 [tasks.off-chain-agent-stop]
-description = "Stop off-chain-agent dev server or container via pitchfork"
-run = "pitchfork stop off-chain-agent off-chain-agent-container"
+description = "Stop off-chain-agent dev server and container"
+run = "mise daemons stop off-chain-agent off-chain-agent-container"
 
 [tasks.off-chain-agent-all]
 description = "Full off-chain-agent workflow: build → run → test → image → image-run"
@@ -1290,9 +1277,10 @@ fi
 '''
 
 [tasks.my-website-run]
-description = "Run my-website locally via pitchfork (release binary, port 8080)"
+description = "Run my-website locally (release binary, port 8081)"
 depends = ["my-website-build"]
-run = "pitchfork start my-website --force"
+daemons = ["my-website"]
+run = "echo 'my-website daemon started (mise daemons logs my-website to follow)'"
 
 [tasks.my-website-watch]
 description = "Run my-website with hot reload via cargo leptos watch (debug, port 8080)"
@@ -1310,13 +1298,14 @@ description = "Build the my-website container image locally (podman)"
 run = "podman build -f apps/my-website/Dockerfile.buildkit -t test/my-website --platform linux/amd64 ."
 
 [tasks.my-website-image-run]
-description = "Run the my-website container image locally via pitchfork (podman, port 8080)"
+description = "Run the my-website container image locally (podman, port 8080)"
 depends = ["my-website-image"]
-run = "pitchfork start my-website-container --force"
+daemons = ["my-website-container"]
+run = "echo 'my-website-container daemon started (mise daemons logs my-website-container to follow)'"
 
 [tasks.my-website-stop]
-description = "Stop my-website dev server or container via pitchfork"
-run = "pitchfork stop my-website my-website-container"
+description = "Stop my-website dev server and container"
+run = "mise daemons stop my-website my-website-container"
 
 [tasks.my-website-validate]
 description = "Validate my-website on prod (read-only kubectl checks)"
@@ -1485,11 +1474,10 @@ depends = ["yral-rishi-agent-test-bootstrap"]
 run = "./.venv/bin/python -m pytest tests/ -v"
 
 # ── Dev: local SpacetimeDB + yral-auth + yral-web ────────────────────────
-# These tasks build the binaries and start all dev servers via pitchfork.
-# The pitchfork `dev` group manages the daemons with dependency ordering:
-#   spacetimedb-dev → yral-auth-dev → yral-web-dev
-# With `pitchfork activate bash` in ~/.bashrc, the dev group auto-starts
-# when you cd into the repo and auto-stops when you leave.
+# These tasks build the binaries and start the dev stack. The `dev` daemon group
+# (see [daemon_groups]) manages the daemons, and each daemon's own `depends`
+# supplies the ordering: spacetimedb-dev → yral-auth-dev → yral-web-dev.
+# Nothing auto-starts on shell entry — `pitchfork activate` is no longer used.
 
 [tasks.dev-build]
 description = "Build all dev binaries (yral-auth + yral-web + spacetime module)"
@@ -1500,22 +1488,311 @@ mise run spacetime-build
 '''
 
 [tasks.dev-start]
-description = "Start all dev servers (SpacetimeDB local + yral-auth + yral-web) via pitchfork"
+description = "Start all dev servers (SpacetimeDB local + yral-auth + yral-web)"
 depends = ["dev-build"]
-run = "pitchfork start --group dev --force"
+run = "mise daemons start dev"
 
 [tasks.dev-stop]
-description = "Stop all dev servers via pitchfork"
-run = "pitchfork stop --group dev"
+description = "Stop all dev servers"
+run = "mise daemons stop dev"
 
 [tasks.dev-status]
-description = "Show status of all dev daemons"
-run = "pitchfork list"
+description = "Show status of all daemons"
+run = "mise daemons ls"
 
 [tasks.test-spacetime-jwt]
-description = "Run only the JWT→SpacetimeDB identity integration tests (starts local SpacetimeDB dev server if needed, injects JWT_EC_PEM via fnox)"
+description = "Run only the JWT→SpacetimeDB identity integration tests (injects JWT_EC_PEM via fnox; SpacetimeDB is started by the daemons option)"
 dir = "apps/yral-auth"
+daemons = ["spacetimedb-dev"]
+run = "fnox exec -- cargo test -p yral-auth --features ssr spacetime::integration_tests -- --test-threads=1"
+
+# ── Daemons ─────────────────────────────────────────────────────────────────
+# Long-running dev processes, managed by mise (`mise daemons ...`) on top of
+# pitchfork. See the top-of-file note for why pitchfork remains a required
+# dependency and how per-task startup replaced shell-entry auto-start.
+#
+# Usage:
+#   mise daemons ls                       # list declared + tracked daemons
+#   mise daemons start yral-auth          # start one (and its depends)
+#   mise daemons stop yral-auth           # stop one
+#   mise daemons logs yral-auth           # follow its logs
+#   mise daemons start dev                # start the `dev` group
+#   mise daemons stop                     # stop everything this project tracks
+#   mise daemons urls                     # ports + proxy hostnames
+#   mise daemons tui                      # pitchfork dashboard
+#
+# Prefer the `<app>-run` tasks over `mise daemons start` directly: the tasks add
+# the `depends = ["<app>-build"]` they need. A task that requires a daemon just
+# declares it (`daemons = ["<name>"]`) and mise starts it and waits for readiness
+# before the task body runs; already-running daemons are reused.
+
+# ── my-website dev server (Leptos release binary, port 8081) ────────────────
+# Build first with: mise run my-website-build (the -run task depends on it).
+
+[daemons.my-website]
+# Binary path is OS-conditional at start: Linux/WSL builds musl (mimics prod),
+# macOS builds native arm64 (Linux ELF can't exec on Darwin).
 run = '''
-pitchfork start spacetimedb-dev --force
-fnox exec -- cargo test -p yral-auth --features ssr spacetime::integration_tests -- --test-threads=1
+if [[ "$(uname)" == "Darwin" ]]; then
+  exec ./../../target/release/my-website
+else
+  exec ./../../target/x86_64-unknown-linux-musl/release/my-website
+fi
 '''
+dir = "apps/my-website"
+ready_http = "http://localhost:8081/"
+stop_signal = "SIGINT"
+env = { LEPTOS_SITE_ADDR = "0.0.0.0:8081" }
+
+# ── my-website container (podman) ───────────────────────────────────────────
+# Build first with: mise run my-website-image
+
+[daemons.my-website-container]
+run = "exec podman run --rm -p 8080:8080 test/my-website"
+
+# ── off-chain-agent dev server (release binary, port 50051) ────────────────
+# Runs the NATIVE binary (arm64 on macOS, gnu on Linux/WSL) with env vars from
+# mise + secrets from fnox. Build first with: mise run off-chain-agent-build.
+# The binary is built at the workspace-root target/ by the mise task, so the
+# path is relative to dir ("apps/off-chain-agent") and points up to it.
+
+[daemons.off-chain-agent]
+run = '''
+if [[ "$(uname)" == "Darwin" ]]; then
+  exec fnox exec -- ../../target/release/icp-off-chain-agent
+else
+  exec fnox exec -- ../../target/x86_64-unknown-linux-musl/release/icp-off-chain-agent
+fi
+'''
+dir = "apps/off-chain-agent"
+ready_http = "http://localhost:50051/healthz"
+stop_signal = "SIGINT"
+
+# ── off-chain-agent container (podman) ──────────────────────────────────────
+# Build first with: mise run off-chain-agent-image
+
+[daemons.off-chain-agent-container]
+run = '''
+exec fnox exec -- podman run --rm \
+  -e APP_ENV -e RUST_LOG \
+  -e OFF_CHAIN_AGENT_URL \
+  -e SPACETIMEDB_URL -e SPACETIMEDB_DB_NAME -e SPACETIMEDB_ADMIN_TOKEN \
+  -e JWT_PUB_EC_PEM \
+  -e GRPC_AUTH_TOKEN \
+  -e NAITIK_MULTI_SERVICE_API_JWT_TOKEN \
+  -p 50051:50051 test/off-chain-agent
+'''
+dir = "apps/off-chain-agent"
+ready_http = "http://localhost:50051/healthz"
+stop_signal = "SIGINT"
+
+# ── SpacetimeDB standalone server (port 3000) ──────────────────────────────
+# Local SpacetimeDB instance for the yral-database-spacetime module. Required by
+# `spacetime dev` (which publishes to http://127.0.0.1:3000). In-memory mode —
+# data is lost on restart, which is fine for dev. No JWT keys, so this is the
+# plain server for tasks that don't need authenticated identity.
+
+[daemons.spacetimedb]
+run = "exec spacetime start --in-memory --listen-addr 127.0.0.1:3000"
+ready_http = "http://127.0.0.1:3000/v1/health"
+stop_signal = "SIGINT"
+retry = 3
+
+# ── SpacetimeDB local dev (in-memory + JWT keys, auto-publishes module) ─────
+# Used by the `dev` group and by the yral-auth/yral-web dev tasks. Starts the
+# local server, publishes the module (via the on_ready hook below), and stays
+# running. Data is lost on restart (in-memory).
+#
+# JWT key configuration: the local server verifies JWTs using yral-auth's public
+# ES256 key (JWT_PUB_EC_PEM from [env] above). The PEM is written to a temp file
+# before starting, then passed via --jwt-pub-key-path, which makes
+# yral-auth-minted JWTs valid SpacetimeDB tokens — the server derives a
+# deterministic Identity from the iss + sub claims. The private key (JWT_EC_PEM)
+# lives in fnox.toml (age-encrypted) and is read via `fnox get`.
+
+[daemons.spacetimedb-dev]
+# NOTE: the mktemp template's X's must be the LAST characters. Trailing them
+# with ".pem" makes mktemp treat the whole string as a literal name — it then
+# creates that one fixed path, and every restart after the first fails with
+# "mkstemp failed ... File exists" (which is why the daemon would not start
+# after an unclean stop). The extension was cosmetic: `spacetime start` reads
+# the PEM content, not the filename. The key files are also cleaned up on exit
+# so they don't linger in /tmp carrying the JWT signing key.
+run = '''
+JWT_PUB_FILE=$(mktemp /tmp/spacetimedb-jwt-pub-XXXXXX) && \
+JWT_PRIV_FILE=$(mktemp /tmp/spacetimedb-jwt-priv-XXXXXX) && \
+trap 'rm -f "$JWT_PUB_FILE" "$JWT_PRIV_FILE"' EXIT && \
+printf '%s' "$JWT_PUB_EC_PEM" > "$JWT_PUB_FILE" && \
+chmod 600 "$JWT_PUB_FILE" "$JWT_PRIV_FILE" && \
+fnox get JWT_EC_PEM --non-interactive > "$JWT_PRIV_FILE" && \
+exec spacetime start --in-memory --listen-addr 127.0.0.1:3000 --non-interactive --jwt-pub-key-path "$JWT_PUB_FILE" --jwt-priv-key-path "$JWT_PRIV_FILE"
+'''
+ready_http = "http://127.0.0.1:3000/v1/health"
+stop_signal = "SIGINT"
+retry = 3
+
+[daemons.spacetimedb-dev.hooks]
+# Publish the module to the local server once it's ready.
+# --env dev loads spacetime.dev.json (server: local) on top of spacetime.json.
+on_ready = "spacetime build -p apps/yral-database-spacetime && spacetime publish --env dev --yes --server local yral-database-spacetime-4lbo7"
+
+# ── yral-auth prod-config dev server (release binary, port 8080) ───────────
+# Runs against the prod SpacetimeDB config. Build first with: mise run
+# yral-auth-build. fnox exec loads the age-encrypted secrets from fnox.toml;
+# dir makes mise load the app's environment.
+
+[daemons.yral-auth]
+# Binary path is OS-conditional at start. Root target/ only —
+# apps/yral-auth/target is a stale pre-monorepo leftover.
+run = '''
+if [[ "$(uname)" == "Darwin" ]]; then
+  exec fnox exec -- ./target/release/yral-auth
+else
+  exec fnox exec -- ./target/x86_64-unknown-linux-musl/release/yral-auth
+fi
+'''
+dir = "apps/yral-auth"
+ready_http = "http://localhost:8080/healthz"
+stop_signal = "SIGINT"
+env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
+
+# ── yral-auth container (podman) ───────────────────────────────────────────
+# Build first with: mise run yral-auth-image
+
+[daemons.yral-auth-container]
+run = '''
+exec fnox exec -- podman run --rm \
+  -e APP_ENV -e GOOGLE_CLIENT_ID -e GOOGLE_CLIENT_SECRET \
+  -e APPLE_CLIENT_ID -e APPLE_TEAM_ID -e APPLE_KEY_ID -e APPLE_AUTH_KEY_PEM \
+  -e JWT_EC_PEM -e JWT_PUB_EC_PEM \
+  -e CLIENT_JWT_ED_PEM -e CLIENT_JWT_PUB_ED_PEM \
+  -e COOKIE_KEY -e WHATSAPP_API_KEY \
+  -p 8080:8080 test/yral-auth
+'''
+dir = "apps/yral-auth"
+ready_http = "http://localhost:8080/healthz"
+stop_signal = "SIGINT"
+
+# ── yral-auth dev (local SpacetimeDB, port 8080) ───────────────────────────
+# Dev variant: points SPACETIMEDB_URL at the local server (127.0.0.1:3000) and
+# depends on spacetimedb-dev being ready (the module is published via its
+# on_ready hook). Build first with: mise run yral-auth-build.
+
+[daemons.yral-auth-dev]
+run = '''
+if [[ "$(uname)" == "Darwin" ]]; then
+  exec fnox exec -- ./target/release/yral-auth
+else
+  exec fnox exec -- ./target/x86_64-unknown-linux-musl/release/yral-auth
+fi
+'''
+dir = "apps/yral-auth"
+ready_http = "http://localhost:8080/healthz"
+stop_signal = "SIGINT"
+depends = ["spacetimedb-dev"]
+env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080", SPACETIMEDB_URL = "http://127.0.0.1:3000", SPACETIMEDB_DB_NAME = "yral-database-spacetime-4lbo7" }
+
+# ── yral-metadata dev server (release binary, port 7000) ───────────────────
+# Build first with: mise run yral-metadata-build
+
+[daemons.yral-metadata]
+# Binary path is OS-conditional at start. Root target/ only —
+# apps/yral-metadata/target is a stale leftover.
+run = '''
+if [[ "$(uname)" == "Darwin" ]]; then
+  exec fnox exec -- ../../target/release/yral-metadata-server
+else
+  exec fnox exec -- ../../target/x86_64-unknown-linux-musl/release/yral-metadata-server
+fi
+'''
+dir = "apps/yral-metadata"
+ready_http = "http://localhost:7000/healthz"
+stop_signal = "SIGINT"
+
+# ── yral-metadata container (podman) ────────────────────────────────────────
+# Build first with: mise run yral-metadata-image
+
+[daemons.yral-metadata-container]
+run = '''
+exec fnox exec -- podman run --rm \
+  -e APP_ENV -e RUST_LOG -e BIND_ADDRESS \
+  -e JWT_PUBLIC_KEY -e YRAL_AUTH_PUBLIC_KEY -e BACKEND_ADMIN_IDENTITY \
+  -p 7000:7000 test/yral-metadata
+'''
+dir = "apps/yral-metadata"
+ready_http = "http://localhost:7000/healthz"
+stop_signal = "SIGINT"
+
+# ── yral-web dev server (release binary, port 8080) ───────────────────────
+# Build first with: mise run yral-web-build
+
+[daemons.yral-web]
+# Binary path is OS-conditional at start. The musl build lands under the custom
+# `prod-release` profile dir (yral-web's bin-profile-release), the native macOS
+# build under plain release/.
+run = '''
+if [[ "$(uname)" == "Darwin" ]]; then
+  exec fnox exec -- ../../target/release/yral-web
+else
+  exec fnox exec -- ../../target/x86_64-unknown-linux-musl/prod-release/yral-web
+fi
+'''
+dir = "apps/yral-web"
+ready_http = "http://localhost:8080/healthz"
+stop_signal = "SIGINT"
+env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080", LEPTOS_SITE_ROOT = "../../target/site" }
+
+# ── yral-web container (podman) ──────────────────────────────────────────
+# Build first with: mise run yral-web-image
+
+[daemons.yral-web-container]
+# fnox exec decrypts secrets into the env so podman's -e VAR (without =value)
+# copies them from the parent process into the container.
+run = '''
+exec fnox exec -- podman run --rm \
+  -e APP_ENV -e LEPTOS_ENV -e LEPTOS_SITE_ADDR -e LEPTOS_HASH_FILES \
+  -e GOOGLE_CLIENT_ID -e GOOGLE_REDIRECT_URL -e YRAL_AUTH_REDIRECT_URL \
+  -e YRAL_AUTH_CLIENT_ID \
+  -e COOKIE_KEY -e HON_WORKER_JWT -e BACKEND_ADMIN_IDENTITY \
+  -e HETZNER_S3_ACCESS_KEY -e HETZNER_S3_SECRET_KEY \
+  -e GRPC_AUTH_TOKEN -e YRAL_AUTH_CLIENT_SECRET -e YRAL_AUTH_MIGRATION_ES256_PEM \
+  -p 8080:8080 test/yral-web
+'''
+dir = "apps/yral-web"
+ready_http = "http://localhost:8080/healthz"
+stop_signal = "SIGINT"
+
+# ── yral-web dev (local SpacetimeDB, port 8081) ─────────────────────────
+# Dev variant: points SPACETIMEDB_URL at the local server and uses port 8081 to
+# avoid the conflict with yral-auth-dev on 8080. Build first with:
+# mise run yral-web-build.
+
+[daemons.yral-web-dev]
+run = "exec fnox exec -- ../../target/x86_64-unknown-linux-musl/prod-release/yral-web"
+dir = "apps/yral-web"
+ready_http = "http://localhost:8081/healthz"
+stop_signal = "SIGINT"
+depends = ["spacetimedb-dev", "yral-auth-dev"]
+env = { LEPTOS_SITE_ADDR = "0.0.0.0:8081", LEPTOS_SITE_ROOT = "../../target/site", SPACETIMEDB_URL = "http://127.0.0.1:3000", SPACETIMEDB_DB_NAME = "yral-database-spacetime-4lbo7", GOOGLE_REDIRECT_URL = "http://127.0.0.1:8081/auth/google_redirect", YRAL_AUTH_REDIRECT_URL = "http://127.0.0.1:8081/auth/yral_redirect" }
+
+# ── yral-web watch (cargo leptos watch, hot reload, debug) ──────────────
+# Rebuilds server + WASM on file change and live-reloads the browser. Uses debug
+# profiles (fast rebuilds) and needs no pre-build — cargo leptos watch builds and
+# serves. fnox exec loads the age-encrypted secrets from fnox.toml.
+
+[daemons.yral-web-watch]
+run = "exec fnox exec -- cargo leptos --manifest-path ssr/Cargo.toml watch --hot-reload --bin-features ssr,oauth-ssr"
+dir = "apps/yral-web"
+ready_output = "Serving at"
+stop_signal = "SIGINT"
+env = { LEPTOS_SITE_ADDR = "0.0.0.0:8080" }
+
+# ── Groups ──────────────────────────────────────────────────────────────────
+# Named subsets, usable wherever a daemon name is accepted:
+#   mise daemons start dev      |  mise daemons stop --group dev
+# Dependency order inside `dev` is handled by each daemon's own `depends`:
+# spacetimedb-dev → (publishes the module via its on_ready hook) → yral-auth-dev
+# → yral-web-dev.
+
+[daemon_groups]
+dev = ["spacetimedb-dev", "yral-auth-dev", "yral-web-dev"]

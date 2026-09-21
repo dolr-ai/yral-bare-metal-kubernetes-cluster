@@ -112,7 +112,7 @@ When making changes to a codebase (fixing bugs, migrating APIs, adding features)
 When making sweeping changes (removing a feature, restructuring workspaces, bumping shared deps, etc.) that touch multiple components, **verify each affected component individually** before pushing:
 1. **Compile** — `cargo check` / `cargo build` / `mise run <app>-build` for each affected component.
 2. **Test** — `cargo test` / `mise run <app>-test`. Tests requiring external services (SpacetimeDB, Kafka, PostgreSQL) that fail with "Connection refused" are expected locally; verify no *new* test failures from the change.
-3. **Run locally** — `mise run <app>-run` (via pitchfork) to verify the app starts and the health endpoint responds.
+3. **Run locally** — `mise run <app>-run` (starts the app's daemon via mise) to verify the app starts and the health endpoint responds.
 4. **Push** — once all components pass, push to git and let CI/CD handle deployment.
 5. **Validate on prod** — after deployment, verify the service is healthy in production (read-only `kubectl get/describe/logs`, health endpoint, smoke test).
 Never push sweeping changes without first verifying every affected component compiles and runs locally.
@@ -413,7 +413,7 @@ Velero only (full cluster DR, 30-day self-managed `ttl: 720h`). Named prefix `ve
 - **Editing SOPS files (decrypt → edit → re-encrypt workflow):** To add/modify keys in an existing `*.sops.yaml` file without an interactive editor: (1) `mise run sops-decrypt -- --in-place <file>.sops.yaml` (decrypt in-place), (2) edit `<file>.sops.yaml` with VS Code edit tools (`replace_string_in_file`, etc.), (3) `mise run sops-encrypt -- <file>.sops.yaml` (encrypt in-place). This works reliably every time — no `sops --set` JSON syntax issues, no MAC integrity errors, no temp files to clean up. Never commit the file while it's in the decrypted (plaintext) state.
 
 ### Local Environment & Parity
-The repo uses a single monorepo-wide `mise.toml` at the repository root as the source of truth for tool versions, task orchestration, and all app-specific environment variables. There are **no per-app `mise.toml`, `fnox.toml`, or `pitchfork.toml` files** — all env vars, secrets, and daemon definitions live in the root `mise.toml`, root `fnox.toml`, and root `pitchfork.toml` respectively. App-specific env vars are grouped by `# ── <app> ──` comment headers in the root `[env]` section. Avoid adding per-project config files unless there is a strong, documented reason.
+The repo uses a single monorepo-wide `mise.toml` at the repository root as the source of truth for tool versions, task orchestration, and all app-specific environment variables. There are **no per-app `mise.toml`, `fnox.toml`, or `pitchfork.toml` files** — all env vars, secrets, and daemon definitions live in the root `mise.toml`, root `fnox.toml`, and root `mise.toml` `[daemons]` respectively. App-specific env vars are grouped by `# ── <app> ──` comment headers in the root `[env]` section. Avoid adding per-project config files unless there is a strong, documented reason.
 
 **mise (not direnv)** for env var management and tool versioning. Plaintext environment values belong in the `mise.toml` `[env]` section; secrets are managed by **fnox** (age-encrypted, committed to git in `fnox.toml`). No `.env` file is generated or loaded — `_.file = '.env'` was removed.
 
@@ -445,7 +445,11 @@ There are **two distinct age keys** in this repo. Do not confuse them:
 
 **Prefer mise tasks over raw tooling commands.** Don't run `cargo leptos build`, `podman build`, `npm install`, etc. directly — use the corresponding `mise run` task instead (e.g. `mise run yral-auth-build`, `mise run yral-auth-image`). This ensures env vars from `[env]` and fnox secrets are loaded, `depends` chains run, and the workflow is reproducible. If a needed workflow doesn't exist as a mise task, create one rather than running the raw command.
 
-**Long-running processes (dev servers, containers) managed by pitchfork.** `pitchfork.toml` at the repo root defines daemons with ready checks, restart policies, and automatic cleanup. Use `mise run yral-auth-run` (which calls `pitchfork start`) instead of running a server directly — pitchfork ensures the process is tracked, health-checked, and cleanly stopped when you exit. Daemons use `mise = true` (pitchfork's built-in mise integration wraps commands with `mise x --`) and `dir` to set the working directory. All env vars and secrets come from the root `mise.toml [env]` and root `fnox.toml` (no per-app config files). Secrets are injected via `fnox exec` inside the daemon command. Stop with `mise run yral-auth-stop` or `pitchfork stop --all`.
+**Long-running processes (dev servers, containers) are declared in `[daemons]` in the root `mise.toml` and managed by mise.** There is no `pitchfork.toml` — `mise daemons start|stop|restart|ls|status|logs|urls|tui` drives them (see the `[daemons]` section and the top-of-file note in `mise.toml`).
+
+**pitchfork is still a hard dependency** — `mise daemons` is a front-end that generates a pitchfork config and delegates process supervision and readiness checks to it. `pitchfork` stays pinned in `[tools]`, and must be resolvable in the project (`mise daemons stop` fails with "No version is set for shim: pitchfork" if it is not). Do not remove it.
+
+**Start daemons per task, not all at once.** A task declares what it needs with `daemons = ["<name>"]` (or `daemons = true` for every project daemon); mise starts them, waits for readiness, then runs the task body, and reuses anything already running. `auto = ["start", "stop"]` and `pitchfork activate` are gone — **nothing starts merely by entering the repo.** Prefer `mise run <app>-run` (which adds the `depends = ["<app>-build"]` it needs) over calling `mise daemons start` directly. Stop with `mise run <app>-stop` or `mise daemons stop`.
 
 **Version locking:** `mise.lock` is committed. Bump tool versions explicitly in `mise.toml`, then `mise lock` to refresh the lockfile. Never use floating `"latest"` without a lockfile entry.
 
@@ -459,9 +463,9 @@ This ensures `mise bootstrap --yes && mise run setup` is the only command needed
 **Per-service local dev convention (all services):** Every service we host and maintain follows the same pattern for local development. **All configuration is centralized in the repo root** — there are no per-app `mise.toml`, `fnox.toml`, or `pitchfork.toml` files:
 - **Tasks and plaintext env vars** → root `mise.toml` (app-specific env vars grouped by `# ── <app> ──` comment headers in `[env]`; tasks use `<app>-` prefix)
 - **Secrets** → root `fnox.toml` (age-encrypted, committed to git; app-specific secrets grouped by `# <app>` comment headers; same-named secrets prefixed with app name to disambiguate)
-- **Long-running dev servers** → root `pitchfork.toml` (with ready checks, restart policies, automatic cleanup)
+- **Long-running dev servers** → root `mise.toml` `[daemons]` (ready checks, restart policies); each `<app>-run` task declares `daemons = ["<app>"]`
 - Reuse shared secrets (Harbor credentials, etc.) across services — don't duplicate values, reference the same fnox secret definitions
-- For each new service onboarded, add env vars to root `mise.toml [env]`, create mise tasks (`<app>-build`, `<app>-run`, `<app>-image`), add secrets to root `fnox.toml`, and add a pitchfork daemon entry to root `pitchfork.toml`
+- For each new service onboarded, add env vars to root `mise.toml [env]`, create mise tasks (`<app>-build`, `<app>-run`, `<app>-image`) with `daemons = ["<app>"]` on the run task, add secrets to root `fnox.toml`, and add the daemon to `[daemons]` in root `mise.toml`
 
 ### SpacetimeDB Usage Rules
 
@@ -560,9 +564,9 @@ In-cluster image building via Shipwright (CRD-native, CNCF Sandbox) wrapping Bui
 
 1. **Compile locally** — `mise run <app>-build` (release musl binary) or `mise run <app>-build-local` (debug, same code as production).
 2. **Test** — `mise run <app>-test` (unit tests; external-service-dependent tests are removed — only pure-logic and production-endpoint tests remain).
-3. **Run locally** — `mise run <app>-run` (release binary via pitchfork, fnox secrets injected) or `mise run <app>-run-local` (debug build via pitchfork).
+3. **Run locally** — `mise run <app>-run` (release binary as a mise-managed daemon, fnox secrets injected) or `mise run <app>-run-local` (debug build).
 4. **Build image locally** — `mise run <app>-image` (podman build from repo root, `.dockerignore` excludes `target/` and `node_modules/`).
-5. **Run image locally** — `mise run <app>-image-run` (podman container via pitchfork, port forwarded).
+5. **Run image locally** — `mise run <app>-image-run` (podman container as a mise-managed daemon, port forwarded).
 6. **Push** — `git push` and let the CI/CD pipeline (Tekton → Shipwright → Harbor → Flux) build and deploy.
 7. **Validate on prod** — `mise run <app>-validate` (read-only kubectl checks: pods, readiness, recent logs).
 
