@@ -410,6 +410,38 @@ run = "mise bootstrap packages apply --yes && mise install && mise run bootstrap
 #
 # Counts come from real per-abort exit statuses (the OK/FAIL echo is gated on
 # the abort's exit code), never from the number of records listed.
+#
+# Transient failures are expected and self-healing. postgres-1-backup produced
+# 320 failures in two chunks that ran ~5x slower than normal (255s and 236s vs
+# ~45s), then recovered on its own — the failed sessions are simply re-listed
+# by the next chunk and aborted there. The final abort count (0 remaining on a
+# re-run) is the real success signal, not the exit code: this task exits
+# non-zero if ANY abort ever failed, so a "task failed" line after a long run
+# usually just means re-run it (it is idempotent — a re-run over a clean bucket
+# reports 0 and exits 0).
+#
+# ── Retiring a bucket end-to-end (verified on postgres-1-backup) ────────────
+#   1. mise run s3-abort-multipart-uploads -- <bucket> <endpoint>   # this task
+#   2. delete the objects (s5cmd rm --recursive / rclone purge)
+#   3. s5cmd --endpoint-url <endpoint> rb s3://<bucket>
+#
+# Step 3 can fail with `BucketNotEmpty: 409` on a SINGLE object that LIST
+# reports but that does not actually exist — a Ceph RGW bucket-index entry whose
+# backing RADOS object is gone. It is not data loss work to recover: HeadObject
+# 404s, GetObject fails, and BOTH DeleteObject and the DeleteObjects batch path
+# (aws/s5cmd/rclone all tried) return success while the entry survives listing.
+# Versioning is off (`get-bucket-versioning` empty, the entry shows as a
+# Version with VersionId null), so there is no delete marker to clear.
+#
+# The repair is to make the index entry consistent by writing the key back,
+# after which a normal delete takes effect:
+#   printf 'repair' > /tmp/repair.txt
+#   aws s3api put-object --bucket <bucket> --key '<ghost key>' --body /tmp/repair.txt --endpoint-url <endpoint>
+#   aws s3api delete-object --bucket <bucket> --key '<ghost key>' --endpoint-url <endpoint>
+#   s5cmd --endpoint-url <endpoint> rb s3://<bucket>
+# (On postgres-1-backup the ghost was yral-ai-chat/yral_chat.db/0000/
+#  000000000000c81e-000000000000c81e.ltx — PUT then DELETE cleared it and the
+#  bucket deleted on the first try.)
 [tasks.s3-abort-multipart-uploads]
 description = "Abort orphaned multipart uploads on a bucket (usage: mise run s3-abort-multipart-uploads -- <bucket> [endpoint] [max_chunks] [jobs])"
 run = '''
@@ -442,6 +474,7 @@ results="$workdir/results.txt"
 
 total_aborted=0
 total_failed=0
+emptied=0
 started_at=$(date +%s)
 echo "bucket=$bucket endpoint=$endpoint jobs=$jobs max_chunks=$max_chunks"
 
@@ -459,6 +492,7 @@ for ((chunk = 1; chunk <= max_chunks; chunk++)); do
 
   if [ "$listed" -eq 0 ]; then
     echo "no pending multipart uploads - nothing left to abort"
+    emptied=1
     break
   fi
 
@@ -478,7 +512,20 @@ for ((chunk = 1; chunk <= max_chunks; chunk++)); do
 done
 
 echo "=== DONE: aborted=$total_aborted failed=$total_failed elapsed=$(( $(date +%s) - started_at ))s ==="
-[ "$total_failed" -eq 0 ]
+
+# Success is "no uploads remain", NOT "no abort ever failed". Transient
+# failures are expected (ChunkedEncoding/throttling under load) and self-heal:
+# the failed sessions are re-listed by a later chunk and aborted there. Gating
+# on total_failed would report a fully successful run as a task failure.
+if [ "$emptied" -eq 1 ]; then
+  if [ "$total_failed" -gt 0 ]; then
+    echo "note: $total_failed transient failures were recovered by later chunks"
+  fi
+  exit 0
+fi
+
+echo "stopped after $max_chunks chunks with uploads still pending - re-run to continue" >&2
+exit 1
 '''
 
 # ── SpacetimeDB ─────────────────────────────────────────────────────────────
