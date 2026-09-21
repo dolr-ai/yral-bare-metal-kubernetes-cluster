@@ -44,8 +44,12 @@ age = "latest"
 # https://<loc>.your-objectstorage.com` with the same credentials. The etcd
 # backup role does exactly this with hel1 (see ansible/inventory/hosts.yml),
 # which is why its endpoint differs from AWS_ENDPOINT_URL.
-# Read-only usage only — never mutate buckets from a shell (repo rule: the
-# declarative source is Ansible/git; see AGENTS.md "Immutable GitOps").
+# Read-only by default — do not mutate buckets from a shell (repo rule: the
+# declarative source is Ansible/git; see AGENTS.md "Immutable GitOps"). The one
+# carve-out is `mise run s3-abort-multipart-uploads`, which clears orphaned
+# multipart uploads on a decommissioned bucket: those are not declared state
+# (invisible to every listing, owned by no operator, present in no git source)
+# and they leak billable storage and block the bucket's deletion.
 aws-cli = "latest"
 cargo-binstall = "latest"
 "cargo:trunk" = "latest"
@@ -379,6 +383,103 @@ rm -f "$KEYFILE"
 [tasks.setup]
 description = "Install system packages, repo toolchain, and Python tooling (secrets already in fnox.toml)"
 run = "mise bootstrap packages apply --yes && mise install && mise run bootstrap && echo 'Environment is ready'"
+
+# ── Hetzner Object Storage maintenance ──────────────────────────────────────
+# Abort orphaned multipart uploads. These are NOT objects: they are incomplete
+# `CreateMultipartUpload` sessions whose chunks occupy billable space, are
+# invisible to every listing (`ls`, `du`, and the Hetzner console all miss
+# them), and block `DeleteBucket` forever. They accumulate here from
+# litestream-style continuous chunked writers that restart without ever
+# completing a session. Clearing them is a prerequisite for retiring a bucket.
+#
+# Why this is a task and not a one-liner: AbortMultipartUpload is a
+# one-per-upload API with NO batch form (DeleteObjects accepts only Key and
+# VersionId per object — there is no UploadId field), so parallelism is the
+# only lever available. Hetzner's Ceph RGW caps throughput at ~25 aborts/sec
+# regardless of worker count (measured: -j 64 and -j 200 both ~40s per 1000),
+# so the runtime is bound by server round-trips, not by local concurrency.
+#
+# Two AWS CLI behaviours this works around, both verified:
+#   * `--max-items 1000` AUTO-PAGINATES internally, so a pass really does
+#     collect 1000 uploads (a raw single page returns only ~260 for the same
+#     bucket). It also appends the pagination NextToken as a trailing line in
+#     --output text mode, which parses as a bogus single-field record.
+#   * hence the `awk -F'\t' 'NF==2'` filter: it keeps only genuine
+#     key<TAB>uploadId pairs and correctly reports 0 for a bucket with no
+#     pending uploads (without it, an empty bucket reports 1 phantom upload).
+#
+# Counts come from real per-abort exit statuses (the OK/FAIL echo is gated on
+# the abort's exit code), never from the number of records listed.
+[tasks.s3-abort-multipart-uploads]
+description = "Abort orphaned multipart uploads on a bucket (usage: mise run s3-abort-multipart-uploads -- <bucket> [endpoint] [max_chunks] [jobs])"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+
+bucket="${1:-}"
+endpoint="${2:-${AWS_ENDPOINT_URL:-}}"
+max_chunks="${3:-100000}"
+jobs="${4:-64}"
+
+if [ -z "$bucket" ] || [ -z "$endpoint" ]; then
+  echo "usage: mise run s3-abort-multipart-uploads -- <bucket> [endpoint] [max_chunks] [jobs]" >&2
+  exit 2
+fi
+
+# aws-cli picks up AWS_ACCESS_KEY_ID / AWS_DEFAULT_REGION / AWS_ENDPOINT_URL from
+# [env], but the secret lives only in fnox — inject it so the task also works
+# under a bare `mise run` and not just inside `mise x -- fnox exec --`.
+export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-$(fnox get AWS_SECRET_ACCESS_KEY 2>/dev/null || true)}"
+if [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+  echo "AWS_SECRET_ACCESS_KEY unavailable - is fnox configured? (mise run bootstrap)" >&2
+  exit 2
+fi
+
+workdir=$(mktemp -d)
+trap 'rm -rf "$workdir"' EXIT
+records="$workdir/records.tsv"
+results="$workdir/results.txt"
+
+total_aborted=0
+total_failed=0
+started_at=$(date +%s)
+echo "bucket=$bucket endpoint=$endpoint jobs=$jobs max_chunks=$max_chunks"
+
+for ((chunk = 1; chunk <= max_chunks; chunk++)); do
+  if ! aws s3api list-multipart-uploads \
+      --bucket "$bucket" --max-items 1000 \
+      --query 'Uploads[].[Key,UploadId]' --output text \
+      --endpoint-url "$endpoint" > "$workdir/page.txt" 2> "$workdir/page.err"; then
+    echo "listing failed on chunk $chunk: $(cat "$workdir/page.err")" >&2
+    exit 1
+  fi
+
+  awk -F'\t' 'NF==2' "$workdir/page.txt" > "$records"
+  listed=$(wc -l < "$records" | tr -d ' ')
+
+  if [ "$listed" -eq 0 ]; then
+    echo "no pending multipart uploads - nothing left to abort"
+    break
+  fi
+
+  chunk_started=$(date +%s)
+  rush -j "$jobs" -d '\t' \
+    "aws s3api abort-multipart-upload --bucket $bucket --key {1} --upload-id {2} --endpoint-url $endpoint >/dev/null 2>&1 && echo OK || echo FAIL" \
+    < "$records" > "$results"
+  chunk_elapsed=$(( $(date +%s) - chunk_started ))
+
+  # grep -c exits 1 on zero matches, which set -e would treat as a failure
+  aborted=$(grep -c '^OK$' "$results" || true)
+  failed=$((listed - aborted))
+  total_aborted=$((total_aborted + aborted))
+  total_failed=$((total_failed + failed))
+
+  echo "chunk $chunk: listed=$listed aborted=$aborted failed=$failed | cumulative aborted=$total_aborted failed=$total_failed | chunk=${chunk_elapsed}s elapsed=$(( $(date +%s) - started_at ))s"
+done
+
+echo "=== DONE: aborted=$total_aborted failed=$total_failed elapsed=$(( $(date +%s) - started_at ))s ==="
+[ "$total_failed" -eq 0 ]
+'''
 
 # ── SpacetimeDB ─────────────────────────────────────────────────────────────
 # The yral-database-spacetime module is a SpacetimeDB wasm module (cdylib),
