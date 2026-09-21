@@ -1,4 +1,4 @@
-apiVersion: gateway.networking.k8s.io/v1alpha2
+apiVersion: gateway.networking.k8s.io/v1
 kind: TLSRoute
 metadata:
   name: kafka-bootstrap
@@ -16,7 +16,7 @@ spec:
           namespace: kafka
           port: 9094
 ---
-apiVersion: gateway.networking.k8s.io/v1alpha2
+apiVersion: gateway.networking.k8s.io/v1
 kind: TLSRoute
 metadata:
   name: kafka-broker-3
@@ -34,7 +34,7 @@ spec:
           namespace: kafka
           port: 9094
 ---
-apiVersion: gateway.networking.k8s.io/v1alpha2
+apiVersion: gateway.networking.k8s.io/v1
 kind: TLSRoute
 metadata:
   name: kafka-broker-4
@@ -52,7 +52,7 @@ spec:
           namespace: kafka
           port: 9094
 ---
-apiVersion: gateway.networking.k8s.io/v1alpha2
+apiVersion: gateway.networking.k8s.io/v1
 kind: TLSRoute
 metadata:
   name: kafka-broker-5
