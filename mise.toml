@@ -656,7 +656,31 @@ done < "$workdir/remaining.txt"
 [ "$repaired" -gt 0 ] && echo "  repaired $repaired ghost object(s)"
 
 echo "=== step 3/3: delete the bucket ==="
-s5cmd --endpoint-url "$endpoint" rb "s3://$bucket"
+# Retried on BucketNotEmpty because that 409 is EXPECTED, not an error, right
+# after a mass version delete: Ceph's bucket index lags the deletions, so for a
+# short window every listing reports the bucket empty while DeleteBucket still
+# refuses. Verified on ansuman-yral — after deleting ~395k versions, all three
+# listings showed 0 objects / 0 versions / 0 delete markers yet `rb` returned
+# BucketNotEmpty; it exited 0 on the next attempt with nothing else changed.
+#
+# Every attempt is logged. The loop is bounded so a genuinely non-empty bucket
+# still fails the task (a real leftover — e.g. an object the ghost-repair above
+# could not clear — reports the same 409 every time).
+rb_attempt=1
+rb_max_attempts=10
+rb_delay_seconds=6
+while :; do
+  echo "  rb attempt $rb_attempt/$rb_max_attempts"
+  if s5cmd --endpoint-url "$endpoint" rb "s3://$bucket"; then
+    break
+  fi
+  if [ "$rb_attempt" -ge "$rb_max_attempts" ]; then
+    echo "bucket '$bucket' could not be deleted after $rb_max_attempts attempts" >&2
+    exit 1
+  fi
+  rb_attempt=$((rb_attempt + 1))
+  sleep "$rb_delay_seconds"
+done
 
 if aws --no-cli-pager s3api head-bucket --bucket "$bucket" --endpoint-url "$endpoint" >/dev/null 2>&1; then
   echo "bucket '$bucket' still exists - deletion did not take effect" >&2
