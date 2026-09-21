@@ -512,43 +512,43 @@ url_api = "https://api.github.com/repos/cli/cli/releases/assets/542974322"
 provenance = "github-attestations"
 
 [[tools."github:clockworklabs/SpacetimeDB"]]
-version = "2.10.0"
+version = "2.10.1"
 backend = "github:clockworklabs/SpacetimeDB"
 
 [tools."github:clockworklabs/SpacetimeDB"."platforms.linux-arm64"]
-checksum = "sha256:9ab74fd7083efa25ff3dcf0d1039815968bd649816e0d210810c00b3ad227430"
-url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.10.0/spacetime-aarch64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/544834657"
+checksum = "sha256:cf3b471547c09db062c6ea33e465167ff87aebac40b0c5c8d110ba19782853f2"
+url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.10.1/spacetime-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/566220879"
 
 [tools."github:clockworklabs/SpacetimeDB"."platforms.linux-arm64-musl"]
-checksum = "sha256:9ab74fd7083efa25ff3dcf0d1039815968bd649816e0d210810c00b3ad227430"
-url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.10.0/spacetime-aarch64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/544834657"
+checksum = "sha256:cf3b471547c09db062c6ea33e465167ff87aebac40b0c5c8d110ba19782853f2"
+url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.10.1/spacetime-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/566220879"
 
 [tools."github:clockworklabs/SpacetimeDB"."platforms.linux-x64"]
-checksum = "sha256:2188099ab1dde4a9a0ca88334fb10440eb9509bdcae93b4ef1147c7a66c8e702"
-url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.10.0/spacetime-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/544834708"
+checksum = "sha256:8b8d1c63b71dcecb10e7c0c8a0a3e5eb56c0d7cb30ba746488caee225f809ba5"
+url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.10.1/spacetime-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/566220941"
 
 [tools."github:clockworklabs/SpacetimeDB"."platforms.linux-x64-musl"]
-checksum = "sha256:2188099ab1dde4a9a0ca88334fb10440eb9509bdcae93b4ef1147c7a66c8e702"
-url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.10.0/spacetime-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/544834708"
+checksum = "sha256:8b8d1c63b71dcecb10e7c0c8a0a3e5eb56c0d7cb30ba746488caee225f809ba5"
+url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.10.1/spacetime-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/566220941"
 
 [tools."github:clockworklabs/SpacetimeDB"."platforms.macos-arm64"]
-checksum = "sha256:9b56140b88af8ba11277c24fbb8177d20196b19252ee6890390a3ab5f2773dea"
-url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.10.0/spacetime-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/544834658"
+checksum = "sha256:ecbd76e9e9a2b36f3b08763616182ad740522426c35043c39dff55f6470d0c37"
+url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.10.1/spacetime-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/566220880"
 
 [tools."github:clockworklabs/SpacetimeDB"."platforms.macos-x64"]
-checksum = "sha256:2ffa8a4f417a19c123f2af50cba20b43331c61fe25306848391a5ad4f427969d"
-url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.10.0/spacetime-x86_64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/544834699"
+checksum = "sha256:8599a94ac67806c4515926462454a59476502216d1949d0077884717288a4873"
+url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.10.1/spacetime-x86_64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/566220918"
 
 [tools."github:clockworklabs/SpacetimeDB"."platforms.windows-x64"]
-checksum = "sha256:ff7027140b25de58ad6dc2751545264d3926d2f79352ee6093084aa7ecf6737a"
-url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.10.0/spacetime-x86_64-pc-windows-msvc.zip"
-url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/544834704"
+checksum = "sha256:d483a68e90bb0ceb40739e7d924a4e7f14520e805a3632c3a9c57ed86d1708cc"
+url = "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.10.1/spacetime-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/clockworklabs/SpacetimeDB/releases/assets/566220930"
 
 [[tools.helm]]
 version = "4.3.0"
