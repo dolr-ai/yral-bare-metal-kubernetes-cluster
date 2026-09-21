@@ -17,6 +17,10 @@ venv/
 ENV/
 # Python venv managed by mise (tasks.bootstrap)
 .venv/
+# Build artefact of `pip install -e .` (tasks.bootstrap / fleet-bootstrap), which
+# makes the root pyproject.toml an editable install in each venv. Regenerated on
+# every bootstrap, so it must never be committed.
+*.egg-info/
 
 # OS
 .DS_Store

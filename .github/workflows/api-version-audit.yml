@@ -1,0 +1,65 @@
+name: API Version Audit
+
+# Weekly check that every apiVersion+kind we declare is still SERVED by the
+# cluster. Fails the run (so GitHub notifies) when one is not — which is how we
+# find out before it silently stops applying.
+#
+# Why this exists: whether an apiVersion is served is decided by the CRD that
+# defines it, and a version/channel change can stop serving a version we use.
+# That happened here: switching the Gateway API CRDs to the standard channel
+# dropped `v1alpha2`, and every Kafka TLSRoute using it failed to apply with
+# "the server could not find the requested resource". Renovate's kubernetes-api
+# datasource cannot cover this — it is a manually maintained table limited to
+# core Kubernetes, Flux and External Secrets resources, so third-party operator
+# CRDs (Gateway API, Tekton, Strimzi, Cilium, Longhorn, ...) are out of its
+# scope entirely.
+#
+# Runs on the same footing as fleet-maintenance: the runner holds only mise plus
+# the Ansible vault password, and `mise run bootstrap` extracts the kubeconfig
+# from the vault. Read-only against the cluster (kubectl get/api-resources).
+on:
+  schedule:
+    - cron: "0 4 * * 1"  # Mondays 09:30 IST (04:00 UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Check apiVersions against the cluster
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup mise + project tools
+        uses: jdx/mise-action@v4
+
+      - name: Audit apiVersions
+        env:
+          ANSIBLE_VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
+        run: |
+          set -e
+
+          # Same vault-password bootstrap as fleet-maintenance: the runner only
+          # has mise + this one secret. `mise run bootstrap` uses it to extract
+          # the kubeconfig from the vault to ~/.kube/config.
+          echo "$ANSIBLE_VAULT_PASSWORD" > ansible/.vault_pass
+          chmod 600 ansible/.vault_pass
+          [ -s ansible/.vault_pass ] || {
+            echo "ERROR: vault password file is empty — is ANSIBLE_VAULT_PASSWORD set?"
+            exit 1
+          }
+
+          # Never leave the vault password on the runner.
+          cleanup() { rm -f ansible/.vault_pass .yral-infra-ed25519; }
+          trap cleanup EXIT
+
+          mise run bootstrap
+
+          # Fails (non-zero) when any declared apiVersion is no longer served,
+          # which is what surfaces as a GitHub notification on this workflow.
+          mise run check-api-versions

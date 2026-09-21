@@ -676,6 +676,143 @@ fi
 echo "=== DONE: '$bucket' retired (every object deleted, bucket removed) ==="
 '''
 
+# ── API version hygiene ─────────────────────────────────────────────────────
+# Report manifests whose apiVersion+kind the cluster no longer SERVES.
+#
+# Why this exists: whether an apiVersion is served is decided by the CRD that
+# defines it, and a channel/version change can silently stop serving a version we
+# still use. Not hypothetical — switching the Gateway API CRDs from the
+# experimental to the standard channel dropped `v1alpha2`, and every Kafka
+# TLSRoute using it stopped applying with "the server could not find the
+# requested resource". Version strings are no signal on their own: `v1alpha1`
+# looks old but is correct for Tekton's ClusterInterceptor, which serves it and
+# nothing else.
+#
+# Sources of truth, and why the obvious one is wrong:
+#   CRDs               -> spec.versions[].served   (authoritative)
+#   built-in resources -> kubectl api-resources    (authoritative for these)
+#   NOT api-resources for CRDs: it lists only the PREFERRED version per resource,
+#   so a CRD serving both v1 and v1beta1 (ReferenceGrant) reports only v1, and
+#   every v1beta1 manifest becomes a false positive.
+#
+# Deliberately dependency-free (stdlib only, regex rather than a YAML parser):
+# apiVersion/kind are top-level scalars, so regex is safe, and PyYAML is NOT
+# guaranteed — the fleet workflow runs only fleet-bootstrap, which never
+# populates the root .venv.
+#
+# Requires a working kubeconfig (`mise run bootstrap` extracts it from the vault).
+# Read-only: `kubectl get crd` and `kubectl api-resources` only.
+[tasks.check-api-versions]
+description = "Fail if any manifest uses an apiVersion the cluster no longer serves (requires kubeconfig)"
+run = '''
+#!/usr/bin/env python3
+"""Fail if any manifest uses an apiVersion the cluster no longer serves."""
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+MANIFEST_ROOT = Path("kubernetes")
+
+# apiVersions consumed by tooling, not applied to the API server.
+NON_RESOURCE_GROUPS = {"kustomize.config.k8s.io"}
+
+# Top-level `apiVersion:` / `kind:` only — column 0, no leading whitespace.
+# That is what keeps this safe without a YAML parser.
+API_VERSION_RE = re.compile(r"^apiVersion:[ \t]*(\S+)[ \t]*$", re.M)
+KIND_RE = re.compile(r"^kind:[ \t]*(\S+)[ \t]*$", re.M)
+
+
+def declared_pairs():
+    """(apiVersion, kind) -> set of files, from manifests under kubernetes/."""
+    pairs = {}
+    for path in sorted(MANIFEST_ROOT.rglob("*.yaml")):
+        # SOPS files are ciphertext; their apiVersion/kind are opaque blobs.
+        if path.name.endswith(".sops.yaml"):
+            continue
+        text = path.read_text(errors="replace")
+        # Pair positionally: within a document they appear apiVersion then kind.
+        for api_version, kind in zip(
+            API_VERSION_RE.findall(text), KIND_RE.findall(text)
+        ):
+            group = api_version.split("/")[0] if "/" in api_version else ""
+            if group in NON_RESOURCE_GROUPS:
+                continue
+            pairs.setdefault((api_version, kind), set()).add(str(path))
+    return pairs
+
+
+def served_pairs():
+    """Every (apiVersion, kind) the cluster serves."""
+    served = set()
+
+    crds = json.loads(
+        subprocess.run(
+            ["kubectl", "get", "crd", "-o", "json"],
+            capture_output=True, text=True, check=True,
+        ).stdout
+    )
+    for crd in crds["items"]:
+        spec = crd["spec"]
+        kind = spec["names"]["kind"]
+        for version in spec.get("versions", []):
+            if version.get("served"):
+                served.add((f"{spec['group']}/{version['name']}", kind))
+
+    resources = subprocess.run(
+        ["kubectl", "api-resources", "--no-headers", "--verbs=list"],
+        capture_output=True, text=True, check=True,
+    ).stdout
+    for line in resources.splitlines():
+        # Columns are whitespace-padded and SHORTNAMES can be EMPTY (e.g.
+        # `secrets`), so positional splitting misreads the row. NAMESPACED is
+        # always literally true/false and sits immediately before KIND, with
+        # APIVERSION immediately before it — anchor on that instead.
+        fields = line.split()
+        if "true" not in fields and "false" not in fields:
+            continue
+        idx = next(i for i, f in enumerate(fields) if f in ("true", "false"))
+        if idx >= 2:
+            served.add((fields[idx - 1], fields[idx + 1]))
+
+    return served
+
+
+def main():
+    declared = declared_pairs()
+    served = served_pairs()
+    missing = [
+        (api_version, kind, sorted(files))
+        for (api_version, kind), files in sorted(declared.items())
+        if (api_version, kind) not in served
+    ]
+
+    if not missing:
+        print(f"OK: all {len(declared)} declared apiVersion+kind pairs are served")
+        return 0
+
+    print(
+        f"OUTDATED API VERSIONS: {len(missing)} of {len(declared)} declared "
+        "pairs are NOT served by the cluster.\n"
+    )
+    for api_version, kind, files in missing:
+        print(f"  {api_version}  ({kind})")
+        for path in files:
+            print(f"      {path}")
+    print(
+        "\nEach entry above will fail to apply. Check which versions the "
+        "resource now serves:\n"
+        "  kubectl get crd <crd> -o jsonpath='{range .spec.versions[*]}"
+        "{.name} served={.served}{\"\\n\"}{end}'"
+    )
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+'''
+
 # ── SpacetimeDB ─────────────────────────────────────────────────────────────
 # The yral-database-spacetime module is a SpacetimeDB wasm module (cdylib),
 # not a containerized Rust service. The loop is: build (wasm) → generate
