@@ -67,11 +67,3 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
-    - name: kafka
-      port: 9092
-      protocol: TLS
-      tls:
-        mode: Passthrough
-      allowedRoutes:
-        namespaces:
-          from: All
