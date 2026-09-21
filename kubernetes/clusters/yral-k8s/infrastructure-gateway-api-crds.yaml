@@ -1,11 +1,18 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
+  # NOTE: the name stays `infrastructure-gateway-api-crds` (and so does the
+  # `dependsOn` in networking.yaml and this file's name in the cluster
+  # kustomization.yaml) even though the DIRECTORY is now
+  # kubernetes/infrastructure/gateway-api. Renaming the Kustomization would
+  # transiently break the 9 dependents reachable through `networking` and
+  # orphan the old object under `prune: true`. Only the path below follows the
+  # directory rename.
   name: infrastructure-gateway-api-crds
   namespace: flux-system
 spec:
   interval: 1h
-  path: ./kubernetes/infrastructure/gateway-api-crds
+  path: ./kubernetes/infrastructure/gateway-api
   prune: true
   wait: true
   timeout: 5m

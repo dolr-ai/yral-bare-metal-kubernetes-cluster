@@ -1,0 +1,62 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Gateway API CRDs — STANDARD channel (the stable channel), installed by Flux.
+#
+# This replaces both a broken remote resource and the Ansible
+# `gateway-api-crds` role (deleted): CRDs are Kubernetes-native and belong in
+# Flux, per the repo's GitOps-first and Kubernetes-native-first principles.
+#
+# ── Why raw.githubusercontent.com and NOT the release asset URL ─────────────
+# The previous version pointed at
+#   https://github.com/.../releases/download/v1.5.1/experimental-install.yaml
+# which NEVER built. `releases/download/...` 302-redirects to
+# objects.githubusercontent.com, and kustomize's loader treats a URL on a
+# git host as a GitRepository reference, so it failed with:
+#   "URL is a git repository: evalsymlink failure ... releases: no such file or directory"
+# It failed identically under stock `kustomize build` AND flux's
+# kustomize-controller, so it was never a controller problem — it was the URL
+# shape. raw.githubusercontent.com serves the file directly with no redirect and
+# kustomize accepts it. Do not "tidy" these back to release-asset URLs.
+#
+# ── Why the standard channel, not experimental ──────────────────────────────
+# The experimental channel was originally needed for TLSRoute (Kafka passthrough
+# on 9092), which only existed there at v1.5.1. At v1.6.2 TLSRoute, TCPRoute,
+# UDPRoute and ListenerSet are all promoted to the STANDARD channel, so the
+# experimental channel buys nothing for what we actually run. The only
+# experimental-only CRDs (XBackend, XBackendTrafficPolicy, XMesh) are unused.
+# Staying on standard also matches what the (former) Ansible role pinned.
+#
+# ── Why the files are NOT vendored into this repo ───────────────────────────
+# Flux already reads its entire config from GitHub (the flux-system
+# GitRepository), so vendoring CRD blobs would add ~1 MB of generated YAML
+# without removing a real dependency: if GitHub is unreachable, Flux cannot
+# apply anything at all. Keeping plain URLs also lets Renovate bump the version
+# automatically (see the custom manager in renovate.json) — a vendored file
+# cannot be bumped by Renovate, since its contents are not derived from a
+# version string.
+#
+# Version policy: latest stable release on the standard channel. Bumped by
+# Renovate (tracks kubernetes-sigs/gateway-api). Cilium must support the
+# version — Cilium 1.19+ supports Gateway API v1.4.x–v1.5.x, so verify against
+# the running Cilium before moving beyond v1.6.x.
+#
+# The list below is the complete standard channel at v1.6.2 (11 files;
+# `config/crd/standard/` ships no kustomization.yaml upstream, so each file is
+# listed explicitly). `vap_safeupgrades` is a ValidatingAdmissionPolicy, not a
+# CRD: it blocks installing experimental CRDs over standard ones, and blocks
+# CRDs older than v1.5.0. It is part of the standard bundle, so it is included.
+#
+# Manual apply (before Flux is bootstrapped, or to unblock reconciliation):
+#   kubectl apply -k kubernetes/infrastructure/gateway-api
+resources:
+  - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.6.2/config/crd/standard/gateway.networking.k8s.io_backendtlspolicies.yaml
+  - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.6.2/config/crd/standard/gateway.networking.k8s.io_gatewayclasses.yaml
+  - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.6.2/config/crd/standard/gateway.networking.k8s.io_gateways.yaml
+  - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.6.2/config/crd/standard/gateway.networking.k8s.io_grpcroutes.yaml
+  - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.6.2/config/crd/standard/gateway.networking.k8s.io_httproutes.yaml
+  - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.6.2/config/crd/standard/gateway.networking.k8s.io_listenersets.yaml
+  - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.6.2/config/crd/standard/gateway.networking.k8s.io_referencegrants.yaml
+  - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.6.2/config/crd/standard/gateway.networking.k8s.io_tcproutes.yaml
+  - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.6.2/config/crd/standard/gateway.networking.k8s.io_tlsroutes.yaml
+  - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.6.2/config/crd/standard/gateway.networking.k8s.io_udproutes.yaml
+  - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.6.2/config/crd/standard/gateway.networking.k8s.io_vap_safeupgrades.yaml
