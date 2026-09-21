@@ -7,6 +7,32 @@
 # @gobazzinga.io emails in the developer-admin Google group.
 # The first admin user (s@gobazzinga.io) is created manually on first run via
 # the Beszel dashboard. After that, TRUSTED_AUTH_HEADER handles all auth.
+#
+# DISABLE_PASSWORD_AUTH: turns off email/password login for the `users`
+# collection (Beszel sets usersCollection.PasswordAuth.Enabled = false), so SSO
+# is the only way in for regular users. This is safe to enable here because it
+# does NOT touch the `superusers` collection: PocketBase superuser login at
+# /_/ still works with its password, which is the recovery path if SSO breaks.
+# Set via env (not the PocketBase UI) because Beszel overwrites the collection
+# setting from this variable on every restart.
+#
+# SHARE_ALL_SYSTEMS: grants every authenticated user read access to all systems
+# instead of only those explicitly shared with them (Beszel switches the
+# systems/system-scoped read rules to "@request.auth.id != ''"). Note it widens
+# WRITE too, not just read — write rules are derived from the read rule plus
+# "role != readonly", so any admin/user may also edit or delete a system. Give
+# someone the `readonly` role if they should only view.
+#
+# Deliberately NOT set — USER_CREATION. It looks like it would auto-provision
+# @gobazzinga.io users, but it is an OAuth2/OIDC-only switch: it sets
+# usersCollection.CreateRule = "@request.context = 'oauth2'", which only matches
+# PocketBase's oauth2 request context. Our auth is TRUSTED_AUTH_HEADER, which
+# authenticates via FindAuthRecordByEmail — a lookup, with no create path. So
+# USER_CREATION would be a no-op here and would wrongly imply that new SSO users
+# self-provision; each user must still be added to the `users` collection
+# manually. Auto-provisioning would require configuring Beszel's built-in
+# OAuth2 provider (the /_/ settings steps in its OAuth guide) instead of
+# oauth2-proxy, which is a separate, larger change.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -15,3 +41,5 @@ metadata:
 data:
   APP_URL: "https://beszel.yral.com"
   TRUSTED_AUTH_HEADER: "X-Forwarded-Email"
+  DISABLE_PASSWORD_AUTH: "true"
+  SHARE_ALL_SYSTEMS: "true"
