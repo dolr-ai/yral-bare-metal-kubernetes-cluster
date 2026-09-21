@@ -242,7 +242,7 @@ run = '''
 #!/usr/bin/env bash
 set -euo pipefail
 
-python -m venv .venv && ./.venv/bin/pip install --upgrade pip && ./.venv/bin/pip install ansible-core ansible-lint yamllint && ./.venv/bin/ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections
+python -m venv .venv && ./.venv/bin/pip install --upgrade pip && ./.venv/bin/pip install -e . && ./.venv/bin/ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections
 
 # Validate the vault password once, up front. A missing/empty/incorrect password
 # (e.g. GitHub PRs from Dependabot/Renovate, which never receive repo secrets)
@@ -1352,7 +1352,10 @@ run = '''
 set -euo pipefail
 
 # Create the fleet venv and install Python tooling (idempotent — venv module updates in place)
-python -m venv .venv && ./.venv/bin/pip install --upgrade pip && ./.venv/bin/pip install ansible-core ansible-lint && ./.venv/bin/ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections
+# Dependencies come from the ROOT pyproject.toml (../../), the single source of
+# truth for Python deps repo-wide — the fleet does not keep its own list, so a
+# Dependabot pip bump at the root covers this venv too.
+python -m venv .venv && ./.venv/bin/pip install --upgrade pip && ./.venv/bin/pip install -e ../../ && ./.venv/bin/ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collections
 
 # Extract the infra SSH private key from the fleet's Ansible vault → ../../.yral-infra-ed25519
 # (the parent repo root, gitignored). Same key material as the parent vault — the root
