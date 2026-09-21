@@ -52,7 +52,7 @@ spec:
         - name: collector
           # Pin to a specific digest tag in production.
           # Check https://hub.docker.com/r/snowplow/scala-stream-collector-kafka/tags
-          image: snowplow/scala-stream-collector-kafka:3.7.0
+          image: snowplow/scala-stream-collector-kafka:3.8.0
           args:
             - --config
             - /snowplow/config/application.conf
