@@ -89,6 +89,18 @@ python = "latest"
 #                              reliable for awkward object keys
 rclone = "latest"
 ruff = "latest"
+# rush — cross-platform parallel job runner (Go, single native binary). Added
+# because parallelising shell work on macOS has no good built-in: BSD `xargs`
+# has NO -d flag (so tab-separated input can't be split safely) and GNU
+# `parallel` isn't in the mise registry at all. rush supports -d for an
+# explicit field delimiter and -j for worker count, which is what makes it
+# safe for TSV input instead of relying on whitespace splitting.
+#
+# Usage pattern for N-field TSV records ({1}/{2} are the fields per record):
+#   rush -j 64 -d '\t' 'cmd {1} {2}' < records.tsv
+# (see the mise.toml note on the three S3 clients above for why these
+# bulk-S3 maintenance jobs exist at all)
+rush = "latest"
 # Rust — latest STABLE via mise.lock resolution (committed lock pins the
 # exact resolved version per `mise lock`, so builds stay reproducible while
 # `mise run setup` on a fresh checkout pulls the newest stable).
