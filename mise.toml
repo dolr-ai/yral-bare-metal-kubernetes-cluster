@@ -40,7 +40,6 @@ age = "latest"
 aws-cli = "latest"
 cargo-binstall = "latest"
 "cargo:trunk" = "latest"
-cocoapods = { version = "latest", os = ["macos"] }
 flux2 = "2.9.5"
 fnox = "latest"
 gh = "latest"
@@ -211,10 +210,12 @@ RUST_LOG = "info"
 OFF_CHAIN_AGENT_URL = "http://localhost:50051/"
 
 # ── yral-web ───────────────────────────────────────────────────────────
-# LEPTOS_SITE_ADDR is set per-daemon in pitchfork.toml (prod: 8080, dev: 8081)
+# LEPTOS_SITE_ADDR is set per-daemon in the [daemons] section (prod: 8080,
+# dev: 8081).
 LEPTOS_HASH_FILES = "true"
-# Plaintext (non-sensitive) values — public OAuth identifiers
-# These are the production redirect URLs; dev daemons override them in pitchfork.toml
+# Plaintext (non-sensitive) values — public OAuth identifiers.
+# These are the production redirect URLs; the dev daemons override them in
+# [daemons.yral-web-dev].
 GOOGLE_REDIRECT_URL = "http://127.0.0.1:8080/auth/google_redirect"
 YRAL_AUTH_REDIRECT_URL = "http://127.0.0.1:8080/auth/yral_redirect"
 # Yral-auth client ID (same as yral-auth's GOOGLE_CLIENT_ID)

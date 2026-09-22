@@ -1,9 +1,7 @@
 # Use the git CLI for fetching git dependencies instead of libgit2.
-# This allows SSH agent authentication to work for git dependencies that
-# reference submodules with SSH URLs (e.g. the mobile Rust agent's
-# yral-canisters-client dependency which triggers a submodule fetch of
-# apps/website via git@github.com:dolr-ai/website.git).
-# Without this, rust-analyzer and cargo fail with "no authentication methods
-# succeeded" when trying to fetch the submodule.
+# This lets SSH agent authentication work for git operations that use SSH URLs
+# — including the git submodules this repo still checks out (e.g.
+# apps/yral-rishi-agent via git@github.com:...). Without this, rust-analyzer and
+# cargo fail with "no authentication methods succeeded".
 [net]
 git-fetch-with-cli = true

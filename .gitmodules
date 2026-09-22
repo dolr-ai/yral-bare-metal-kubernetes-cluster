@@ -1,9 +1,3 @@
-[submodule "apps/website"]
-	path = apps/website
-	url = git@github.com:dolr-ai/website.git
-[submodule "apps/yral"]
-	path = apps/yral
-	url = git@github.com:dolr-ai/yral.git
 [submodule "apps/yral-rishi-agent"]
 	path = apps/yral-rishi-agent
 	url = git@github.com:saikatdas0790/yral-rishi-agent.git
